@@ -6,6 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, func, select
 
+from api import dashboards_service
 from api.db import get_session
 from api.models import (
     BrandProfile,
@@ -80,6 +81,21 @@ def surfaces(ctx: Ctx, session: Db) -> list[TenantSurface]:
     return list(
         session.exec(select(TenantSurface).where(TenantSurface.tenant_id == ctx.tenant_id)).all()
     )
+
+
+@router.get("/overview")
+def overview(ctx: Ctx, session: Db) -> dict:
+    return dashboards_service.overview(session, ctx.tenant_id)
+
+
+@router.get("/personas-intel")
+def personas_intel(ctx: Ctx, session: Db) -> dict:
+    return dashboards_service.personas(session, ctx.tenant_id)
+
+
+@router.get("/queries-intel")
+def queries_intel(ctx: Ctx, session: Db) -> dict:
+    return dashboards_service.queries_intel(session, ctx.tenant_id)
 
 
 @router.get("/runs")

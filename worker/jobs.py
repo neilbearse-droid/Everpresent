@@ -16,12 +16,14 @@ from api.models import (
     Query,
     Result,
     ResultStatus,
+    ResultVariant,
     Run,
     RunStatus,
     SurfaceCode,
     Tenant,
     utcnow,
 )
+from api.processing_service import process_run
 from api.runs_service import month_spend_usd
 from api.storage import write_raw_envelope
 from engine.costs import estimate_openai_cost_usd
@@ -37,7 +39,7 @@ def run_mode_a(run_id: int) -> None:
 
 
 async def _dispatch_all(
-    work: list[tuple[Query, Persona, str]],
+    work: list[tuple[Query, Persona, str, ResultVariant]],
     *,
     api_key: str,
     model: str,
@@ -55,7 +57,9 @@ async def _dispatch_all(
     lock = asyncio.Lock()
     state = {"cost": 0.0, "capped": False}
 
-    async def one(query: Query, persona: Persona, surface: str) -> dict[str, Any] | None:
+    async def one(
+        query: Query, persona: Persona, surface: str, variant: ResultVariant
+    ) -> dict[str, Any] | None:
         async with semaphore:
             async with lock:
                 if month_spent_before + state["cost"] >= cap_usd:
@@ -65,6 +69,7 @@ async def _dispatch_all(
                 "query": query,
                 "persona": persona,
                 "surface": surface,
+                "variant": variant,
             }
             try:
                 outcome = await openai_api.retrieve(
@@ -73,6 +78,7 @@ async def _dispatch_all(
                     api_key=api_key,
                     model=model,
                     timeout_s=timeout_s,
+                    web_search=variant == ResultVariant.search,
                 )
             except Exception as exc:  # noqa: BLE001 — a failed call is data, not a crash
                 return {**base, "error": f"{type(exc).__name__}: {exc}"[:500]}
@@ -86,7 +92,7 @@ async def _dispatch_all(
                 state["cost"] += cost
             return {**base, "outcome": outcome, "cost": cost}
 
-    results = await asyncio.gather(*[one(q, p, s) for q, p, s in work])
+    results = await asyncio.gather(*[one(q, p, s, v) for q, p, s, v in work])
     return list(results), state["capped"]
 
 
@@ -112,7 +118,21 @@ async def _run_mode_a(run_id: int) -> None:
         personas = list(
             session.exec(select(Persona).where(Persona.tenant_id == tenant.id)).all()
         )
-        work = [(q, p, s) for s in run.surface_set for q in queries for p in personas]
+        # The client-facing matrix, plus one search-disabled twin per
+        # (query, surface) on the first persona — the dual-query diff the
+        # classifier consumes (§6.1).
+        work = [
+            (q, p, s, ResultVariant.search)
+            for s in run.surface_set
+            for q in queries
+            for p in personas
+        ]
+        if personas:
+            work += [
+                (q, personas[0], s, ResultVariant.nosearch)
+                for s in run.surface_set
+                for q in queries
+            ]
 
         counts = {"planned": len(work), "completed": 0, "failed": 0, "withheld_by_cap": 0}
 
@@ -153,6 +173,7 @@ async def _run_mode_a(run_id: int) -> None:
                 persona_name=persona.name,
                 persona_segment=persona.segment_tag,
                 surface=SurfaceCode(item["surface"]),
+                variant=item["variant"],
             )
             if "error" in item:
                 counts["failed"] += 1
@@ -173,6 +194,7 @@ async def _run_mode_a(run_id: int) -> None:
                     {
                         "surface": item["surface"],
                         "mode": "A",
+                        "variant": item["variant"],
                         "query": query.text,
                         "persona": persona.name,
                         "persona_prompt": persona.prompt_text,
@@ -184,7 +206,9 @@ async def _run_mode_a(run_id: int) -> None:
                 )
             session.add(result)
             session.flush()
-            if "error" not in item:
+            if "error" not in item and item["variant"] == ResultVariant.search:
+                # Citation rows are client-facing measurement data; the
+                # nosearch twin is classifier input only.
                 assert result.id is not None
                 for parsed_citation in item["outcome"].parsed.citations:
                     citation_count += 1
@@ -214,3 +238,15 @@ async def _run_mode_a(run_id: int) -> None:
             run.status = RunStatus.complete
         session.add(run)
         session.commit()
+
+        # Processing (§6.4): mentions, citation categories, classification,
+        # visibility rollup. A processing failure must not lose the run's
+        # stored results — record it on the run instead.
+        if counts["completed"] > 0:
+            try:
+                processing_counts = process_run(session, run)
+                run.counts = {**run.counts, **processing_counts}
+            except Exception as exc:  # noqa: BLE001
+                run.error = f"processing failed: {type(exc).__name__}: {exc}"[:500]
+            session.add(run)
+            session.commit()

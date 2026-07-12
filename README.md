@@ -80,4 +80,9 @@ admin-triggered runs through RQ, results + citations in Postgres, raw
 envelopes in object storage, run/result viewers, per-tenant spend caps
 enforced pre-dispatch, governance-gated runs recorded rather than skipped).
 Real M2 runs need `OPENAI_API_KEY` in the deployment env; CI runs on recorded
-fixtures only. Decisions of record live in `DECISIONS.md`.
+fixtures only. **M3** (processing + dashboards: dual-query web-search-likelihood
+classifier, mention detection with sentiment and rank, visibility scoring and
+daily rollups, Overview/Personas/Queries screens). The M3 processing code is a
+v3-native implementation, not the spec-mandated v1 port — see DECISIONS.md M3.1
+for why and for the swap procedure if the v1 source surfaces. Decisions of
+record live in `DECISIONS.md`.

@@ -203,6 +203,25 @@ def list_runs(slug: str, session: Db) -> dict:
     }
 
 
+@router.post("/runs/{run_id}/process")
+def reprocess_run(run_id: int, session: Db, admin: Admin) -> dict:
+    """Re-run processing over a stored run — applies detector/classifier
+    upgrades to history without re-spending on retrieval."""
+    run = session.get(Run, run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="No such run")
+    from api.processing_service import process_run
+
+    counts = process_run(session, run)
+    run.counts = {**run.counts, **counts}
+    session.add(run)
+    write_audit(
+        session, tenant_id=run.tenant_id, actor=admin.user.email, action=f"run.process {run_id}"
+    )
+    session.commit()
+    return counts
+
+
 @router.get("/runs/{run_id}")
 def run_detail(run_id: int, session: Db) -> dict:
     run = session.get(Run, run_id)

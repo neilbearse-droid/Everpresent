@@ -120,6 +120,52 @@ export type RawEnvelope = {
   response: unknown;
 };
 
+export type OverviewPayload = {
+  brand_name: string;
+  trend: { date: string; brand_score: number; competitors: Record<string, number> }[];
+  share_of_voice: Record<string, number>;
+  movers: { label: string; kind: string; before: number; after: number; delta: number }[];
+  latest: { date: string; brand_score: number } | null;
+};
+
+export type PersonasPayload = {
+  date: string | null;
+  segments: {
+    segment: string;
+    brand_score: number;
+    mention_rate: number;
+    citation_rate: number;
+    result_count: number;
+    competitor_scores: Record<string, number>;
+  }[];
+  trend: { date: string; segment: string; brand_score: number }[];
+};
+
+export type QueriesIntelPayload = {
+  queries: {
+    id: number;
+    text: string;
+    corpus_tag: string;
+    active: boolean;
+    classification: {
+      surface: string;
+      web_search_likelihood: string;
+      signals: Record<string, number>;
+      classifier_version: string;
+    } | null;
+    latest_results: Record<
+      string,
+      {
+        result_id: number;
+        run_id: number;
+        status: string;
+        mode: string;
+        brand_mentioned: boolean;
+      }
+    >;
+  }[];
+};
+
 export type TenantDetail = {
   tenant: Tenant;
   brand_profile: { brand_name: string; aliases: string[]; domains: string[] } | null;

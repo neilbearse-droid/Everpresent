@@ -172,6 +172,14 @@ class ResultStatus(StrEnum):
     error = "error"
 
 
+class ResultVariant(StrEnum):
+    # The client-facing answer (web search available to the surface).
+    search = "search"
+    # Classifier input only: same query/persona with search disabled — the
+    # other half of the dual-query diff (§6.1). Excluded from scoring.
+    nosearch = "nosearch"
+
+
 class Result(SQLModel, table=True):
     __tablename__ = "results"  # pyright: ignore[reportAssignmentType]
 
@@ -188,6 +196,7 @@ class Result(SQLModel, table=True):
     persona_segment: str = ""
     surface: SurfaceCode
     mode: RunMode = Field(default=RunMode.A)
+    variant: ResultVariant = Field(default=ResultVariant.search, index=True)
     status: ResultStatus = Field(default=ResultStatus.ok)
     error: str | None = None
     # Raw payload envelope in object storage; Postgres stores derived data
@@ -208,6 +217,58 @@ class Citation(SQLModel, table=True):
     domain: str = Field(index=True)
     # Rule-based categorization arrives with M3 processing.
     source_category: str = ""
+
+
+class Mention(SQLModel, table=True):
+    __tablename__ = "mentions"  # pyright: ignore[reportAssignmentType]
+
+    id: int | None = Field(default=None, primary_key=True)
+    result_id: int = Field(foreign_key="results.id", index=True)
+    tenant_id: int = Field(foreign_key="tenants.id", index=True)
+    entity_type: str = Field(index=True)  # brand | competitor
+    entity_name: str  # snapshot by value (config re-imports replace rows)
+    competitor_id: int | None = None  # soft reference
+    position: int
+    rank: int
+    sentiment: str = "neutral"
+    context_snippet: str = ""
+    detector_version: str = ""
+
+
+class QueryClassification(SQLModel, table=True):
+    """Latest web-search-likelihood classification per (tenant, query,
+    surface); upserted on every processed run. google_aio_* columns join at
+    M6."""
+
+    __tablename__ = "classifications"  # pyright: ignore[reportAssignmentType]
+
+    id: int | None = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenants.id", index=True)
+    query_id: int | None = Field(default=None, index=True)  # soft reference
+    query_text: str
+    surface: SurfaceCode
+    web_search_likelihood: str
+    signals: dict = Field(default_factory=dict, sa_column=Column(JSON))
+    classifier_version: str = ""
+    run_id: int | None = None  # run that produced the latest value
+    updated_at: datetime = Field(default_factory=utcnow)
+
+
+class VisibilityDaily(SQLModel, table=True):
+    __tablename__ = "visibility_daily"  # pyright: ignore[reportAssignmentType]
+
+    id: int | None = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenants.id", index=True)
+    date: str = Field(index=True)  # ISO yyyy-mm-dd (UTC day of the run)
+    surface: SurfaceCode
+    persona_segment: str = Field(default="", index=True)
+    brand_score: float = 0.0
+    # {competitor_name: score 0-100}
+    competitor_scores: dict[str, float] = Field(default_factory=dict, sa_column=Column(JSON))
+    # mention_rate / citation_rate / result_count for drill-down
+    extras: dict = Field(default_factory=dict, sa_column=Column(JSON))
+    scorer_version: str = ""
+    computed_at: datetime = Field(default_factory=utcnow)
 
 
 class AuditLog(SQLModel, table=True):

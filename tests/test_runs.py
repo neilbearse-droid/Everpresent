@@ -99,11 +99,32 @@ def job_env(db_session, monkeypatch, tmp_path):
     get_settings.cache_clear()
 
 
+NOSEARCH_PAYLOAD = {
+    "model": "gpt-4o-2024-08-06",
+    "output": [
+        {
+            "type": "message",
+            "role": "assistant",
+            "content": [
+                {
+                    "type": "output_text",
+                    "text": "From general knowledge, strong Canadian MBA options include "
+                    "Rotman, Ivey, and Schulich; program fit matters most.",
+                    "annotations": [],
+                }
+            ],
+        }
+    ],
+    "usage": {"input_tokens": 900, "output_tokens": 120},
+}
+
+
 @pytest.fixture()
 def fake_retrieve(monkeypatch):
-    async def _fake(persona_prompt, query_text, *, api_key, model, timeout_s):
+    async def _fake(persona_prompt, query_text, *, api_key, model, timeout_s, web_search=True):
+        payload = FIXTURE if web_search else NOSEARCH_PAYLOAD
         return RetrievalOutcome(
-            payload=FIXTURE, parsed=parse_responses_payload(FIXTURE), latency_ms=42
+            payload=payload, parsed=parse_responses_payload(payload), latency_ms=42
         )
 
     monkeypatch.setattr("engine.retrievers.openai_api.retrieve", _fake)
@@ -166,17 +187,24 @@ def test_job_stores_results_citations_and_raw(db_session, job_env, fake_retrieve
     run = db_session.get(Run, run_id)
     assert run is not None and run.status == RunStatus.complete
     assert run.counts == {
-        "planned": 4,  # 2 queries × 2 personas × 1 surface
-        "completed": 4,
+        # 2 queries × 2 personas × 1 surface, plus one nosearch twin per
+        # (query, surface) for the classifier diff
+        "planned": 6,
+        "completed": 6,
         "failed": 0,
         "withheld_by_cap": 0,
-        "citations": 8,
+        "citations": 8,  # search-variant results only
+        # processing (§6.4), chained after the run
+        "mentions": 4,  # brand "Smith" found in each search result
+        "classified_queries": 2,
+        "citations_categorized": 8,
     }
     assert run.cost_usd > 0
     assert run.started_at is not None and run.finished_at is not None
 
     results = db_session.exec(select(Result).where(Result.run_id == run_id)).all()
-    assert len(results) == 4
+    assert len(results) == 6
+    assert sum(1 for r in results if r.variant == "nosearch") == 2
     for result in results:
         assert result.tenant_id == tenant.id
         assert result.response_hash and result.latency_ms == 42
@@ -184,12 +212,16 @@ def test_job_stores_results_citations_and_raw(db_session, job_env, fake_retrieve
         envelope_path = job_env / result.raw_uri
         assert envelope_path.is_file()
         envelope = json.loads(envelope_path.read_text())
-        assert envelope["response"] == FIXTURE
-        assert "Smith School of Business" in envelope["parsed_text"]
+        if result.variant == "search":
+            assert envelope["response"] == FIXTURE
+            assert "Smith School of Business" in envelope["parsed_text"]
 
     citations = db_session.exec(select(Citation)).all()
     assert len(citations) == 8
     assert {c.domain for c in citations} == {"ft.com", "smith.queensu.ca"}
+    # categorized during processing: smith.queensu.ca is the tenant's domain
+    # only if a brand profile exists — this tenant has none, so "other"
+    assert {c.source_category for c in citations} == {"other"}
 
 
 def test_job_respects_spend_cap_pre_dispatch(db_session, job_env, fake_retrieve):
@@ -204,7 +236,7 @@ def test_job_respects_spend_cap_pre_dispatch(db_session, job_env, fake_retrieve)
 
     run = db_session.get(Run, run_id)
     assert run is not None and run.status == RunStatus.capped
-    assert run.counts["withheld_by_cap"] == 4
+    assert run.counts["withheld_by_cap"] == 6
     assert run.counts["completed"] == 0
     assert db_session.exec(select(Result)).all() == []  # nothing dispatched
 
@@ -226,7 +258,7 @@ def test_job_fails_loudly_without_api_key(db_session, job_env, fake_retrieve, mo
 def test_failed_calls_are_data_not_crashes(db_session, job_env, monkeypatch):
     from worker.jobs import run_mode_a
 
-    async def _boom(persona_prompt, query_text, *, api_key, model, timeout_s):
+    async def _boom(persona_prompt, query_text, *, api_key, model, timeout_s, web_search=True):
         raise RuntimeError("provider exploded")
 
     monkeypatch.setattr("engine.retrievers.openai_api.retrieve", _boom)
@@ -237,7 +269,7 @@ def test_failed_calls_are_data_not_crashes(db_session, job_env, monkeypatch):
     run = db_session.get(Run, run_id)
     assert run is not None and run.status == RunStatus.failed
     results = db_session.exec(select(Result).where(Result.run_id == run_id)).all()
-    assert len(results) == 4
+    assert len(results) == 6
     assert all(r.status == "error" and "provider exploded" in (r.error or "") for r in results)
 
 

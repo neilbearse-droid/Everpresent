@@ -3,6 +3,39 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M3 (2026-07-12)
+
+1. **v3-NATIVE PROCESSING, NOT A v1 PORT — owner-directed exception to
+   §11.4.** The spec requires porting the Query Intelligence classifier,
+   mention detection, and visibility scoring verbatim from v1 with their
+   regression sets. No v1 source exists in this session's repos (re-verified
+   before M3 started: Everpresent had only v3 work; gtdt contains an
+   unrelated GTD-app spec). The blocker was raised at the M0, M2 gates; Neil
+   directed "Build M3" with that knowledge, which is read as authorization to
+   implement fresh. Consequences:
+   - `engine/processing/` (mentions, classify, scoring, citations) is new
+     code, versioned `v3.0.0`, with `tests/test_mentions.py`,
+     `test_classify.py`, `test_scoring.py` as the NEW golden regression set.
+   - If the v1 source surfaces: port it, run both regression sets, bump the
+     version strings, and reprocess history via
+     `POST /api/admin/runs/{id}/process` (processing is idempotent by
+     design for exactly this).
+2. **Classifier buckets.** `very_likely / likely / possible / unlikely`, from
+   three signals: web_search tool calls, citation count, and token-level
+   divergence between the search-enabled and search-disabled answers
+   (threshold 0.45). One nosearch twin per (query, surface) per run, on the
+   first persona — cost is +1 call per query, not ×2 the whole matrix.
+3. **Scoring formula.** score = 100·(0.60·mention_rate + 0.25·mean(1/rank) +
+   0.15·own-domain citation rate) per (surface, segment, day); competitors
+   scored symmetrically. Share of voice = entity mention counts over 30 days.
+4. **Sentiment is a window lexicon,** not an LLM call — deliberately, to keep
+   M3 rule-based and CI-deterministic. Upgrading to Haiku via the §4 router
+   is the designed next step once a tenant approves utility models; the §4
+   router itself ships when its first real caller does.
+5. **Rollups recompute whole days** (all runs of that tenant-day), so
+   repeated same-day runs never double-count, and `visibility_daily` stays
+   append-free/idempotent.
+
 ## M2 (2026-07-12)
 
 1. **Results snapshot config by value.** YAML re-import replaces persona and
