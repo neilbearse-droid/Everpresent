@@ -3,6 +3,30 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M2 (2026-07-12)
+
+1. **Results snapshot config by value.** YAML re-import replaces persona and
+   query rows wholesale (M1.3), so `results` stores `query_text`,
+   `persona_name`, and `persona_segment` copies; `query_id`/`persona_id`
+   remain as unconstrained integers for convenience, not FKs.
+2. **Cost figures are estimates.** `engine/costs.py` holds a static price
+   table (documented as estimates for cap enforcement and reporting, not
+   billing truth). The pre-dispatch cap check can overshoot by at most the
+   concurrency limit's worth of in-flight calls, since a call's actual cost
+   is only known after it returns.
+3. **Spend-cap alert at 80% is a UI indicator for now** (admin runs page);
+   push notifications belong to M5's notifications work.
+4. **Search-disabled dual-query variant is built but not dispatched.** The
+   retriever supports `web_search=False` (`build_request_body`); the run
+   matrix dispatches only the search-enabled call until the M3 classifier
+   consumes the diff, keeping M2 spend at one call per cell.
+5. **Raw envelopes, not bare payloads.** Object storage holds a JSON envelope
+   (request context + full provider response + parsed text) at a
+   `RAW_STORAGE_DIR`-relative URI, so the volume can move without rewriting
+   rows and the raw viewer needs no re-parsing.
+6. **`citations.source_category` stays empty until M3** processing lands its
+   rule-based categorization against tenant brand/competitor domains.
+
 ## M1 (2026-07-12)
 
 1. **One branch, not branch-per-milestone.** §11.1 says a branch per

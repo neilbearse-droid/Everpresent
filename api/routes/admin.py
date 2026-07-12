@@ -15,11 +15,17 @@ from api.models import (
     Competitor,
     Persona,
     Query,
+    Result,
+    Run,
+    RunStatus,
     SurfaceCode,
     Tenant,
     TenantStatus,
     TenantSurface,
 )
+from api.queue import enqueue_run
+from api.runs_service import create_run, month_spend_usd, run_detail_payload
+from api.storage import read_raw_envelope
 from api.yaml_import import ConfigImportError, import_config, parse_config_yaml
 from engine.llm.policy import RUNTIME_LLM_ALLOWLIST
 
@@ -87,6 +93,7 @@ class TenantPatch(BaseModel):
     ai_processing_approved: bool | None = None
     approved_surfaces: list[SurfaceCode] | None = None
     approved_utility_models: list[str] | None = None
+    monthly_spend_cap_usd: float | None = None
 
 
 @router.patch("/tenants/{slug}")
@@ -122,6 +129,11 @@ def patch_tenant(slug: str, payload: TenantPatch, session: Db, admin: Admin) -> 
     if payload.approved_surfaces is not None:
         tenant.approved_surfaces = [s.value for s in payload.approved_surfaces]
         changed.append("approved_surfaces")
+    if payload.monthly_spend_cap_usd is not None:
+        if payload.monthly_spend_cap_usd < 0:
+            raise HTTPException(status_code=422, detail="Spend cap must be >= 0")
+        tenant.monthly_spend_cap_usd = payload.monthly_spend_cap_usd
+        changed.append("monthly_spend_cap_usd")
 
     session.add(tenant)
     write_audit(
@@ -153,6 +165,61 @@ def import_yaml(
     )
     session.commit()
     return {"imported": counts, "brand": spec.brand.name}
+
+
+@router.post("/tenants/{slug}/runs", status_code=201)
+def trigger_run(slug: str, session: Db, admin: Admin) -> Run:
+    tenant = _tenant_or_404(session, slug)
+    run = create_run(session, tenant, trigger="manual")
+    session.flush()
+    write_audit(
+        session,
+        tenant_id=tenant.id,
+        actor=admin.user.email,
+        action=f"run.trigger {slug} -> {run.status}",
+    )
+    session.commit()
+    session.refresh(run)
+    if run.status == RunStatus.pending:
+        assert run.id is not None
+        enqueue_run(run.id)
+    return run
+
+
+@router.get("/tenants/{slug}/runs")
+def list_runs(slug: str, session: Db) -> dict:
+    tenant = _tenant_or_404(session, slug)
+    assert tenant.id is not None
+    runs = session.exec(
+        select(Run)
+        .where(Run.tenant_id == tenant.id)
+        .order_by(Run.id.desc())  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
+        .limit(100)
+    ).all()
+    return {
+        "runs": runs,
+        "month_spend_usd": month_spend_usd(session, tenant.id),
+        "monthly_spend_cap_usd": tenant.monthly_spend_cap_usd,
+    }
+
+
+@router.get("/runs/{run_id}")
+def run_detail(run_id: int, session: Db) -> dict:
+    run = session.get(Run, run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="No such run")
+    return run_detail_payload(session, run)
+
+
+@router.get("/results/{result_id}/raw")
+def result_raw(result_id: int, session: Db) -> dict:
+    result = session.get(Result, result_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="No such result")
+    envelope = read_raw_envelope(result.raw_uri) if result.raw_uri else None
+    if envelope is None:
+        raise HTTPException(status_code=404, detail="Raw payload not available")
+    return envelope
 
 
 class SurfaceToggle(BaseModel):

@@ -75,4 +75,9 @@ then paste the `org_…` id into the tenant's admin page.
 Built one milestone at a time with a human review gate between each — see the
 v3 spec. Done: **M0** (repo, CI, compose stack, deploy script, seeded
 superadmin), **M1** (tenancy + Clerk orgs, admin panel, YAML config import,
-isolation tests). Decisions of record live in `DECISIONS.md`.
+isolation tests), **M2** (Mode A measurement on the OpenAI Responses API:
+admin-triggered runs through RQ, results + citations in Postgres, raw
+envelopes in object storage, run/result viewers, per-tenant spend caps
+enforced pre-dispatch, governance-gated runs recorded rather than skipped).
+Real M2 runs need `OPENAI_API_KEY` in the deployment env; CI runs on recorded
+fixtures only. Decisions of record live in `DECISIONS.md`.

@@ -1,0 +1,46 @@
+{
+  "id": "resp_fixture_0001",
+  "object": "response",
+  "created_at": 1767225600,
+  "status": "completed",
+  "model": "gpt-4o-2024-08-06",
+  "output": [
+    {
+      "type": "web_search_call",
+      "id": "ws_fixture_0001",
+      "status": "completed"
+    },
+    {
+      "type": "message",
+      "id": "msg_fixture_0001",
+      "role": "assistant",
+      "content": [
+        {
+          "type": "output_text",
+          "text": "For a full-time MBA in Canada, the programs most often shortlisted are Rotman at the University of Toronto, Ivey at Western, and Smith School of Business at Queen's University. Rotman is strongest for finance careers in Toronto, Ivey is known for its case method, and Smith's one-year format appeals to candidates who want to minimize time out of the workforce.",
+          "annotations": [
+            {
+              "type": "url_citation",
+              "start_index": 62,
+              "end_index": 118,
+              "url": "https://www.ft.com/mba-rankings/canada",
+              "title": "Canadian MBA programs — FT rankings"
+            },
+            {
+              "type": "url_citation",
+              "start_index": 200,
+              "end_index": 260,
+              "url": "https://www.smith.queensu.ca/programs/mba/full-time",
+              "title": "Full-time MBA — Smith School of Business"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "usage": {
+    "input_tokens": 1180,
+    "output_tokens": 342,
+    "total_tokens": 1522
+  }
+}

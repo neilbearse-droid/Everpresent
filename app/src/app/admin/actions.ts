@@ -55,6 +55,26 @@ export async function setGovernance(slug: string, approved: boolean): Promise<vo
   await patchTenant(slug, { ai_processing_approved: approved });
 }
 
+export async function triggerRun(slug: string, _prev: ActionState): Promise<ActionState> {
+  const res = await apiFetch<{ id: number; status: string; error: string | null }>(
+    `/api/admin/tenants/${slug}/runs`,
+    { method: "POST" },
+  );
+  revalidatePath(`/admin/${slug}/runs`);
+  if (!res.ok) return { ok: false, message: res.error ?? "Trigger failed" };
+  const run = res.data!;
+  if (run.status === "gated" || run.status === "failed") {
+    return { ok: false, message: `Run #${run.id} recorded as ${run.status}: ${run.error ?? ""}` };
+  }
+  return { ok: true, message: `Run #${run.id} queued.` };
+}
+
+export async function setSpendCap(slug: string, formData: FormData): Promise<void> {
+  await patchTenant(slug, {
+    monthly_spend_cap_usd: Number(formData.get("monthly_spend_cap_usd") ?? 0),
+  });
+}
+
 export async function toggleSurface(slug: string, code: string, enabled: boolean): Promise<void> {
   const res = await apiFetch(`/api/admin/tenants/${slug}/surfaces`, {
     method: "PATCH",

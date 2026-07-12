@@ -66,7 +66,58 @@ export type Tenant = {
   ai_processing_approved: boolean;
   approved_surfaces: string[];
   approved_utility_models: string[];
+  monthly_spend_cap_usd: number;
   created_at: string;
+};
+
+export type Run = {
+  id: number;
+  trigger: string;
+  status: "pending" | "running" | "complete" | "failed" | "gated" | "capped";
+  surface_set: string[];
+  mode_set: string[];
+  started_at: string | null;
+  finished_at: string | null;
+  cost_usd: number;
+  counts: Record<string, number>;
+  error: string | null;
+  created_at: string;
+};
+
+export type RunResult = {
+  id: number;
+  query_text: string;
+  persona_name: string;
+  persona_segment: string;
+  surface: string;
+  mode: string;
+  status: "ok" | "error";
+  error: string | null;
+  latency_ms: number;
+  response_hash: string;
+};
+
+export type RunDetail = {
+  run: Run;
+  results: { result: RunResult; citations: { url: string; domain: string }[] }[];
+};
+
+export type AdminRunsPayload = {
+  runs: Run[];
+  month_spend_usd: number;
+  monthly_spend_cap_usd: number;
+};
+
+export type RawEnvelope = {
+  surface: string;
+  mode: string;
+  query: string;
+  persona: string;
+  persona_prompt: string;
+  model: string;
+  parsed_text: string;
+  cost_usd: number;
+  response: unknown;
 };
 
 export type TenantDetail = {

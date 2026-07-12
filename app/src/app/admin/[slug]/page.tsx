@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { apiFetch, type Me, type TenantDetail } from "@/lib/api";
-import { linkClerkOrg, setGovernance, toggleSurface } from "../actions";
+import { linkClerkOrg, setGovernance, setSpendCap, toggleSurface } from "../actions";
 import { ImportYamlForm } from "./import-yaml-form";
 
 export default async function TenantAdminPage({
@@ -36,6 +36,12 @@ export default async function TenantAdminPage({
             {brand_profile?.brand_name ?? "— no config imported —"}
           </p>
         </div>
+        <Link
+          href={`/admin/${tenant.slug}/runs`}
+          className="rounded-md bg-indigo-500 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-400"
+        >
+          Runs →
+        </Link>
       </header>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -75,6 +81,22 @@ export default async function TenantAdminPage({
             Runs for a gated tenant are recorded with status <code>gated</code>, never
             silently skipped.
           </p>
+          <form action={setSpendCap.bind(null, tenant.slug)} className="mt-4 flex items-end gap-2">
+            <label className="flex flex-col text-xs text-slate-400">
+              Monthly spend cap (USD)
+              <input
+                name="monthly_spend_cap_usd"
+                type="number"
+                min="0"
+                step="0.01"
+                defaultValue={tenant.monthly_spend_cap_usd}
+                className="mt-1 w-32 rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+              />
+            </label>
+            <button className="rounded-md border border-slate-600 px-3 py-2 text-sm hover:bg-slate-800">
+              Save cap
+            </button>
+          </form>
         </section>
 
         <section className="rounded-lg border border-slate-700 bg-slate-900 p-5">

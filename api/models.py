@@ -48,6 +48,9 @@ class Tenant(SQLModel, table=True):
     ai_processing_approved: bool = Field(default=False)
     approved_surfaces: list[str] = Field(default_factory=list, sa_column=Column(JSON))
     approved_utility_models: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    # §9: per-tenant monthly cap, enforced in the dispatch loop before each
+    # provider call — never after.
+    monthly_spend_cap_usd: float = Field(default=50.0)
 
     created_at: datetime = Field(default_factory=utcnow)
 
@@ -129,6 +132,82 @@ class TenantSurface(SQLModel, table=True):
     tenant_id: int = Field(foreign_key="tenants.id", index=True)
     code: SurfaceCode = Field(index=True)
     enabled: bool = Field(default=False)
+
+
+class RunStatus(StrEnum):
+    pending = "pending"
+    running = "running"
+    complete = "complete"
+    failed = "failed"
+    # Governance gate closed (§8): recorded, never silently skipped.
+    gated = "gated"
+    # Stopped by the per-tenant monthly spend cap (§9).
+    capped = "capped"
+
+
+class RunMode(StrEnum):
+    A = "A"  # API retrieval (§6.1)
+    B = "B"  # web-interface scraping (§6.2, arrives M4)
+
+
+class Run(SQLModel, table=True):
+    __tablename__ = "runs"  # pyright: ignore[reportAssignmentType]
+
+    id: int | None = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenants.id", index=True)
+    trigger: str = Field(default="manual")  # "schedule" arrives M5
+    status: RunStatus = Field(default=RunStatus.pending, index=True)
+    surface_set: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    mode_set: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+    cost_usd: float = Field(default=0.0)
+    counts: dict[str, int] = Field(default_factory=dict, sa_column=Column(JSON))
+    error: str | None = None
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class ResultStatus(StrEnum):
+    ok = "ok"
+    error = "error"
+
+
+class Result(SQLModel, table=True):
+    __tablename__ = "results"  # pyright: ignore[reportAssignmentType]
+
+    id: int | None = Field(default=None, primary_key=True)
+    run_id: int = Field(foreign_key="runs.id", index=True)
+    tenant_id: int = Field(foreign_key="tenants.id", index=True)
+    # Soft references: YAML re-import replaces config rows wholesale, so
+    # results snapshot the query/persona by value and keep the ids only as
+    # unconstrained integers (see DECISIONS.md M2).
+    query_id: int | None = Field(default=None, index=True)
+    persona_id: int | None = None
+    query_text: str
+    persona_name: str
+    persona_segment: str = ""
+    surface: SurfaceCode
+    mode: RunMode = Field(default=RunMode.A)
+    status: ResultStatus = Field(default=ResultStatus.ok)
+    error: str | None = None
+    # Raw payload envelope in object storage; Postgres stores derived data
+    # only (§5.1).
+    raw_uri: str = ""
+    response_hash: str = ""
+    latency_ms: int = 0
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class Citation(SQLModel, table=True):
+    __tablename__ = "citations"  # pyright: ignore[reportAssignmentType]
+
+    id: int | None = Field(default=None, primary_key=True)
+    result_id: int = Field(foreign_key="results.id", index=True)
+    tenant_id: int = Field(foreign_key="tenants.id", index=True)
+    url: str
+    domain: str = Field(index=True)
+    # Rule-based categorization arrives with M3 processing.
+    source_category: str = ""
 
 
 class AuditLog(SQLModel, table=True):

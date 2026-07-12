@@ -24,6 +24,13 @@ class Settings(BaseSettings):
     # Object storage root for raw response payloads (VPS volume).
     raw_storage_dir: str = "/data/raw"
 
+    # Measured surface: OpenAI Responses API (Mode A, §6.1). The key is a
+    # deployment secret; absence disables real runs, never CI tests.
+    openai_api_key: str = ""
+    openai_model: str = "gpt-4o"
+    openai_concurrency: int = 4
+    openai_timeout_s: float = 90.0
+
 
 @lru_cache
 def get_settings() -> Settings:

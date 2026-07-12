@@ -38,6 +38,8 @@ services:
       CLERK_JWKS_URL: ${CLERK_JWKS_URL:-}
       SUPERADMIN_EMAIL: ${SUPERADMIN_EMAIL:-}
       RAW_STORAGE_DIR: /data/raw
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o}
       ENV: ${ENV:-prod}
     volumes:
       - rawdata:/data/raw

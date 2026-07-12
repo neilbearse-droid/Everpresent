@@ -46,8 +46,13 @@ export default async function DashboardPage() {
               </div>
             ))}
           </section>
-          <p className="mt-8 text-sm text-slate-500">
-            Visibility dashboards arrive with M3, after the first measurement runs (M2).
+          <p className="mt-8 text-sm">
+            <Link href="/dashboard/runs" className="text-indigo-400 hover:underline">
+              Measurement runs →
+            </Link>
+          </p>
+          <p className="mt-2 text-sm text-slate-500">
+            Visibility dashboards arrive with M3, computed from these runs.
           </p>
         </>
       ) : (
