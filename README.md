@@ -26,6 +26,8 @@ fails the suite if a forbidden model string reaches any runtime config.
 ```bash
 # Backend
 python -m venv .venv && .venv/bin/pip install -e ".[dev]"
+.venv/bin/alembic upgrade head                   # schema (needs DATABASE_URL, see .env.example)
+.venv/bin/python -m api.seed                     # superadmin + launch tenants
 .venv/bin/uvicorn api.main:app --reload          # http://localhost:8000/api/health
 
 # Frontend (proxies /api to localhost:8000)
@@ -55,13 +57,22 @@ Every deploy after that:
 DEPLOY_HOST=user@vps ./infra/deploy.sh
 ```
 
-The deploy script builds images, brings the stack up, and runs the idempotent
-seed (`python -m api.seed`), which provisions the superadmin row for
-`SUPERADMIN_EMAIL`. The superadmin's Clerk account is linked to that row on
-first login.
+The deploy script builds images, runs `alembic upgrade head`, brings the stack
+up, and runs the idempotent seed (`python -m api.seed`): the superadmin row
+for `SUPERADMIN_EMAIL` (Clerk account linked on first login) plus the two
+launch tenants (`smith`, `greenshield`) with their `seeds/*.yaml` configs.
+
+## Tenancy
+
+Clerk organizations map one-to-one to tenants. The API resolves the tenant
+from the session token's org claim only — never from a request parameter —
+and `tests/test_tenancy.py` is the merge-blocking proof that cross-tenant
+reads fail. To wire a tenant up: create the org in Clerk, invite members,
+then paste the `org_…` id into the tenant's admin page.
 
 ## Milestones
 
 Built one milestone at a time with a human review gate between each — see the
-v3 spec. Current: **M0** (repo, CI, compose stack, deploy script, seeded
-superadmin). Decisions of record live in `DECISIONS.md`.
+v3 spec. Done: **M0** (repo, CI, compose stack, deploy script, seeded
+superadmin), **M1** (tenancy + Clerk orgs, admin panel, YAML config import,
+isolation tests). Decisions of record live in `DECISIONS.md`.

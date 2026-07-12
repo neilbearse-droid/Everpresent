@@ -30,7 +30,22 @@ def client(db_session, monkeypatch):
     from api.main import app
 
     app.dependency_overrides[get_session] = lambda: db_session
-    # Skip lifespan init_db (would hit the real DATABASE_URL engine).
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
+
+
+@pytest.fixture()
+def login(client):
+    """Impersonate a user for API calls, bypassing Clerk JWT verification —
+    the claims themselves (org_id, org_role) are what's under test."""
+    from api.auth import AuthedUser, get_current_user
+    from api.main import app
+
+    def _login(user, org_id=None, org_role=None):
+        app.dependency_overrides[get_current_user] = lambda: AuthedUser(
+            user=user, org_id=org_id, org_role=org_role
+        )
+
+    yield _login
+    app.dependency_overrides.pop(get_current_user, None)

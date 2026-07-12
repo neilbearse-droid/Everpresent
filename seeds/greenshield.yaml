@@ -1,0 +1,80 @@
+# GreenShield — tenant config seed.
+# PLACEHOLDER starter corpus: the real v1 YAML config was not available when
+# this was authored (see DECISIONS.md M1.3). Import is replace-semantics —
+# re-import the v1 file from the admin panel to swap this out wholesale.
+#
+# Governance note (§8/§12): this tenant stays gated (ai_processing_approved:
+# false) until the third-party processing terms are signed. Config import is
+# fine — no member data, no PII, only public queries and persona descriptions.
+
+brand:
+  name: GreenShield
+  aliases:
+    - GreenShield Canada
+    - Green Shield Canada
+    - GSC
+  domains:
+    - greenshield.ca
+
+competitors:
+  - name: Sun Life
+    aliases: [Sun Life Financial, SunLife]
+    domains: [sunlife.ca]
+  - name: Manulife
+    aliases: [Manulife Financial]
+    domains: [manulife.ca]
+  - name: Canada Life
+    aliases: [The Canada Life Assurance Company, Great-West Life]
+    domains: [canadalife.com]
+  - name: Blue Cross
+    aliases: [Canadian Blue Cross, Pacific Blue Cross, Medavie Blue Cross]
+    domains: [bluecross.ca, medaviebc.ca]
+  - name: Desjardins Insurance
+    aliases: [Desjardins]
+    domains: [desjardins.com]
+
+personas:
+  - name: HR benefits manager
+    segment: group_benefits
+    prompt: |
+      You are an HR director at a 300-employee Canadian company reviewing
+      group health and dental benefits providers at renewal time. You compare
+      insurers on cost, digital experience for employees, mental health
+      coverage, and claims turnaround.
+  - name: Early retiree losing group coverage
+    segment: early_retirees
+    prompt: |
+      You are 58 years old and retiring early from a job in Winnipeg. Your
+      employer health benefits end soon and you're researching individual
+      health and dental insurance to bridge the years until provincial senior
+      coverage. You ask AI assistants practical, cost-focused questions.
+  - name: Small business owner
+    segment: small_business
+    prompt: |
+      You run a 12-person business in Halifax and want simple, affordable
+      health benefits to retain staff. You've never bought group insurance
+      before and rely on plain-language advice.
+  - name: Individual seeking dental coverage
+    segment: individual
+    prompt: |
+      You are a 34-year-old contract worker in Toronto with no employer
+      benefits, comparing individual dental and extended health plans and
+      trying to understand what's actually covered.
+
+queries:
+  - { text: "Best health insurance for early retirees in Canada", corpus: early_retirees }
+  - { text: "What happens to my health benefits when I retire at 58 in Canada?", corpus: early_retirees }
+  - { text: "Best individual health and dental insurance Canada", corpus: individual }
+  - { text: "GreenShield vs Sun Life health benefits comparison", corpus: competitive }
+  - { text: "Is GreenShield a good insurance company?", corpus: brand }
+  - { text: "Best group benefits providers for small business Canada", corpus: small_business }
+  - { text: "Affordable dental insurance without employer benefits", corpus: individual }
+  - { text: "Top employee benefits providers in Canada", corpus: group_benefits }
+  - { text: "Health insurance to bridge retirement before 65 Canada", corpus: early_retirees }
+  - { text: "GreenShield Canada coverage review", corpus: brand }
+  - { text: "How to choose a group health insurance provider in Canada", corpus: group_benefits }
+  - { text: "Manulife vs Canada Life vs GreenShield for company benefits", corpus: competitive }
+
+surfaces:
+  - openai_api
+  - chatgpt_web

@@ -1,0 +1,79 @@
+# Smith School of Business — tenant config seed.
+# PLACEHOLDER starter corpus: the real v1 YAML config was not available when
+# this was authored (see DECISIONS.md M1.3). Import is replace-semantics —
+# re-import the v1 file from the admin panel to swap this out wholesale.
+
+brand:
+  name: Smith School of Business
+  aliases:
+    - Smith School of Business at Queen's University
+    - Queen's Smith
+    - Smith MBA
+    - SSB
+  domains:
+    - smith.queensu.ca
+
+competitors:
+  - name: Rotman School of Management
+    aliases: [Rotman, UofT Rotman]
+    domains: [rotman.utoronto.ca]
+  - name: Ivey Business School
+    aliases: [Ivey, Western Ivey]
+    domains: [ivey.uwo.ca]
+  - name: Schulich School of Business
+    aliases: [Schulich, York Schulich]
+    domains: [schulich.yorku.ca]
+  - name: Desautels Faculty of Management
+    aliases: [Desautels, McGill Desautels]
+    domains: [mcgill.ca]
+  - name: UBC Sauder School of Business
+    aliases: [Sauder, UBC Sauder]
+    domains: [sauder.ubc.ca]
+
+personas:
+  - name: Prospective full-time MBA student
+    segment: prospective_mba
+    prompt: |
+      You are a 27-year-old professional in Toronto with five years of
+      experience in consulting, researching full-time MBA programs in Canada.
+      You care about program reputation, career outcomes, and return on
+      investment, and you ask AI assistants for advice the way you would ask
+      a knowledgeable friend.
+  - name: International applicant
+    segment: international
+    prompt: |
+      You are a software engineer in Bangalore considering a one-year
+      master's or MBA in Canada as a path to permanent residency. You compare
+      schools on visa outcomes, post-graduation work permits, tuition, and
+      employability for international graduates.
+  - name: Executive education buyer
+    segment: exec_ed
+    prompt: |
+      You are a VP of talent at a mid-size Canadian bank evaluating executive
+      education and leadership development programs for your senior managers.
+      You care about format (remote/in-person), cohort quality, and measurable
+      outcomes.
+  - name: Career-switcher into analytics
+    segment: analytics_masters
+    prompt: |
+      You are a 31-year-old marketing manager in Ottawa who wants to move
+      into data-driven roles and is researching Canadian master's programs in
+      management analytics and AI.
+
+queries:
+  - { text: "What is the best MBA program in Canada?", corpus: core }
+  - { text: "Smith School of Business MBA review", corpus: brand }
+  - { text: "Rotman vs Ivey vs Smith MBA — which should I choose?", corpus: competitive }
+  - { text: "Best one-year MBA programs in Canada", corpus: core }
+  - { text: "Which Canadian MBA has the best career outcomes?", corpus: core }
+  - { text: "Best master's in management analytics in Canada", corpus: analytics }
+  - { text: "Is a Queen's Smith MBA worth the money?", corpus: brand }
+  - { text: "Top executive education programs in Canada", corpus: exec_ed }
+  - { text: "Best Canadian business school for international students", corpus: international }
+  - { text: "MBA programs in Ontario ranked", corpus: core }
+  - { text: "Which business school in Canada is best for finance careers?", corpus: core }
+  - { text: "Smith School of Business acceptance rate and requirements", corpus: brand }
+
+surfaces:
+  - openai_api
+  - chatgpt_web

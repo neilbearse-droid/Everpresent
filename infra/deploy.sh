@@ -35,8 +35,11 @@ ssh "$DEPLOY_HOST" bash -s <<EOF
   git checkout "$BRANCH"
   git reset --hard "origin/$BRANCH"
   docker compose --env-file .env -f infra/docker-compose.yml build
+  docker compose --env-file .env -f infra/docker-compose.yml up -d postgres redis
+  # Migrations run before the app comes up; seed is idempotent (superadmin +
+  # launch tenants with their YAML configs, only when absent).
+  docker compose --env-file .env -f infra/docker-compose.yml run --rm api alembic upgrade head
   docker compose --env-file .env -f infra/docker-compose.yml up -d
-  # Idempotent: creates tables and the superadmin row if missing.
   docker compose --env-file .env -f infra/docker-compose.yml exec -T api python -m api.seed
   docker compose --env-file .env -f infra/docker-compose.yml ps
 EOF

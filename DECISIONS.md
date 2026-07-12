@@ -3,6 +3,35 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M1 (2026-07-12)
+
+1. **One branch, not branch-per-milestone.** §11.1 says a branch per
+   milestone; this session's operating constraints designate a single branch
+   (`claude/everpresent-v3-rebuild-wy4ybi`) and forbid pushing elsewhere. All
+   milestones land there sequentially, gates still apply.
+2. **Alembic from M1.** Schema is now migration-managed (`alembic upgrade
+   head` runs in the deploy script before the stack comes up). The app never
+   `create_all`s in prod; tests still build their in-memory sqlite schema
+   directly. If an M0-era deploy ever ran `create_all` on a real database,
+   drop that database before the first M1 deploy — there was no data.
+3. **Seed YAMLs are placeholders.** The real v1 Smith/Greenshield YAML
+   configs are not in this session (same gap as DECISIONS M0.2). `seeds/*.yaml`
+   carry clearly-marked starter corpora so the M1 gate is demonstrable; the
+   importer is replace-semantics, so re-importing the real files from the
+   admin panel swaps them wholesale. Greenshield's `early_retirees` persona
+   segment is included per §7.1.
+4. **Seed never clobbers.** `api.seed` imports a tenant's YAML only when
+   creating that tenant; existing tenants are left untouched on every
+   subsequent deploy. Config changes after that go through the admin panel.
+5. **Clerk org linking is manual.** The admin page takes a pasted `org_…` id
+   rather than creating orgs via the Clerk API — smaller interpretation, and
+   org creation/invites stay in Clerk's dashboard where invite flows already
+   work. Membership rows mirror the org claim lazily on first request.
+6. **Governance validation at the API layer.** `approved_utility_models` must
+   be a subset of `RUNTIME_LLM_ALLOWLIST`; the policy guard test also scans
+   `api/**` — it caught a code comment naming the forbidden tier during
+   development, which is exactly the intended behavior.
+
 ## M0 (2026-07-12)
 
 1. **Repo naming.** The spec calls the repo `everpresent-v3`; the GitHub repo

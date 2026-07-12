@@ -71,6 +71,7 @@ def _fetch_clerk_email(clerk_user_id: str, settings: Settings) -> tuple[str | No
 class AuthedUser:
     user: User
     org_id: str | None
+    org_role: str | None = None
 
 
 def get_current_user(
@@ -101,7 +102,7 @@ def get_current_user(
         session.commit()
         session.refresh(user)
 
-    return AuthedUser(user=user, org_id=claims.get("org_id"))
+    return AuthedUser(user=user, org_id=claims.get("org_id"), org_role=claims.get("org_role"))
 
 
 def require_superadmin(authed: Annotated[AuthedUser, Depends(get_current_user)]) -> AuthedUser:

@@ -13,3 +13,8 @@ test("dashboard redirects anonymous visitors to sign-in", async ({ page }) => {
   await page.goto("/dashboard");
   await page.waitForURL(/sign-in/);
 });
+
+test("admin redirects anonymous visitors to sign-in", async ({ page }) => {
+  await page.goto("/admin");
+  await page.waitForURL(/sign-in/);
+});

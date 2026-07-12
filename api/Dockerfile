@@ -3,10 +3,12 @@
 FROM python:3.11-slim
 
 WORKDIR /srv
-COPY pyproject.toml README.md ./
+COPY pyproject.toml README.md alembic.ini ./
 COPY api ./api
 COPY engine ./engine
 COPY worker ./worker
+COPY alembic ./alembic
+COPY seeds ./seeds
 RUN pip install --no-cache-dir .
 
 EXPOSE 8000

@@ -1,0 +1,154 @@
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { apiFetch, type Me, type TenantDetail } from "@/lib/api";
+import { linkClerkOrg, setGovernance, toggleSurface } from "../actions";
+import { ImportYamlForm } from "./import-yaml-form";
+
+export default async function TenantAdminPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  const me = await apiFetch<Me>("/api/me");
+  if (!me.data?.is_superadmin) {
+    return (
+      <main className="mx-auto max-w-3xl px-8 py-16">
+        <h1 className="text-xl font-semibold">Not authorized</h1>
+      </main>
+    );
+  }
+
+  const detail = await apiFetch<TenantDetail>(`/api/admin/tenants/${slug}`);
+  if (detail.status === 404 || !detail.data) notFound();
+  const { tenant, brand_profile, competitors, personas, queries, surfaces } = detail.data;
+
+  return (
+    <main className="mx-auto max-w-5xl px-8 py-10">
+      <header className="mb-8 flex items-center justify-between">
+        <div>
+          <Link href="/admin" className="text-sm text-indigo-400 hover:underline">
+            ← All tenants
+          </Link>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight">{tenant.name}</h1>
+          <p className="text-sm text-slate-400">
+            {tenant.slug} · {tenant.status} · brand:{" "}
+            {brand_profile?.brand_name ?? "— no config imported —"}
+          </p>
+        </div>
+      </header>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <section className="rounded-lg border border-slate-700 bg-slate-900 p-5">
+          <h2 className="mb-3 font-medium">Clerk organization</h2>
+          <p className="mb-3 text-xs text-slate-400">
+            Members of this Clerk org see this tenant's dashboards. Paste the org id
+            (org_…) from the Clerk dashboard.
+          </p>
+          <form action={linkClerkOrg.bind(null, tenant.slug)} className="flex gap-2">
+            <input
+              name="clerk_org_id"
+              defaultValue={tenant.clerk_org_id ?? ""}
+              placeholder="org_…"
+              className="flex-1 rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
+            />
+            <button className="rounded-md bg-indigo-500 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-400">
+              Save
+            </button>
+          </form>
+        </section>
+
+        <section className="rounded-lg border border-slate-700 bg-slate-900 p-5">
+          <h2 className="mb-3 font-medium">Governance</h2>
+          <p className="mb-3 text-sm">
+            AI processing:{" "}
+            <span className={tenant.ai_processing_approved ? "text-emerald-400" : "text-amber-400"}>
+              {tenant.ai_processing_approved ? "approved" : "gated"}
+            </span>
+          </p>
+          <form action={setGovernance.bind(null, tenant.slug, !tenant.ai_processing_approved)}>
+            <button className="rounded-md border border-slate-600 px-3 py-2 text-sm hover:bg-slate-800">
+              {tenant.ai_processing_approved ? "Revoke approval" : "Approve AI processing"}
+            </button>
+          </form>
+          <p className="mt-3 text-xs text-slate-500">
+            Runs for a gated tenant are recorded with status <code>gated</code>, never
+            silently skipped.
+          </p>
+        </section>
+
+        <section className="rounded-lg border border-slate-700 bg-slate-900 p-5">
+          <h2 className="mb-3 font-medium">Surfaces</h2>
+          <ul className="space-y-2">
+            {surfaces.map((s) => (
+              <li key={s.code} className="flex items-center justify-between text-sm">
+                <span className="font-mono">{s.code}</span>
+                <form action={toggleSurface.bind(null, tenant.slug, s.code, !s.enabled)}>
+                  <button
+                    className={`rounded-md px-3 py-1 text-xs font-medium ${
+                      s.enabled
+                        ? "bg-emerald-600 text-white hover:bg-emerald-500"
+                        : "border border-slate-600 text-slate-400 hover:bg-slate-800"
+                    }`}
+                  >
+                    {s.enabled ? "enabled" : "disabled"}
+                  </button>
+                </form>
+              </li>
+            ))}
+            {surfaces.length === 0 && (
+              <li className="text-sm text-slate-500">No surfaces yet — import a config.</li>
+            )}
+          </ul>
+        </section>
+
+        <section className="rounded-lg border border-slate-700 bg-slate-900 p-5">
+          <h2 className="mb-3 font-medium">Import config YAML</h2>
+          <p className="mb-3 text-xs text-slate-400">
+            Replace-semantics: brand, competitors, personas, queries, and surface
+            enablement are swapped wholesale.
+          </p>
+          <ImportYamlForm slug={tenant.slug} />
+        </section>
+      </div>
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-3">
+        <section className="rounded-lg border border-slate-700 bg-slate-900 p-5">
+          <h2 className="mb-3 font-medium">Personas ({personas.length})</h2>
+          <ul className="space-y-3">
+            {personas.map((p) => (
+              <li key={p.id} className="text-sm">
+                <div className="font-medium">{p.name}</div>
+                <div className="text-xs text-slate-500">{p.segment_tag}</div>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="rounded-lg border border-slate-700 bg-slate-900 p-5">
+          <h2 className="mb-3 font-medium">Competitors ({competitors.length})</h2>
+          <ul className="space-y-2">
+            {competitors.map((c) => (
+              <li key={c.id} className="text-sm">
+                {c.name}
+                <span className="ml-2 text-xs text-slate-500">{c.domains.join(", ")}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="rounded-lg border border-slate-700 bg-slate-900 p-5">
+          <h2 className="mb-3 font-medium">Queries ({queries.length})</h2>
+          <ul className="space-y-2">
+            {queries.map((q) => (
+              <li key={q.id} className="text-sm">
+                {q.text}
+                <span className="ml-2 text-xs text-slate-500">{q.corpus_tag}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      </div>
+    </main>
+  );
+}
