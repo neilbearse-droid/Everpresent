@@ -1,0 +1,10 @@
+# SITE_ADDRESS: the public hostname (e.g. app.everpresent.io) for automatic
+# TLS, or ":80" for plain HTTP while DNS isn't pointed yet.
+{$SITE_ADDRESS} {
+	handle /api/* {
+		reverse_proxy api:8000
+	}
+	handle {
+		reverse_proxy app:3000
+	}
+}

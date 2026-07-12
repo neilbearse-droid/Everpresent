@@ -1,0 +1,30 @@
+from functools import lru_cache
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+
+    env: str = "dev"
+    database_url: str = "postgresql+psycopg://everpresent:everpresent@localhost:5432/everpresent"
+    redis_url: str = "redis://localhost:6379/0"
+
+    # Clerk. The publishable key is public; the secret key and JWKS URL are
+    # required for any authenticated route to succeed.
+    clerk_secret_key: str = ""
+    clerk_publishable_key: str = ""
+    clerk_jwks_url: str = ""
+    clerk_api_base: str = "https://api.clerk.com/v1"
+
+    # The email that gets superadmin on seed; the Clerk user id is linked on
+    # that user's first authenticated request.
+    superadmin_email: str = ""
+
+    # Object storage root for raw response payloads (VPS volume).
+    raw_storage_dir: str = "/data/raw"
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
