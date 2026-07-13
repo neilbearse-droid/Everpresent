@@ -18,16 +18,18 @@ from api.models import (
     ResultStatus,
     ResultVariant,
     Run,
+    RunMode,
     RunStatus,
     SurfaceCode,
     Tenant,
     utcnow,
 )
 from api.processing_service import process_run
-from api.runs_service import month_spend_usd
+from api.queue import enqueue_run_mode_b
+from api.runs_service import MODE_A_SURFACES, MODE_B_SURFACES, month_spend_usd
 from api.storage import write_raw_envelope
 from engine.costs import estimate_openai_cost_usd
-from engine.retrievers import openai_api
+from engine.retrievers import chatgpt_web, openai_api
 
 
 def ping() -> str:
@@ -36,6 +38,47 @@ def ping() -> str:
 
 def run_mode_a(run_id: int) -> None:
     asyncio.run(_run_mode_a(run_id))
+
+
+def run_mode_b(run_id: int) -> None:
+    asyncio.run(_run_mode_b(run_id))
+
+
+def _a_surfaces(run: Run) -> list[str]:
+    return [s for s in run.surface_set if s in {str(m) for m in MODE_A_SURFACES}]
+
+
+def _b_surfaces(run: Run) -> list[str]:
+    return [s for s in run.surface_set if s in {str(m) for m in MODE_B_SURFACES}]
+
+
+def _finalize_run(session: Session, run: Run, tenant: Tenant) -> None:
+    """Single finalization after the last mode's job: status, then the
+    processing pass (§6.4). A processing failure must not lose stored
+    results — it is recorded on the run instead."""
+    counts = run.counts
+    if counts.get("capped"):
+        run.status = RunStatus.capped
+        run.error = run.error or (
+            f"monthly spend cap reached (cap ${tenant.monthly_spend_cap_usd:.2f})"
+        )
+    elif counts.get("completed", 0) == 0 and counts.get("failed", 0) > 0:
+        run.status = RunStatus.failed
+        run.error = run.error or "all calls failed; see per-result errors"
+    else:
+        run.status = RunStatus.complete
+    run.finished_at = utcnow()
+    session.add(run)
+    session.commit()
+
+    if counts.get("completed", 0) > 0:
+        try:
+            processing_counts = process_run(session, run)
+            run.counts = {**run.counts, **processing_counts}
+        except Exception as exc:  # noqa: BLE001
+            run.error = f"processing failed: {type(exc).__name__}: {exc}"[:500]
+        session.add(run)
+        session.commit()
 
 
 async def _dispatch_all(
@@ -121,16 +164,17 @@ async def _run_mode_a(run_id: int) -> None:
         # The client-facing matrix, plus one search-disabled twin per
         # (query, surface) on the first persona — the dual-query diff the
         # classifier consumes (§6.1).
+        a_surfaces = _a_surfaces(run)
         work = [
             (q, p, s, ResultVariant.search)
-            for s in run.surface_set
+            for s in a_surfaces
             for q in queries
             for p in personas
         ]
         if personas:
             work += [
                 (q, personas[0], s, ResultVariant.nosearch)
-                for s in run.surface_set
+                for s in a_surfaces
                 for q in queries
             ]
 
@@ -222,31 +266,124 @@ async def _run_mode_a(run_id: int) -> None:
                     )
 
         counts["citations"] = citation_count
-        run.counts = counts
-        run.cost_usd = round(total_cost, 6)
-        run.finished_at = utcnow()
         if capped:
-            run.status = RunStatus.capped
+            counts["capped"] = True
             run.error = (
                 f"monthly spend cap reached (cap ${tenant.monthly_spend_cap_usd:.2f}, "
                 f"spent ${month_spent_before:.2f} before this run)"
             )
-        elif counts["completed"] == 0 and counts["failed"] > 0:
-            run.status = RunStatus.failed
-            run.error = "all calls failed; see per-result errors"
-        else:
-            run.status = RunStatus.complete
+        run.counts = counts
+        run.cost_usd = round(total_cost, 6)
         session.add(run)
         session.commit()
 
-        # Processing (§6.4): mentions, citation categories, classification,
-        # visibility rollup. A processing failure must not lose the run's
-        # stored results — record it on the run instead.
-        if counts["completed"] > 0:
-            try:
-                processing_counts = process_run(session, run)
-                run.counts = {**run.counts, **processing_counts}
-            except Exception as exc:  # noqa: BLE001
-                run.error = f"processing failed: {type(exc).__name__}: {exc}"[:500]
+        if _b_surfaces(run):
+            # Mode B runs on the Playwright container and finalizes the run
+            # (single finalize + processing pass, no cross-worker races).
+            enqueue_run_mode_b(run_id)
+            return
+        _finalize_run(session, run, tenant)
+
+
+async def _run_mode_b(run_id: int) -> None:
+    """Mode B (§6.2): sequential fresh-session scrapes, rate-limited per
+    surface — fidelity, not volume. One cell per (query, surface) on the
+    first persona (DECISIONS.md M4); no spend cap (no token cost) and no
+    nosearch twin (a consumer web UI can't disable retrieval)."""
+    settings = get_settings()
+    with Session(get_engine()) as session:
+        run = session.get(Run, run_id)
+        if run is None or run.status not in (RunStatus.pending, RunStatus.running):
+            return
+        tenant = session.get(Tenant, run.tenant_id)
+        assert tenant is not None
+        if run.status == RunStatus.pending:  # B-only run, not chained from A
+            run.status = RunStatus.running
+            run.started_at = utcnow()
             session.add(run)
             session.commit()
+
+        queries = list(
+            session.exec(
+                select(Query).where(Query.tenant_id == tenant.id, Query.active == True)  # noqa: E712
+            ).all()
+        )
+        personas = list(session.exec(select(Persona).where(Persona.tenant_id == tenant.id)).all())
+        work = (
+            [(q, personas[0], s) for s in _b_surfaces(run) for q in queries] if personas else []
+        )
+
+        counts = dict(run.counts) if run.counts else {}
+        counts["planned"] = counts.get("planned", 0) + len(work)
+        interval_s = 60.0 / max(settings.chatgpt_web_rate_per_min, 0.1)
+
+        for index, (query, persona, surface) in enumerate(work):
+            if index > 0:
+                await asyncio.sleep(interval_s)
+            result = Result(
+                run_id=run_id,
+                tenant_id=run.tenant_id,
+                query_id=query.id,
+                persona_id=persona.id,
+                query_text=query.text,
+                persona_name=persona.name,
+                persona_segment=persona.segment_tag,
+                surface=SurfaceCode(surface),
+                mode=RunMode.B,
+            )
+            try:
+                outcome = await chatgpt_web.retrieve(
+                    persona.prompt_text,
+                    query.text,
+                    headless=settings.chatgpt_web_headless,
+                    timeout_s=settings.chatgpt_web_timeout_s,
+                    executable_path=settings.playwright_chromium_path or None,
+                )
+            except Exception as exc:  # noqa: BLE001 — a failed scrape is data
+                counts["failed"] = counts.get("failed", 0) + 1
+                result.status = ResultStatus.error
+                result.error = f"{type(exc).__name__}: {exc}"[:500]
+                session.add(result)
+                session.commit()
+                continue
+
+            counts["completed"] = counts.get("completed", 0) + 1
+            result.latency_ms = outcome.latency_ms
+            result.response_hash = hashlib.sha256(outcome.text.encode("utf-8")).hexdigest()
+            result.raw_uri = write_raw_envelope(
+                tenant.slug,
+                run_id,
+                f"result-b-{index:04d}",
+                {
+                    "surface": surface,
+                    "mode": "B",
+                    "variant": "search",
+                    "query": query.text,
+                    "persona": persona.name,
+                    "persona_prompt": persona.prompt_text,
+                    "model": "chatgpt-web",
+                    "adapter_version": chatgpt_web.ADAPTER_VERSION,
+                    "response": {"html": outcome.html_fragment},
+                    "parsed_text": outcome.text,
+                    "cost_usd": 0.0,
+                },
+            )
+            session.add(result)
+            session.flush()
+            assert result.id is not None
+            for citation in outcome.citations:
+                counts["citations"] = counts.get("citations", 0) + 1
+                session.add(
+                    Citation(
+                        result_id=result.id,
+                        tenant_id=run.tenant_id,
+                        url=citation.url,
+                        domain=citation.domain,
+                    )
+                )
+            session.commit()
+
+        run.counts = counts
+        session.add(run)
+        session.commit()
+        _finalize_run(session, run, tenant)

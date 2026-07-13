@@ -23,7 +23,7 @@ from api.models import (
     TenantStatus,
     TenantSurface,
 )
-from api.queue import enqueue_run
+from api.queue import enqueue_run, enqueue_run_mode_b
 from api.runs_service import create_run, month_spend_usd, run_detail_payload
 from api.storage import read_raw_envelope
 from api.yaml_import import ConfigImportError, import_config, parse_config_yaml
@@ -182,7 +182,12 @@ def trigger_run(slug: str, session: Db, admin: Admin) -> Run:
     session.refresh(run)
     if run.status == RunStatus.pending:
         assert run.id is not None
-        enqueue_run(run.id)
+        # Mode A leads and chains into Mode B; a B-only run goes straight to
+        # the scrape queue.
+        if "A" in run.mode_set:
+            enqueue_run(run.id)
+        else:
+            enqueue_run_mode_b(run.id)
     return run
 
 

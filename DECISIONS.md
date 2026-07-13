@@ -3,6 +3,33 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M4 (2026-07-13)
+
+1. **Mode B volume: one cell per (query, surface) on the first persona.**
+   §6.2's fresh-session pattern is "per query"; the full query×persona matrix
+   through a browser at 4/min would take hours per run. The smaller
+   interpretation keeps scrape volume at corpus size — the fidelity
+   comparison per query, which is what the Queries screen shows. Widening to
+   the full matrix is a one-line change in `_run_mode_b` if wanted.
+2. **Persona framing + query as ONE opening message.** "Pastes the framing
+   as the opening message, submits the query" could read as two turns; one
+   combined message halves latency and avoids the model replying to the
+   framing itself. `build_opening_message` is the single place to change.
+3. **A chains into B; the last job finalizes.** One run row spans both modes.
+   Rather than coordinate two workers racing on the same row, the Mode A job
+   enqueues Mode B when web surfaces are eligible and only the final job sets
+   the terminal status and runs processing. A hard A-failure (missing
+   OPENAI_API_KEY) finalizes as failed without scraping.
+4. **Logged-out ChatGPT.** The adapter drives chatgpt.com without an account
+   (dismissing the stay-logged-out interstitials): cleanest fit for the
+   no-memory rule and no credential store needed yet (§9's separate
+   credential store comes when a surface requires login). Datacenter-IP
+   blocking is an operational risk; failures land as error-status results,
+   and selectors live in `chatgpt_web_selectors.py` for five-minute fixes.
+5. **No nosearch twin and no spend cap for Mode B.** A consumer UI can't
+   disable retrieval, so classification stays an API-surface concern; B costs
+   no tokens and is rate-limited (default 4/min) instead of cap-checked.
+
 ## M3 (2026-07-12)
 
 1. **v3-NATIVE PROCESSING, NOT A v1 PORT — owner-directed exception to

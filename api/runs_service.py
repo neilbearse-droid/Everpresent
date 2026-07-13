@@ -16,9 +16,11 @@ from api.models import (
     TenantSurface,
 )
 
-# M2 dispatches Mode A on the OpenAI API surface only; more surfaces/modes
-# join as their adapters land (M4+).
-DISPATCHABLE_SURFACES = {SurfaceCode.openai_api}
+# Surfaces with a working adapter, by mode. Perplexity/Gemini web and Google
+# AIO join as their adapters land (M5/M6).
+MODE_A_SURFACES = {SurfaceCode.openai_api}
+MODE_B_SURFACES = {SurfaceCode.chatgpt_web}
+DISPATCHABLE_SURFACES = MODE_A_SURFACES | MODE_B_SURFACES
 
 
 def eligible_surfaces(session: Session, tenant: Tenant) -> list[str]:
@@ -39,7 +41,12 @@ def create_run(session: Session, tenant: Tenant, *, trigger: str = "manual") -> 
     never silently skipped (§8). Caller commits and enqueues pending runs."""
     assert tenant.id is not None
     surfaces = eligible_surfaces(session, tenant)
-    run = Run(tenant_id=tenant.id, trigger=trigger, surface_set=surfaces, mode_set=[RunMode.A])
+    modes = []
+    if any(s in {str(m) for m in MODE_A_SURFACES} for s in surfaces):
+        modes.append(RunMode.A)
+    if any(s in {str(m) for m in MODE_B_SURFACES} for s in surfaces):
+        modes.append(RunMode.B)
+    run = Run(tenant_id=tenant.id, trigger=trigger, surface_set=surfaces, mode_set=modes)
     if not tenant.ai_processing_approved:
         run.status = RunStatus.gated
         run.error = "governance: ai_processing_approved is false for this tenant"

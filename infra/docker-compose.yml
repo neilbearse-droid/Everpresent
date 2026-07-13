@@ -64,6 +64,26 @@ services:
       redis:
         condition: service_healthy
 
+  scrape-worker:
+    build:
+      context: ..
+      dockerfile: worker/playwright.Dockerfile
+    restart: unless-stopped
+    environment:
+      <<: *backend_env
+      WORKER_QUEUES: scrape
+      CHATGPT_WEB_RATE_PER_MIN: ${CHATGPT_WEB_RATE_PER_MIN:-4}
+      CHATGPT_WEB_HEADLESS: ${CHATGPT_WEB_HEADLESS:-true}
+    # Chromium needs a bigger /dev/shm than Docker's 64MB default.
+    shm_size: "1gb"
+    volumes:
+      - rawdata:/data/raw
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
   app:
     build:
       context: ../app

@@ -26,6 +26,35 @@ function ClassificationChip({
   );
 }
 
+function ModeLinks({
+  entries,
+}: {
+  entries: [string, { result_id: number; run_id: number; status: string }][];
+}) {
+  if (entries.length === 0) {
+    return <span className="text-xs text-slate-500">no results yet</span>;
+  }
+  return (
+    <div className="flex flex-col gap-1">
+      {entries.map(([surface, result]) =>
+        result.status === "ok" ? (
+          <Link
+            key={surface}
+            href={`/dashboard/runs/${result.run_id}/results/${result.result_id}`}
+            className="text-xs text-indigo-400 hover:underline"
+          >
+            {surface} →
+          </Link>
+        ) : (
+          <span key={surface} className="text-xs text-red-400">
+            {surface}: error
+          </span>
+        ),
+      )}
+    </div>
+  );
+}
+
 export default async function QueriesPage() {
   const [me, intel] = await Promise.all([
     apiFetch<Me>("/api/me"),
@@ -43,7 +72,8 @@ export default async function QueriesPage() {
         </h2>
         <p className="mb-4 text-xs text-slate-500">
           "Web search" is the dual-query diff: how much the AI's answer depends on live
-          retrieval vs training. Mode A = provider API; Mode B (web interface) arrives M4.
+          retrieval vs training. Mode A = provider API (volume); Mode B = the real consumer
+          web interface (fidelity). Compare shows both answers side by side.
         </p>
         {queries.length === 0 ? (
           <p className="text-sm text-slate-500">No queries configured.</p>
@@ -57,12 +87,18 @@ export default async function QueriesPage() {
                   <th className="pr-4">Web search</th>
                   <th className="pr-4">Brand in answer</th>
                   <th className="pr-4">Mode A (API)</th>
-                  <th>Mode B (web)</th>
+                  <th className="pr-4">Mode B (web)</th>
+                  <th>Compare</th>
                 </tr>
               </thead>
               <tbody>
                 {queries.map((query) => {
                   const surfaces = Object.entries(query.latest_results);
+                  const modeA = surfaces.filter(([, r]) => r.mode === "A");
+                  const modeB = surfaces.filter(([, r]) => r.mode === "B");
+                  const comparable =
+                    modeA.find(([, r]) => r.status === "ok") &&
+                    modeB.find(([, r]) => r.status === "ok");
                   return (
                     <tr key={query.id} className="border-t border-slate-800 align-top">
                       <td className="max-w-md py-3 pr-4">
@@ -85,23 +121,25 @@ export default async function QueriesPage() {
                         )}
                       </td>
                       <td className="pr-4">
-                        {surfaces.length === 0 ? (
-                          <span className="text-xs text-slate-500">no results yet</span>
+                        <ModeLinks entries={modeA} />
+                      </td>
+                      <td className="pr-4">
+                        <ModeLinks entries={modeB} />
+                      </td>
+                      <td>
+                        {comparable ? (
+                          <Link
+                            href={`/dashboard/compare?a=${
+                              modeA.find(([, r]) => r.status === "ok")![1].result_id
+                            }&b=${modeB.find(([, r]) => r.status === "ok")![1].result_id}`}
+                            className="text-xs text-indigo-400 hover:underline"
+                          >
+                            A ⇄ B
+                          </Link>
                         ) : (
-                          <div className="flex flex-col gap-1">
-                            {surfaces.map(([surface, result]) => (
-                              <Link
-                                key={surface}
-                                href={`/dashboard/runs/${result.run_id}/results/${result.result_id}`}
-                                className="text-xs text-indigo-400 hover:underline"
-                              >
-                                {surface} →
-                              </Link>
-                            ))}
-                          </div>
+                          <span className="text-xs text-slate-600">—</span>
                         )}
                       </td>
-                      <td className="text-xs text-slate-600">M4</td>
                     </tr>
                   );
                 })}

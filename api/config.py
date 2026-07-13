@@ -31,6 +31,14 @@ class Settings(BaseSettings):
     openai_concurrency: int = 4
     openai_timeout_s: float = 90.0
 
+    # Mode B scraping (§6.2): conservative by default, sequential per surface.
+    chatgpt_web_rate_per_min: float = 4.0
+    chatgpt_web_headless: bool = True
+    chatgpt_web_timeout_s: float = 240.0
+    # Set when the container pre-installs a Chromium outside playwright's
+    # bundled path.
+    playwright_chromium_path: str = ""
+
 
 @lru_cache
 def get_settings() -> Settings:

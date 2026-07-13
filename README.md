@@ -84,5 +84,7 @@ fixtures only. **M3** (processing + dashboards: dual-query web-search-likelihood
 classifier, mention detection with sentiment and rank, visibility scoring and
 daily rollups, Overview/Personas/Queries screens). The M3 processing code is a
 v3-native implementation, not the spec-mandated v1 port — see DECISIONS.md M3.1
-for why and for the swap procedure if the v1 source surfaces. Decisions of
-record live in `DECISIONS.md`.
+for why and for the swap procedure if the v1 source surfaces. **M4** (Mode B:
+Playwright scrape worker on its own queue/container, chatgpt_web fresh-session
+adapter with selectors isolated in one file, A→B chained runs, side-by-side
+mode comparison in Queries). Decisions of record live in `DECISIONS.md`.

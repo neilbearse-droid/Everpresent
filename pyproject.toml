@@ -24,10 +24,18 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Only the Playwright worker container installs [scrape]; the adapter imports
+# playwright lazily so every other environment stays browser-free.
+scrape = [
+    "playwright>=1.45",
+]
 dev = [
     "pytest>=8.0",
     "ruff>=0.5",
     "pyright>=1.1.370",
+    # For type-checking the scrape adapter; browsers are never installed in
+    # dev/CI (fixture-only tests, §11.5).
+    "playwright>=1.45",
 ]
 
 [tool.setuptools]
