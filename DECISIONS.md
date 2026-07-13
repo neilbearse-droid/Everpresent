@@ -3,6 +3,34 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M5 (2026-07-13)
+
+1. **Schedules store cron only.** §5.1 lists surface_set/mode_set on
+   run_schedules; the smaller interpretation resolves surfaces and modes from
+   the tenant's live config + governance at fire time, so a schedule can
+   never dispatch something the admin panel says is off. One schedule per
+   tenant.
+2. **Scheduler is a tiny loop service,** not rq-scheduler: a 30-second tick
+   over `run_schedules` (croniter), firing through the same `trigger_run`
+   service the admin button uses. New/re-enabled schedules arm without firing
+   retroactively. The nightly BigQuery mirror is enqueued by the same tick
+   (first tick past MIRROR_HOUR_UTC each day).
+3. **Notifications are SMTP,** provider-agnostic, with the summary PDF and
+   per-run results CSV attached. Unset SMTP host = skipped, never crashed;
+   notification failure never fails a run. The §9 80%-cap alert rides the
+   completion email as a SPEND ALERT block (plus the existing admin-UI
+   indicator).
+4. **BigQuery mirror without the Google SDK:** service-account JWT grant via
+   PyJWT + the REST API (create-if-missing v3-suffixed tables, insertAll with
+   insertIds). Metadata only — raw_uri and payloads never enter the
+   warehouse. Watermarks in `mirror_state` make it idempotent; streaming
+   inserts + insertIds make retries safe. Nothing client-facing reads
+   BigQuery.
+5. **Perplexity adapter reuses the shared extractor** (stdlib HTML→text+links
+   moved to `engine/retrievers/html_extract.py`); adapters differ only in
+   selectors files and skip-host lists. Mode B dispatch is a per-surface
+   registry with per-surface rate limits.
+
 ## M4 (2026-07-13)
 
 1. **Mode B volume: one cell per (query, surface) on the first persona.**

@@ -75,6 +75,38 @@ export async function setSpendCap(slug: string, formData: FormData): Promise<voi
   });
 }
 
+export async function putSchedule(
+  slug: string,
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const res = await apiFetch<{ cron_expr: string; enabled: boolean }>(
+    `/api/admin/tenants/${slug}/schedule`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        cron_expr: String(formData.get("cron_expr") ?? ""),
+        enabled: formData.get("enabled") === "on",
+      }),
+    },
+  );
+  revalidatePath(`/admin/${slug}`);
+  if (!res.ok) return { ok: false, message: res.error ?? "Schedule update failed" };
+  return {
+    ok: true,
+    message: `Schedule saved: ${res.data!.cron_expr} (${res.data!.enabled ? "enabled" : "disabled"})`,
+  };
+}
+
+export async function setNotifyEmails(slug: string, formData: FormData): Promise<void> {
+  const emails = String(formData.get("notify_emails") ?? "")
+    .split(",")
+    .map((e) => e.trim())
+    .filter(Boolean);
+  await patchTenant(slug, { notify_emails: emails });
+}
+
 export async function toggleSurface(slug: string, code: string, enabled: boolean): Promise<void> {
   const res = await apiFetch(`/api/admin/tenants/${slug}/surfaces`, {
     method: "PATCH",

@@ -79,8 +79,8 @@ def fake_web_retrieve(monkeypatch):
 
 def test_mode_set_covers_both_modes(client, as_superadmin, db_session, monkeypatch):
     enq_a, enq_b = [], []
-    monkeypatch.setattr("api.routes.admin.enqueue_run", enq_a.append)
-    monkeypatch.setattr("api.routes.admin.enqueue_run_mode_b", enq_b.append)
+    monkeypatch.setattr("api.queue.enqueue_run", enq_a.append)
+    monkeypatch.setattr("api.queue.enqueue_run_mode_b", enq_b.append)
     tenant = make_tenant(db_session)
     add_web_surface(db_session, tenant)
 
@@ -95,8 +95,8 @@ def test_b_only_tenant_goes_straight_to_scrape_queue(
     client, as_superadmin, db_session, monkeypatch
 ):
     enq_a, enq_b = [], []
-    monkeypatch.setattr("api.routes.admin.enqueue_run", enq_a.append)
-    monkeypatch.setattr("api.routes.admin.enqueue_run_mode_b", enq_b.append)
+    monkeypatch.setattr("api.queue.enqueue_run", enq_a.append)
+    monkeypatch.setattr("api.queue.enqueue_run_mode_b", enq_b.append)
     tenant = make_tenant(db_session)
     add_web_surface(db_session, tenant)
     api_surface = db_session.exec(

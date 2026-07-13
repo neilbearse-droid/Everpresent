@@ -87,4 +87,9 @@ v3-native implementation, not the spec-mandated v1 port — see DECISIONS.md M3.
 for why and for the swap procedure if the v1 source surfaces. **M4** (Mode B:
 Playwright scrape worker on its own queue/container, chatgpt_web fresh-session
 adapter with selectors isolated in one file, A→B chained runs, side-by-side
-mode comparison in Queries). Decisions of record live in `DECISIONS.md`.
+mode comparison in Queries), **M5** (cron run schedules via a scheduler
+service, run-completion email reports with PDF/CSV attached and the 80%
+spend alert, report export endpoints + dashboard downloads, nightly BigQuery
+mirror of run metadata, Perplexity as the second Mode B adapter). Optional
+M5 env: SMTP_* for email, BIGQUERY_* + service-account JSON for the mirror.
+Decisions of record live in `DECISIONS.md`.

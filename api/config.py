@@ -38,6 +38,22 @@ class Settings(BaseSettings):
     # Set when the container pre-installs a Chromium outside playwright's
     # bundled path.
     playwright_chromium_path: str = ""
+    perplexity_web_rate_per_min: float = 4.0
+
+    # Notifications (M5): run-completion reports by email. Unset host = skip.
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = "reports@everpresent.local"
+    smtp_starttls: bool = True
+
+    # BigQuery mirror (§5.3). Unset project = mirror disabled.
+    bigquery_project: str = ""
+    bigquery_dataset: str = "everpresent_v3"
+    # Path to the service-account JSON key file (mounted secret).
+    google_service_account_json: str = ""
+    mirror_hour_utc: int = 9
 
 
 @lru_cache

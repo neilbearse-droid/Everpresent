@@ -3,7 +3,7 @@ context (api.tenancy), never from a request parameter."""
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlmodel import Session, func, select
 
 from api import dashboards_service
@@ -96,6 +96,45 @@ def personas_intel(ctx: Ctx, session: Db) -> dict:
 @router.get("/queries-intel")
 def queries_intel(ctx: Ctx, session: Db) -> dict:
     return dashboards_service.queries_intel(session, ctx.tenant_id)
+
+
+@router.get("/reports/results.csv")
+def results_csv(ctx: Ctx, session: Db) -> Response:
+    from api.reports import build_results_csv
+
+    return Response(
+        content=build_results_csv(session, ctx.tenant_id),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f'attachment; filename="{ctx.tenant.slug}-results.csv"'
+        },
+    )
+
+
+@router.get("/reports/visibility.csv")
+def visibility_csv(ctx: Ctx, session: Db) -> Response:
+    from api.reports import build_visibility_csv
+
+    return Response(
+        content=build_visibility_csv(session, ctx.tenant_id),
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f'attachment; filename="{ctx.tenant.slug}-visibility.csv"'
+        },
+    )
+
+
+@router.get("/reports/summary.pdf")
+def summary_pdf(ctx: Ctx, session: Db) -> Response:
+    from api.reports import build_summary_pdf
+
+    return Response(
+        content=build_summary_pdf(session, ctx.tenant),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{ctx.tenant.slug}-summary.pdf"'
+        },
+    )
 
 
 @router.get("/runs")

@@ -17,14 +17,13 @@ from api.models import (
     Query,
     Result,
     Run,
-    RunStatus,
+    RunSchedule,
     SurfaceCode,
     Tenant,
     TenantStatus,
     TenantSurface,
 )
-from api.queue import enqueue_run, enqueue_run_mode_b
-from api.runs_service import create_run, month_spend_usd, run_detail_payload
+from api.runs_service import month_spend_usd, run_detail_payload, trigger_run
 from api.storage import read_raw_envelope
 from api.yaml_import import ConfigImportError, import_config, parse_config_yaml
 from engine.llm.policy import RUNTIME_LLM_ALLOWLIST
@@ -94,6 +93,7 @@ class TenantPatch(BaseModel):
     approved_surfaces: list[SurfaceCode] | None = None
     approved_utility_models: list[str] | None = None
     monthly_spend_cap_usd: float | None = None
+    notify_emails: list[str] | None = None
 
 
 @router.patch("/tenants/{slug}")
@@ -134,6 +134,12 @@ def patch_tenant(slug: str, payload: TenantPatch, session: Db, admin: Admin) -> 
             raise HTTPException(status_code=422, detail="Spend cap must be >= 0")
         tenant.monthly_spend_cap_usd = payload.monthly_spend_cap_usd
         changed.append("monthly_spend_cap_usd")
+    if payload.notify_emails is not None:
+        cleaned = [e.strip() for e in payload.notify_emails if e.strip()]
+        if any("@" not in e for e in cleaned):
+            raise HTTPException(status_code=422, detail="notify_emails must be email addresses")
+        tenant.notify_emails = cleaned
+        changed.append("notify_emails")
 
     session.add(tenant)
     write_audit(
@@ -168,10 +174,9 @@ def import_yaml(
 
 
 @router.post("/tenants/{slug}/runs", status_code=201)
-def trigger_run(slug: str, session: Db, admin: Admin) -> Run:
+def trigger_run_route(slug: str, session: Db, admin: Admin) -> Run:
     tenant = _tenant_or_404(session, slug)
-    run = create_run(session, tenant, trigger="manual")
-    session.flush()
+    run = trigger_run(session, tenant, trigger="manual")
     write_audit(
         session,
         tenant_id=tenant.id,
@@ -180,14 +185,6 @@ def trigger_run(slug: str, session: Db, admin: Admin) -> Run:
     )
     session.commit()
     session.refresh(run)
-    if run.status == RunStatus.pending:
-        assert run.id is not None
-        # Mode A leads and chains into Mode B; a B-only run goes straight to
-        # the scrape queue.
-        if "A" in run.mode_set:
-            enqueue_run(run.id)
-        else:
-            enqueue_run_mode_b(run.id)
     return run
 
 
@@ -244,6 +241,49 @@ def result_raw(result_id: int, session: Db) -> dict:
     if envelope is None:
         raise HTTPException(status_code=404, detail="Raw payload not available")
     return envelope
+
+
+class SchedulePut(BaseModel):
+    cron_expr: str
+    enabled: bool = True
+
+
+@router.get("/tenants/{slug}/schedule")
+def get_schedule(slug: str, session: Db) -> RunSchedule | None:
+    tenant = _tenant_or_404(session, slug)
+    return session.exec(
+        select(RunSchedule).where(RunSchedule.tenant_id == tenant.id)
+    ).first()
+
+
+@router.put("/tenants/{slug}/schedule")
+def put_schedule(slug: str, payload: SchedulePut, session: Db, admin: Admin) -> RunSchedule:
+    from croniter import croniter
+
+    tenant = _tenant_or_404(session, slug)
+    cron_expr = payload.cron_expr.strip()
+    if not croniter.is_valid(cron_expr):
+        raise HTTPException(status_code=422, detail=f"Not a valid cron expression: {cron_expr!r}")
+    assert tenant.id is not None
+    schedule = session.exec(
+        select(RunSchedule).where(RunSchedule.tenant_id == tenant.id)
+    ).first()
+    if schedule is None:
+        schedule = RunSchedule(tenant_id=tenant.id, cron_expr=cron_expr, enabled=payload.enabled)
+    else:
+        schedule.cron_expr = cron_expr
+        schedule.enabled = payload.enabled
+        schedule.next_run_at = None  # re-armed by the scheduler from the new cron
+    session.add(schedule)
+    write_audit(
+        session,
+        tenant_id=tenant.id,
+        actor=admin.user.email,
+        action=f"schedule.put {slug} {cron_expr} enabled={payload.enabled}",
+    )
+    session.commit()
+    session.refresh(schedule)
+    return schedule
 
 
 class SurfaceToggle(BaseModel):

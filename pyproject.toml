@@ -21,6 +21,8 @@ dependencies = [
     "structlog>=24.1",
     "alembic>=1.13",
     "PyYAML>=6.0",
+    "croniter>=2.0",
+    "fpdf2>=2.7",
 ]
 
 [project.optional-dependencies]

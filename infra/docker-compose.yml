@@ -40,6 +40,14 @@ services:
       RAW_STORAGE_DIR: /data/raw
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      BIGQUERY_PROJECT: ${BIGQUERY_PROJECT:-}
+      BIGQUERY_DATASET: ${BIGQUERY_DATASET:-everpresent_v3}
+      GOOGLE_SERVICE_ACCOUNT_JSON: ${GOOGLE_SERVICE_ACCOUNT_JSON:-}
       ENV: ${ENV:-prod}
     volumes:
       - rawdata:/data/raw
@@ -58,6 +66,19 @@ services:
     environment: *backend_env
     volumes:
       - rawdata:/data/raw
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  scheduler:
+    build:
+      context: ..
+      dockerfile: api/Dockerfile
+    restart: unless-stopped
+    command: ["python", "-m", "worker.scheduler"]
+    environment: *backend_env
     depends_on:
       postgres:
         condition: service_healthy

@@ -89,6 +89,19 @@ export default async function OverviewPage() {
         </div>
       </div>
 
+      <div className="mb-6 flex gap-3 text-sm">
+        <span className="text-slate-500">Export:</span>
+        <a href="/dashboard/reports/summary.pdf" className="text-indigo-400 hover:underline">
+          Summary PDF
+        </a>
+        <a href="/dashboard/reports/results.csv" className="text-indigo-400 hover:underline">
+          Results CSV
+        </a>
+        <a href="/dashboard/reports/visibility.csv" className="text-indigo-400 hover:underline">
+          Visibility CSV
+        </a>
+      </div>
+
       {!hasData ? (
         <section className="rounded-lg border border-slate-700 bg-slate-900 p-6">
           <h2 className="mb-2 text-lg font-medium">No measurement data yet</h2>

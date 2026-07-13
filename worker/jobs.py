@@ -29,7 +29,7 @@ from api.queue import enqueue_run_mode_b
 from api.runs_service import MODE_A_SURFACES, MODE_B_SURFACES, month_spend_usd
 from api.storage import write_raw_envelope
 from engine.costs import estimate_openai_cost_usd
-from engine.retrievers import chatgpt_web, openai_api
+from engine.retrievers import chatgpt_web, openai_api, perplexity_web
 
 
 def ping() -> str:
@@ -42,6 +42,15 @@ def run_mode_a(run_id: int) -> None:
 
 def run_mode_b(run_id: int) -> None:
     asyncio.run(_run_mode_b(run_id))
+
+
+# surface code -> (adapter module, model label, rate settings attribute).
+# The module's `retrieve` is resolved at call time. Adding a Mode B surface =
+# one line here plus its adapter module.
+B_ADAPTERS: dict[str, tuple[Any, str, str]] = {
+    "chatgpt_web": (chatgpt_web, "chatgpt-web", "chatgpt_web_rate_per_min"),
+    "perplexity_web": (perplexity_web, "perplexity-web", "perplexity_web_rate_per_min"),
+}
 
 
 def _a_surfaces(run: Run) -> list[str]:
@@ -77,6 +86,14 @@ def _finalize_run(session: Session, run: Run, tenant: Tenant) -> None:
             run.counts = {**run.counts, **processing_counts}
         except Exception as exc:  # noqa: BLE001
             run.error = f"processing failed: {type(exc).__name__}: {exc}"[:500]
+        session.add(run)
+        session.commit()
+
+    # M5 notifications: report lands in the inbox; failure never fails a run.
+    from api.notifications import notify_run_complete
+
+    if notify_run_complete(session, run, tenant):
+        run.counts = {**run.counts, "notified": len(tenant.notify_emails)}
         session.add(run)
         session.commit()
 
@@ -315,11 +332,12 @@ async def _run_mode_b(run_id: int) -> None:
 
         counts = dict(run.counts) if run.counts else {}
         counts["planned"] = counts.get("planned", 0) + len(work)
-        interval_s = 60.0 / max(settings.chatgpt_web_rate_per_min, 0.1)
 
         for index, (query, persona, surface) in enumerate(work):
+            adapter_module, model_label, rate_attr = B_ADAPTERS[surface]
             if index > 0:
-                await asyncio.sleep(interval_s)
+                rate = max(float(getattr(settings, rate_attr)), 0.1)
+                await asyncio.sleep(60.0 / rate)
             result = Result(
                 run_id=run_id,
                 tenant_id=run.tenant_id,
@@ -332,7 +350,7 @@ async def _run_mode_b(run_id: int) -> None:
                 mode=RunMode.B,
             )
             try:
-                outcome = await chatgpt_web.retrieve(
+                outcome = await adapter_module.retrieve(
                     persona.prompt_text,
                     query.text,
                     headless=settings.chatgpt_web_headless,
@@ -361,8 +379,8 @@ async def _run_mode_b(run_id: int) -> None:
                     "query": query.text,
                     "persona": persona.name,
                     "persona_prompt": persona.prompt_text,
-                    "model": "chatgpt-web",
-                    "adapter_version": chatgpt_web.ADAPTER_VERSION,
+                    "model": model_label,
+                    "adapter_version": adapter_module.ADAPTER_VERSION,
                     "response": {"html": outcome.html_fragment},
                     "parsed_text": outcome.text,
                     "cost_usd": 0.0,

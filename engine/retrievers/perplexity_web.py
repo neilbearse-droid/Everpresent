@@ -1,42 +1,23 @@
-"""Mode B retriever: the ChatGPT consumer web interface via Playwright
-(§6.2). The v1 fresh-session pattern: a clean browser context per query, the
-persona framing and query submitted as the opening message, the rendered
-answer captured, the context destroyed. No account memory ever contaminates a
-result.
-
-Playwright is imported lazily so this module stays importable (and CI stays
-browser-free) outside the scraping worker; live scraping happens only in the
-dedicated container. DOM selectors live in chatgpt_web_selectors.py, nothing
-else knows them."""
+"""Mode B retriever: Perplexity's consumer web interface (§6.2, second
+adapter). Same fresh-session pattern as chatgpt_web: clean context per
+query, persona framing + query as the opening message, rendered answer and
+source links captured, context destroyed. Selectors live in
+perplexity_web_selectors.py; parsing is shared stdlib extraction."""
 
 import asyncio
 import time
-from dataclasses import dataclass, field
 
-from engine.retrievers import chatgpt_web_selectors as sel
+from engine.retrievers import perplexity_web_selectors as sel
+from engine.retrievers.chatgpt_web import WebRetrievalOutcome, build_opening_message
 from engine.retrievers.html_extract import extract_text_and_links
-from engine.retrievers.openai_api import ParsedCitation
 
 ADAPTER_VERSION = "v3.0.0"
 
-_SKIP_HOST_FRAGMENTS = ("chatgpt.com", "openai.com", "oaiusercontent.com")
+_SKIP_HOST_FRAGMENTS = ("perplexity.ai", "pplx.ai")
 
 
-@dataclass
-class WebRetrievalOutcome:
-    text: str
-    citations: list[ParsedCitation] = field(default_factory=list)
-    html_fragment: str = ""  # the assistant message's rendered HTML
-    latency_ms: int = 0
-
-
-def parse_assistant_html(html: str) -> tuple[str, list[ParsedCitation]]:
+def parse_answer_html(html: str) -> tuple[str, list]:
     return extract_text_and_links(html, _SKIP_HOST_FRAGMENTS)
-
-
-def build_opening_message(persona_prompt: str, query_text: str) -> str:
-    """Persona framing + query as one opening message (DECISIONS.md M4)."""
-    return f"{persona_prompt.strip()}\n\n{query_text.strip()}"
 
 
 async def retrieve(
@@ -53,11 +34,9 @@ async def retrieve(
     deadline = started + timeout_s
     async with async_playwright() as pw:
         browser = await pw.chromium.launch(
-            headless=headless,
-            executable_path=executable_path or None,
+            headless=headless, executable_path=executable_path or None
         )
         try:
-            # Fresh context per query — the whole point of the pattern.
             context = await browser.new_context()
             page = await context.new_page()
             await page.goto(sel.URL, wait_until="domcontentloaded", timeout=60_000)
@@ -68,20 +47,19 @@ async def retrieve(
                 except Exception:  # noqa: BLE001 — interstitials are optional
                     pass
 
-            prompt = page.locator(sel.PROMPT_INPUT)
+            prompt = page.locator(sel.PROMPT_INPUT).first
             await prompt.wait_for(state="visible", timeout=30_000)
             await prompt.fill(build_opening_message(persona_prompt, query_text))
-            await page.locator(sel.SEND_BUTTON).click(timeout=10_000)
+            await page.locator(sel.SUBMIT_BUTTON).first.click(timeout=10_000)
 
-            message = page.locator(sel.ASSISTANT_MESSAGE).last
-            await message.wait_for(state="attached", timeout=60_000)
+            answer = page.locator(sel.ANSWER_CONTAINER).last
+            await answer.wait_for(state="attached", timeout=60_000)
 
-            # Completion = streaming indicator gone and DOM stable twice over.
             previous_html = ""
             stable = 0
             while time.monotonic() < deadline:
                 await asyncio.sleep(1.5)
-                current_html = await message.inner_html()
+                current_html = await answer.inner_html()
                 streaming = await page.locator(sel.STOP_BUTTON).count() > 0
                 if current_html == previous_html and not streaming and current_html:
                     stable += 1
@@ -93,9 +71,9 @@ async def retrieve(
             else:
                 raise TimeoutError(f"answer did not settle within {timeout_s}s")
 
-            fragment = await message.inner_html()
-            text, citations = parse_assistant_html(fragment)
-            await context.close()  # destroy the session, no memory carryover
+            fragment = await answer.inner_html()
+            text, citations = parse_answer_html(fragment)
+            await context.close()
             return WebRetrievalOutcome(
                 text=text,
                 citations=citations,

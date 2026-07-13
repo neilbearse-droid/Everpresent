@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { apiFetch, type Me, type TenantDetail } from "@/lib/api";
-import { linkClerkOrg, setGovernance, setSpendCap, toggleSurface } from "../actions";
+import { linkClerkOrg, setGovernance, setNotifyEmails, setSpendCap, toggleSurface } from "../actions";
 import { ImportYamlForm } from "./import-yaml-form";
+import { ScheduleForm } from "./schedule-form";
 
 export default async function TenantAdminPage({
   params,
@@ -19,7 +20,12 @@ export default async function TenantAdminPage({
     );
   }
 
-  const detail = await apiFetch<TenantDetail>(`/api/admin/tenants/${slug}`);
+  const [detail, schedule] = await Promise.all([
+    apiFetch<TenantDetail>(`/api/admin/tenants/${slug}`),
+    apiFetch<{ cron_expr: string; enabled: boolean; next_run_at: string | null } | null>(
+      `/api/admin/tenants/${slug}/schedule`,
+    ),
+  ]);
   if (detail.status === 404 || !detail.data) notFound();
   const { tenant, brand_profile, competitors, personas, queries, surfaces } = detail.data;
 
@@ -122,6 +128,39 @@ export default async function TenantAdminPage({
               <li className="text-sm text-slate-500">No surfaces yet — import a config.</li>
             )}
           </ul>
+        </section>
+
+        <section className="rounded-lg border border-slate-700 bg-slate-900 p-5">
+          <h2 className="mb-3 font-medium">Run schedule</h2>
+          <p className="mb-3 text-xs text-slate-400">
+            Scheduled runs use the tenant's current surfaces and governance state at fire
+            time.
+            {schedule.data?.next_run_at &&
+              ` Next run: ${new Date(schedule.data.next_run_at).toLocaleString()} UTC.`}
+          </p>
+          <ScheduleForm
+            slug={tenant.slug}
+            cronExpr={schedule.data?.cron_expr ?? ""}
+            enabled={schedule.data?.enabled ?? true}
+          />
+        </section>
+
+        <section className="rounded-lg border border-slate-700 bg-slate-900 p-5">
+          <h2 className="mb-3 font-medium">Notifications</h2>
+          <p className="mb-3 text-xs text-slate-400">
+            Run-completion reports (PDF + CSV) go to these addresses. Comma-separated.
+          </p>
+          <form action={setNotifyEmails.bind(null, tenant.slug)} className="flex gap-2">
+            <input
+              name="notify_emails"
+              defaultValue={tenant.notify_emails.join(", ")}
+              placeholder="neil@example.com, client@brand.com"
+              className="flex-1 rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
+            />
+            <button className="rounded-md bg-indigo-500 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-400">
+              Save
+            </button>
+          </form>
         </section>
 
         <section className="rounded-lg border border-slate-700 bg-slate-900 p-5">

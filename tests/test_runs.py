@@ -80,8 +80,10 @@ def as_superadmin(login, superadmin):
 
 @pytest.fixture()
 def enqueue_spy(monkeypatch):
+    # trigger_run imports these from api.queue at call time.
     calls: list[int] = []
-    monkeypatch.setattr("api.routes.admin.enqueue_run", calls.append)
+    monkeypatch.setattr("api.queue.enqueue_run", calls.append)
+    monkeypatch.setattr("api.queue.enqueue_run_mode_b", lambda run_id: None)
     return calls
 
 

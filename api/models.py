@@ -51,6 +51,8 @@ class Tenant(SQLModel, table=True):
     # §9: per-tenant monthly cap, enforced in the dispatch loop before each
     # provider call — never after.
     monthly_spend_cap_usd: float = Field(default=50.0)
+    # Run-completion reports go to these addresses (M5 notifications).
+    notify_emails: list[str] = Field(default_factory=list, sa_column=Column(JSON))
 
     created_at: datetime = Field(default_factory=utcnow)
 
@@ -269,6 +271,33 @@ class VisibilityDaily(SQLModel, table=True):
     extras: dict = Field(default_factory=dict, sa_column=Column(JSON))
     scorer_version: str = ""
     computed_at: datetime = Field(default_factory=utcnow)
+
+
+class RunSchedule(SQLModel, table=True):
+    """§5.1 run_schedules. Surfaces/modes are resolved from the tenant's
+    live config at fire time rather than frozen on the schedule
+    (DECISIONS.md M5)."""
+
+    __tablename__ = "run_schedules"  # pyright: ignore[reportAssignmentType]
+
+    id: int | None = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenants.id", index=True, unique=True)
+    cron_expr: str
+    enabled: bool = Field(default=True)
+    last_triggered_at: datetime | None = None
+    next_run_at: datetime | None = Field(default=None, index=True)
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class MirrorState(SQLModel, table=True):
+    """Per-table high-water marks for the BigQuery mirror (§5.3)."""
+
+    __tablename__ = "mirror_state"  # pyright: ignore[reportAssignmentType]
+
+    id: int | None = Field(default=None, primary_key=True)
+    table_name: str = Field(unique=True, index=True)
+    last_id: int = 0
+    updated_at: datetime = Field(default_factory=utcnow)
 
 
 class AuditLog(SQLModel, table=True):

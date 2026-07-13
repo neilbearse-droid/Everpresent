@@ -19,7 +19,7 @@ from api.models import (
 # Surfaces with a working adapter, by mode. Perplexity/Gemini web and Google
 # AIO join as their adapters land (M5/M6).
 MODE_A_SURFACES = {SurfaceCode.openai_api}
-MODE_B_SURFACES = {SurfaceCode.chatgpt_web}
+MODE_B_SURFACES = {SurfaceCode.chatgpt_web, SurfaceCode.perplexity_web}
 DISPATCHABLE_SURFACES = MODE_A_SURFACES | MODE_B_SURFACES
 
 
@@ -54,6 +54,24 @@ def create_run(session: Session, tenant: Tenant, *, trigger: str = "manual") -> 
         run.status = RunStatus.failed
         run.error = "no dispatchable surface is both enabled and governance-approved"
     session.add(run)
+    return run
+
+
+def trigger_run(session: Session, tenant: Tenant, *, trigger: str = "manual") -> Run:
+    """Create, commit, and dispatch a run — shared by the admin trigger route
+    and the scheduler. Gated/failed runs are recorded and never enqueued."""
+    from api.queue import enqueue_run, enqueue_run_mode_b  # avoid import cycle
+
+    run = create_run(session, tenant, trigger=trigger)
+    session.add(run)
+    session.commit()
+    session.refresh(run)
+    if run.status == RunStatus.pending:
+        assert run.id is not None
+        if RunMode.A in run.mode_set:
+            enqueue_run(run.id)
+        else:
+            enqueue_run_mode_b(run.id)
     return run
 
 

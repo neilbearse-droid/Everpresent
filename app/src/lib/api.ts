@@ -67,6 +67,7 @@ export type Tenant = {
   approved_surfaces: string[];
   approved_utility_models: string[];
   monthly_spend_cap_usd: number;
+  notify_emails: string[];
   created_at: string;
 };
 
