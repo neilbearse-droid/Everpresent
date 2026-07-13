@@ -40,6 +40,13 @@ class Settings(BaseSettings):
     playwright_chromium_path: str = ""
     perplexity_web_rate_per_min: float = 4.0
 
+    # Google AIO capture (§6.3). Provider "direct" scrapes the SERP;
+    # "serpapi" uses the JSON fallback when the key is set.
+    google_aio_rate_per_min: float = 6.0
+    google_aio_provider: str = "direct"
+    google_aio_timeout_s: float = 120.0
+    serpapi_key: str = ""
+
     # Notifications (M5): run-completion reports by email. Unset host = skip.
     smtp_host: str = ""
     smtp_port: int = 587

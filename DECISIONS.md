@@ -3,6 +3,36 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M6 (2026-07-13)
+
+1. **AIO CLASSIFIER IS UNCALIBRATED — §12.1 remains open.** The rule-based
+   classifier ships as `v3.0.0-uncalibrated` with provisional thresholds
+   (top-of-page + expanded/≥1200 chars → aio_dominant; top → aio_plus_organic;
+   below organic → organic_dominant). Neil's 40 labeled seed queries have not
+   been provided. `tests/test_aio_calibration.py` activates automatically the
+   moment `seeds/aio_labels.yaml` exists (format:
+   `seeds/aio_labels.example.yaml`; target ≥80% agreement). After calibrating,
+   drop the `-uncalibrated` suffix and reprocess via the admin endpoint.
+2. **AIO capture is per (query, geo), no persona** — a SERP takes no system
+   prompt. Result rows use persona_name "(serp)"; per-tenant geolocation
+   lives in `tenants.aio_geo` (gl/hl, optional lat/lng), defaulting to
+   Canada/English.
+3. **SerpAPI fallback is built, not just designed** (§6.3 names it): set
+   `GOOGLE_AIO_PROVIDER=serpapi` + `SERPAPI_KEY` if direct capture proves
+   non-viable from the VPS IP — the likeliest of all surfaces to be blocked.
+   Both providers produce the same outcome shape and classifier input.
+4. **AIO fields upsert onto the query's existing classification row(s)**
+   (§5.1 keeps one classifications table); queries measured only by AIO get
+   a row keyed to the google_aio surface with an empty web bucket. The AIO
+   dimension never collapses into web-search-likelihood (§5.2).
+5. **Recommendation matrix (§6.4):** gaps are active queries whose latest
+   answers never mention the brand; branch by classification (very_likely/
+   likely → web_search; unlikely → training; "possible" gets no prescription).
+   The AIO branch triggers independently when the Overview is dominant/
+   present and cites none of the brand's domains. `branch` is an extra column
+   beyond the spec's four. Regeneration is idempotent: human done/dismissed
+   survive, closed gaps auto-resolve, reopened gaps come back.
+
 ## M5 (2026-07-13)
 
 1. **Schedules store cron only.** §5.1 lists surface_set/mode_set on

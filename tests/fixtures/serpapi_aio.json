@@ -1,0 +1,18 @@
+{
+  "search_metadata": {"status": "Success"},
+  "ai_overview": {
+    "text_blocks": [
+      {"type": "paragraph", "snippet": "Smith School of Business at Queen's University is a strong one-year option for an MBA in Canada."},
+      {"type": "paragraph", "snippet": "Rotman and Ivey are frequently shortlisted alongside it."}
+    ],
+    "references": [
+      {"title": "Smith MBA", "link": "https://smith.queensu.ca/programs/mba", "source": "smith.queensu.ca"},
+      {"title": "FT rankings", "link": "https://www.ft.com/mba-rankings/canada", "source": "ft.com"},
+      {"title": "FT rankings dup", "link": "https://www.ft.com/mba-rankings/canada", "source": "ft.com"}
+    ]
+  },
+  "organic_results": [
+    {"position": 1, "link": "https://smith.queensu.ca/programs/mba"},
+    {"position": 2, "link": "https://www.rotman.utoronto.ca/"}
+  ]
+}

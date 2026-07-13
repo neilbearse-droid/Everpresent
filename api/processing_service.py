@@ -24,6 +24,7 @@ from api.models import (
     utcnow,
 )
 from api.storage import read_raw_envelope
+from engine.processing.aio import classify_aio_capture
 from engine.processing.citations import categorize_domain, domain_is_owned
 from engine.processing.classify import (
     CLASSIFIER_VERSION,
@@ -33,6 +34,7 @@ from engine.processing.classify import (
 )
 from engine.processing.mentions import DETECTOR_VERSION, detect_mentions
 from engine.processing.scoring import SCORER_VERSION, ResultSignals, score_entity
+from engine.retrievers.google_aio import AIOCaptureSummary
 
 
 def _response_text(result: Result) -> str:
@@ -167,8 +169,68 @@ def process_run(session: Session, run: Run) -> dict[str, int]:
         session.add(existing)
         counts["classified_queries"] += 1
 
+    # Google AIO dimension (§5.2) — orthogonal to web-search-likelihood.
+    # Each captured SERP classifies onto the query's classification row(s);
+    # queries with no row yet get one keyed to the google_aio surface.
+    for result in search_results:
+        if result.surface != SurfaceCode.google_aio or not result.raw_uri:
+            continue
+        envelope = read_raw_envelope(result.raw_uri) or {}
+        summary_dict = (envelope.get("response") or {}).get("aio_summary") or {}
+        summary = (
+            AIOCaptureSummary(**summary_dict) if summary_dict else AIOCaptureSummary(ran=False)
+        )
+        assert result.id is not None
+        cited_urls = [
+            c.url
+            for c in session.exec(select(Citation).where(Citation.result_id == result.id)).all()
+        ]
+        signal = classify_aio_capture(summary, cited_urls)
+        rows = list(
+            session.exec(
+                select(QueryClassification).where(
+                    QueryClassification.tenant_id == run.tenant_id,
+                    QueryClassification.query_text == result.query_text,
+                )
+            ).all()
+        )
+        if not rows:
+            rows = [
+                QueryClassification(
+                    tenant_id=run.tenant_id,
+                    query_id=result.query_id,
+                    query_text=result.query_text,
+                    surface=SurfaceCode.google_aio,
+                    web_search_likelihood="",
+                )
+            ]
+        for row in rows:
+            row.google_aio_triggered = signal.triggered
+            row.google_aio_confidence = signal.confidence
+            row.google_aio_source_type = str(signal.source_type)
+            row.google_aio_signals = {
+                "cited_urls": signal.cited_urls,
+                "cited_domains": signal.cited_domains,
+                "classifier_version": signal.classifier_version,
+                "aio_position_index": summary.aio_position_index,
+                "aio_text_len": summary.aio_text_len,
+                "expanded": summary.expanded,
+                "organic_count": summary.organic_count,
+            }
+            row.run_id = run.id
+            row.updated_at = utcnow()
+            session.add(row)
+        counts["aio_classified"] = counts.get("aio_classified", 0) + 1
+
     session.commit()
     rollup_day(session, run.tenant_id, _run_day(run))
+
+    # §6.4 recommendation matrix, regenerated from the fresh state.
+    from api.recommendations_service import generate_recommendations
+
+    tenant_obj = session.get(Tenant, run.tenant_id)
+    assert tenant_obj is not None
+    counts["recommendations"] = generate_recommendations(session, tenant_obj)
     return counts
 
 

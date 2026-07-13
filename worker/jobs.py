@@ -4,6 +4,7 @@ only place the two meet a database session and a provider key."""
 
 import asyncio
 import hashlib
+from dataclasses import asdict
 from typing import Any
 
 from sqlmodel import Session, select
@@ -29,7 +30,7 @@ from api.queue import enqueue_run_mode_b
 from api.runs_service import MODE_A_SURFACES, MODE_B_SURFACES, month_spend_usd
 from api.storage import write_raw_envelope
 from engine.costs import estimate_openai_cost_usd
-from engine.retrievers import chatgpt_web, openai_api, perplexity_web
+from engine.retrievers import chatgpt_web, google_aio, openai_api, perplexity_web
 
 
 def ping() -> str:
@@ -50,6 +51,9 @@ def run_mode_b(run_id: int) -> None:
 B_ADAPTERS: dict[str, tuple[Any, str, str]] = {
     "chatgpt_web": (chatgpt_web, "chatgpt-web", "chatgpt_web_rate_per_min"),
     "perplexity_web": (perplexity_web, "perplexity-web", "perplexity_web_rate_per_min"),
+    # google_aio has its own call shape (per-query SERP capture, no persona);
+    # the dispatch loop branches on it but rate limiting comes from here.
+    "google_aio": (google_aio, "google-serp", "google_aio_rate_per_min"),
 }
 
 
@@ -326,9 +330,14 @@ async def _run_mode_b(run_id: int) -> None:
             ).all()
         )
         personas = list(session.exec(select(Persona).where(Persona.tenant_id == tenant.id)).all())
-        work = (
-            [(q, personas[0], s) for s in _b_surfaces(run) for q in queries] if personas else []
-        )
+        # google_aio is per (query, geo) — a SERP takes no persona (§6.3);
+        # persona-framed web surfaces use the first persona (DECISIONS M4.1).
+        work: list[tuple[Query, Persona | None, str]] = []
+        for surface in _b_surfaces(run):
+            if surface == str(SurfaceCode.google_aio):
+                work += [(q, None, surface) for q in queries]
+            elif personas:
+                work += [(q, personas[0], surface) for q in queries]
 
         counts = dict(run.counts) if run.counts else {}
         counts["planned"] = counts.get("planned", 0) + len(work)
@@ -338,25 +347,47 @@ async def _run_mode_b(run_id: int) -> None:
             if index > 0:
                 rate = max(float(getattr(settings, rate_attr)), 0.1)
                 await asyncio.sleep(60.0 / rate)
+            is_aio = surface == str(SurfaceCode.google_aio)
             result = Result(
                 run_id=run_id,
                 tenant_id=run.tenant_id,
                 query_id=query.id,
-                persona_id=persona.id,
+                persona_id=persona.id if persona else None,
                 query_text=query.text,
-                persona_name=persona.name,
-                persona_segment=persona.segment_tag,
+                persona_name=persona.name if persona else "(serp)",
+                persona_segment=persona.segment_tag if persona else "",
                 surface=SurfaceCode(surface),
                 mode=RunMode.B,
             )
             try:
-                outcome = await adapter_module.retrieve(
-                    persona.prompt_text,
-                    query.text,
-                    headless=settings.chatgpt_web_headless,
-                    timeout_s=settings.chatgpt_web_timeout_s,
-                    executable_path=settings.playwright_chromium_path or None,
-                )
+                if is_aio:
+                    outcome = await google_aio.capture(
+                        query.text,
+                        geo=tenant.aio_geo,
+                        provider=settings.google_aio_provider,
+                        serpapi_key=settings.serpapi_key,
+                        headless=settings.chatgpt_web_headless,
+                        timeout_s=settings.google_aio_timeout_s,
+                        executable_path=settings.playwright_chromium_path or None,
+                    )
+                    parsed_text = outcome.aio_text
+                    response_payload: dict[str, Any] = {
+                        "aio_summary": asdict(outcome.summary),
+                        "aio_html": outcome.aio_html,
+                        # §6.3: the full rendered SERP goes to object storage.
+                        "page_html": outcome.page_html,
+                    }
+                else:
+                    assert persona is not None
+                    outcome = await adapter_module.retrieve(
+                        persona.prompt_text,
+                        query.text,
+                        headless=settings.chatgpt_web_headless,
+                        timeout_s=settings.chatgpt_web_timeout_s,
+                        executable_path=settings.playwright_chromium_path or None,
+                    )
+                    parsed_text = outcome.text
+                    response_payload = {"html": outcome.html_fragment}
             except Exception as exc:  # noqa: BLE001 — a failed scrape is data
                 counts["failed"] = counts.get("failed", 0) + 1
                 result.status = ResultStatus.error
@@ -367,7 +398,7 @@ async def _run_mode_b(run_id: int) -> None:
 
             counts["completed"] = counts.get("completed", 0) + 1
             result.latency_ms = outcome.latency_ms
-            result.response_hash = hashlib.sha256(outcome.text.encode("utf-8")).hexdigest()
+            result.response_hash = hashlib.sha256(parsed_text.encode("utf-8")).hexdigest()
             result.raw_uri = write_raw_envelope(
                 tenant.slug,
                 run_id,
@@ -377,12 +408,12 @@ async def _run_mode_b(run_id: int) -> None:
                     "mode": "B",
                     "variant": "search",
                     "query": query.text,
-                    "persona": persona.name,
-                    "persona_prompt": persona.prompt_text,
+                    "persona": result.persona_name,
+                    "persona_prompt": persona.prompt_text if persona else "",
                     "model": model_label,
                     "adapter_version": adapter_module.ADAPTER_VERSION,
-                    "response": {"html": outcome.html_fragment},
-                    "parsed_text": outcome.text,
+                    "response": response_payload,
+                    "parsed_text": parsed_text,
                     "cost_usd": 0.0,
                 },
             )

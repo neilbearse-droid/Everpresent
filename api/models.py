@@ -53,6 +53,11 @@ class Tenant(SQLModel, table=True):
     monthly_spend_cap_usd: float = Field(default=50.0)
     # Run-completion reports go to these addresses (M5 notifications).
     notify_emails: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    # §6.3: fixed per-tenant geolocation for reproducible AIO capture.
+    # Keys: gl, hl, optional lat/lng.
+    aio_geo: dict = Field(
+        default_factory=lambda: {"gl": "ca", "hl": "en"}, sa_column=Column(JSON)
+    )
 
     created_at: datetime = Field(default_factory=utcnow)
 
@@ -253,6 +258,12 @@ class QueryClassification(SQLModel, table=True):
     signals: dict = Field(default_factory=dict, sa_column=Column(JSON))
     classifier_version: str = ""
     run_id: int | None = None  # run that produced the latest value
+    # Google AIO dimension (§5.2) — orthogonal to web-search-likelihood.
+    # Defaults describe "AIO retrieval did not run".
+    google_aio_triggered: bool = Field(default=False)
+    google_aio_confidence: float = Field(default=0.0)
+    google_aio_source_type: str = Field(default="no_aio")
+    google_aio_signals: dict = Field(default_factory=dict, sa_column=Column(JSON))
     updated_at: datetime = Field(default_factory=utcnow)
 
 
@@ -297,6 +308,31 @@ class MirrorState(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     table_name: str = Field(unique=True, index=True)
     last_id: int = 0
+    updated_at: datetime = Field(default_factory=utcnow)
+
+
+class RecommendationStatus(StrEnum):
+    open = "open"
+    in_progress = "in_progress"
+    done = "done"
+    dismissed = "dismissed"
+    resolved = "resolved"  # gap closed by the data, not by hand
+
+
+class Recommendation(SQLModel, table=True):
+    """§5.1 recommendations: each visibility gap mapped to a prescribed
+    action by the §6.4 matrix. gap_ref is the stable identity across
+    regenerations."""
+
+    __tablename__ = "recommendations"  # pyright: ignore[reportAssignmentType]
+
+    id: int | None = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenants.id", index=True)
+    gap_ref: str = Field(index=True)
+    branch: str = ""  # web_search | training | aio
+    action_text: str
+    status: RecommendationStatus = Field(default=RecommendationStatus.open, index=True)
+    created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
 
 

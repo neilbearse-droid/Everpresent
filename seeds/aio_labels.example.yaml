@@ -1,0 +1,29 @@
+# §12.1: Neil's 40 labeled AIO seed queries calibrate the rule-based
+# classifier. Copy this file to seeds/aio_labels.yaml, fill in the real
+# labels, and tests/test_aio_calibration.py starts scoring the classifier
+# against them (target: >= 80% agreement; tune engine/processing/aio.py
+# thresholds until it passes, then drop the -uncalibrated version suffix).
+#
+# Each entry: what the SERP looked like (capture facts) and the human label.
+labels:
+  - query: "best MBA program in Canada"
+    aio_present: true
+    aio_position_index: 0
+    aio_text_len: 1450
+    expanded: true
+    organic_count: 9
+    expected: aio_dominant
+  - query: "smith school of business acceptance rate"
+    aio_present: true
+    aio_position_index: 0
+    aio_text_len: 600
+    expanded: false
+    organic_count: 10
+    expected: aio_plus_organic
+  - query: "queen's university address"
+    aio_present: false
+    aio_position_index: -1
+    aio_text_len: 0
+    expanded: false
+    organic_count: 10
+    expected: no_aio

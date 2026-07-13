@@ -4,6 +4,7 @@ context (api.tenancy), never from a request parameter."""
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Response
+from pydantic import BaseModel
 from sqlmodel import Session, func, select
 
 from api import dashboards_service
@@ -13,9 +14,12 @@ from api.models import (
     Competitor,
     Persona,
     Query,
+    Recommendation,
+    RecommendationStatus,
     Result,
     Run,
     TenantSurface,
+    utcnow,
 )
 from api.runs_service import run_detail_payload
 from api.storage import read_raw_envelope
@@ -96,6 +100,41 @@ def personas_intel(ctx: Ctx, session: Db) -> dict:
 @router.get("/queries-intel")
 def queries_intel(ctx: Ctx, session: Db) -> dict:
     return dashboards_service.queries_intel(session, ctx.tenant_id)
+
+
+@router.get("/recommendations")
+def recommendations(ctx: Ctx, session: Db) -> list[Recommendation]:
+    return list(
+        session.exec(
+            select(Recommendation)
+            .where(Recommendation.tenant_id == ctx.tenant_id)
+            .order_by(Recommendation.status, Recommendation.branch, Recommendation.gap_ref)  # pyright: ignore[reportArgumentType]
+        ).all()
+    )
+
+
+class RecommendationStatusPatch(BaseModel):
+    status: RecommendationStatus
+
+
+@router.patch("/recommendations/{rec_id}")
+def update_recommendation(
+    rec_id: int, payload: RecommendationStatusPatch, ctx: Ctx, session: Db
+) -> Recommendation:
+    rec = session.get(Recommendation, rec_id)
+    if rec is None or rec.tenant_id != ctx.tenant_id:
+        raise HTTPException(status_code=404, detail="No such recommendation")
+    rec.status = payload.status
+    rec.updated_at = utcnow()
+    session.add(rec)
+    session.commit()
+    session.refresh(rec)
+    return rec
+
+
+@router.get("/citations-intel")
+def citations_intel(ctx: Ctx, session: Db) -> dict:
+    return dashboards_service.citations_intel(session, ctx.tenant_id)
 
 
 @router.get("/reports/results.csv")

@@ -200,6 +200,7 @@ def test_job_stores_results_citations_and_raw(db_session, job_env, fake_retrieve
         "mentions": 4,  # brand "Smith" found in each search result
         "classified_queries": 2,
         "citations_categorized": 8,
+        "recommendations": 0,  # brand mentioned everywhere: no gaps (§6.4)
     }
     assert run.cost_usd > 0
     assert run.started_at is not None and run.finished_at is not None

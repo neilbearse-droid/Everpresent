@@ -94,7 +94,11 @@ services:
       <<: *backend_env
       WORKER_QUEUES: scrape
       CHATGPT_WEB_RATE_PER_MIN: ${CHATGPT_WEB_RATE_PER_MIN:-4}
+      PERPLEXITY_WEB_RATE_PER_MIN: ${PERPLEXITY_WEB_RATE_PER_MIN:-4}
       CHATGPT_WEB_HEADLESS: ${CHATGPT_WEB_HEADLESS:-true}
+      GOOGLE_AIO_RATE_PER_MIN: ${GOOGLE_AIO_RATE_PER_MIN:-6}
+      GOOGLE_AIO_PROVIDER: ${GOOGLE_AIO_PROVIDER:-direct}
+      SERPAPI_KEY: ${SERPAPI_KEY:-}
     # Chromium needs a bigger /dev/shm than Docker's 64MB default.
     shm_size: "1gb"
     volumes:

@@ -19,7 +19,7 @@ from api.models import (
 # Surfaces with a working adapter, by mode. Perplexity/Gemini web and Google
 # AIO join as their adapters land (M5/M6).
 MODE_A_SURFACES = {SurfaceCode.openai_api}
-MODE_B_SURFACES = {SurfaceCode.chatgpt_web, SurfaceCode.perplexity_web}
+MODE_B_SURFACES = {SurfaceCode.chatgpt_web, SurfaceCode.perplexity_web, SurfaceCode.google_aio}
 DISPATCHABLE_SURFACES = MODE_A_SURFACES | MODE_B_SURFACES
 
 

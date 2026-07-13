@@ -92,4 +92,9 @@ service, run-completion email reports with PDF/CSV attached and the 80%
 spend alert, report export endpoints + dashboard downloads, nightly BigQuery
 mirror of run metadata, Perplexity as the second Mode B adapter). Optional
 M5 env: SMTP_* for email, BIGQUERY_* + service-account JSON for the mirror.
-Decisions of record live in `DECISIONS.md`.
+**M6** (Google AIO: SERP capture with per-tenant geolocation and a SerpAPI
+fallback, GoogleAIOSignal + rule-based classifier — provisional thresholds
+pending the §12.1 labeled seed queries, see DECISIONS.md M6.1 — the §6.4
+recommendation matrix with web-search/training/AIO branches, and the
+Citations screen + AIO share tiles). **That completes the specced milestone
+plan (M0–M6).** Decisions of record live in `DECISIONS.md`.

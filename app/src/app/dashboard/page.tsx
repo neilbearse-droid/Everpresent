@@ -5,6 +5,7 @@ import {
   type OverviewPayload,
   type TenantSummary,
 } from "@/lib/api";
+import { AIOTile } from "@/components/aio-tile";
 import { DashNav } from "@/components/dash-nav";
 import { TrendChart, HBars } from "@/components/charts";
 import { DELTA_DOWN, DELTA_UP, entityColors } from "@/lib/viz";
@@ -80,13 +81,10 @@ export default async function OverviewPage() {
           </div>
           <div className="mt-1 text-sm text-slate-400">Share of voice (30 days)</div>
         </div>
-        <div className="rounded-lg border border-slate-700 bg-slate-900 p-5">
-          <div className="text-lg font-medium">{tenant.data.name}</div>
-          <div className="mt-1 text-sm text-slate-400">
-            {tenant.data.counts.queries} queries · {tenant.data.counts.personas} personas ·{" "}
-            {tenant.data.counts.competitors} competitors
-          </div>
-        </div>
+        <AIOTile aio={data?.aio ?? {
+          queries_measured: 0, queries_with_aio: 0, aio_share_pct: 0,
+          brand_cited_in_aio: 0, source_types: {},
+        }} />
       </div>
 
       <div className="mb-6 flex gap-3 text-sm">

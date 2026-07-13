@@ -9,6 +9,7 @@ from sqlmodel import Session, select
 
 from api.models import (
     BrandProfile,
+    Citation,
     Mention,
     Query,
     QueryClassification,
@@ -17,6 +18,7 @@ from api.models import (
     Tenant,
     VisibilityDaily,
 )
+from engine.processing.citations import domain_is_owned
 
 TREND_DAYS = 90
 SOV_DAYS = 30
@@ -35,6 +37,72 @@ def _brand_name(session: Session, tenant_id: int) -> str:
 
 def _mean(values: list[float]) -> float:
     return round(sum(values) / len(values), 2) if values else 0.0
+
+
+def aio_summary(session: Session, tenant_id: int) -> dict:
+    """The AIO tile (§10 M6 gate): how often Google's AI Overview answers the
+    corpus, and whether the brand's domains are among its sources."""
+    brand = session.exec(
+        select(BrandProfile).where(BrandProfile.tenant_id == tenant_id)
+    ).first()
+    brand_domains = brand.domains if brand else []
+    rows = [
+        c
+        for c in session.exec(
+            select(QueryClassification).where(QueryClassification.tenant_id == tenant_id)
+        ).all()
+        if c.google_aio_signals  # AIO capture actually ran for this query
+    ]
+    measured = len(rows)
+    triggered = [c for c in rows if c.google_aio_triggered]
+    brand_cited = sum(
+        1
+        for c in triggered
+        if any(
+            domain_is_owned(d, brand_domains)
+            for d in c.google_aio_signals.get("cited_domains", [])
+        )
+    )
+    source_types: dict[str, int] = defaultdict(int)
+    for c in rows:
+        source_types[c.google_aio_source_type] += 1
+    return {
+        "queries_measured": measured,
+        "queries_with_aio": len(triggered),
+        "aio_share_pct": round(100.0 * len(triggered) / measured, 1) if measured else 0.0,
+        "brand_cited_in_aio": brand_cited,
+        "source_types": dict(source_types),
+    }
+
+
+def citations_intel(session: Session, tenant_id: int) -> dict:
+    """Citations screen (§7.1 #4): which domains AI answers cite in this
+    vertical, and whether the client is among them."""
+    results_by_id = {
+        r.id: r
+        for r in session.exec(select(Result).where(Result.tenant_id == tenant_id)).all()
+        if r.id is not None
+    }
+    domains: dict[str, dict] = {}
+    for citation in session.exec(
+        select(Citation).where(Citation.tenant_id == tenant_id)
+    ).all():
+        entry = domains.setdefault(
+            citation.domain,
+            {"domain": citation.domain, "category": citation.source_category, "count": 0,
+             "surfaces": set()},
+        )
+        entry["count"] += 1
+        if citation.source_category:
+            entry["category"] = citation.source_category
+        result = results_by_id.get(citation.result_id)
+        if result is not None:
+            entry["surfaces"].add(str(result.surface))
+    ranked = sorted(domains.values(), key=lambda d: -d["count"])
+    return {
+        "domains": [{**d, "surfaces": sorted(d["surfaces"])} for d in ranked],
+        "aio": aio_summary(session, tenant_id),
+    }
 
 
 def overview(session: Session, tenant_id: int) -> dict:
@@ -143,6 +211,7 @@ def overview(session: Session, tenant_id: int) -> dict:
         "latest": (
             {"date": dates[-1], "brand_score": trend[-1]["brand_score"]} if trend else None
         ),
+        "aio": aio_summary(session, tenant_id),
     }
 
 

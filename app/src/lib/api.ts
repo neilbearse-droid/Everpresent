@@ -121,12 +121,35 @@ export type RawEnvelope = {
   response: unknown;
 };
 
+export type AIOSummary = {
+  queries_measured: number;
+  queries_with_aio: number;
+  aio_share_pct: number;
+  brand_cited_in_aio: number;
+  source_types: Record<string, number>;
+};
+
 export type OverviewPayload = {
   brand_name: string;
   trend: { date: string; brand_score: number; competitors: Record<string, number> }[];
   share_of_voice: Record<string, number>;
   movers: { label: string; kind: string; before: number; after: number; delta: number }[];
   latest: { date: string; brand_score: number } | null;
+  aio: AIOSummary;
+};
+
+export type CitationsPayload = {
+  domains: { domain: string; category: string; count: number; surfaces: string[] }[];
+  aio: AIOSummary;
+};
+
+export type Recommendation = {
+  id: number;
+  gap_ref: string;
+  branch: "web_search" | "training" | "aio";
+  action_text: string;
+  status: "open" | "in_progress" | "done" | "dismissed" | "resolved";
+  updated_at: string;
 };
 
 export type PersonasPayload = {
