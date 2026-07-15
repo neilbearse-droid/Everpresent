@@ -79,13 +79,15 @@ warehouse mirror are optional and switch on later (see the main README).
 
 Click **Save** on each; Render redeploys the changed services.
 
-## Step 5 — Point Clerk back at your live site
+## Step 5 — (Development instance: nothing to do)
 
-Once the web service is live, Render gives it a URL like
-`https://everpresent-web.onrender.com`. Copy it, then in the **Clerk
-dashboard** add that URL to your allowed domains / redirect URLs (Clerk shows
-where under **Domains** or **Paths**). This lets logins complete on the live
-site.
+If you're using a Clerk **Development** instance (the `pk_test_…` key), it
+accepts logins from any URL — including your `onrender.com` one — so there is
+**nothing to configure here**. Clerk's Domains page even says the allowlist
+"is not available on development instances." Skip straight to Step 6.
+
+(Only when you later create a **Production** instance for a custom domain do
+you configure the Primary domain there. Not needed to log in now.)
 
 ## Step 6 — Log in
 

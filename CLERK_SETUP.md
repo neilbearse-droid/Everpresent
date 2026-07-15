@@ -47,9 +47,10 @@ domain, and swap those values in Render. Start with Development.
 
 ## After deploying
 
-Once your site is live (e.g. `https://everpresent-web.onrender.com`), come
-back to Clerk and add that URL under **Domains** / allowed redirect URLs so
-logins complete on the live site.
+On a **Development** instance, logins work on any URL (including your
+`onrender.com` site) with no domain configuration — Clerk's Domains allowlist
+is disabled for dev instances, and that's fine. You only configure a Primary
+domain later, when you create a **Production** instance for a custom domain.
 
 > Menu labels drift over time — Clerk reshuffles their dashboard. The concepts
 > (API keys, Organizations, Restrictions) are stable; use the dashboard search
