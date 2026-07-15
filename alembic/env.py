@@ -6,12 +6,15 @@ from sqlmodel import SQLModel
 import api.models  # noqa: F401  (populate SQLModel.metadata)
 from alembic import context
 from api.config import get_settings
+from api.db import normalize_db_url
 
 config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-config.set_main_option("sqlalchemy.url", get_settings().database_url)
+# Normalize managed-platform URLs (postgres:// -> postgresql+psycopg://) so
+# Alembic uses the psycopg driver we install, matching the app engine.
+config.set_main_option("sqlalchemy.url", normalize_db_url(get_settings().database_url))
 
 target_metadata = SQLModel.metadata
 
