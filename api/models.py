@@ -25,6 +25,9 @@ class SurfaceCode(StrEnum):
     per-tenant via TenantSurface."""
 
     openai_api = "openai_api"
+    perplexity_api = "perplexity_api"
+    claude_api = "claude_api"
+    gemini_api = "gemini_api"
     chatgpt_web = "chatgpt_web"
     perplexity_web = "perplexity_web"
     gemini_web = "gemini_web"

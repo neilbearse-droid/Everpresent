@@ -17,14 +17,87 @@ OPENAI_WEB_SEARCH_PER_1K_CALLS = 10.00
 _FALLBACK_TOKEN_PRICE = (2.50, 10.00)  # unknown model: assume gpt-4o-class
 
 
+def _token_cost(
+    prices: dict[str, tuple[float, float]],
+    fallback: tuple[float, float],
+    model: str,
+    input_tokens: int,
+    output_tokens: int,
+) -> float:
+    price = fallback
+    best_len = -1
+    for prefix, p in prices.items():
+        if model.startswith(prefix) and len(prefix) > best_len:
+            price, best_len = p, len(prefix)
+    return (input_tokens * price[0] + output_tokens * price[1]) / 1_000_000
+
+
 def estimate_openai_cost_usd(
     model: str, input_tokens: int, output_tokens: int, web_search_calls: int = 0
 ) -> float:
-    price = _FALLBACK_TOKEN_PRICE
-    best_len = -1
-    for prefix, p in OPENAI_TOKEN_PRICES.items():
-        if model.startswith(prefix) and len(prefix) > best_len:
-            price, best_len = p, len(prefix)
-    cost = (input_tokens * price[0] + output_tokens * price[1]) / 1_000_000
+    cost = _token_cost(
+        OPENAI_TOKEN_PRICES, _FALLBACK_TOKEN_PRICE, model, input_tokens, output_tokens
+    )
     cost += web_search_calls * OPENAI_WEB_SEARCH_PER_1K_CALLS / 1_000
+    return round(cost, 6)
+
+
+# Perplexity Sonar (§6.1). Token prices per 1M; plus a per-request search fee.
+PERPLEXITY_TOKEN_PRICES: dict[str, tuple[float, float]] = {
+    "sonar-reasoning-pro": (2.00, 8.00),
+    "sonar-reasoning": (1.00, 5.00),
+    "sonar-pro": (3.00, 15.00),
+    "sonar": (1.00, 1.00),
+}
+PERPLEXITY_SEARCH_PER_1K = 5.00
+_PERPLEXITY_FALLBACK = (1.00, 1.00)
+
+
+def estimate_perplexity_cost_usd(
+    model: str, input_tokens: int, output_tokens: int, web_search_calls: int = 0
+) -> float:
+    cost = _token_cost(
+        PERPLEXITY_TOKEN_PRICES, _PERPLEXITY_FALLBACK, model, input_tokens, output_tokens
+    )
+    cost += web_search_calls * PERPLEXITY_SEARCH_PER_1K / 1_000
+    return round(cost, 6)
+
+
+# Anthropic Claude (§6.1). Token prices per 1M; web search $10 / 1k.
+ANTHROPIC_TOKEN_PRICES: dict[str, tuple[float, float]] = {
+    "claude-haiku": (1.00, 5.00),
+    "claude-opus": (15.00, 75.00),
+    "claude-sonnet": (3.00, 15.00),
+}
+ANTHROPIC_WEB_SEARCH_PER_1K = 10.00
+_ANTHROPIC_FALLBACK = (3.00, 15.00)
+
+
+def estimate_anthropic_cost_usd(
+    model: str, input_tokens: int, output_tokens: int, web_search_calls: int = 0
+) -> float:
+    cost = _token_cost(
+        ANTHROPIC_TOKEN_PRICES, _ANTHROPIC_FALLBACK, model, input_tokens, output_tokens
+    )
+    cost += web_search_calls * ANTHROPIC_WEB_SEARCH_PER_1K / 1_000
+    return round(cost, 6)
+
+
+# Google Gemini (§6.1). Token prices per 1M; grounding billed per 1k requests.
+GEMINI_TOKEN_PRICES: dict[str, tuple[float, float]] = {
+    "gemini-2.5-pro": (1.25, 10.00),
+    "gemini-2.5-flash": (0.30, 2.50),
+    "gemini-2.0-flash": (0.10, 0.40),
+}
+GEMINI_GROUNDING_PER_1K = 35.00
+_GEMINI_FALLBACK = (0.30, 2.50)
+
+
+def estimate_gemini_cost_usd(
+    model: str, input_tokens: int, output_tokens: int, web_search_calls: int = 0
+) -> float:
+    cost = _token_cost(
+        GEMINI_TOKEN_PRICES, _GEMINI_FALLBACK, model, input_tokens, output_tokens
+    )
+    cost += web_search_calls * GEMINI_GROUNDING_PER_1K / 1_000
     return round(cost, 6)

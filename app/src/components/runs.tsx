@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Run, RunDetail } from "@/lib/api";
+import { surfaceLabel } from "@/lib/viz";
 
 const STATUS_STYLES: Record<Run["status"], string> = {
   pending: "bg-slate-700 text-slate-200",
@@ -98,7 +99,7 @@ export function RunDetailView({ detail, hrefBase }: { detail: RunDetail; hrefBas
                 {result.persona_name}
                 <div className="text-xs text-slate-500">{result.persona_segment}</div>
               </td>
-              <td className="font-mono text-xs">{result.surface}</td>
+              <td className="text-xs">{surfaceLabel(result.surface)}</td>
               <td>
                 {result.status === "ok" ? (
                   <span className="text-emerald-400">ok</span>

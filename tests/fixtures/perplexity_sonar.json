@@ -1,0 +1,28 @@
+{
+  "id": "cmpl-abc123",
+  "model": "sonar",
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "stop",
+      "message": {
+        "role": "assistant",
+        "content": "Smith School of Business at Queen's University is consistently ranked among Canada's top MBA programs, noted for its team-based learning."
+      }
+    }
+  ],
+  "search_results": [
+    {"title": "Canada MBA Rankings", "url": "https://www.ft.com/mba-rankings/canada", "date": "2026-01-10"},
+    {"title": "Full-Time MBA — Smith", "url": "https://smith.queensu.ca/programs/mba/full-time", "date": "2026-02-01"}
+  ],
+  "citations": [
+    "https://www.ft.com/mba-rankings/canada",
+    "https://smith.queensu.ca/programs/mba/full-time"
+  ],
+  "usage": {
+    "prompt_tokens": 210,
+    "completion_tokens": 88,
+    "total_tokens": 298,
+    "num_search_queries": 2
+  }
+}

@@ -29,8 +29,21 @@ from api.processing_service import process_run
 from api.queue import enqueue_run_mode_b
 from api.runs_service import MODE_A_SURFACES, MODE_B_SURFACES, month_spend_usd
 from api.storage import write_raw_envelope
-from engine.costs import estimate_openai_cost_usd
-from engine.retrievers import chatgpt_web, google_aio, openai_api, perplexity_web
+from engine.costs import (
+    estimate_anthropic_cost_usd,
+    estimate_gemini_cost_usd,
+    estimate_openai_cost_usd,
+    estimate_perplexity_cost_usd,
+)
+from engine.retrievers import (
+    chatgpt_web,
+    claude_api,
+    gemini_api,
+    google_aio,
+    openai_api,
+    perplexity_api,
+    perplexity_web,
+)
 
 
 def ping() -> str:
@@ -67,6 +80,42 @@ def run_mode_b(run_id: int) -> None:
     except Exception as exc:  # noqa: BLE001
         _mark_run_failed(run_id, f"run crashed in Mode B: {type(exc).__name__}: {exc}")
         raise
+
+
+@dataclass(frozen=True)
+class _AAdapter:
+    """One Mode A (API) provider. All expose the same `retrieve` signature, so
+    the dispatch loop routes by surface code. Adding a provider = one entry
+    here plus its retriever module and cost function."""
+
+    module: Any
+    key_attr: str  # Settings attribute holding the API key
+    model_attr: str  # Settings attribute holding the model id
+    timeout_attr: str  # Settings attribute holding the per-call timeout
+    cost_fn: Any  # (model, in_tok, out_tok, search_calls) -> usd
+    env_var: str  # for the "not configured" message
+    supports_nosearch: bool  # whether the search-disabled dual-query twin applies
+
+
+# Adding a Mode A surface = one line here plus its adapter + cost function.
+A_ADAPTERS: dict[str, _AAdapter] = {
+    "openai_api": _AAdapter(
+        openai_api, "openai_api_key", "openai_model", "openai_timeout_s",
+        estimate_openai_cost_usd, "OPENAI_API_KEY", supports_nosearch=True,
+    ),
+    "perplexity_api": _AAdapter(
+        perplexity_api, "perplexity_api_key", "perplexity_model", "perplexity_timeout_s",
+        estimate_perplexity_cost_usd, "PERPLEXITY_API_KEY", supports_nosearch=False,
+    ),
+    "claude_api": _AAdapter(
+        claude_api, "anthropic_api_key", "claude_model", "claude_timeout_s",
+        estimate_anthropic_cost_usd, "ANTHROPIC_API_KEY", supports_nosearch=True,
+    ),
+    "gemini_api": _AAdapter(
+        gemini_api, "gemini_api_key", "gemini_model", "gemini_timeout_s",
+        estimate_gemini_cost_usd, "GEMINI_API_KEY", supports_nosearch=True,
+    ),
+}
 
 
 # surface code -> (adapter module, model label, rate settings attribute).
@@ -157,39 +206,40 @@ class _BWorkItem:
 async def _dispatch_all(
     work: list[_AWorkItem],
     *,
-    api_key: str,
-    model: str,
-    timeout_s: float,
+    settings: Any,
     concurrency: int,
     month_spent_before: float,
     cap_usd: float,
 ) -> tuple[list[dict[str, Any] | None], bool]:
-    """Runs the (query × persona × surface) matrix with a concurrency limit.
-    NO database connection is held here (§ connection-lifetime fix): work items
-    are plain data. The spend cap is checked BEFORE each dispatch (§6.1/§9); a
-    None slot means the call was withheld by the cap."""
+    """Runs the (query × persona × surface) matrix with a concurrency limit,
+    routing each item to its provider adapter by surface code. NO database
+    connection is held here (§ connection-lifetime fix): work items are plain
+    data. The spend cap is checked BEFORE each dispatch (§6.1/§9); a None slot
+    means the call was withheld by the cap."""
     semaphore = asyncio.Semaphore(concurrency)
     lock = asyncio.Lock()
     state = {"cost": 0.0, "capped": False}
 
     async def one(item: _AWorkItem) -> dict[str, Any] | None:
+        adapter = A_ADAPTERS[item.surface]
+        model = getattr(settings, adapter.model_attr)
         async with semaphore:
             async with lock:
                 if month_spent_before + state["cost"] >= cap_usd:
                     state["capped"] = True
                     return None
             try:
-                outcome = await openai_api.retrieve(
+                outcome = await adapter.module.retrieve(
                     item.persona_prompt,
                     item.query_text,
-                    api_key=api_key,
+                    api_key=getattr(settings, adapter.key_attr),
                     model=model,
-                    timeout_s=timeout_s,
+                    timeout_s=getattr(settings, adapter.timeout_attr),
                     web_search=item.variant == ResultVariant.search,
                 )
             except Exception as exc:  # noqa: BLE001 — a failed call is data, not a crash
-                return {"item": item, "error": f"{type(exc).__name__}: {exc}"[:500]}
-            cost = estimate_openai_cost_usd(
+                return {"item": item, "model": model, "error": f"{type(exc).__name__}: {exc}"[:500]}
+            cost = adapter.cost_fn(
                 outcome.parsed.model or model,
                 outcome.parsed.input_tokens,
                 outcome.parsed.output_tokens,
@@ -197,7 +247,7 @@ async def _dispatch_all(
             )
             async with lock:
                 state["cost"] += cost
-            return {"item": item, "outcome": outcome, "cost": cost}
+            return {"item": item, "outcome": outcome, "cost": cost, "model": model}
 
     results = await asyncio.gather(*[one(item) for item in work])
     return list(results), state["capped"]
@@ -233,12 +283,33 @@ async def _run_mode_a(run_id: int) -> None:
         ]
         month_spent_before = month_spend_usd(session, run.tenant_id)
 
+    # Only dispatch surfaces whose provider key is configured; an enabled
+    # surface with no key is skipped with a clear reason, never a crash. If
+    # NONE of the enabled Mode A surfaces has a key, the run fails loudly.
+    configured = [s for s in a_surfaces if getattr(settings, A_ADAPTERS[s].key_attr)]
+    unconfigured = [s for s in a_surfaces if s not in configured]
+
+    if not configured:
+        needed = ", ".join(sorted({A_ADAPTERS[s].env_var for s in a_surfaces}))
+        with Session(get_engine()) as session:
+            run = session.get(Run, run_id)
+            assert run is not None
+            run.status = RunStatus.failed
+            run.error = f"No Mode A surface is configured on this deployment. Set: {needed}"
+            run.counts = {"planned": 0, "completed": 0, "failed": 0, "withheld_by_cap": 0}
+            run.finished_at = utcnow()
+            session.add(run)
+            session.commit()
+        return
+
     # The client-facing matrix, plus one search-disabled twin per (query,
     # surface) on the first persona — the dual-query diff the classifier
-    # consumes (§6.1). Plain snapshots: no DB connection during dispatch.
+    # consumes (§6.1). The twin only applies to providers with a non-search
+    # mode (Perplexity Sonar always searches). Plain snapshots: no DB
+    # connection during dispatch.
     work: list[_AWorkItem] = [
         _AWorkItem(qid, qtext, pid, pname, pprompt, pseg, s, ResultVariant.search)
-        for s in a_surfaces
+        for s in configured
         for (qid, qtext) in queries
         for (pid, pname, pprompt, pseg) in personas
     ]
@@ -246,11 +317,14 @@ async def _run_mode_a(run_id: int) -> None:
         pid0, pname0, pprompt0, pseg0 = personas[0]
         work += [
             _AWorkItem(qid, qtext, pid0, pname0, pprompt0, pseg0, s, ResultVariant.nosearch)
-            for s in a_surfaces
+            for s in configured
+            if A_ADAPTERS[s].supports_nosearch
             for (qid, qtext) in queries
         ]
 
     counts = {"planned": len(work), "completed": 0, "failed": 0, "withheld_by_cap": 0}
+    if unconfigured:
+        counts["skipped_unconfigured"] = len(unconfigured)
     with Session(get_engine()) as session:
         run = session.get(Run, run_id)
         assert run is not None
@@ -258,24 +332,10 @@ async def _run_mode_a(run_id: int) -> None:
         session.add(run)
         session.commit()
 
-    if not settings.openai_api_key:
-        with Session(get_engine()) as session:
-            run = session.get(Run, run_id)
-            assert run is not None
-            run.status = RunStatus.failed
-            run.error = "OPENAI_API_KEY is not configured on this deployment"
-            run.counts = counts
-            run.finished_at = utcnow()
-            session.add(run)
-            session.commit()
-        return
-
     # Phase 2 — dispatch the provider calls. NO DB CONNECTION HELD.
     outcomes, capped = await _dispatch_all(
         work,
-        api_key=settings.openai_api_key,
-        model=settings.openai_model,
-        timeout_s=settings.openai_timeout_s,
+        settings=settings,
         concurrency=settings.openai_concurrency,
         month_spent_before=month_spent_before,
         cap_usd=cap_usd,
@@ -328,7 +388,7 @@ async def _run_mode_a(run_id: int) -> None:
                         "query": wi.query_text,
                         "persona": wi.persona_name,
                         "persona_prompt": wi.persona_prompt,
-                        "model": settings.openai_model,
+                        "model": item.get("model", ""),
                         "response": outcome.payload,
                         "parsed_text": outcome.parsed.text,
                         "cost_usd": item["cost"],

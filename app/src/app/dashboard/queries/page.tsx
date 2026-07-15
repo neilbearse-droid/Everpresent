@@ -2,7 +2,7 @@ import Link from "next/link";
 import { apiFetch, type Me, type QueriesIntelPayload } from "@/lib/api";
 import { DashNav } from "@/components/dash-nav";
 import { NoOrgNotice } from "@/components/no-org-notice";
-import { LIKELIHOOD_COLORS, LIKELIHOOD_LABELS } from "@/lib/viz";
+import { LIKELIHOOD_COLORS, LIKELIHOOD_LABELS, surfaceLabel } from "@/lib/viz";
 
 function ClassificationChip({
   classification,
@@ -44,11 +44,11 @@ function ModeLinks({
             href={`/dashboard/runs/${result.run_id}/results/${result.result_id}`}
             className="text-xs text-indigo-400 hover:underline"
           >
-            {surface} →
+            {surfaceLabel(surface)} →
           </Link>
         ) : (
           <span key={surface} className="text-xs text-red-400">
-            {surface}: error
+            {surfaceLabel(surface)}: error
           </span>
         ),
       )}

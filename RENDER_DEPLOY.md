@@ -77,6 +77,26 @@ automatically — you only touch the secrets.)
 Leave the `SMTP_*` and BigQuery fields blank for now — email reports and the
 warehouse mirror are optional and switch on later (see the main README).
 
+### Optional — the other answer engines (Perplexity, Claude, Gemini)
+
+EverPresent measures ChatGPT out of the box (`OPENAI_API_KEY`). To measure the
+other engines too, add each provider's API key to **both** everpresent-api and
+everpresent-worker. Any engine you leave blank is simply skipped — a run never
+fails for a missing key. All three are reliable API calls (no fragile
+scraping).
+
+| Key | Where to get it | Enables surface |
+|---|---|---|
+| `PERPLEXITY_API_KEY` | perplexity.ai → Settings → API | Perplexity (Sonar) |
+| `ANTHROPIC_API_KEY` | console.anthropic.com → API Keys | Claude |
+| `GEMINI_API_KEY` | aistudio.google.com → Get API key | Gemini |
+
+The model each uses is preset (`PERPLEXITY_MODEL`, `CLAUDE_MODEL`,
+`GEMINI_MODEL`) and can be changed later. Each engine you add multiplies the
+per-run cost by roughly one more provider's usage, so watch the tenant spend
+cap. In the admin panel, toggle the new surfaces **on** for a tenant (that also
+governance-approves them), then trigger a run.
+
 Click **Save** on each; Render redeploys the changed services.
 
 ## Step 5 — (Development instance: nothing to do)

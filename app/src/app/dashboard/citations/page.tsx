@@ -2,6 +2,7 @@ import { apiFetch, type CitationsPayload, type Me } from "@/lib/api";
 import { DashNav } from "@/components/dash-nav";
 import { NoOrgNotice } from "@/components/no-org-notice";
 import { AIOTile } from "@/components/aio-tile";
+import { surfaceLabel } from "@/lib/viz";
 
 const CATEGORY_STYLES: Record<string, string> = {
   brand: "bg-emerald-700 text-white",
@@ -76,7 +77,7 @@ export default async function CitationsPage() {
                       </td>
                       <td className="pr-4 tabular-nums">{d.count}</td>
                       <td className="font-mono text-xs text-slate-400">
-                        {d.surfaces.join(", ")}
+                        {d.surfaces.map(surfaceLabel).join(", ")}
                       </td>
                     </tr>
                   ))}

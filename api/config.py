@@ -33,6 +33,27 @@ class Settings(BaseSettings):
     openai_concurrency: int = 4
     openai_timeout_s: float = 90.0
 
+    # Additional Mode A (API) measured surfaces. Each is a real consumer-facing
+    # answer engine called over its own HTTP API — measured surfaces, not
+    # utility LLM calls, so they intentionally sit outside engine/llm's
+    # allowlist router (§6.1). A surface with no key configured is skipped with
+    # a clear reason, never a crash. Concurrency is shared across all Mode A
+    # providers via openai_concurrency.
+    perplexity_api_key: str = ""
+    perplexity_model: str = "sonar"
+    perplexity_timeout_s: float = 90.0
+
+    anthropic_api_key: str = ""
+    # A real consumer-facing Claude model (what claude.ai serves), NOT a
+    # build-time-only model. The §4 runtime-model ban is enforced by the policy
+    # test, which scans this file for forbidden model substrings.
+    claude_model: str = "claude-sonnet-4-6"
+    claude_timeout_s: float = 90.0
+
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-2.5-flash"
+    gemini_timeout_s: float = 90.0
+
     # Mode B scraping (§6.2): conservative by default, sequential per surface.
     chatgpt_web_rate_per_min: float = 4.0
     chatgpt_web_headless: bool = True

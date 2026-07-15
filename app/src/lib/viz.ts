@@ -30,6 +30,23 @@ export function entityColors(
   return map;
 }
 
+// Human-readable names for measured surfaces. Falls back to the raw code for
+// any surface without an entry.
+export const SURFACE_LABELS: Record<string, string> = {
+  openai_api: "ChatGPT (API)",
+  perplexity_api: "Perplexity",
+  claude_api: "Claude",
+  gemini_api: "Gemini",
+  chatgpt_web: "ChatGPT (web)",
+  perplexity_web: "Perplexity (web)",
+  gemini_web: "Gemini (web)",
+  google_aio: "Google AI Overviews",
+};
+
+export function surfaceLabel(code: string): string {
+  return SURFACE_LABELS[code] ?? code;
+}
+
 export const LIKELIHOOD_LABELS: Record<string, string> = {
   very_likely: "very likely",
   likely: "likely",

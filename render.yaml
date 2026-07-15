@@ -69,6 +69,20 @@ services:
         sync: false
       - key: OPENAI_MODEL
         value: gpt-4o
+      # Additional Mode A answer engines. Leave a key blank to disable that
+      # surface — the run skips it with a reason, never crashes.
+      - key: PERPLEXITY_API_KEY
+        sync: false
+      - key: PERPLEXITY_MODEL
+        value: sonar
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: CLAUDE_MODEL
+        value: claude-sonnet-4-6
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
       # Optional integrations — leave blank to disable.
       - key: SMTP_HOST
         sync: false
@@ -137,6 +151,19 @@ services:
         sync: false
       - key: OPENAI_MODEL
         value: gpt-4o
+      # Mode A dispatch runs on the worker, so it needs every provider key.
+      - key: PERPLEXITY_API_KEY
+        sync: false
+      - key: PERPLEXITY_MODEL
+        value: sonar
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: CLAUDE_MODEL
+        value: claude-sonnet-4-6
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
       - key: SMTP_HOST
         sync: false
       - key: SMTP_PORT

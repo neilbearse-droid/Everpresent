@@ -77,4 +77,7 @@ queries:
 
 surfaces:
   - openai_api
+  - perplexity_api
+  - claude_api
+  - gemini_api
   - chatgpt_web

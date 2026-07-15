@@ -1,0 +1,26 @@
+{
+  "modelVersion": "gemini-2.5-flash",
+  "candidates": [
+    {
+      "content": {
+        "role": "model",
+        "parts": [
+          {"text": "Smith School of Business at Queen's University ranks among the top MBA programs in Canada."}
+        ]
+      },
+      "finishReason": "STOP",
+      "groundingMetadata": {
+        "webSearchQueries": ["best MBA programs Canada", "Smith School of Business ranking"],
+        "groundingChunks": [
+          {"web": {"uri": "https://www.ft.com/mba-rankings/canada", "title": "ft.com"}},
+          {"web": {"uri": "https://smith.queensu.ca/programs/mba/full-time", "title": "smith.queensu.ca"}}
+        ]
+      }
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 180,
+    "candidatesTokenCount": 74,
+    "totalTokenCount": 254
+  }
+}

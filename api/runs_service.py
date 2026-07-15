@@ -16,9 +16,14 @@ from api.models import (
     TenantSurface,
 )
 
-# Surfaces with a working adapter, by mode. Perplexity/Gemini web and Google
-# AIO join as their adapters land (M5/M6).
-MODE_A_SURFACES = {SurfaceCode.openai_api}
+# Surfaces with a working adapter, by mode. Mode A is the reliable API path
+# across the major answer engines; Mode B is the fragile consumer-UI scrape.
+MODE_A_SURFACES = {
+    SurfaceCode.openai_api,
+    SurfaceCode.perplexity_api,
+    SurfaceCode.claude_api,
+    SurfaceCode.gemini_api,
+}
 MODE_B_SURFACES = {SurfaceCode.chatgpt_web, SurfaceCode.perplexity_web, SurfaceCode.google_aio}
 DISPATCHABLE_SURFACES = MODE_A_SURFACES | MODE_B_SURFACES
 

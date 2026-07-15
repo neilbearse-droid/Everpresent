@@ -1,0 +1,35 @@
+{
+  "id": "msg_01ABC",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-sonnet-4-6",
+  "content": [
+    {
+      "type": "server_tool_use",
+      "id": "srvtoolu_01",
+      "name": "web_search",
+      "input": {"query": "best MBA Canada Smith"}
+    },
+    {
+      "type": "web_search_tool_result",
+      "tool_use_id": "srvtoolu_01",
+      "content": [
+        {"type": "web_search_result", "url": "https://www.ft.com/mba-rankings/canada", "title": "Canada MBA Rankings"},
+        {"type": "web_search_result", "url": "https://smith.queensu.ca/programs/mba/full-time", "title": "Full-Time MBA — Smith"}
+      ]
+    },
+    {
+      "type": "text",
+      "text": "The Smith School of Business is regarded as one of the strongest MBA options in Canada.",
+      "citations": [
+        {"type": "web_search_result_location", "url": "https://smith.queensu.ca/programs/mba/full-time", "title": "Full-Time MBA — Smith"}
+      ]
+    }
+  ],
+  "stop_reason": "end_turn",
+  "usage": {
+    "input_tokens": 320,
+    "output_tokens": 96,
+    "server_tool_use": {"web_search_requests": 1}
+  }
+}

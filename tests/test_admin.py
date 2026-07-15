@@ -61,7 +61,7 @@ def test_yaml_import_and_reimport_replaces(client, as_superadmin, db_session):
 
     detail = client.get("/api/admin/tenants/smith").json()
     assert detail["brand_profile"]["brand_name"] == "Smith School of Business"
-    assert len(detail["surfaces"]) == 5  # full catalog, enabled flags per YAML
+    assert len(detail["surfaces"]) == 8  # full catalog, enabled flags per YAML
 
 
 def test_invalid_yaml_rejected(client, as_superadmin):
