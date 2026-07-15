@@ -69,10 +69,28 @@ def create_tenant(payload: TenantCreate, session: Db, admin: Admin) -> Tenant:
     return tenant
 
 
+def _full_surface_catalog(session: Session, tid: int) -> list[TenantSurface]:
+    """Every surface in the code catalog, in enum order (API engines first),
+    carrying this tenant's enabled flag. Surfaces added after a tenant was
+    imported have no row yet — synthesize a disabled one so they still appear
+    as a toggle, instead of being invisible until a config re-import."""
+    existing = {
+        row.code: row
+        for row in session.exec(select(TenantSurface).where(TenantSurface.tenant_id == tid)).all()
+    }
+    catalog: list[TenantSurface] = []
+    for code in SurfaceCode:
+        catalog.append(
+            existing.get(code) or TenantSurface(tenant_id=tid, code=code, enabled=False)
+        )
+    return catalog
+
+
 @router.get("/tenants/{slug}")
 def tenant_detail(slug: str, session: Db) -> dict:
     tenant = _tenant_or_404(session, slug)
     tid = tenant.id
+    assert tid is not None
     return {
         "tenant": tenant,
         "brand_profile": session.exec(
@@ -81,7 +99,7 @@ def tenant_detail(slug: str, session: Db) -> dict:
         "competitors": session.exec(select(Competitor).where(Competitor.tenant_id == tid)).all(),
         "personas": session.exec(select(Persona).where(Persona.tenant_id == tid)).all(),
         "queries": session.exec(select(Query).where(Query.tenant_id == tid)).all(),
-        "surfaces": session.exec(select(TenantSurface).where(TenantSurface.tenant_id == tid)).all(),
+        "surfaces": _full_surface_catalog(session, tid),
     }
 
 

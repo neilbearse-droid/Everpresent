@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { apiFetch, type Me, type TenantDetail } from "@/lib/api";
+import { surfaceLabel } from "@/lib/viz";
 import { setGovernance, toggleSurface } from "../actions";
 import { ClerkOrgForm } from "./clerk-org-form";
 import { ImportYamlForm } from "./import-yaml-form";
@@ -88,7 +89,10 @@ export default async function TenantAdminPage({
           <ul className="space-y-2">
             {surfaces.map((s) => (
               <li key={s.code} className="flex items-center justify-between text-sm">
-                <span className="font-mono">{s.code}</span>
+                <span>
+                  {surfaceLabel(s.code)}
+                  <span className="ml-2 font-mono text-xs text-slate-500">{s.code}</span>
+                </span>
                 <form action={toggleSurface.bind(null, tenant.slug, s.code, !s.enabled)}>
                   <button
                     className={`rounded-md px-3 py-1 text-xs font-medium ${
