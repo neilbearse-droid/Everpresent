@@ -37,12 +37,36 @@ def ping() -> str:
     return "pong"
 
 
+def _mark_run_failed(run_id: int, error: str) -> None:
+    """Catch-all so an unexpected crash surfaces as a failed run with a reason
+    instead of leaving it stuck at 'running' forever."""
+    try:
+        with Session(get_engine()) as session:
+            run = session.get(Run, run_id)
+            if run is not None and run.status in (RunStatus.pending, RunStatus.running):
+                run.status = RunStatus.failed
+                run.error = error[:500]
+                run.finished_at = utcnow()
+                session.add(run)
+                session.commit()
+    except Exception:  # noqa: BLE001 — never mask the original error
+        pass
+
+
 def run_mode_a(run_id: int) -> None:
-    asyncio.run(_run_mode_a(run_id))
+    try:
+        asyncio.run(_run_mode_a(run_id))
+    except Exception as exc:  # noqa: BLE001
+        _mark_run_failed(run_id, f"run crashed in Mode A: {type(exc).__name__}: {exc}")
+        raise
 
 
 def run_mode_b(run_id: int) -> None:
-    asyncio.run(_run_mode_b(run_id))
+    try:
+        asyncio.run(_run_mode_b(run_id))
+    except Exception as exc:  # noqa: BLE001
+        _mark_run_failed(run_id, f"run crashed in Mode B: {type(exc).__name__}: {exc}")
+        raise
 
 
 # surface code -> (adapter module, model label, rate settings attribute).
@@ -200,6 +224,11 @@ async def _run_mode_a(run_id: int) -> None:
             ]
 
         counts = {"planned": len(work), "completed": 0, "failed": 0, "withheld_by_cap": 0}
+        # Publish the planned total immediately so a running run shows its size
+        # (and a stuck run is obvious) rather than 0/0 until dispatch finishes.
+        run.counts = counts
+        session.add(run)
+        session.commit()
 
         if not settings.openai_api_key:
             run.status = RunStatus.failed
