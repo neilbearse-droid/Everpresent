@@ -47,8 +47,21 @@ export async function patchTenant(slug: string, patch: Record<string, unknown>):
   revalidatePath(`/admin/${slug}`);
 }
 
-export async function linkClerkOrg(slug: string, formData: FormData): Promise<void> {
-  await patchTenant(slug, { clerk_org_id: String(formData.get("clerk_org_id") ?? "") });
+export async function linkClerkOrg(
+  slug: string,
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const orgId = String(formData.get("clerk_org_id") ?? "").trim();
+  try {
+    await patchTenant(slug, { clerk_org_id: orgId });
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Save failed" };
+  }
+  return {
+    ok: true,
+    message: orgId ? `Saved — org ${orgId} linked to this tenant.` : "Cleared the Clerk org link.",
+  };
 }
 
 export async function setGovernance(slug: string, approved: boolean): Promise<void> {
@@ -69,10 +82,18 @@ export async function triggerRun(slug: string, _prev: ActionState): Promise<Acti
   return { ok: true, message: `Run #${run.id} queued.` };
 }
 
-export async function setSpendCap(slug: string, formData: FormData): Promise<void> {
-  await patchTenant(slug, {
-    monthly_spend_cap_usd: Number(formData.get("monthly_spend_cap_usd") ?? 0),
-  });
+export async function setSpendCap(
+  slug: string,
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const cap = Number(formData.get("monthly_spend_cap_usd") ?? 0);
+  try {
+    await patchTenant(slug, { monthly_spend_cap_usd: cap });
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Save failed" };
+  }
+  return { ok: true, message: `Saved — monthly spend cap set to $${cap.toFixed(2)}.` };
 }
 
 export async function putSchedule(
@@ -99,12 +120,26 @@ export async function putSchedule(
   };
 }
 
-export async function setNotifyEmails(slug: string, formData: FormData): Promise<void> {
+export async function setNotifyEmails(
+  slug: string,
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
   const emails = String(formData.get("notify_emails") ?? "")
     .split(",")
     .map((e) => e.trim())
     .filter(Boolean);
-  await patchTenant(slug, { notify_emails: emails });
+  try {
+    await patchTenant(slug, { notify_emails: emails });
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Save failed" };
+  }
+  return {
+    ok: true,
+    message: emails.length
+      ? `Saved — reports go to ${emails.join(", ")}.`
+      : "Saved — no notification recipients set.",
+  };
 }
 
 export async function toggleSurface(slug: string, code: string, enabled: boolean): Promise<void> {

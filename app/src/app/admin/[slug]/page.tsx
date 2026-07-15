@@ -1,9 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { apiFetch, type Me, type TenantDetail } from "@/lib/api";
-import { linkClerkOrg, setGovernance, setNotifyEmails, setSpendCap, toggleSurface } from "../actions";
+import { setGovernance, toggleSurface } from "../actions";
+import { ClerkOrgForm } from "./clerk-org-form";
 import { ImportYamlForm } from "./import-yaml-form";
+import { NotifyEmailsForm } from "./notify-emails-form";
 import { ScheduleForm } from "./schedule-form";
+import { SpendCapForm } from "./spend-cap-form";
 
 export default async function TenantAdminPage({
   params,
@@ -57,17 +60,7 @@ export default async function TenantAdminPage({
             Members of this Clerk org see this tenant's dashboards. Paste the org id
             (org_…) from the Clerk dashboard.
           </p>
-          <form action={linkClerkOrg.bind(null, tenant.slug)} className="flex gap-2">
-            <input
-              name="clerk_org_id"
-              defaultValue={tenant.clerk_org_id ?? ""}
-              placeholder="org_…"
-              className="flex-1 rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
-            />
-            <button className="rounded-md bg-indigo-500 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-400">
-              Save
-            </button>
-          </form>
+          <ClerkOrgForm slug={tenant.slug} orgId={tenant.clerk_org_id ?? ""} />
         </section>
 
         <section className="rounded-lg border border-slate-700 bg-slate-900 p-5">
@@ -87,22 +80,7 @@ export default async function TenantAdminPage({
             Runs for a gated tenant are recorded with status <code>gated</code>, never
             silently skipped.
           </p>
-          <form action={setSpendCap.bind(null, tenant.slug)} className="mt-4 flex items-end gap-2">
-            <label className="flex flex-col text-xs text-slate-400">
-              Monthly spend cap (USD)
-              <input
-                name="monthly_spend_cap_usd"
-                type="number"
-                min="0"
-                step="0.01"
-                defaultValue={tenant.monthly_spend_cap_usd}
-                className="mt-1 w-32 rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100"
-              />
-            </label>
-            <button className="rounded-md border border-slate-600 px-3 py-2 text-sm hover:bg-slate-800">
-              Save cap
-            </button>
-          </form>
+          <SpendCapForm slug={tenant.slug} cap={tenant.monthly_spend_cap_usd} />
         </section>
 
         <section className="rounded-lg border border-slate-700 bg-slate-900 p-5">
@@ -150,17 +128,7 @@ export default async function TenantAdminPage({
           <p className="mb-3 text-xs text-slate-400">
             Run-completion reports (PDF + CSV) go to these addresses. Comma-separated.
           </p>
-          <form action={setNotifyEmails.bind(null, tenant.slug)} className="flex gap-2">
-            <input
-              name="notify_emails"
-              defaultValue={tenant.notify_emails.join(", ")}
-              placeholder="neil@example.com, client@brand.com"
-              className="flex-1 rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
-            />
-            <button className="rounded-md bg-indigo-500 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-400">
-              Save
-            </button>
-          </form>
+          <NotifyEmailsForm slug={tenant.slug} emails={tenant.notify_emails.join(", ")} />
         </section>
 
         <section className="rounded-lg border border-slate-700 bg-slate-900 p-5">
