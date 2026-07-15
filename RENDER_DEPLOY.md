@@ -89,11 +89,21 @@ accepts logins from any URL — including your `onrender.com` one — so there i
 (Only when you later create a **Production** instance for a custom domain do
 you configure the Primary domain there. Not needed to log in now.)
 
-## Step 6 — Log in
+## Step 6 — Create your admin user and log in
 
-Open your `https://everpresent-web.onrender.com` URL → **Sign in**. Create
-your account with the **same email** you set as `SUPERADMIN_EMAIL`. You're in,
-as the admin. 🎉
+The app is invite-only (public sign-ups are off), so you create the first
+admin directly in Clerk rather than self-registering:
+
+1. Clerk dashboard → **Users** → **+ Create user**.
+2. Use the **same email** you set as `SUPERADMIN_EMAIL`, and set a password.
+3. On your `onrender.com` site → **Sign in** (not sign up) with those
+   credentials.
+
+Because the email matches `SUPERADMIN_EMAIL`, the app links you to the seeded
+superadmin account on first login. You're in, as the admin. 🎉
+
+(This is also how you add client users later: create/invite them in Clerk,
+and they sign in.)
 
 That's the deploy done. From here, follow the "Activate Smith" steps in
 `LAUNCH.md` (create the Clerk organization, approve the tenant, trigger a
