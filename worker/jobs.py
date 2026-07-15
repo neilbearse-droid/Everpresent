@@ -4,7 +4,7 @@ only place the two meet a database session and a provider key."""
 
 import asyncio
 import hashlib
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 from typing import Any
 
 from sqlmodel import Session, select
@@ -126,8 +126,36 @@ def _finalize_run(session: Session, run: Run, tenant: Tenant) -> None:
         session.commit()
 
 
+@dataclass
+class _AWorkItem:
+    """Plain snapshot of one (query × persona × surface × variant) cell, so the
+    dispatch phase carries no ORM objects and holds no DB connection."""
+
+    query_id: int | None
+    query_text: str
+    persona_id: int | None
+    persona_name: str
+    persona_prompt: str
+    persona_segment: str
+    surface: str
+    variant: ResultVariant
+
+
+@dataclass
+class _BWorkItem:
+    """Plain snapshot of one Mode B (query × persona? × surface) cell."""
+
+    query_id: int | None
+    query_text: str
+    persona_id: int | None
+    persona_name: str
+    persona_prompt: str
+    persona_segment: str
+    surface: str
+
+
 async def _dispatch_all(
-    work: list[tuple[Query, Persona, str, ResultVariant]],
+    work: list[_AWorkItem],
     *,
     api_key: str,
     model: str,
@@ -137,39 +165,30 @@ async def _dispatch_all(
     cap_usd: float,
 ) -> tuple[list[dict[str, Any] | None], bool]:
     """Runs the (query × persona × surface) matrix with a concurrency limit.
-    The spend cap is checked BEFORE each dispatch (§6.1/§9); a None slot means
-    the call was withheld by the cap. Actual per-call cost is only known after
-    the call returns, so a burst of in-flight calls can overshoot the cap by
-    at most `concurrency` calls — accepted and documented."""
+    NO database connection is held here (§ connection-lifetime fix): work items
+    are plain data. The spend cap is checked BEFORE each dispatch (§6.1/§9); a
+    None slot means the call was withheld by the cap."""
     semaphore = asyncio.Semaphore(concurrency)
     lock = asyncio.Lock()
     state = {"cost": 0.0, "capped": False}
 
-    async def one(
-        query: Query, persona: Persona, surface: str, variant: ResultVariant
-    ) -> dict[str, Any] | None:
+    async def one(item: _AWorkItem) -> dict[str, Any] | None:
         async with semaphore:
             async with lock:
                 if month_spent_before + state["cost"] >= cap_usd:
                     state["capped"] = True
                     return None
-            base = {
-                "query": query,
-                "persona": persona,
-                "surface": surface,
-                "variant": variant,
-            }
             try:
                 outcome = await openai_api.retrieve(
-                    persona.prompt_text,
-                    query.text,
+                    item.persona_prompt,
+                    item.query_text,
                     api_key=api_key,
                     model=model,
                     timeout_s=timeout_s,
-                    web_search=variant == ResultVariant.search,
+                    web_search=item.variant == ResultVariant.search,
                 )
             except Exception as exc:  # noqa: BLE001 — a failed call is data, not a crash
-                return {**base, "error": f"{type(exc).__name__}: {exc}"[:500]}
+                return {"item": item, "error": f"{type(exc).__name__}: {exc}"[:500]}
             cost = estimate_openai_cost_usd(
                 outcome.parsed.model or model,
                 outcome.parsed.input_tokens,
@@ -178,77 +197,95 @@ async def _dispatch_all(
             )
             async with lock:
                 state["cost"] += cost
-            return {**base, "outcome": outcome, "cost": cost}
+            return {"item": item, "outcome": outcome, "cost": cost}
 
-    results = await asyncio.gather(*[one(q, p, s, v) for q, p, s, v in work])
+    results = await asyncio.gather(*[one(item) for item in work])
     return list(results), state["capped"]
 
 
 async def _run_mode_a(run_id: int) -> None:
     settings = get_settings()
+
+    # Phase 1 — load config and mark running, then RELEASE the connection.
     with Session(get_engine()) as session:
         run = session.get(Run, run_id)
         if run is None or run.status != RunStatus.pending:
             return
         tenant = session.get(Tenant, run.tenant_id)
         assert tenant is not None
-
+        tenant_slug = tenant.slug
+        cap_usd = tenant.monthly_spend_cap_usd
+        a_surfaces = _a_surfaces(run)
         run.status = RunStatus.running
         run.started_at = utcnow()
         session.add(run)
         session.commit()
 
-        queries = list(
-            session.exec(
+        queries = [
+            (q.id, q.text)
+            for q in session.exec(
                 select(Query).where(Query.tenant_id == tenant.id, Query.active == True)  # noqa: E712
             ).all()
-        )
-        personas = list(
-            session.exec(select(Persona).where(Persona.tenant_id == tenant.id)).all()
-        )
-        # The client-facing matrix, plus one search-disabled twin per
-        # (query, surface) on the first persona — the dual-query diff the
-        # classifier consumes (§6.1).
-        a_surfaces = _a_surfaces(run)
-        work = [
-            (q, p, s, ResultVariant.search)
-            for s in a_surfaces
-            for q in queries
-            for p in personas
         ]
-        if personas:
-            work += [
-                (q, personas[0], s, ResultVariant.nosearch)
-                for s in a_surfaces
-                for q in queries
-            ]
+        personas = [
+            (p.id, p.name, p.prompt_text, p.segment_tag)
+            for p in session.exec(select(Persona).where(Persona.tenant_id == tenant.id)).all()
+        ]
+        month_spent_before = month_spend_usd(session, run.tenant_id)
 
-        counts = {"planned": len(work), "completed": 0, "failed": 0, "withheld_by_cap": 0}
-        # Publish the planned total immediately so a running run shows its size
-        # (and a stuck run is obvious) rather than 0/0 until dispatch finishes.
-        run.counts = counts
+    # The client-facing matrix, plus one search-disabled twin per (query,
+    # surface) on the first persona — the dual-query diff the classifier
+    # consumes (§6.1). Plain snapshots: no DB connection during dispatch.
+    work: list[_AWorkItem] = [
+        _AWorkItem(qid, qtext, pid, pname, pprompt, pseg, s, ResultVariant.search)
+        for s in a_surfaces
+        for (qid, qtext) in queries
+        for (pid, pname, pprompt, pseg) in personas
+    ]
+    if personas:
+        pid0, pname0, pprompt0, pseg0 = personas[0]
+        work += [
+            _AWorkItem(qid, qtext, pid0, pname0, pprompt0, pseg0, s, ResultVariant.nosearch)
+            for s in a_surfaces
+            for (qid, qtext) in queries
+        ]
+
+    counts = {"planned": len(work), "completed": 0, "failed": 0, "withheld_by_cap": 0}
+    with Session(get_engine()) as session:
+        run = session.get(Run, run_id)
+        assert run is not None
+        run.counts = counts  # publish planned total immediately
         session.add(run)
         session.commit()
 
-        if not settings.openai_api_key:
+    if not settings.openai_api_key:
+        with Session(get_engine()) as session:
+            run = session.get(Run, run_id)
+            assert run is not None
             run.status = RunStatus.failed
             run.error = "OPENAI_API_KEY is not configured on this deployment"
             run.counts = counts
             run.finished_at = utcnow()
             session.add(run)
             session.commit()
-            return
+        return
 
-        month_spent_before = month_spend_usd(session, run.tenant_id)
-        outcomes, capped = await _dispatch_all(
-            work,
-            api_key=settings.openai_api_key,
-            model=settings.openai_model,
-            timeout_s=settings.openai_timeout_s,
-            concurrency=settings.openai_concurrency,
-            month_spent_before=month_spent_before,
-            cap_usd=tenant.monthly_spend_cap_usd,
-        )
+    # Phase 2 — dispatch the provider calls. NO DB CONNECTION HELD.
+    outcomes, capped = await _dispatch_all(
+        work,
+        api_key=settings.openai_api_key,
+        model=settings.openai_model,
+        timeout_s=settings.openai_timeout_s,
+        concurrency=settings.openai_concurrency,
+        month_spent_before=month_spent_before,
+        cap_usd=cap_usd,
+    )
+
+    # Phase 3 — persist results with a fresh connection.
+    with Session(get_engine()) as session:
+        run = session.get(Run, run_id)
+        tenant = session.get(Tenant, run.tenant_id) if run else None
+        assert run is not None and tenant is not None
 
         total_cost = 0.0
         citation_count = 0
@@ -256,18 +293,17 @@ async def _run_mode_a(run_id: int) -> None:
             if item is None:
                 counts["withheld_by_cap"] += 1
                 continue
-            query: Query = item["query"]
-            persona: Persona = item["persona"]
+            wi: _AWorkItem = item["item"]
             result = Result(
                 run_id=run_id,
                 tenant_id=run.tenant_id,
-                query_id=query.id,
-                persona_id=persona.id,
-                query_text=query.text,
-                persona_name=persona.name,
-                persona_segment=persona.segment_tag,
-                surface=SurfaceCode(item["surface"]),
-                variant=item["variant"],
+                query_id=wi.query_id,
+                persona_id=wi.persona_id,
+                query_text=wi.query_text,
+                persona_name=wi.persona_name,
+                persona_segment=wi.persona_segment,
+                surface=SurfaceCode(wi.surface),
+                variant=wi.variant,
             )
             if "error" in item:
                 counts["failed"] += 1
@@ -282,16 +318,16 @@ async def _run_mode_a(run_id: int) -> None:
                     outcome.parsed.text.encode("utf-8")
                 ).hexdigest()
                 result.raw_uri = write_raw_envelope(
-                    tenant.slug,
+                    tenant_slug,
                     run_id,
                     f"result-{index:04d}",
                     {
-                        "surface": item["surface"],
+                        "surface": wi.surface,
                         "mode": "A",
-                        "variant": item["variant"],
-                        "query": query.text,
-                        "persona": persona.name,
-                        "persona_prompt": persona.prompt_text,
+                        "variant": wi.variant,
+                        "query": wi.query_text,
+                        "persona": wi.persona_name,
+                        "persona_prompt": wi.persona_prompt,
                         "model": settings.openai_model,
                         "response": outcome.payload,
                         "parsed_text": outcome.parsed.text,
@@ -301,7 +337,7 @@ async def _run_mode_a(run_id: int) -> None:
                 )
             session.add(result)
             session.flush()
-            if "error" not in item and item["variant"] == ResultVariant.search:
+            if "error" not in item and wi.variant == ResultVariant.search:
                 # Citation rows are client-facing measurement data; the
                 # nosearch twin is classifier input only.
                 assert result.id is not None
@@ -320,7 +356,7 @@ async def _run_mode_a(run_id: int) -> None:
         if capped:
             counts["capped"] = True
             run.error = (
-                f"monthly spend cap reached (cap ${tenant.monthly_spend_cap_usd:.2f}, "
+                f"monthly spend cap reached (cap ${cap_usd:.2f}, "
                 f"spent ${month_spent_before:.2f} before this run)"
             )
         run.counts = counts
@@ -342,127 +378,162 @@ async def _run_mode_b(run_id: int) -> None:
     first persona (DECISIONS.md M4); no spend cap (no token cost) and no
     nosearch twin (a consumer web UI can't disable retrieval)."""
     settings = get_settings()
+
+    # Phase 1 — load config and mark running, then RELEASE the connection.
     with Session(get_engine()) as session:
         run = session.get(Run, run_id)
         if run is None or run.status not in (RunStatus.pending, RunStatus.running):
             return
         tenant = session.get(Tenant, run.tenant_id)
         assert tenant is not None
+        tenant_id = run.tenant_id
+        tenant_slug = tenant.slug
+        aio_geo = dict(tenant.aio_geo)
+        b_surfaces = _b_surfaces(run)
         if run.status == RunStatus.pending:  # B-only run, not chained from A
             run.status = RunStatus.running
             run.started_at = utcnow()
             session.add(run)
             session.commit()
-
-        queries = list(
-            session.exec(
+        queries = [
+            (q.id, q.text)
+            for q in session.exec(
                 select(Query).where(Query.tenant_id == tenant.id, Query.active == True)  # noqa: E712
             ).all()
-        )
-        personas = list(session.exec(select(Persona).where(Persona.tenant_id == tenant.id)).all())
-        # google_aio is per (query, geo) — a SERP takes no persona (§6.3);
-        # persona-framed web surfaces use the first persona (DECISIONS M4.1).
-        work: list[tuple[Query, Persona | None, str]] = []
-        for surface in _b_surfaces(run):
-            if surface == str(SurfaceCode.google_aio):
-                work += [(q, None, surface) for q in queries]
-            elif personas:
-                work += [(q, personas[0], surface) for q in queries]
+        ]
+        personas = [
+            (p.id, p.name, p.prompt_text, p.segment_tag)
+            for p in session.exec(select(Persona).where(Persona.tenant_id == tenant.id)).all()
+        ]
+        base_counts = dict(run.counts) if run.counts else {}
 
-        counts = dict(run.counts) if run.counts else {}
-        counts["planned"] = counts.get("planned", 0) + len(work)
+    # google_aio is per (query, geo) — a SERP takes no persona (§6.3);
+    # persona-framed web surfaces use the first persona (DECISIONS M4.1).
+    work: list[_BWorkItem] = []
+    for surface in b_surfaces:
+        if surface == str(SurfaceCode.google_aio):
+            work += [
+                _BWorkItem(qid, qtext, None, "(serp)", "", "", surface)
+                for (qid, qtext) in queries
+            ]
+        elif personas:
+            pid0, pname0, pprompt0, pseg0 = personas[0]
+            work += [
+                _BWorkItem(qid, qtext, pid0, pname0, pprompt0, pseg0, surface)
+                for (qid, qtext) in queries
+            ]
 
-        for index, (query, persona, surface) in enumerate(work):
-            adapter_module, model_label, rate_attr = B_ADAPTERS[surface]
-            if index > 0:
-                rate = max(float(getattr(settings, rate_attr)), 0.1)
-                await asyncio.sleep(60.0 / rate)
-            is_aio = surface == str(SurfaceCode.google_aio)
+    counts = dict(base_counts)
+    counts["planned"] = counts.get("planned", 0) + len(work)
+
+    for index, wi in enumerate(work):
+        adapter_module, model_label, rate_attr = B_ADAPTERS[wi.surface]
+        if index > 0:
+            rate = max(float(getattr(settings, rate_attr)), 0.1)
+            await asyncio.sleep(60.0 / rate)
+        is_aio = wi.surface == str(SurfaceCode.google_aio)
+
+        # Phase 2 — scrape. NO DB CONNECTION HELD (a scrape can take minutes).
+        error: str | None = None
+        outcome = None
+        parsed_text = ""
+        response_payload: dict[str, Any] = {}
+        try:
+            if is_aio:
+                outcome = await google_aio.capture(
+                    wi.query_text,
+                    geo=aio_geo,
+                    provider=settings.google_aio_provider,
+                    serpapi_key=settings.serpapi_key,
+                    headless=settings.chatgpt_web_headless,
+                    timeout_s=settings.google_aio_timeout_s,
+                    executable_path=settings.playwright_chromium_path or None,
+                )
+                parsed_text = outcome.aio_text
+                response_payload = {
+                    "aio_summary": asdict(outcome.summary),
+                    "aio_html": outcome.aio_html,
+                    # §6.3: the full rendered SERP goes to object storage.
+                    "page_html": outcome.page_html,
+                }
+            else:
+                outcome = await adapter_module.retrieve(
+                    wi.persona_prompt,
+                    wi.query_text,
+                    headless=settings.chatgpt_web_headless,
+                    timeout_s=settings.chatgpt_web_timeout_s,
+                    executable_path=settings.playwright_chromium_path or None,
+                )
+                parsed_text = outcome.text
+                response_payload = {"html": outcome.html_fragment}
+        except Exception as exc:  # noqa: BLE001 — a failed scrape is data
+            error = f"{type(exc).__name__}: {exc}"[:500]
+
+        # Phase 3 — persist this one result with a fresh connection.
+        with Session(get_engine()) as session:
             result = Result(
                 run_id=run_id,
-                tenant_id=run.tenant_id,
-                query_id=query.id,
-                persona_id=persona.id if persona else None,
-                query_text=query.text,
-                persona_name=persona.name if persona else "(serp)",
-                persona_segment=persona.segment_tag if persona else "",
-                surface=SurfaceCode(surface),
+                tenant_id=tenant_id,
+                query_id=wi.query_id,
+                persona_id=wi.persona_id,
+                query_text=wi.query_text,
+                persona_name=wi.persona_name,
+                persona_segment=wi.persona_segment,
+                surface=SurfaceCode(wi.surface),
                 mode=RunMode.B,
             )
-            try:
-                if is_aio:
-                    outcome = await google_aio.capture(
-                        query.text,
-                        geo=tenant.aio_geo,
-                        provider=settings.google_aio_provider,
-                        serpapi_key=settings.serpapi_key,
-                        headless=settings.chatgpt_web_headless,
-                        timeout_s=settings.google_aio_timeout_s,
-                        executable_path=settings.playwright_chromium_path or None,
-                    )
-                    parsed_text = outcome.aio_text
-                    response_payload: dict[str, Any] = {
-                        "aio_summary": asdict(outcome.summary),
-                        "aio_html": outcome.aio_html,
-                        # §6.3: the full rendered SERP goes to object storage.
-                        "page_html": outcome.page_html,
-                    }
-                else:
-                    assert persona is not None
-                    outcome = await adapter_module.retrieve(
-                        persona.prompt_text,
-                        query.text,
-                        headless=settings.chatgpt_web_headless,
-                        timeout_s=settings.chatgpt_web_timeout_s,
-                        executable_path=settings.playwright_chromium_path or None,
-                    )
-                    parsed_text = outcome.text
-                    response_payload = {"html": outcome.html_fragment}
-            except Exception as exc:  # noqa: BLE001 — a failed scrape is data
+            if error is not None or outcome is None:
                 counts["failed"] = counts.get("failed", 0) + 1
                 result.status = ResultStatus.error
-                result.error = f"{type(exc).__name__}: {exc}"[:500]
+                result.error = error or "no outcome"
                 session.add(result)
-                session.commit()
-                continue
-
-            counts["completed"] = counts.get("completed", 0) + 1
-            result.latency_ms = outcome.latency_ms
-            result.response_hash = hashlib.sha256(parsed_text.encode("utf-8")).hexdigest()
-            result.raw_uri = write_raw_envelope(
-                tenant.slug,
-                run_id,
-                f"result-b-{index:04d}",
-                {
-                    "surface": surface,
-                    "mode": "B",
-                    "variant": "search",
-                    "query": query.text,
-                    "persona": result.persona_name,
-                    "persona_prompt": persona.prompt_text if persona else "",
-                    "model": model_label,
-                    "adapter_version": adapter_module.ADAPTER_VERSION,
-                    "response": response_payload,
-                    "parsed_text": parsed_text,
-                    "cost_usd": 0.0,
-                },
-                session=session,
-            )
-            session.add(result)
-            session.flush()
-            assert result.id is not None
-            for citation in outcome.citations:
-                counts["citations"] = counts.get("citations", 0) + 1
-                session.add(
-                    Citation(
-                        result_id=result.id,
-                        tenant_id=run.tenant_id,
-                        url=citation.url,
-                        domain=citation.domain,
-                    )
+            else:
+                counts["completed"] = counts.get("completed", 0) + 1
+                result.latency_ms = outcome.latency_ms
+                result.response_hash = hashlib.sha256(parsed_text.encode("utf-8")).hexdigest()
+                result.raw_uri = write_raw_envelope(
+                    tenant_slug,
+                    run_id,
+                    f"result-b-{index:04d}",
+                    {
+                        "surface": wi.surface,
+                        "mode": "B",
+                        "variant": "search",
+                        "query": wi.query_text,
+                        "persona": wi.persona_name,
+                        "persona_prompt": wi.persona_prompt,
+                        "model": model_label,
+                        "adapter_version": adapter_module.ADAPTER_VERSION,
+                        "response": response_payload,
+                        "parsed_text": parsed_text,
+                        "cost_usd": 0.0,
+                    },
+                    session=session,
                 )
+                session.add(result)
+                session.flush()
+                assert result.id is not None
+                for citation in outcome.citations:
+                    counts["citations"] = counts.get("citations", 0) + 1
+                    session.add(
+                        Citation(
+                            result_id=result.id,
+                            tenant_id=tenant_id,
+                            url=citation.url,
+                            domain=citation.domain,
+                        )
+                    )
+            run = session.get(Run, run_id)
+            if run is not None:
+                run.counts = counts  # live progress each iteration
+                session.add(run)
             session.commit()
 
+    # Phase 4 — finalize with a fresh connection.
+    with Session(get_engine()) as session:
+        run = session.get(Run, run_id)
+        tenant = session.get(Tenant, run.tenant_id) if run else None
+        assert run is not None and tenant is not None
         run.counts = counts
         session.add(run)
         session.commit()

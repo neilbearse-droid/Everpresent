@@ -21,9 +21,20 @@ def normalize_db_url(url: str) -> str:
 def get_engine():
     global _engine
     if _engine is None:
-        _engine = create_engine(
-            normalize_db_url(get_settings().database_url), pool_pre_ping=True
-        )
+        url = normalize_db_url(get_settings().database_url)
+        kwargs: dict = {"pool_pre_ping": True}
+        if url.startswith("postgresql"):
+            # Managed Postgres drops idle/old connections; recycle before they
+            # go stale and keep the socket alive during quiet stretches. The
+            # jobs also avoid holding a connection across slow provider calls.
+            kwargs["pool_recycle"] = 280
+            kwargs["connect_args"] = {
+                "keepalives": 1,
+                "keepalives_idle": 30,
+                "keepalives_interval": 10,
+                "keepalives_count": 5,
+            }
+        _engine = create_engine(url, **kwargs)
     return _engine
 
 
