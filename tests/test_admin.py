@@ -110,6 +110,23 @@ def test_surface_toggle(client, as_superadmin):
     assert resp.json()["enabled"] is True
 
 
+def test_surface_toggle_syncs_governance_approval(client, as_superadmin):
+    """Enabling a surface also adds it to approved_surfaces so a run is
+    dispatchable from the single toggle; disabling removes the approval."""
+    _create_tenant(client)
+    client.patch(
+        "/api/admin/tenants/smith/surfaces", json={"code": "openai_api", "enabled": True}
+    )
+    detail = client.get("/api/admin/tenants/smith").json()
+    assert "openai_api" in detail["tenant"]["approved_surfaces"]
+
+    client.patch(
+        "/api/admin/tenants/smith/surfaces", json={"code": "openai_api", "enabled": False}
+    )
+    detail = client.get("/api/admin/tenants/smith").json()
+    assert "openai_api" not in detail["tenant"]["approved_surfaces"]
+
+
 def test_admin_mutations_are_audited(client, as_superadmin, db_session):
     _create_tenant(client)
     client.patch("/api/admin/tenants/smith", json={"ai_processing_approved": True})

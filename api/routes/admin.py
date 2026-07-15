@@ -304,6 +304,18 @@ def toggle_surface(slug: str, payload: SurfaceToggle, session: Db, admin: Admin)
     else:
         row.enabled = payload.enabled
     session.add(row)
+
+    # Enabling a surface also governance-approves it (the superadmin is the
+    # governance authority here); disabling removes the approval. A run needs
+    # a surface both enabled and in approved_surfaces — keeping them in lockstep
+    # from this single toggle avoids a hidden second step. The master gate
+    # (ai_processing_approved) is separate and unaffected.
+    approved = [s for s in tenant.approved_surfaces if s != payload.code.value]
+    if payload.enabled:
+        approved.append(payload.code.value)
+    tenant.approved_surfaces = sorted(set(approved))
+    session.add(tenant)
+
     write_audit(
         session,
         tenant_id=tenant.id,
