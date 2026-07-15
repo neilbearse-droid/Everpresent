@@ -41,7 +41,19 @@ cd app && npm run typecheck && npm run build && npx playwright test
 Postgres/Redis for local dev: `docker compose -f infra/docker-compose.yml up postgres redis`.
 Tests need neither (they run on in-memory SQLite).
 
-## Deploying (single VPS, Docker Compose)
+## Deploying
+
+Two supported paths:
+
+- **Managed (Render)** — no server to run. Connect the repo, Render reads
+  `render.yaml`, done. Best for a solo operator; ~$55/mo. Walkthrough:
+  `RENDER_DEPLOY.md` (+ `CLERK_SETUP.md`, `LAUNCH.md`). Raw payloads live in
+  Postgres (`STORAGE_BACKEND=db`) since managed services can't share a disk.
+- **Single VPS (Docker Compose)** — cheaper (~$15–25/mo), you run the box.
+  Steps below. Raw payloads use a shared volume (`STORAGE_BACKEND=file`,
+  default).
+
+### Single VPS (Docker Compose)
 
 One-time:
 

@@ -1,0 +1,148 @@
+# EverPresent v3 — Render Blueprint.
+#
+# One file that provisions the whole stack. In the Render dashboard:
+#   New +  ->  Blueprint  ->  connect this repo  ->  Apply.
+# Render reads this file, creates every service + the database + Redis, and
+# asks you to fill in the handful of `sync: false` secrets (Clerk, OpenAI).
+# See RENDER_DEPLOY.md for the click-by-click.
+#
+# Topology (kept small to keep the bill small):
+#   web     — the Next.js frontend (public URL)
+#   api     — the FastAPI backend (public URL; runs DB migrations on deploy)
+#   worker  — one background worker: RQ jobs (both queues) + the scheduler,
+#             on the Playwright image so it can also scrape
+#   Postgres + Key Value (Redis) — managed by Render
+
+databases:
+  - name: everpresent-db
+    plan: basic-256mb
+    databaseName: everpresent
+    user: everpresent
+
+services:
+  # --- Redis (Render "Key Value") ---------------------------------------
+  - type: keyvalue
+    name: everpresent-redis
+    plan: starter
+    ipAllowList: []          # only reachable on Render's private network
+    maxmemoryPolicy: noeviction
+
+  # --- FastAPI backend --------------------------------------------------
+  - type: web
+    name: everpresent-api
+    runtime: docker
+    dockerfilePath: ./api/Dockerfile
+    dockerContext: .
+    plan: starter
+    healthCheckPath: /api/health
+    # Run migrations + seed before each new version goes live.
+    preDeployCommand: "alembic upgrade head && python -m api.seed"
+    envVars:
+      - key: PORT
+        value: "8000"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: everpresent-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: everpresent-redis
+          property: connectionString
+      # Raw payloads live in Postgres on Render (api + worker can't share a
+      # disk); no volume needed.
+      - key: STORAGE_BACKEND
+        value: db
+      - key: ENV
+        value: prod
+      # Secrets — you fill these in the dashboard (never committed).
+      - key: SUPERADMIN_EMAIL
+        sync: false
+      - key: CLERK_SECRET_KEY
+        sync: false
+      - key: CLERK_PUBLISHABLE_KEY
+        sync: false
+      - key: CLERK_JWKS_URL
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4o
+      # Optional integrations — leave blank to disable.
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+
+  # --- Next.js frontend -------------------------------------------------
+  - type: web
+    name: everpresent-web
+    runtime: docker
+    dockerfilePath: ./app/Dockerfile
+    dockerContext: ./app
+    plan: starter
+    envVars:
+      # Render resolves service names on the private network; the api listens
+      # on 8000 (its PORT env below).
+      - key: API_ORIGIN
+        value: http://everpresent-api:8000
+      - key: NEXT_PUBLIC_CLERK_SIGN_IN_URL
+        value: /sign-in
+      # Read at runtime by the app (no secret baked into the image).
+      - key: CLERK_SECRET_KEY
+        sync: false
+      - key: CLERK_PUBLISHABLE_KEY
+        sync: false
+
+  # --- Worker: RQ jobs (both queues) + scheduler ------------------------
+  - type: worker
+    name: everpresent-worker
+    runtime: docker
+    dockerfilePath: ./worker/playwright.Dockerfile
+    dockerContext: .
+    plan: standard            # Chromium needs the extra memory
+    dockerCommand: "python -m worker.combined"
+    envVars:
+      - key: WORKER_QUEUES
+        value: default,scrape
+      - key: DATABASE_URL
+        fromDatabase:
+          name: everpresent-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: everpresent-redis
+          property: connectionString
+      - key: STORAGE_BACKEND
+        value: db
+      - key: ENV
+        value: prod
+      - key: CHATGPT_WEB_RATE_PER_MIN
+        value: "4"
+      - key: PERPLEXITY_WEB_RATE_PER_MIN
+        value: "4"
+      - key: GOOGLE_AIO_RATE_PER_MIN
+        value: "6"
+      - key: GOOGLE_AIO_PROVIDER
+        value: direct
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4o
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM
+        sync: false

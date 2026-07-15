@@ -37,17 +37,17 @@ from engine.processing.scoring import SCORER_VERSION, ResultSignals, score_entit
 from engine.retrievers.google_aio import AIOCaptureSummary
 
 
-def _response_text(result: Result) -> str:
+def _response_text(result: Result, session: Session) -> str:
     if not result.raw_uri:
         return ""
-    envelope = read_raw_envelope(result.raw_uri)
+    envelope = read_raw_envelope(result.raw_uri, session=session)
     return (envelope or {}).get("parsed_text", "")
 
 
-def _web_search_calls(result: Result) -> int:
+def _web_search_calls(result: Result, session: Session) -> int:
     if not result.raw_uri:
         return 0
-    envelope = read_raw_envelope(result.raw_uri) or {}
+    envelope = read_raw_envelope(result.raw_uri, session=session) or {}
     output = (envelope.get("response") or {}).get("output", [])
     return sum(1 for item in output if item.get("type") == "web_search_call")
 
@@ -89,7 +89,7 @@ def process_run(session: Session, run: Run) -> dict[str, int]:
     texts: dict[int, str] = {}
     for result in search_results:
         assert result.id is not None
-        text = _response_text(result)
+        text = _response_text(result, session)
         texts[result.id] = text
         for detected in detect_mentions(text, brand_name, brand_aliases, competitor_specs):
             counts["mentions"] += 1
@@ -139,9 +139,11 @@ def process_run(session: Session, run: Run) -> dict[str, int]:
             session.exec(select(Citation).where(Citation.result_id == twin.id)).all()
         )
         signals = WebSearchSignals(
-            web_search_calls=_web_search_calls(twin),
+            web_search_calls=_web_search_calls(twin, session),
             citation_count=citation_count,
-            divergence=compute_divergence(texts.get(twin.id, ""), _response_text(nosearch)),
+            divergence=compute_divergence(
+                texts.get(twin.id, ""), _response_text(nosearch, session)
+            ),
         )
         bucket = classify_web_search_likelihood(signals)
         existing = session.exec(
@@ -175,7 +177,7 @@ def process_run(session: Session, run: Run) -> dict[str, int]:
     for result in search_results:
         if result.surface != SurfaceCode.google_aio or not result.raw_uri:
             continue
-        envelope = read_raw_envelope(result.raw_uri) or {}
+        envelope = read_raw_envelope(result.raw_uri, session=session) or {}
         summary_dict = (envelope.get("response") or {}).get("aio_summary") or {}
         summary = (
             AIOCaptureSummary(**summary_dict) if summary_dict else AIOCaptureSummary(ran=False)

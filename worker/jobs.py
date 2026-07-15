@@ -268,6 +268,7 @@ async def _run_mode_a(run_id: int) -> None:
                         "parsed_text": outcome.parsed.text,
                         "cost_usd": item["cost"],
                     },
+                    session=session,
                 )
             session.add(result)
             session.flush()
@@ -416,6 +417,7 @@ async def _run_mode_b(run_id: int) -> None:
                     "parsed_text": parsed_text,
                     "cost_usd": 0.0,
                 },
+                session=session,
             )
             session.add(result)
             session.flush()

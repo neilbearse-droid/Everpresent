@@ -300,6 +300,20 @@ class RunSchedule(SQLModel, table=True):
     created_at: datetime = Field(default_factory=utcnow)
 
 
+class RawPayload(SQLModel, table=True):
+    """Postgres-backed raw-payload storage for hosts where a shared disk
+    between the api and worker isn't available (e.g. Render). Selected via
+    STORAGE_BACKEND=db; the file backend (VPS shared volume) is the default.
+    Keyed by the same relative URI stored in results.raw_uri."""
+
+    __tablename__ = "raw_payloads"  # pyright: ignore[reportAssignmentType]
+
+    id: int | None = Field(default=None, primary_key=True)
+    uri: str = Field(unique=True, index=True)
+    envelope: dict = Field(default_factory=dict, sa_column=Column(JSON))
+    created_at: datetime = Field(default_factory=utcnow)
+
+
 class MirrorState(SQLModel, table=True):
     """Per-table high-water marks for the BigQuery mirror (§5.3)."""
 

@@ -237,7 +237,7 @@ def result_raw(result_id: int, session: Db) -> dict:
     result = session.get(Result, result_id)
     if result is None:
         raise HTTPException(status_code=404, detail="No such result")
-    envelope = read_raw_envelope(result.raw_uri) if result.raw_uri else None
+    envelope = read_raw_envelope(result.raw_uri, session=session) if result.raw_uri else None
     if envelope is None:
         raise HTTPException(status_code=404, detail="Raw payload not available")
     return envelope

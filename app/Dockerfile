@@ -5,10 +5,11 @@ RUN npm ci
 
 FROM node:22-alpine AS build
 WORKDIR /app
-# NEXT_PUBLIC_ values are inlined at build time, so the publishable key must
-# be a build arg, not only a runtime env var.
-ARG NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
-ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+# The app renders dynamically and reads CLERK_PUBLISHABLE_KEY at runtime
+# (see src/app/layout.tsx), so no real secret is baked into the image. This
+# placeholder only satisfies the build's prerender pass; it is never used at
+# runtime. Managed hosts (Render) need no build args.
+ENV NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_Y2xlY2suZXhhbXBsZS5jb20k
 ENV NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .

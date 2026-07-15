@@ -21,7 +21,9 @@ class Settings(BaseSettings):
     # that user's first authenticated request.
     superadmin_email: str = ""
 
-    # Object storage root for raw response payloads (VPS volume).
+    # Raw-payload storage: "file" (VPS shared volume) or "db" (Postgres, for
+    # managed hosts like Render where services can't share a disk).
+    storage_backend: str = "file"
     raw_storage_dir: str = "/data/raw"
 
     # Measured surface: OpenAI Responses API (Mode A, §6.1). The key is a
