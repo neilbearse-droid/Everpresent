@@ -7,6 +7,7 @@ import {
 } from "@/lib/api";
 import { AIOTile } from "@/components/aio-tile";
 import { DashNav } from "@/components/dash-nav";
+import { NoOrgNotice } from "@/components/no-org-notice";
 import { TrendChart, HBars } from "@/components/charts";
 import { DELTA_DOWN, DELTA_UP, entityColors } from "@/lib/viz";
 
@@ -19,16 +20,11 @@ export default async function OverviewPage() {
 
   if (!tenant.data) {
     return (
-      <main className="mx-auto max-w-6xl px-8 py-10">
-        <DashNav active="Overview" isSuperadmin={me.data?.is_superadmin} />
-        <section className="rounded-lg border border-slate-700 bg-slate-900 p-6">
-          <h2 className="mb-2 text-lg font-medium">No organization selected</h2>
-          <p className="text-sm text-slate-400">
-            Pick an organization in the switcher above, or ask your EverPresent contact for
-            an invite. ({tenant.error})
-          </p>
-        </section>
-      </main>
+      <NoOrgNotice
+        active="Overview"
+        isSuperadmin={me.data?.is_superadmin}
+        detail={tenant.error}
+      />
     );
   }
 

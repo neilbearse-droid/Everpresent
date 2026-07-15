@@ -21,7 +21,7 @@ export function DashNav({ active, isSuperadmin }: { active: string; isSuperadmin
               Admin
             </Link>
           )}
-          <OrganizationSwitcher />
+          <OrganizationSwitcher hidePersonal />
           <UserButton />
         </div>
       </div>

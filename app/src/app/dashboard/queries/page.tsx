@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { apiFetch, type Me, type QueriesIntelPayload } from "@/lib/api";
 import { DashNav } from "@/components/dash-nav";
+import { NoOrgNotice } from "@/components/no-org-notice";
 import { LIKELIHOOD_COLORS, LIKELIHOOD_LABELS } from "@/lib/viz";
 
 function ClassificationChip({
@@ -60,6 +61,11 @@ export default async function QueriesPage() {
     apiFetch<Me>("/api/me"),
     apiFetch<QueriesIntelPayload>("/api/tenant/queries-intel"),
   ]);
+  if (intel.status === 403) {
+    return (
+      <NoOrgNotice active="Queries" isSuperadmin={me.data?.is_superadmin} detail={intel.error} />
+    );
+  }
   const queries = intel.data?.queries ?? [];
 
   return (

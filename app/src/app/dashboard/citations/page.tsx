@@ -1,5 +1,6 @@
 import { apiFetch, type CitationsPayload, type Me } from "@/lib/api";
 import { DashNav } from "@/components/dash-nav";
+import { NoOrgNotice } from "@/components/no-org-notice";
 import { AIOTile } from "@/components/aio-tile";
 
 const CATEGORY_STYLES: Record<string, string> = {
@@ -13,6 +14,11 @@ export default async function CitationsPage() {
     apiFetch<Me>("/api/me"),
     apiFetch<CitationsPayload>("/api/tenant/citations-intel"),
   ]);
+  if (payload.status === 403) {
+    return (
+      <NoOrgNotice active="Citations" isSuperadmin={me.data?.is_superadmin} detail={payload.error} />
+    );
+  }
   const data = payload.data;
 
   return (

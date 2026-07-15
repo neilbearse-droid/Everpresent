@@ -1,5 +1,6 @@
 import { apiFetch, type Me, type PersonasPayload } from "@/lib/api";
 import { DashNav } from "@/components/dash-nav";
+import { NoOrgNotice } from "@/components/no-org-notice";
 import { HBars } from "@/components/charts";
 import { SERIES_COLORS } from "@/lib/viz";
 
@@ -8,6 +9,11 @@ export default async function PersonasPage() {
     apiFetch<Me>("/api/me"),
     apiFetch<PersonasPayload>("/api/tenant/personas-intel"),
   ]);
+  if (personas.status === 403) {
+    return (
+      <NoOrgNotice active="Personas" isSuperadmin={me.data?.is_superadmin} detail={personas.error} />
+    );
+  }
   const data = personas.data;
 
   return (

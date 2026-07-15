@@ -1,5 +1,6 @@
 import { apiFetch, type Me, type Recommendation } from "@/lib/api";
 import { DashNav } from "@/components/dash-nav";
+import { NoOrgNotice } from "@/components/no-org-notice";
 import { setRecommendationStatus } from "./actions";
 
 const BRANCH_LABELS: Record<Recommendation["branch"], string> = {
@@ -38,6 +39,15 @@ export default async function RecommendationsPage() {
     apiFetch<Me>("/api/me"),
     apiFetch<Recommendation[]>("/api/tenant/recommendations"),
   ]);
+  if (recs.status === 403) {
+    return (
+      <NoOrgNotice
+        active="Recommendations"
+        isSuperadmin={me.data?.is_superadmin}
+        detail={recs.error}
+      />
+    );
+  }
   const items = recs.data ?? [];
   const active = items.filter((r) => r.status === "open" || r.status === "in_progress");
   const closed = items.filter((r) => !active.includes(r));
