@@ -74,6 +74,25 @@ class AuthedUser:
     org_role: str | None = None
 
 
+def _extract_org(claims: dict[str, Any]) -> tuple[str | None, str | None]:
+    """Read the active organization from the session token, tolerating both
+    Clerk token shapes: the legacy top-level `org_id`/`org_role` claims, and
+    the current default where org data is nested under a compact `o` object
+    (`o.id`, `o.rol`). Without this, a modern token carries an active org that
+    the server never sees, and every org-scoped route 403s."""
+    org_id = claims.get("org_id")
+    org_role = claims.get("org_role")
+    if not org_id:
+        o = claims.get("o")
+        if isinstance(o, dict):
+            org_id = o.get("id")
+            # New tokens store the bare role ("admin"/"member"); the legacy
+            # claim was "org:admin". _role_from_clerk matches on the suffix, so
+            # either form resolves correctly.
+            org_role = o.get("rol") or org_role
+    return org_id, org_role
+
+
 def get_current_user(
     request: Request,
     session: Annotated[Session, Depends(get_session)],
@@ -102,7 +121,8 @@ def get_current_user(
         session.commit()
         session.refresh(user)
 
-    return AuthedUser(user=user, org_id=claims.get("org_id"), org_role=claims.get("org_role"))
+    org_id, org_role = _extract_org(claims)
+    return AuthedUser(user=user, org_id=org_id, org_role=org_role)
 
 
 def require_superadmin(authed: Annotated[AuthedUser, Depends(get_current_user)]) -> AuthedUser:
