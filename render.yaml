@@ -35,8 +35,10 @@ services:
     dockerContext: .
     plan: starter
     healthCheckPath: /api/health
-    # Run migrations + seed before each new version goes live.
-    preDeployCommand: "alembic upgrade head && python -m api.seed"
+    # Run migrations + seed before each new version goes live. Wrapped in a
+    # shell so the && actually chains (Render runs this command directly, not
+    # through a shell, so a bare && would be passed to alembic as arguments).
+    preDeployCommand: "sh -c 'alembic upgrade head && python -m api.seed'"
     envVars:
       - key: PORT
         value: "8000"
