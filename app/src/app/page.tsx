@@ -1,6 +1,13 @@
 import Link from "next/link";
+import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  // Signed-in visitors go straight to their dashboard — never bounce them
+  // back to a page with a "Sign in" button.
+  const { userId } = await auth();
+  if (userId) redirect("/dashboard");
+
   return (
     <main className="mx-auto flex min-h-screen max-w-3xl flex-col items-start justify-center gap-6 px-8">
       <h1 className="text-4xl font-semibold tracking-tight">EverPresent</h1>
