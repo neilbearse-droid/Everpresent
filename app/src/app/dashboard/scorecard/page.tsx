@@ -13,7 +13,7 @@ const STABILITY_STYLE: Record<string, string> = {
 
 function Tile({ value, label, sub }: { value: string; label: string; sub?: string }) {
   return (
-    <div className="rounded-lg border border-slate-700 bg-slate-900 p-5">
+    <div className="card p-5">
       <div className="text-3xl font-semibold tabular-nums">{value}</div>
       <div className="mt-1 text-sm text-slate-400">{label}</div>
       {sub && <div className="text-xs text-slate-500">{sub}</div>}
@@ -34,7 +34,7 @@ export default async function ScorecardPage() {
     return (
       <main className="mx-auto max-w-6xl px-8 py-10">
         <DashNav active="Scorecard" isSuperadmin={me.data?.is_superadmin} />
-        <section className="rounded-lg border border-slate-700 bg-slate-900 p-6">
+        <section className="card p-6">
           <h2 className="mb-2 text-lg font-medium">No scorecard yet</h2>
           <p className="text-sm text-slate-400">
             The KPI scorecard appears after a completed run.
@@ -58,16 +58,37 @@ export default async function ScorecardPage() {
       <DashNav active="Scorecard" isSuperadmin={me.data?.is_superadmin} />
 
       {/* North-star */}
-      <section className="mb-6 rounded-lg border border-indigo-500/40 bg-indigo-500/5 p-6">
-        <div className="flex flex-wrap items-end justify-between gap-4">
+      <section
+        className="card relative mb-6 overflow-hidden p-6"
+        style={{
+          background:
+            "linear-gradient(135deg, rgba(110,121,246,0.14), rgba(154,107,240,0.06) 55%, transparent), var(--surface)",
+          borderColor: "var(--accent-ring)",
+        }}
+      >
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full"
+          style={{ background: "radial-gradient(circle, rgba(110,121,246,0.25), transparent 70%)" }}
+        />
+        <div className="relative flex flex-wrap items-end justify-between gap-6">
           <div>
-            <div className="text-sm font-medium text-slate-400">
-              Answer Share — {d.brand_name}
+            <p className="eyebrow mb-2">Answer Share · {d.brand_name}</p>
+            <div className="flex items-baseline gap-2">
+              <span
+                className="text-6xl font-semibold leading-none tabular-nums"
+                style={{
+                  background: "linear-gradient(135deg, #ffffff, #c7ccf7)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                }}
+              >
+                {d.answer_share}%
+              </span>
             </div>
-            <div className="mt-1 text-5xl font-semibold tabular-nums">{d.answer_share}%</div>
-            <p className="mt-1 max-w-md text-xs text-slate-500">
-              Your prominence-weighted share of the AI answer vs competitors — earlier and
-              more often named counts for more. The one number that isn't a vanity metric.
+            <p className="mt-3 max-w-md text-xs leading-relaxed text-[var(--text-3)]">
+              Your prominence-weighted share of the AI answer vs competitors — named earlier
+              and more often counts for more. The one number that isn't a vanity metric.
             </p>
           </div>
           <div className="min-w-64 flex-1">
@@ -92,7 +113,7 @@ export default async function ScorecardPage() {
           value={d.prominence.avg_rank === null ? "—" : `#${d.prominence.avg_rank}`}
           label="Average position when named"
         />
-        <div className="rounded-lg border border-slate-700 bg-slate-900 p-5">
+        <div className="card p-5">
           <div className={`text-3xl font-semibold ${STABILITY_STYLE[d.stability.label] ?? ""}`}>
             {d.stability.label}
           </div>
@@ -105,7 +126,7 @@ export default async function ScorecardPage() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Prominence distribution */}
-        <section className="rounded-lg border border-slate-700 bg-slate-900 p-6">
+        <section className="card p-6">
           <h2 className="mb-4 text-sm font-medium text-slate-400">
             Prominence — where you land when named
           </h2>
@@ -124,7 +145,7 @@ export default async function ScorecardPage() {
         </section>
 
         {/* Sentiment / framing */}
-        <section className="rounded-lg border border-slate-700 bg-slate-900 p-6">
+        <section className="card p-6">
           <h2 className="mb-4 text-sm font-medium text-slate-400">
             Framing — how you're described
           </h2>
@@ -136,7 +157,7 @@ export default async function ScorecardPage() {
           {[...d.sentiment.examples.negative, ...d.sentiment.examples.positive]
             .slice(0, 3)
             .map((ex, i) => (
-              <blockquote key={i} className="mb-2 border-l-2 border-slate-700 pl-3 text-xs text-slate-400">
+              <blockquote key={i} className="mb-2 border-l-2 border-[var(--border)] pl-3 text-xs text-slate-400">
                 "{ex.snippet}"
                 <span className="mt-0.5 block text-slate-600">
                   {ex.query} · {surfaceLabel(ex.surface)}
@@ -150,7 +171,7 @@ export default async function ScorecardPage() {
       </div>
 
       {/* Head-to-head */}
-      <section className="mt-6 rounded-lg border border-slate-700 bg-slate-900 p-6">
+      <section className="mt-6 card p-6">
         <h2 className="mb-1 text-sm font-medium text-slate-400">
           Head-to-head — when you both appear, who leads
         </h2>
@@ -171,7 +192,7 @@ export default async function ScorecardPage() {
             </thead>
             <tbody>
               {d.head_to_head.map((h) => (
-                <tr key={h.competitor} className="border-t border-slate-800">
+                <tr key={h.competitor} className="border-t border-[var(--border)]">
                   <td className="py-2 pr-4">{h.competitor}</td>
                   <td className="pr-4 tabular-nums">{h.shared}</td>
                   <td className="pr-4 tabular-nums">{h.wins}</td>
@@ -188,7 +209,7 @@ export default async function ScorecardPage() {
       </section>
 
       {d.stability.series.length >= 2 && (
-        <section className="mt-6 rounded-lg border border-slate-700 bg-slate-900 p-6">
+        <section className="mt-6 card p-6">
           <h2 className="mb-4 text-sm font-medium text-slate-400">
             Presence rate over recent runs (durability)
           </h2>

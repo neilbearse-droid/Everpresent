@@ -11,14 +11,14 @@ export function CreateTenantForm() {
         name="name"
         placeholder="Name (e.g. Smith School of Business)"
         required
-        className="rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
+        className="rounded-md border border-[var(--border)] bg-[var(--inset)] px-3 py-2 text-sm"
       />
       <input
         name="slug"
         placeholder="slug (e.g. smith)"
         required
         pattern="[a-z0-9-]+"
-        className="rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
+        className="rounded-md border border-[var(--border)] bg-[var(--inset)] px-3 py-2 text-sm"
       />
       <button
         type="submit"

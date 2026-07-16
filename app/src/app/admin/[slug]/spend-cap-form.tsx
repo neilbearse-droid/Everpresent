@@ -19,7 +19,7 @@ export function SpendCapForm({ slug, cap }: { slug: string; cap: number }) {
             min="0"
             step="0.01"
             defaultValue={cap}
-            className="mt-1 w-32 rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+            className="mt-1 w-32 rounded-md border border-[var(--border)] bg-[var(--inset)] px-3 py-2 text-sm text-slate-100"
           />
         </label>
         <button

@@ -15,7 +15,7 @@ export function ImportYamlForm({ slug }: { slug: string }) {
         rows={10}
         required
         placeholder={"brand:\n  name: …\npersonas:\n  - name: …\nqueries:\n  - text: …"}
-        className="rounded-md border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-xs"
+        className="rounded-md border border-[var(--border)] bg-[var(--inset)] px-3 py-2 font-mono text-xs"
       />
       <button
         type="submit"

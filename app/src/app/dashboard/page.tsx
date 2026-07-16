@@ -60,22 +60,47 @@ export default async function OverviewPage() {
     <main className="mx-auto max-w-6xl px-8 py-10">
       <DashNav active="Overview" isSuperadmin={me.data?.is_superadmin} />
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-3">
-        <div className="rounded-lg border border-slate-700 bg-slate-900 p-5">
-          <div className="text-3xl font-semibold tabular-nums">
-            {data?.latest ? data.latest.brand_score : "—"}
-          </div>
-          <div className="mt-1 text-sm text-slate-400">
-            Brand visibility (0–100){data?.latest ? ` · ${data.latest.date}` : ""}
-          </div>
+      <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="eyebrow mb-1.5">Visibility overview</p>
+          <h1 className="text-[26px] font-semibold tracking-tight">
+            {data?.brand_name ?? tenant.data.name}
+          </h1>
         </div>
-        <div className="rounded-lg border border-slate-700 bg-slate-900 p-5">
-          <div className="text-3xl font-semibold tabular-nums">
+        <div className="flex flex-wrap gap-2 text-[13px]">
+          <a href="/dashboard/reports/summary.pdf" className="btn btn-ghost px-3 py-1.5">
+            Summary PDF
+          </a>
+          <a href="/dashboard/reports/results.csv" className="btn btn-ghost px-3 py-1.5">
+            Results CSV
+          </a>
+          <a href="/dashboard/reports/visibility.csv" className="btn btn-ghost px-3 py-1.5">
+            Visibility CSV
+          </a>
+        </div>
+      </div>
+
+      <div className="mb-6 grid gap-4 sm:grid-cols-3">
+        <div className="card card-hover p-5">
+          <p className="eyebrow mb-2.5">Brand visibility</p>
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-4xl font-semibold leading-none tabular-nums">
+              {data?.latest ? data.latest.brand_score : "—"}
+            </span>
+            <span className="text-base text-[var(--text-3)]">/100</span>
+          </div>
+          <p className="mt-2.5 text-xs text-[var(--text-3)]">
+            {data?.latest ? `Latest measurement · ${data.latest.date}` : "Awaiting first run"}
+          </p>
+        </div>
+        <div className="card card-hover p-5">
+          <p className="eyebrow mb-2.5">Share of voice</p>
+          <div className="text-4xl font-semibold leading-none tabular-nums">
             {data && data.brand_name in data.share_of_voice
               ? `${data.share_of_voice[data.brand_name]}%`
               : "—"}
           </div>
-          <div className="mt-1 text-sm text-slate-400">Share of voice (30 days)</div>
+          <p className="mt-2.5 text-xs text-[var(--text-3)]">Of AI mentions · last 30 days</p>
         </div>
         <AIOTile aio={data?.aio ?? {
           queries_measured: 0, queries_with_aio: 0, aio_share_pct: 0,
@@ -83,21 +108,8 @@ export default async function OverviewPage() {
         }} />
       </div>
 
-      <div className="mb-6 flex gap-3 text-sm">
-        <span className="text-slate-500">Export:</span>
-        <a href="/dashboard/reports/summary.pdf" className="text-indigo-400 hover:underline">
-          Summary PDF
-        </a>
-        <a href="/dashboard/reports/results.csv" className="text-indigo-400 hover:underline">
-          Results CSV
-        </a>
-        <a href="/dashboard/reports/visibility.csv" className="text-indigo-400 hover:underline">
-          Visibility CSV
-        </a>
-      </div>
-
       {!hasData ? (
-        <section className="rounded-lg border border-slate-700 bg-slate-900 p-6">
+        <section className="card p-6">
           <h2 className="mb-2 text-lg font-medium">No measurement data yet</h2>
           <p className="text-sm text-slate-400">
             Visibility appears here after the first completed run.{" "}
@@ -108,7 +120,7 @@ export default async function OverviewPage() {
         </section>
       ) : (
         <>
-          <section className="mb-6 rounded-lg border border-slate-700 bg-slate-900 p-6">
+          <section className="mb-6 card p-6">
             <h2 className="mb-4 text-sm font-medium text-slate-400">
               Visibility trend — {data!.brand_name} vs competitors
             </h2>
@@ -116,14 +128,14 @@ export default async function OverviewPage() {
           </section>
 
           <div className="grid gap-6 lg:grid-cols-2">
-            <section className="rounded-lg border border-slate-700 bg-slate-900 p-6">
+            <section className="card p-6">
               <h2 className="mb-4 text-sm font-medium text-slate-400">
                 Share of voice — mentions across AI answers (30 days)
               </h2>
               <HBars items={sovItems} max={Math.max(...sovItems.map((s) => s.value), 1)} unit="%" />
             </section>
 
-            <section className="rounded-lg border border-slate-700 bg-slate-900 p-6">
+            <section className="card p-6">
               <h2 className="mb-4 text-sm font-medium text-slate-400">
                 Biggest movers since previous measurement day
               </h2>

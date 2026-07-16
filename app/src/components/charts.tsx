@@ -10,8 +10,8 @@ import {
   YAxis,
 } from "recharts";
 
-const GRID = "#1e293b"; // recessive: slate-800 on the slate-900 surface
-const AXIS_TEXT = "#94a3b8";
+const GRID = "rgba(255,255,255,0.07)"; // recessive hairline on the dark surface
+const AXIS_TEXT = "#8b93a3";
 
 type TrendRow = Record<string, string | number>;
 
@@ -59,12 +59,13 @@ export function TrendChart({
           <Tooltip
             cursor={{ stroke: AXIS_TEXT, strokeWidth: 1 }}
             contentStyle={{
-              background: "#0f172a",
-              border: "1px solid #334155",
-              borderRadius: 6,
+              background: "#15171d",
+              border: "1px solid rgba(255,255,255,0.12)",
+              borderRadius: 10,
               fontSize: 12,
+              boxShadow: "0 8px 24px rgba(0,0,0,0.45)",
             }}
-            labelStyle={{ color: "#e2e8f0" }}
+            labelStyle={{ color: "#f3f5fa" }}
             formatter={(value: number | string, name: string) => [value, name]}
           />
           {series.map((s, seriesIndex) => (
@@ -137,9 +138,9 @@ export function HBars({
               {unit}
             </span>
           </div>
-          <div className="h-2 w-full rounded-sm bg-slate-800">
+          <div className="h-2 w-full rounded-full bg-white/[0.06]">
             <div
-              className="h-2 rounded-sm transition-opacity group-hover:opacity-80"
+              className="h-2 rounded-full transition-opacity group-hover:opacity-80"
               style={{
                 width: `${Math.min(100, (item.value / max) * 100)}%`,
                 background: item.color,

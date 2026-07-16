@@ -26,7 +26,7 @@ export function ScheduleForm({
             defaultValue={cronExpr}
             placeholder="0 13 * * 1"
             required
-            className="mt-1 rounded-md border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-sm text-slate-100"
+            className="mt-1 rounded-md border border-[var(--border)] bg-[var(--inset)] px-3 py-2 font-mono text-sm text-slate-100"
           />
         </label>
         <label className="flex items-center gap-2 pb-2 text-sm text-slate-300">

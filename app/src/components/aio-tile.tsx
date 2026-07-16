@@ -5,7 +5,7 @@ import type { AIOSummary } from "@/lib/api";
 export function AIOTile({ aio }: { aio: AIOSummary }) {
   if (aio.queries_measured === 0) {
     return (
-      <div className="rounded-lg border border-slate-700 bg-slate-900 p-5">
+      <div className="card p-5">
         <div className="text-3xl font-semibold text-slate-500">—</div>
         <div className="mt-1 text-sm text-slate-400">
           Google AIO share (enable the google_aio surface and run)
@@ -14,7 +14,7 @@ export function AIOTile({ aio }: { aio: AIOSummary }) {
     );
   }
   return (
-    <div className="rounded-lg border border-slate-700 bg-slate-900 p-5">
+    <div className="card p-5">
       <div className="text-3xl font-semibold tabular-nums">{aio.aio_share_pct}%</div>
       <div className="mt-1 text-sm text-slate-400">
         of {aio.queries_measured} measured queries trigger Google's AI Overview

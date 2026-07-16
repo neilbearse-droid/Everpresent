@@ -6,7 +6,7 @@ import { surfaceLabel } from "@/lib/viz";
 const DIAG_STYLE: Record<string, string> = {
   content_gap: "border-amber-500/40 bg-amber-500/5",
   knowledge_gap: "border-red-500/40 bg-red-500/5",
-  undetermined: "border-slate-700 bg-slate-900",
+  undetermined: "border-[var(--border)] bg-slate-900",
 };
 const DIAG_CHIP: Record<string, string> = {
   content_gap: "text-amber-300",
@@ -31,7 +31,7 @@ export default async function ActionPlanPage() {
       <DashNav active="Action Plan" isSuperadmin={me.data?.is_superadmin} />
 
       {targets.length === 0 && briefs.length === 0 ? (
-        <section className="rounded-lg border border-slate-700 bg-slate-900 p-6">
+        <section className="card p-6">
           <h2 className="mb-2 text-lg font-medium">Nothing to action yet</h2>
           <p className="text-sm text-slate-400">
             Once a run finds visibility gaps, this tab turns each one into a source target
@@ -41,7 +41,7 @@ export default async function ActionPlanPage() {
       ) : (
         <div className="space-y-8">
           {/* #4 — Citation-gap target list */}
-          <section className="rounded-lg border border-slate-700 bg-slate-900 p-6">
+          <section className="card p-6">
             <h2 className="mb-1 text-sm font-medium text-slate-400">
               Source targets — where the AIs get their answers in your vertical
             </h2>
@@ -66,7 +66,7 @@ export default async function ActionPlanPage() {
                   </thead>
                   <tbody>
                     {targets.map((t) => (
-                      <tr key={t.domain} className="border-t border-slate-800">
+                      <tr key={t.domain} className="border-t border-[var(--border)]">
                         <td className="py-2 pr-4">
                           <a
                             href={t.example_url}

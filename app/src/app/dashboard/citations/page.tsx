@@ -32,7 +32,7 @@ export default async function CitationsPage() {
         <>
           <div className="mb-6 grid gap-4 sm:grid-cols-2">
             <AIOTile aio={data.aio} />
-            <div className="rounded-lg border border-slate-700 bg-slate-900 p-5">
+            <div className="card p-5">
               <div className="text-3xl font-semibold tabular-nums">
                 {data.domains.filter((d) => d.category === "brand").length > 0 ? "Yes" : "No"}
               </div>
@@ -42,7 +42,7 @@ export default async function CitationsPage() {
             </div>
           </div>
 
-          <section className="rounded-lg border border-slate-700 bg-slate-900 p-6">
+          <section className="card p-6">
             <h2 className="mb-1 text-sm font-medium text-slate-400">
               Domains AI answers cite in this vertical
             </h2>
@@ -64,7 +64,7 @@ export default async function CitationsPage() {
                 </thead>
                 <tbody>
                   {data.domains.map((d) => (
-                    <tr key={d.domain} className="border-t border-slate-800">
+                    <tr key={d.domain} className="border-t border-[var(--border)]">
                       <td className="py-2.5 pr-4 font-medium">{d.domain}</td>
                       <td className="pr-4">
                         <span

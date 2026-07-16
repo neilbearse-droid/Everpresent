@@ -15,7 +15,7 @@ export function ClerkOrgForm({ slug, orgId }: { slug: string; orgId: string }) {
           name="clerk_org_id"
           defaultValue={orgId}
           placeholder="org_…"
-          className="flex-1 rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
+          className="flex-1 rounded-md border border-[var(--border)] bg-[var(--inset)] px-3 py-2 text-sm"
         />
         <button
           disabled={pending}

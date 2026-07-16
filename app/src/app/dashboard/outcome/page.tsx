@@ -16,7 +16,7 @@ export default async function OutcomePage() {
   const notReady = (title: string, body: string) => (
     <main className="mx-auto max-w-6xl px-8 py-10">
       <DashNav active="Outcome" isSuperadmin={me.data?.is_superadmin} />
-      <section className="rounded-lg border border-slate-700 bg-slate-900 p-6">
+      <section className="card p-6">
         <h2 className="mb-2 text-lg font-medium">{title}</h2>
         <p className="max-w-xl text-sm text-slate-400">{body}</p>
       </section>
@@ -44,21 +44,21 @@ export default async function OutcomePage() {
       <DashNav active="Outcome" isSuperadmin={me.data?.is_superadmin} />
 
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
-        <div className="rounded-lg border border-slate-700 bg-slate-900 p-5">
+        <div className="card p-5">
           <div className="text-3xl font-semibold tabular-nums">{d.totals.sessions}</div>
           <div className="mt-1 text-sm text-slate-400">AI-referred sessions</div>
         </div>
-        <div className="rounded-lg border border-slate-700 bg-slate-900 p-5">
+        <div className="card p-5">
           <div className="text-3xl font-semibold tabular-nums">{d.totals.conversions}</div>
           <div className="mt-1 text-sm text-slate-400">Key events from AI referrals</div>
         </div>
-        <div className="rounded-lg border border-slate-700 bg-slate-900 p-5">
+        <div className="card p-5">
           <div className="text-3xl font-semibold tabular-nums">{d.engine_totals.length}</div>
           <div className="mt-1 text-sm text-slate-400">Answer engines sending traffic</div>
         </div>
       </div>
 
-      <section className="mb-6 rounded-lg border border-slate-700 bg-slate-900 p-6">
+      <section className="mb-6 card p-6">
         <h2 className="mb-4 text-sm font-medium text-slate-400">
           AI-referred sessions by engine — where the visits come from
         </h2>
@@ -72,7 +72,7 @@ export default async function OutcomePage() {
         />
       </section>
 
-      <section className="rounded-lg border border-slate-700 bg-slate-900 p-6">
+      <section className="card p-6">
         <h2 className="mb-1 text-sm font-medium text-slate-400">
           AI referrals vs visibility — does being cited move the business?
         </h2>

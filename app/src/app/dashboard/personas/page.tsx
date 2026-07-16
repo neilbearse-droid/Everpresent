@@ -21,7 +21,7 @@ export default async function PersonasPage() {
       <DashNav active="Personas" isSuperadmin={me.data?.is_superadmin} />
 
       {!data || data.segments.length === 0 ? (
-        <section className="rounded-lg border border-slate-700 bg-slate-900 p-6">
+        <section className="card p-6">
           <h2 className="mb-2 text-lg font-medium">No persona data yet</h2>
           <p className="text-sm text-slate-400">
             Per-segment visibility appears after the first completed run.
@@ -30,7 +30,7 @@ export default async function PersonasPage() {
         </section>
       ) : (
         <>
-          <section className="mb-6 rounded-lg border border-slate-700 bg-slate-900 p-6">
+          <section className="mb-6 card p-6">
             <h2 className="mb-4 text-sm font-medium text-slate-400">
               Brand visibility by persona segment · {data.date}
             </h2>
@@ -44,7 +44,7 @@ export default async function PersonasPage() {
             />
           </section>
 
-          <section className="rounded-lg border border-slate-700 bg-slate-900 p-6">
+          <section className="card p-6">
             <h2 className="mb-4 text-sm font-medium text-slate-400">
               Segment detail — where the gaps are
             </h2>
@@ -69,7 +69,7 @@ export default async function PersonasPage() {
                       ? Math.round((topCompetitor[1] - segment.brand_score) * 100) / 100
                       : null;
                     return (
-                      <tr key={segment.segment} className="border-t border-slate-800">
+                      <tr key={segment.segment} className="border-t border-[var(--border)]">
                         <td className="py-3 pr-4 font-medium">{segment.segment}</td>
                         <td className="pr-4 tabular-nums">{segment.brand_score}</td>
                         <td className="pr-4 tabular-nums">

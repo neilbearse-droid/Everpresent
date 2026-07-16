@@ -15,7 +15,7 @@ export function NotifyEmailsForm({ slug, emails }: { slug: string; emails: strin
           name="notify_emails"
           defaultValue={emails}
           placeholder="neil@example.com, client@brand.com"
-          className="flex-1 rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm"
+          className="flex-1 rounded-md border border-[var(--border)] bg-[var(--inset)] px-3 py-2 text-sm"
         />
         <button
           disabled={pending}

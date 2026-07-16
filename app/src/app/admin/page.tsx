@@ -38,7 +38,7 @@ export default async function AdminPage() {
         </thead>
         <tbody>
           {(tenants.data ?? []).map((t) => (
-            <tr key={t.slug} className="border-t border-slate-800">
+            <tr key={t.slug} className="border-t border-[var(--border)]">
               <td className="py-3">
                 <Link href={`/admin/${t.slug}`} className="font-medium text-indigo-400 hover:underline">
                   {t.name}
@@ -53,7 +53,7 @@ export default async function AdminPage() {
         </tbody>
       </table>
 
-      <section className="mt-12 max-w-md rounded-lg border border-slate-700 bg-slate-900 p-6">
+      <section className="mt-12 max-w-md card p-6">
         <h2 className="mb-4 text-lg font-medium">New tenant</h2>
         <CreateTenantForm />
       </section>

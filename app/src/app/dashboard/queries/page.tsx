@@ -72,7 +72,7 @@ export default async function QueriesPage() {
     <main className="mx-auto max-w-6xl px-8 py-10">
       <DashNav active="Queries" isSuperadmin={me.data?.is_superadmin} />
 
-      <section className="rounded-lg border border-slate-700 bg-slate-900 p-6">
+      <section className="card p-6">
         <h2 className="mb-1 text-sm font-medium text-slate-400">
           Query corpus · web-search likelihood · latest answers per surface and mode
         </h2>
@@ -106,7 +106,7 @@ export default async function QueriesPage() {
                     modeA.find(([, r]) => r.status === "ok") &&
                     modeB.find(([, r]) => r.status === "ok");
                   return (
-                    <tr key={query.id} className="border-t border-slate-800 align-top">
+                    <tr key={query.id} className="border-t border-[var(--border)] align-top">
                       <td className="max-w-md py-3 pr-4">
                         {query.text}
                         {!query.active && (

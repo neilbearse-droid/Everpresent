@@ -38,7 +38,7 @@ export default async function EnginesPage() {
       <DashNav active="Engines" isSuperadmin={me.data?.is_superadmin} />
 
       {engines.length === 0 ? (
-        <section className="rounded-lg border border-slate-700 bg-slate-900 p-6">
+        <section className="card p-6">
           <h2 className="mb-2 text-lg font-medium">No engine data yet</h2>
           <p className="text-sm text-slate-400">
             Cross-engine analysis appears after a completed run. Enable more than one engine
@@ -48,7 +48,7 @@ export default async function EnginesPage() {
       ) : (
         <>
           {/* Per-engine visibility */}
-          <section className="mb-6 rounded-lg border border-slate-700 bg-slate-900 p-6">
+          <section className="mb-6 card p-6">
             <h2 className="mb-1 text-sm font-medium text-slate-400">
               Where {data!.brand_name} shows up, by engine
             </h2>
@@ -67,7 +67,7 @@ export default async function EnginesPage() {
             />
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {engines.map((e) => (
-                <div key={e.surface} className="rounded-md border border-slate-800 p-3 text-sm">
+                <div key={e.surface} className="rounded-md border border-[var(--border)] p-3 text-sm">
                   <div className="font-medium">{surfaceLabel(e.surface)}</div>
                   <div className="mt-1 text-2xl font-semibold tabular-nums">{e.brand_rate}%</div>
                   <div className="text-xs text-slate-500">
@@ -81,7 +81,7 @@ export default async function EnginesPage() {
           </section>
 
           {/* Diagnosis summary */}
-          <section className="mb-6 rounded-lg border border-slate-700 bg-slate-900 p-6">
+          <section className="mb-6 card p-6">
             <h2 className="mb-1 text-sm font-medium text-slate-400">Why you're missing</h2>
             <p className="mb-4 text-xs text-slate-500">
               For every query where you're absent, the search-vs-training diff tells us the
@@ -91,7 +91,7 @@ export default async function EnginesPage() {
               {DIAGNOSIS_ORDER.filter((t) => summary[t]).map((t) => (
                 <div
                   key={t}
-                  className="flex items-center gap-2 rounded-md border border-slate-800 px-3 py-2 text-sm"
+                  className="flex items-center gap-2 rounded-md border border-[var(--border)] px-3 py-2 text-sm"
                 >
                   <span className={`h-2.5 w-2.5 rounded-full ${DIAGNOSIS_STYLE[t].dot}`} />
                   <span className="font-semibold tabular-nums">{summary[t]}</span>
@@ -104,7 +104,7 @@ export default async function EnginesPage() {
           </section>
 
           {/* Query × engine matrix with diagnosis */}
-          <section className="rounded-lg border border-slate-700 bg-slate-900 p-6">
+          <section className="card p-6">
             <h2 className="mb-4 text-sm font-medium text-slate-400">
               Query × engine — who appears in each answer
             </h2>
@@ -123,7 +123,7 @@ export default async function EnginesPage() {
                 </thead>
                 <tbody>
                   {matrix.map((row) => (
-                    <tr key={row.id} className="border-t border-slate-800 align-top">
+                    <tr key={row.id} className="border-t border-[var(--border)] align-top">
                       <td className="max-w-xs py-3 pr-4">{row.query}</td>
                       {surfaces.map((s) => {
                         const cell = row.cells[s];

@@ -3,7 +3,7 @@ import type { RawEnvelope } from "@/lib/api";
 export function RawResponseView({ envelope }: { envelope: RawEnvelope }) {
   return (
     <div className="space-y-6">
-      <section className="rounded-lg border border-slate-700 bg-slate-900 p-5">
+      <section className="card p-5">
         <h2 className="mb-1 text-sm font-medium text-slate-400">Query</h2>
         <p>{envelope.query}</p>
         <h2 className="mt-4 mb-1 text-sm font-medium text-slate-400">
@@ -16,12 +16,12 @@ export function RawResponseView({ envelope }: { envelope: RawEnvelope }) {
         </p>
       </section>
 
-      <section className="rounded-lg border border-slate-700 bg-slate-900 p-5">
+      <section className="card p-5">
         <h2 className="mb-3 text-sm font-medium text-slate-400">Response</h2>
         <p className="whitespace-pre-wrap leading-relaxed">{envelope.parsed_text}</p>
       </section>
 
-      <details className="rounded-lg border border-slate-700 bg-slate-900 p-5">
+      <details className="card p-5">
         <summary className="cursor-pointer text-sm font-medium text-slate-400">
           Raw provider payload (JSON)
         </summary>

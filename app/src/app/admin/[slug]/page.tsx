@@ -56,14 +56,14 @@ export default async function TenantAdminPage({
       </header>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <section className="rounded-lg border border-slate-700 bg-slate-900 p-5">
+        <section className="card p-5">
           <h2 className="mb-3 font-medium">Clerk organization</h2>
           <p className="mb-3 text-xs text-slate-400">
             Members of this Clerk org see this tenant's dashboards. Paste the org id
             (org_…) from the Clerk dashboard.
           </p>
           <ClerkOrgForm slug={tenant.slug} orgId={tenant.clerk_org_id ?? ""} />
-          <div className="mt-5 border-t border-slate-800 pt-4">
+          <div className="mt-5 border-t border-[var(--border)] pt-4">
             <h3 className="mb-1 text-sm font-medium">GA4 property (Outcome attribution)</h3>
             <p className="mb-3 text-xs text-slate-400">
               Numeric GA4 property id. Grant the EverPresent service account{" "}
@@ -74,7 +74,7 @@ export default async function TenantAdminPage({
           </div>
         </section>
 
-        <section className="rounded-lg border border-slate-700 bg-slate-900 p-5">
+        <section className="card p-5">
           <h2 className="mb-3 font-medium">Governance</h2>
           <p className="mb-3 text-sm">
             AI processing:{" "}
@@ -94,7 +94,7 @@ export default async function TenantAdminPage({
           <SpendCapForm slug={tenant.slug} cap={tenant.monthly_spend_cap_usd} />
         </section>
 
-        <section className="rounded-lg border border-slate-700 bg-slate-900 p-5">
+        <section className="card p-5">
           <h2 className="mb-3 font-medium">Surfaces</h2>
           <ul className="space-y-2">
             {surfaces.map((s) => (
@@ -122,7 +122,7 @@ export default async function TenantAdminPage({
           </ul>
         </section>
 
-        <section className="rounded-lg border border-slate-700 bg-slate-900 p-5">
+        <section className="card p-5">
           <h2 className="mb-3 font-medium">Run schedule</h2>
           <p className="mb-3 text-xs text-slate-400">
             Scheduled runs use the tenant's current surfaces and governance state at fire
@@ -137,7 +137,7 @@ export default async function TenantAdminPage({
           />
         </section>
 
-        <section className="rounded-lg border border-slate-700 bg-slate-900 p-5">
+        <section className="card p-5">
           <h2 className="mb-3 font-medium">Notifications</h2>
           <p className="mb-3 text-xs text-slate-400">
             Run-completion reports (PDF + CSV) go to these addresses. Comma-separated.
@@ -145,7 +145,7 @@ export default async function TenantAdminPage({
           <NotifyEmailsForm slug={tenant.slug} emails={tenant.notify_emails.join(", ")} />
         </section>
 
-        <section className="rounded-lg border border-slate-700 bg-slate-900 p-5">
+        <section className="card p-5">
           <h2 className="mb-3 font-medium">Import config YAML</h2>
           <p className="mb-3 text-xs text-slate-400">
             Replace-semantics: brand, competitors, personas, queries, and surface
@@ -156,7 +156,7 @@ export default async function TenantAdminPage({
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        <section className="rounded-lg border border-slate-700 bg-slate-900 p-5">
+        <section className="card p-5">
           <h2 className="mb-3 font-medium">Personas ({personas.length})</h2>
           <ul className="space-y-3">
             {personas.map((p) => (
@@ -168,7 +168,7 @@ export default async function TenantAdminPage({
           </ul>
         </section>
 
-        <section className="rounded-lg border border-slate-700 bg-slate-900 p-5">
+        <section className="card p-5">
           <h2 className="mb-3 font-medium">Competitors ({competitors.length})</h2>
           <ul className="space-y-2">
             {competitors.map((c) => (
@@ -180,7 +180,7 @@ export default async function TenantAdminPage({
           </ul>
         </section>
 
-        <section className="rounded-lg border border-slate-700 bg-slate-900 p-5">
+        <section className="card p-5">
           <h2 className="mb-3 font-medium">Queries ({queries.length})</h2>
           <ul className="space-y-2">
             {queries.map((q) => (

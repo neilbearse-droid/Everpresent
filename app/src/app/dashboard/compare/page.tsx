@@ -5,7 +5,7 @@ import { surfaceLabel } from "@/lib/viz";
 
 function AnswerColumn({ title, envelope }: { title: string; envelope: RawEnvelope }) {
   return (
-    <section className="min-w-0 rounded-lg border border-slate-700 bg-slate-900 p-5">
+    <section className="min-w-0 card p-5">
       <h2 className="mb-1 text-sm font-medium text-slate-200">{title}</h2>
       <p className="mb-4 text-xs text-slate-500">
         {surfaceLabel(envelope.surface)} · {envelope.model} · persona: {envelope.persona}

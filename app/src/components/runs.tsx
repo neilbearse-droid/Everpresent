@@ -38,7 +38,7 @@ export function RunsTable({ runs, hrefBase }: { runs: Run[]; hrefBase: string })
       </thead>
       <tbody>
         {runs.map((run) => (
-          <tr key={run.id} className="border-t border-slate-800">
+          <tr key={run.id} className="border-t border-[var(--border)]">
             <td className="py-3">
               <Link href={`${hrefBase}/${run.id}`} className="text-indigo-400 hover:underline">
                 #{run.id}
@@ -93,7 +93,7 @@ export function RunDetailView({ detail, hrefBase }: { detail: RunDetail; hrefBas
         </thead>
         <tbody>
           {results.map(({ result, citations }) => (
-            <tr key={result.id} className="border-t border-slate-800 align-top">
+            <tr key={result.id} className="border-t border-[var(--border)] align-top">
               <td className="max-w-xs py-3 pr-3">{result.query_text}</td>
               <td className="pr-3">
                 {result.persona_name}
