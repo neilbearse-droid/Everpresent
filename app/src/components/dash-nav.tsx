@@ -3,6 +3,7 @@ import { OrganizationSwitcher, UserButton } from "@clerk/nextjs";
 
 const TABS = [
   { href: "/dashboard", label: "Overview" },
+  { href: "/dashboard/scorecard", label: "Scorecard" },
   { href: "/dashboard/personas", label: "Personas" },
   { href: "/dashboard/queries", label: "Queries" },
   { href: "/dashboard/engines", label: "Engines" },

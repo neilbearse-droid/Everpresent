@@ -419,6 +419,167 @@ def engine_scorecard(session: Session, tenant_id: int) -> dict:
     }
 
 
+def _pct(part: float, whole: float) -> float:
+    return round(100.0 * part / whole, 1) if whole else 0.0
+
+
+def _stdev(values: list[float]) -> float:
+    if len(values) < 2:
+        return 0.0
+    m = sum(values) / len(values)
+    return (sum((v - m) ** 2 for v in values) / (len(values) - 1)) ** 0.5
+
+
+STABILITY_RUNS = 8
+
+
+def kpi_scorecard(session: Session, tenant_id: int) -> dict:
+    """The KPIs an AEO panel converged on (§panel): a prominence-weighted
+    Answer Share (north-star), plus prominence, competitive head-to-head,
+    sentiment/framing, and run-over-run stability. Pure reads over the
+    mention/rank/sentiment data already captured — no LLM, no run spend."""
+    brand_name = _brand_name(session, tenant_id)
+    search = _latest_results_by_variant(session, tenant_id, ResultVariant.search)
+    results = list(search.values())
+    result_ids = [r.id for r in results if r.id is not None]
+
+    mentions_by_result: dict[int, list[Mention]] = defaultdict(list)
+    if result_ids:
+        for m in session.exec(
+            select(Mention).where(Mention.result_id.in_(result_ids))  # pyright: ignore[reportAttributeAccessIssue]
+        ).all():
+            mentions_by_result[m.result_id].append(m)
+
+    measured = len(results)
+    present = leads = 0
+    brand_ranks: list[int] = []
+    pos_buckets = {"leads": 0, "second": 0, "third_plus": 0}
+    weight_total = 0.0
+    weight_by_entity: dict[str, float] = defaultdict(float)
+    sentiment_counts = {"positive": 0, "neutral": 0, "negative": 0}
+    examples: dict[str, list[dict]] = {"positive": [], "negative": []}
+    comp_stats: dict[str, dict] = defaultdict(lambda: {"shared": 0, "wins": 0})
+
+    for r in results:
+        ms = mentions_by_result.get(r.id or -1, [])
+        for m in ms:
+            weight = 1.0 / m.rank if m.rank and m.rank > 0 else 0.0
+            weight_total += weight
+            name = brand_name if m.entity_type == "brand" else m.entity_name
+            weight_by_entity[name] += weight
+
+        brand_ms = [m for m in ms if m.entity_type == "brand"]
+        if not brand_ms:
+            continue
+        bm = min(brand_ms, key=lambda m: m.rank or 999)
+        present += 1
+        brand_ranks.append(bm.rank)
+        if bm.rank == 1:
+            leads += 1
+            pos_buckets["leads"] += 1
+        elif bm.rank == 2:
+            pos_buckets["second"] += 1
+        else:
+            pos_buckets["third_plus"] += 1
+        sentiment_counts[bm.sentiment] = sentiment_counts.get(bm.sentiment, 0) + 1
+        if bm.sentiment in examples and len(examples[bm.sentiment]) < 3 and bm.context_snippet:
+            examples[bm.sentiment].append(
+                {"query": r.query_text, "surface": str(r.surface), "snippet": bm.context_snippet}
+            )
+        # Head-to-head: among results where the brand appears, who leads whom.
+        b_rank = bm.rank
+        for m in ms:
+            if m.entity_type != "brand":
+                cs = comp_stats[m.entity_name]
+                cs["shared"] += 1
+                if b_rank < (m.rank or 999):
+                    cs["wins"] += 1
+
+    answer_share = _pct(weight_by_entity.get(brand_name, 0.0), weight_total)
+    share_breakdown = sorted(
+        ({"name": n, "share": _pct(w, weight_total)} for n, w in weight_by_entity.items()),
+        key=lambda x: -x["share"],
+    )
+    head_to_head = sorted(
+        (
+            {
+                "competitor": name,
+                "shared": s["shared"],
+                "wins": s["wins"],
+                "win_rate": _pct(s["wins"], s["shared"]),
+            }
+            for name, s in comp_stats.items()
+        ),
+        key=lambda x: -x["shared"],
+    )
+
+    # Stability: brand presence rate across the last few runs.
+    by_run: dict[int, list[Result]] = defaultdict(list)
+    for r in session.exec(
+        select(Result).where(
+            Result.tenant_id == tenant_id, Result.variant == ResultVariant.search,
+            Result.status == "ok",
+        )
+    ).all():
+        by_run[r.run_id].append(r)
+    recent_runs = sorted(by_run)[-STABILITY_RUNS:]
+    run_ids_flat = [x.id for rid in recent_runs for x in by_run[rid] if x.id is not None]
+    brand_result_ids: set[int] = set()
+    if run_ids_flat:
+        for m in session.exec(
+            select(Mention).where(
+                Mention.result_id.in_(run_ids_flat),  # pyright: ignore[reportAttributeAccessIssue]
+                Mention.entity_type == "brand",
+            )
+        ).all():
+            brand_result_ids.add(m.result_id)
+    series = [
+        {
+            "run_id": rid,
+            "presence_rate": _pct(
+                sum(1 for x in by_run[rid] if x.id in brand_result_ids), len(by_run[rid])
+            ),
+        }
+        for rid in recent_runs
+    ]
+    rates = [s["presence_rate"] for s in series]
+    swing = round(max(rates) - min(rates), 1) if rates else 0.0
+    if len(series) < 2:
+        stability_label = "Not enough history"
+    elif swing < 10:
+        stability_label = "Stable"
+    elif swing < 25:
+        stability_label = "Some volatility"
+    else:
+        stability_label = "Volatile"
+
+    return {
+        "brand_name": brand_name,
+        "answer_share": answer_share,
+        "share_breakdown": share_breakdown,
+        "prominence": {
+            "measured": measured,
+            "present": present,
+            "presence_rate": _pct(present, measured),
+            "lead_rate": _pct(leads, present),
+            "avg_rank": round(sum(brand_ranks) / len(brand_ranks), 2) if brand_ranks else None,
+            "position_distribution": pos_buckets,
+        },
+        "sentiment": {
+            "counts": sentiment_counts,
+            "examples": examples,
+        },
+        "head_to_head": head_to_head,
+        "stability": {
+            "series": series,
+            "mean": round(sum(rates) / len(rates), 1) if rates else 0.0,
+            "swing": swing,
+            "stdev": round(_stdev(rates), 1),
+            "label": stability_label,
+        },
+    }
+
+
 def _owned_domains(session: Session, tenant_id: int) -> list[str]:
     brand = session.exec(
         select(BrandProfile).where(BrandProfile.tenant_id == tenant_id)

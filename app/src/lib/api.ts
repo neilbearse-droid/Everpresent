@@ -210,6 +210,35 @@ export type EngineScorecard = {
   diagnosis_summary: Record<string, number>;
 };
 
+export type KpiScorecard = {
+  brand_name: string;
+  answer_share: number;
+  share_breakdown: { name: string; share: number }[];
+  prominence: {
+    measured: number;
+    present: number;
+    presence_rate: number;
+    lead_rate: number;
+    avg_rank: number | null;
+    position_distribution: { leads: number; second: number; third_plus: number };
+  };
+  sentiment: {
+    counts: { positive: number; neutral: number; negative: number };
+    examples: {
+      positive: { query: string; surface: string; snippet: string }[];
+      negative: { query: string; surface: string; snippet: string }[];
+    };
+  };
+  head_to_head: { competitor: string; shared: number; wins: number; win_rate: number }[];
+  stability: {
+    series: { run_id: number; presence_rate: number }[];
+    mean: number;
+    swing: number;
+    stdev: number;
+    label: string;
+  };
+};
+
 export type ActionPlan = {
   brand_name: string;
   targets: {

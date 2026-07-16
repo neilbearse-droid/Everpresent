@@ -112,6 +112,11 @@ def action_plan(ctx: Ctx, session: Db) -> dict:
     return dashboards_service.action_plan(session, ctx.tenant_id)
 
 
+@router.get("/kpi-scorecard")
+def kpi_scorecard(ctx: Ctx, session: Db) -> dict:
+    return dashboards_service.kpi_scorecard(session, ctx.tenant_id)
+
+
 @router.get("/recommendations")
 def recommendations(ctx: Ctx, session: Db) -> list[Recommendation]:
     return list(
