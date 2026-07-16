@@ -419,6 +419,164 @@ def engine_scorecard(session: Session, tenant_id: int) -> dict:
     }
 
 
+def _owned_domains(session: Session, tenant_id: int) -> list[str]:
+    brand = session.exec(
+        select(BrandProfile).where(BrandProfile.tenant_id == tenant_id)
+    ).first()
+    return brand.domains if brand else []
+
+
+def action_plan(session: Session, tenant_id: int) -> dict:
+    """The actionable layer (panel #1 + #4): a citation-gap target list — the
+    third-party sources that cite rivals in this vertical but not you — and a
+    ready-to-work content brief per gap query. Pure reads; briefs are assembled
+    from measured data, no LLM spend."""
+    brand_name = _brand_name(session, tenant_id)
+    owned = _owned_domains(session, tenant_id)
+
+    # Latest search result per (query, surface) and its mention context.
+    search = _latest_results_by_variant(session, tenant_id, ResultVariant.search)
+    results_by_id = {r.id: r for r in search.values() if r.id is not None}
+    ids = list(results_by_id)
+    brand_ids: set[int] = set()
+    comps_by_result: dict[int, set[str]] = defaultdict(set)
+    if ids:
+        for m in session.exec(
+            select(Mention).where(Mention.result_id.in_(ids))  # pyright: ignore[reportAttributeAccessIssue]
+        ).all():
+            if m.entity_type == "brand":
+                brand_ids.add(m.result_id)
+            else:
+                comps_by_result[m.result_id].add(m.entity_name)
+
+    # Aggregate third-party ("other") citation domains across those results.
+    domain_stats: dict[str, dict] = {}
+    per_query_targets: dict[str, dict[str, set[str]]] = defaultdict(lambda: defaultdict(set))
+    if ids:
+        for c in session.exec(
+            select(Citation).where(Citation.result_id.in_(ids))  # pyright: ignore[reportAttributeAccessIssue]
+        ).all():
+            result = results_by_id.get(c.result_id)
+            if result is None or c.source_category != "other" or domain_is_owned(c.domain, owned):
+                continue  # skip owned + rivals' own sites; keep pitchable third parties
+            comps = comps_by_result.get(c.result_id, set())
+            brand_here = c.result_id in brand_ids
+            entry = domain_stats.setdefault(
+                c.domain,
+                {"domain": c.domain, "citations": 0, "queries": set(), "surfaces": set(),
+                 "competitor_assoc": 0, "brand_assoc": 0, "example_url": c.url},
+            )
+            entry["citations"] += 1
+            entry["queries"].add(result.query_text)
+            entry["surfaces"].add(str(result.surface))
+            if comps:
+                entry["competitor_assoc"] += 1
+            if brand_here:
+                entry["brand_assoc"] += 1
+            # Per-query targets: sources cited where you're absent but a rival is present.
+            if not brand_here and comps:
+                per_query_targets[result.query_text][c.domain] |= comps
+
+    targets = [
+        {
+            "domain": d["domain"],
+            "citations": d["citations"],
+            "queries": len(d["queries"]),
+            "surfaces": sorted(d["surfaces"]),
+            "competitor_assoc": d["competitor_assoc"],
+            "already_citing_you": d["brand_assoc"] > 0,
+            "example_url": d["example_url"],
+        }
+        # Prime targets first: cite rivals, don't yet cite you.
+        for d in sorted(
+            domain_stats.values(),
+            key=lambda d: (d["brand_assoc"] == 0, d["competitor_assoc"], d["citations"]),
+            reverse=True,
+        )
+    ][:25]
+
+    # Content briefs for each gap query, using the scorecard's diagnosis.
+    card = engine_scorecard(session, tenant_id)
+    queries = list(session.exec(select(Query).where(Query.tenant_id == tenant_id)).all())
+    by_corpus: dict[str, list[str]] = defaultdict(list)
+    for q in queries:
+        if q.active:
+            by_corpus[q.corpus_tag].append(q.text)
+    corpus_of = {q.text: q.corpus_tag for q in queries}
+
+    briefs = []
+    for row in card["matrix"]:
+        dtype = row["diagnosis"]["type"]
+        if dtype not in ("content_gap", "knowledge_gap"):
+            continue
+        cells = row["cells"]
+        engines_missing = [_surface_label(s) for s, c in cells.items() if c["state"] != "brand"]
+        competitors_winning = sorted({name for c in cells.values() for name in c["competitors"]})
+        q_targets = [
+            {"domain": dom, "rivals": sorted(rivals)}
+            for dom, rivals in sorted(
+                per_query_targets.get(row["query"], {}).items(),
+                key=lambda kv: -len(kv[1]),
+            )
+        ][:5]
+        subtopics = [t for t in by_corpus.get(corpus_of.get(row["query"], ""), [])
+                     if t != row["query"]][:6]
+        briefs.append({
+            "query_id": row["id"],
+            "query": row["query"],
+            "corpus_tag": row["corpus_tag"],
+            "diagnosis": row["diagnosis"],
+            "engines_missing": engines_missing,
+            "competitors_winning": competitors_winning,
+            "target_sources": q_targets,
+            "subtopics": subtopics,
+            "outline": _brief_outline(row["query"], brand_name, competitors_winning, subtopics),
+        })
+
+    return {
+        "brand_name": brand_name,
+        "targets": targets,
+        "briefs": briefs,
+        "summary": {
+            "target_domains": len(targets),
+            "briefs": len(briefs),
+            **card["diagnosis_summary"],
+        },
+    }
+
+
+def _surface_label(surface: str) -> str:
+    """Server-side surface label mirror (the client also labels); keeps briefs
+    readable if rendered outside the app (e.g. an exported report)."""
+    labels = {
+        "openai_api": "ChatGPT", "perplexity_api": "Perplexity", "claude_api": "Claude",
+        "gemini_api": "Gemini", "chatgpt_web": "ChatGPT (web)",
+        "perplexity_web": "Perplexity (web)",
+        "gemini_web": "Gemini (web)", "google_aio": "Google AI Overviews",
+    }
+    return labels.get(surface, surface)
+
+
+def _brief_outline(
+    query: str, brand: str, competitors: list[str], subtopics: list[str]
+) -> list[str]:
+    """A pragmatic content outline for a piece that answers this query in a way
+    AI answer engines can cite. Deterministic scaffolding, not prose."""
+    outline = [
+        f"H1: A direct, factual answer to “{query}” in the first 100 words",
+        f"H2: Why {brand} — specific, verifiable differentiators (stats, outcomes, dates)",
+    ]
+    if competitors:
+        outline.append(
+            f"H2: Honest comparison vs {', '.join(competitors[:3])} — where {brand} fits best"
+        )
+    for sub in subtopics[:3]:
+        outline.append(f"H2: {sub[0].upper() + sub[1:]}")
+    outline.append("H2: FAQ — concise Q&A pairs (the format AI answers lift verbatim)")
+    outline.append("Include: citable data points, a clear publish date, and structured markup")
+    return outline
+
+
 def queries_intel(session: Session, tenant_id: int) -> dict:
     queries = list(session.exec(select(Query).where(Query.tenant_id == tenant_id)).all())
     classifications = {

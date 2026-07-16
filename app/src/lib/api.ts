@@ -210,6 +210,31 @@ export type EngineScorecard = {
   diagnosis_summary: Record<string, number>;
 };
 
+export type ActionPlan = {
+  brand_name: string;
+  targets: {
+    domain: string;
+    citations: number;
+    queries: number;
+    surfaces: string[];
+    competitor_assoc: number;
+    already_citing_you: boolean;
+    example_url: string;
+  }[];
+  briefs: {
+    query_id: number;
+    query: string;
+    corpus_tag: string;
+    diagnosis: { type: string; label: string; fix: string };
+    engines_missing: string[];
+    competitors_winning: string[];
+    target_sources: { domain: string; rivals: string[] }[];
+    subtopics: string[];
+    outline: string[];
+  }[];
+  summary: Record<string, number>;
+};
+
 export type TenantDetail = {
   tenant: Tenant;
   brand_profile: { brand_name: string; aliases: string[]; domains: string[] } | null;
