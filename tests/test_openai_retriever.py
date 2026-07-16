@@ -41,8 +41,12 @@ def test_request_body_uses_persona_as_instructions():
     assert body["instructions"] == "You are a persona."
     assert body["input"] == "best MBA?"
     assert body["tools"] == [{"type": "web_search"}]
-    # Search-disabled variant (dual-query diff, classifier lands M3).
-    assert "tools" not in build_request_body("p", "q", model="gpt-4o", web_search=False)
+    # Search is forced so gpt-4o reliably retrieves (and returns citations),
+    # instead of often answering from training with no sources.
+    assert body["tool_choice"] == {"type": "web_search"}
+    # Search-disabled variant (dual-query diff): no tool, no forcing.
+    nosearch = build_request_body("p", "q", model="gpt-4o", web_search=False)
+    assert "tools" not in nosearch and "tool_choice" not in nosearch
 
 
 def test_cost_estimate_matches_price_table():

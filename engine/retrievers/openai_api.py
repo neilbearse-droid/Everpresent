@@ -91,8 +91,14 @@ def build_request_body(
     }
     if web_search:
         # The search-DISABLED variant of the same call is the other half of
-        # the dual-query diff the classifier consumes (arrives M3).
+        # the dual-query diff the classifier consumes.
         body["tools"] = [{"type": "web_search"}]
+        # FORCE the search: given only the tool, gpt-4o often answers from
+        # training and never searches, so the answer carries no url_citation
+        # annotations. tool_choice makes the search variant reliably retrieve —
+        # this is what yields ChatGPT citations, and better matches the
+        # consumer app (whose hidden system prompt pushes it to search).
+        body["tool_choice"] = {"type": "web_search"}
     return body
 
 
