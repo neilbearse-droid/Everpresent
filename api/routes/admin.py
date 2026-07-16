@@ -300,10 +300,22 @@ def get_schedule(slug: str, session: Db) -> RunSchedule | None:
 def put_schedule(slug: str, payload: SchedulePut, session: Db, admin: Admin) -> RunSchedule:
     from croniter import croniter
 
+    from api.plans import limits_for
+    from api.scheduling import cron_within_cap
+
     tenant = _tenant_or_404(session, slug)
     cron_expr = payload.cron_expr.strip()
     if not croniter.is_valid(cron_expr):
         raise HTTPException(status_code=422, detail=f"Not a valid cron expression: {cron_expr!r}")
+    limits = limits_for(tenant.plan)
+    if not cron_within_cap(cron_expr, limits.max_runs_per_day):
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"The {limits.label} plan allows at most {limits.max_runs_per_day} scheduled "
+                f"run/day; this schedule fires more often. Upgrade the plan or space the runs out."
+            ),
+        )
     assert tenant.id is not None
     schedule = session.exec(
         select(RunSchedule).where(RunSchedule.tenant_id == tenant.id)

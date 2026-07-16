@@ -42,10 +42,20 @@ def tick(session: Session, now: datetime | None = None) -> list[int]:
             continue
         tenant = session.get(Tenant, schedule.tenant_id)
         if tenant is not None:
-            run = trigger_run(session, tenant, trigger="schedule")
-            log.info("schedule.fired", tenant=tenant.slug, run_id=run.id, status=run.status)
-            if run.id is not None:
-                triggered.append(run.id)
+            from api.plans import limits_for
+            from api.scheduling import runs_in_last_day
+
+            cap = limits_for(tenant.plan).max_runs_per_day
+            # Backstop the schedule-save gate: a plan downgrade or a schedule
+            # created before the gate could still over-fire. Skip this fire if
+            # the daily cap is already spent.
+            if cap is not None and runs_in_last_day(session, tenant.id) >= cap:
+                log.info("schedule.skipped_frequency_cap", tenant=tenant.slug, cap=cap)
+            else:
+                run = trigger_run(session, tenant, trigger="schedule")
+                log.info("schedule.fired", tenant=tenant.slug, run_id=run.id, status=run.status)
+                if run.id is not None:
+                    triggered.append(run.id)
         schedule.last_triggered_at = now
         schedule.next_run_at = next_fire(schedule.cron_expr, now)
         session.add(schedule)

@@ -54,8 +54,9 @@ export function PlanForm({
                 </span>
                 <span className="mt-0.5 block font-mono text-xs text-[var(--text-3)]">
                   {cap(p.max_prompts)} prompts · {cap(p.max_personas)} personas ·{" "}
-                  {cap(p.max_engines)} engines · {p.diagnosis ? "diagnosis" : "no diagnosis"} ·{" "}
-                  {p.model_tier}
+                  {cap(p.max_engines)} engines ·{" "}
+                  {p.max_runs_per_day === null ? "∞" : `${p.max_runs_per_day}`}×/day ·{" "}
+                  {p.diagnosis ? "diagnosis" : "no diagnosis"} · {p.model_tier}
                 </span>
               </span>
             </label>

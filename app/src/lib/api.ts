@@ -81,6 +81,7 @@ export type PlanLimits = {
   diagnosis: boolean;
   model_tier: string;
   outcome: boolean;
+  max_runs_per_day: number | null;
   monthly_price_usd: number;
 };
 

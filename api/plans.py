@@ -30,25 +30,30 @@ class PlanLimits:
     diagnosis: bool              # emit the search-disabled dual-query twin
     model_tier: str              # economy | standard | premium | configured
     outcome: bool                # GA4 outcome attribution available
+    max_runs_per_day: int | None  # scheduled-run frequency cap (None = uncapped)
     monthly_price_usd: int
 
 
 PLANS: dict[str, PlanLimits] = {
     "monitor": PlanLimits(
         "Monitor", max_prompts=25, max_personas=1, max_engines=3,
-        diagnosis=False, model_tier="economy", outcome=False, monthly_price_usd=149,
+        diagnosis=False, model_tier="economy", outcome=False,
+        max_runs_per_day=1, monthly_price_usd=149,
     ),
     "diagnose": PlanLimits(
         "Diagnose", max_prompts=50, max_personas=2, max_engines=4,
-        diagnosis=True, model_tier="standard", outcome=True, monthly_price_usd=549,
+        diagnosis=True, model_tier="standard", outcome=True,
+        max_runs_per_day=1, monthly_price_usd=549,
     ),
     "command": PlanLimits(
         "Command", max_prompts=None, max_personas=None, max_engines=None,
-        diagnosis=True, model_tier="premium", outcome=True, monthly_price_usd=2900,
+        diagnosis=True, model_tier="premium", outcome=True,
+        max_runs_per_day=None, monthly_price_usd=2900,
     ),
     "custom": PlanLimits(
         "Custom", max_prompts=None, max_personas=None, max_engines=None,
-        diagnosis=True, model_tier="configured", outcome=True, monthly_price_usd=0,
+        diagnosis=True, model_tier="configured", outcome=True,
+        max_runs_per_day=None, monthly_price_usd=0,
     ),
 }
 
