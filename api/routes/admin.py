@@ -91,6 +91,10 @@ def tenant_detail(slug: str, session: Db) -> dict:
     tenant = _tenant_or_404(session, slug)
     tid = tenant.id
     assert tid is not None
+    from dataclasses import asdict
+
+    from api.plans import PLANS
+
     return {
         "tenant": tenant,
         "brand_profile": session.exec(
@@ -100,6 +104,7 @@ def tenant_detail(slug: str, session: Db) -> dict:
         "personas": session.exec(select(Persona).where(Persona.tenant_id == tid)).all(),
         "queries": session.exec(select(Query).where(Query.tenant_id == tid)).all(),
         "surfaces": _full_surface_catalog(session, tid),
+        "plans": {key: asdict(limits) for key, limits in PLANS.items()},
     }
 
 
@@ -113,6 +118,7 @@ class TenantPatch(BaseModel):
     monthly_spend_cap_usd: float | None = None
     notify_emails: list[str] | None = None
     ga4_property_id: str | None = None
+    plan: str | None = None
 
 
 @router.patch("/tenants/{slug}")
@@ -165,6 +171,15 @@ def patch_tenant(slug: str, payload: TenantPatch, session: Db, admin: Admin) -> 
             raise HTTPException(status_code=422, detail="GA4 property id is digits only")
         tenant.ga4_property_id = pid or None
         changed.append("ga4_property_id")
+    if payload.plan is not None:
+        from api.plans import PLANS
+
+        if payload.plan not in PLANS:
+            raise HTTPException(
+                status_code=422, detail=f"Unknown plan: {payload.plan}. One of {sorted(PLANS)}"
+            )
+        tenant.plan = payload.plan
+        changed.append("plan")
 
     session.add(tenant)
     write_audit(

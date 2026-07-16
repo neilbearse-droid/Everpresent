@@ -7,6 +7,7 @@ import { ClerkOrgForm } from "./clerk-org-form";
 import { Ga4Form } from "./ga4-form";
 import { ImportYamlForm } from "./import-yaml-form";
 import { NotifyEmailsForm } from "./notify-emails-form";
+import { PlanForm } from "./plan-form";
 import { ScheduleForm } from "./schedule-form";
 import { SpendCapForm } from "./spend-cap-form";
 
@@ -32,7 +33,7 @@ export default async function TenantAdminPage({
     ),
   ]);
   if (detail.status === 404 || !detail.data) notFound();
-  const { tenant, brand_profile, competitors, personas, queries, surfaces } = detail.data;
+  const { tenant, brand_profile, competitors, personas, queries, surfaces, plans } = detail.data;
 
   return (
     <main className="mx-auto max-w-5xl px-8 py-10">
@@ -43,8 +44,11 @@ export default async function TenantAdminPage({
           </Link>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight">{tenant.name}</h1>
           <p className="text-sm text-[var(--text-2)]">
-            {tenant.slug} · {tenant.status} · brand:{" "}
-            {brand_profile?.brand_name ?? "— no config imported —"}
+            {tenant.slug} · {tenant.status} · plan:{" "}
+            <span className="font-medium text-[var(--text)]">
+              {plans[tenant.plan]?.label ?? tenant.plan}
+            </span>{" "}
+            · brand: {brand_profile?.brand_name ?? "— no config imported —"}
           </p>
         </div>
         <Link
@@ -54,6 +58,15 @@ export default async function TenantAdminPage({
           Runs →
         </Link>
       </header>
+
+      <section className="card mb-6 p-5">
+        <h2 className="mb-1 font-medium">Plan</h2>
+        <p className="mb-4 text-xs text-[var(--text-2)]">
+          Caps the run matrix — prompts, personas, engines — the dual-query diagnosis, and the
+          model tier. Applies on the next run; existing tenants default to Custom (uncapped).
+        </p>
+        <PlanForm slug={tenant.slug} current={tenant.plan} plans={plans} />
+      </section>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="card p-5">

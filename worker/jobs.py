@@ -25,6 +25,7 @@ from api.models import (
     Tenant,
     utcnow,
 )
+from api.plans import cap_engines, limits_for, model_for
 from api.processing_service import process_run
 from api.queue import enqueue_run_mode_b
 from api.runs_service import MODE_A_SURFACES, MODE_B_SURFACES, month_spend_usd
@@ -207,6 +208,7 @@ async def _dispatch_all(
     work: list[_AWorkItem],
     *,
     settings: Any,
+    model_tier: str,
     concurrency: int,
     month_spent_before: float,
     cap_usd: float,
@@ -222,7 +224,7 @@ async def _dispatch_all(
 
     async def one(item: _AWorkItem) -> dict[str, Any] | None:
         adapter = A_ADAPTERS[item.surface]
-        model = getattr(settings, adapter.model_attr)
+        model = model_for(item.surface, model_tier, getattr(settings, adapter.model_attr))
         async with semaphore:
             async with lock:
                 if month_spent_before + state["cost"] >= cap_usd:
@@ -265,22 +267,34 @@ async def _run_mode_a(run_id: int) -> None:
         assert tenant is not None
         tenant_slug = tenant.slug
         cap_usd = tenant.monthly_spend_cap_usd
-        a_surfaces = _a_surfaces(run)
+        limits = limits_for(tenant.plan)
+        a_surfaces = cap_engines(_a_surfaces(run), limits.max_engines)
         run.status = RunStatus.running
         run.started_at = utcnow()
         session.add(run)
         session.commit()
 
+        # The plan caps the run matrix (§pricing-model): prompts, personas, and
+        # whether the dual-query diagnosis twin runs. Engines are already capped
+        # into surface_set at run creation.
         queries = [
             (q.id, q.text)
             for q in session.exec(
-                select(Query).where(Query.tenant_id == tenant.id, Query.active == True)  # noqa: E712
+                select(Query)
+                .where(Query.tenant_id == tenant.id, Query.active == True)  # noqa: E712
+                .order_by(Query.id)  # pyright: ignore[reportArgumentType]
             ).all()
         ]
         personas = [
             (p.id, p.name, p.prompt_text, p.segment_tag)
-            for p in session.exec(select(Persona).where(Persona.tenant_id == tenant.id)).all()
+            for p in session.exec(
+                select(Persona).where(Persona.tenant_id == tenant.id).order_by(Persona.id)  # pyright: ignore[reportArgumentType]
+            ).all()
         ]
+        if limits.max_prompts is not None:
+            queries = queries[: limits.max_prompts]
+        if limits.max_personas is not None:
+            personas = personas[: limits.max_personas]
         month_spent_before = month_spend_usd(session, run.tenant_id)
 
     # Only dispatch surfaces whose provider key is configured; an enabled
@@ -313,7 +327,7 @@ async def _run_mode_a(run_id: int) -> None:
         for (qid, qtext) in queries
         for (pid, pname, pprompt, pseg) in personas
     ]
-    if personas:
+    if personas and limits.diagnosis:
         pid0, pname0, pprompt0, pseg0 = personas[0]
         work += [
             _AWorkItem(qid, qtext, pid0, pname0, pprompt0, pseg0, s, ResultVariant.nosearch)
@@ -336,6 +350,7 @@ async def _run_mode_a(run_id: int) -> None:
     outcomes, capped = await _dispatch_all(
         work,
         settings=settings,
+        model_tier=limits.model_tier,
         concurrency=settings.openai_concurrency,
         month_spent_before=month_spent_before,
         cap_usd=cap_usd,

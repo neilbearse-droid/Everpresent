@@ -68,6 +68,20 @@ export async function setGovernance(slug: string, approved: boolean): Promise<vo
   await patchTenant(slug, { ai_processing_approved: approved });
 }
 
+export async function setPlan(
+  slug: string,
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const plan = String(formData.get("plan") ?? "");
+  try {
+    await patchTenant(slug, { plan });
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Save failed" };
+  }
+  return { ok: true, message: `Saved — plan set to ${plan}. Applies on the next run.` };
+}
+
 export async function setGa4Property(
   slug: string,
   _prev: ActionState,

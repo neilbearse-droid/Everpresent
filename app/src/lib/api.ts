@@ -69,7 +69,19 @@ export type Tenant = {
   monthly_spend_cap_usd: number;
   notify_emails: string[];
   ga4_property_id: string | null;
+  plan: string;
   created_at: string;
+};
+
+export type PlanLimits = {
+  label: string;
+  max_prompts: number | null;
+  max_personas: number | null;
+  max_engines: number | null;
+  diagnosis: boolean;
+  model_tier: string;
+  outcome: boolean;
+  monthly_price_usd: number;
 };
 
 export type OutcomePayload = {
@@ -281,4 +293,5 @@ export type TenantDetail = {
   personas: { id: number; name: string; prompt_text: string; segment_tag: string }[];
   queries: { id: number; text: string; corpus_tag: string; active: boolean }[];
   surfaces: { id: number; code: string; enabled: boolean }[];
+  plans: Record<string, PlanLimits>;
 };

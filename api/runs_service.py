@@ -29,16 +29,20 @@ DISPATCHABLE_SURFACES = MODE_A_SURFACES | MODE_B_SURFACES
 
 
 def eligible_surfaces(session: Session, tenant: Tenant) -> list[str]:
+    from api.plans import cap_engines, limits_for
+
     enabled = session.exec(
         select(TenantSurface.code).where(
             TenantSurface.tenant_id == tenant.id, TenantSurface.enabled == True  # noqa: E712
         )
     ).all()
-    return sorted(
+    eligible = sorted(
         {str(c) for c in enabled}
         & {str(s) for s in DISPATCHABLE_SURFACES}
         & set(tenant.approved_surfaces)
     )
+    # The plan caps how many engines a run may dispatch (§pricing-model).
+    return cap_engines(eligible, limits_for(tenant.plan).max_engines)
 
 
 def create_run(session: Session, tenant: Tenant, *, trigger: str = "manual") -> Run:
