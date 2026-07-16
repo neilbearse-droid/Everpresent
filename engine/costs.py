@@ -6,12 +6,23 @@ reconcile against the provider dashboard and update when prices move. Prices
 in USD per 1M tokens; web search per 1k tool calls."""
 
 # model prefix -> (input $/1M, output $/1M). Longest prefix wins so dated
-# snapshots ("gpt-4o-2024-08-06") match their family.
+# snapshots ("gpt-4o-2024-08-06") and family tiers ("gpt-5.6-terra") match
+# correctly. Update as OpenAI's pricing ladder moves.
 OPENAI_TOKEN_PRICES: dict[str, tuple[float, float]] = {
     "gpt-4o-mini": (0.15, 0.60),
     "gpt-4o": (2.50, 10.00),
     "gpt-4.1-mini": (0.40, 1.60),
     "gpt-4.1": (2.00, 8.00),
+    # GPT-5 range (2026). 5.6 ships as three tiers; the bare "gpt-5.6" alias
+    # is Sol. Longest-prefix match keeps the tiers distinct.
+    "gpt-5.6-luna": (1.00, 6.00),
+    "gpt-5.6-terra": (2.50, 15.00),
+    "gpt-5.6-sol": (5.00, 30.00),
+    "gpt-5.6": (5.00, 30.00),
+    "gpt-5.5": (5.00, 30.00),
+    "gpt-5.4": (2.50, 15.00),
+    "gpt-5-mini": (0.25, 2.00),
+    "gpt-5": (1.25, 10.00),
 }
 OPENAI_WEB_SEARCH_PER_1K_CALLS = 10.00
 _FALLBACK_TOKEN_PRICE = (2.50, 10.00)  # unknown model: assume gpt-4o-class

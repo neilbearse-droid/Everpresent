@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     # Measured surface: OpenAI Responses API (Mode A, §6.1). The key is a
     # deployment secret; absence disables real runs, never CI tests.
     openai_api_key: str = ""
-    openai_model: str = "gpt-4o"
+    openai_model: str = "gpt-5.6-terra"
     openai_concurrency: int = 4
     openai_timeout_s: float = 90.0
 

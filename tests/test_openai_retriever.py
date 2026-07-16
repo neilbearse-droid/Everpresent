@@ -55,3 +55,14 @@ def test_cost_estimate_matches_price_table():
     assert cost == round(2.50 + 1.00 + 0.10, 6)
     # Longest-prefix match: -mini must not price as gpt-4o.
     assert estimate_openai_cost_usd("gpt-4o-mini", 1_000_000, 0, 0) == 0.15
+
+
+def test_gpt5_family_pricing_resolves_by_tier():
+    # The default model (Terra tier): $2.50/M in, $15/M out.
+    assert estimate_openai_cost_usd("gpt-5.6-terra", 1_000_000, 1_000_000, 0) == 17.50
+    # Longest-prefix keeps the tiers distinct and off the bare aliases.
+    assert estimate_openai_cost_usd("gpt-5.6-luna", 1_000_000, 0, 0) == 1.00
+    assert estimate_openai_cost_usd("gpt-5.6-sol", 0, 1_000_000, 0) == 30.00
+    assert estimate_openai_cost_usd("gpt-5.6", 1_000_000, 0, 0) == 5.00  # bare alias = Sol
+    assert estimate_openai_cost_usd("gpt-5", 1_000_000, 0, 0) == 1.25
+    assert estimate_openai_cost_usd("gpt-5-mini", 1_000_000, 0, 0) == 0.25

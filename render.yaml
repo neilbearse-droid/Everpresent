@@ -68,7 +68,7 @@ services:
       - key: OPENAI_API_KEY
         sync: false
       - key: OPENAI_MODEL
-        value: gpt-4o
+        value: gpt-5.6-terra
       # Additional Mode A answer engines. Leave a key blank to disable that
       # surface — the run skips it with a reason, never crashes.
       - key: PERPLEXITY_API_KEY
@@ -150,7 +150,7 @@ services:
       - key: OPENAI_API_KEY
         sync: false
       - key: OPENAI_MODEL
-        value: gpt-4o
+        value: gpt-5.6-terra
       # Mode A dispatch runs on the worker, so it needs every provider key.
       - key: PERPLEXITY_API_KEY
         sync: false
