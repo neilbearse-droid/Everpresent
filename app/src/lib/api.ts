@@ -190,6 +190,26 @@ export type QueriesIntelPayload = {
   }[];
 };
 
+export type EngineScorecard = {
+  brand_name: string;
+  engines: {
+    surface: string;
+    queries_measured: number;
+    brand_present: number;
+    brand_rate: number;
+    competitor_present: number;
+    top_competitor: string | null;
+  }[];
+  matrix: {
+    id: number;
+    query: string;
+    corpus_tag: string;
+    cells: Record<string, { state: "brand" | "competitor" | "absent"; competitors: string[] }>;
+    diagnosis: { type: string; label: string; fix: string };
+  }[];
+  diagnosis_summary: Record<string, number>;
+};
+
 export type TenantDetail = {
   tenant: Tenant;
   brand_profile: { brand_name: string; aliases: string[]; domains: string[] } | null;

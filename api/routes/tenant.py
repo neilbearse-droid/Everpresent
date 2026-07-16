@@ -102,6 +102,11 @@ def queries_intel(ctx: Ctx, session: Db) -> dict:
     return dashboards_service.queries_intel(session, ctx.tenant_id)
 
 
+@router.get("/engine-scorecard")
+def engine_scorecard(ctx: Ctx, session: Db) -> dict:
+    return dashboards_service.engine_scorecard(session, ctx.tenant_id)
+
+
 @router.get("/recommendations")
 def recommendations(ctx: Ctx, session: Db) -> list[Recommendation]:
     return list(

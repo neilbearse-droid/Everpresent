@@ -266,6 +266,159 @@ def personas(session: Session, tenant_id: int) -> dict:
     return {"date": latest_date, "segments": segments, "trend": trend}
 
 
+def _latest_results_by_variant(
+    session: Session, tenant_id: int, variant: ResultVariant
+) -> dict[tuple[str, str], Result]:
+    """Newest result per (query_text, surface) for one variant."""
+    latest: dict[tuple[str, str], Result] = {}
+    for result in session.exec(
+        select(Result).where(
+            Result.tenant_id == tenant_id,
+            Result.variant == variant,
+            Result.status == "ok",
+        )
+    ).all():
+        key = (result.query_text, str(result.surface))
+        if key not in latest or (result.id or 0) > (latest[key].id or 0):
+            latest[key] = result
+    return latest
+
+
+# The "why you're absent" diagnosis, derived from the search vs training-only
+# (nosearch) diff. Fixes are prescriptive and vendor-neutral.
+_DIAGNOSIS = {
+    "visible": {
+        "label": "Visible",
+        "fix": "You appear in the answer users see. Protect it: keep the cited content fresh.",
+    },
+    "content_gap": {
+        "label": "Content gap",
+        "fix": (
+            "The AIs know your brand, but when they search the live web they surface "
+            "competitors instead. Publish citable, up-to-date content that answers this "
+            "query directly — this is a GEO/SEO content problem, not an awareness one."
+        ),
+    },
+    "knowledge_gap": {
+        "label": "Knowledge gap",
+        "fix": (
+            "The AIs neither recall your brand from training nor find you when they "
+            "search. You need both: authoritative published content AND broader brand "
+            "presence across the web so future model training picks you up."
+        ),
+    },
+    "undetermined": {
+        "label": "Absent",
+        "fix": (
+            "Absent from the answer. Enable an engine with a training baseline "
+            "(ChatGPT, Claude, or Gemini) to diagnose whether this is a content or a "
+            "knowledge gap."
+        ),
+    },
+}
+
+
+def engine_scorecard(session: Session, tenant_id: int) -> dict:
+    """Cross-engine analysis: per-engine visibility, a query×engine grid of who
+    appears (you / competitor / absent), and a per-query 'why you're missing'
+    diagnosis from the search-vs-training diff. Pure reads — no LLM, no spend."""
+    brand_name = _brand_name(session, tenant_id)
+    queries = list(session.exec(select(Query).where(Query.tenant_id == tenant_id)).all())
+
+    search = _latest_results_by_variant(session, tenant_id, ResultVariant.search)
+    nosearch = _latest_results_by_variant(session, tenant_id, ResultVariant.nosearch)
+
+    # Mentions per result: brand present? which competitors?
+    all_ids = [r.id for r in list(search.values()) + list(nosearch.values()) if r.id is not None]
+    brand_ids: set[int] = set()
+    competitors_by_result: dict[int, set[str]] = defaultdict(set)
+    if all_ids:
+        for m in session.exec(
+            select(Mention).where(Mention.result_id.in_(all_ids))  # pyright: ignore[reportAttributeAccessIssue]
+        ).all():
+            if m.entity_type == "brand":
+                brand_ids.add(m.result_id)
+            else:
+                competitors_by_result[m.result_id].add(m.entity_name)
+
+    surfaces = sorted({s for (_, s) in search})
+
+    # Per-engine rollup.
+    engines = []
+    for surface in surfaces:
+        measured = brand = comp = 0
+        comp_tally: dict[str, int] = defaultdict(int)
+        for (_qtext, s), result in search.items():
+            if s != surface:
+                continue
+            measured += 1
+            if result.id in brand_ids:
+                brand += 1
+            comps = competitors_by_result.get(result.id or -1, set())
+            if comps:
+                comp += 1
+            for name in comps:
+                comp_tally[name] += 1
+        top_comp = max(comp_tally, key=lambda n: comp_tally[n]) if comp_tally else None
+        engines.append({
+            "surface": surface,
+            "queries_measured": measured,
+            "brand_present": brand,
+            "brand_rate": round(100.0 * brand / measured, 1) if measured else 0.0,
+            "competitor_present": comp,
+            "top_competitor": top_comp,
+        })
+
+    # Per-query matrix + diagnosis.
+    matrix = []
+    summary: dict[str, int] = defaultdict(int)
+    for query in sorted(queries, key=lambda q: (q.corpus_tag, q.text)):
+        cells: dict[str, dict] = {}
+        brand_in_search = brand_in_nosearch = has_nosearch = False
+        for surface in surfaces:
+            result = search.get((query.text, surface))
+            if result is None:
+                continue
+            comps = sorted(competitors_by_result.get(result.id or -1, set()))
+            if result.id in brand_ids:
+                state = "brand"
+                brand_in_search = True
+            elif comps:
+                state = "competitor"
+            else:
+                state = "absent"
+            cells[surface] = {"state": state, "competitors": comps}
+            ns = nosearch.get((query.text, surface))
+            if ns is not None:
+                has_nosearch = True
+                if ns.id in brand_ids:
+                    brand_in_nosearch = True
+
+        if brand_in_search:
+            dtype = "visible"
+        elif not has_nosearch:
+            dtype = "undetermined"
+        elif brand_in_nosearch:
+            dtype = "content_gap"
+        else:
+            dtype = "knowledge_gap"
+        summary[dtype] += 1
+        matrix.append({
+            "id": query.id,
+            "query": query.text,
+            "corpus_tag": query.corpus_tag,
+            "cells": cells,
+            "diagnosis": {"type": dtype, **_DIAGNOSIS[dtype]},
+        })
+
+    return {
+        "brand_name": brand_name,
+        "engines": engines,
+        "matrix": matrix,
+        "diagnosis_summary": dict(summary),
+    }
+
+
 def queries_intel(session: Session, tenant_id: int) -> dict:
     queries = list(session.exec(select(Query).where(Query.tenant_id == tenant_id)).all())
     classifications = {

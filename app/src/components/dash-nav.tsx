@@ -5,6 +5,7 @@ const TABS = [
   { href: "/dashboard", label: "Overview" },
   { href: "/dashboard/personas", label: "Personas" },
   { href: "/dashboard/queries", label: "Queries" },
+  { href: "/dashboard/engines", label: "Engines" },
   { href: "/dashboard/citations", label: "Citations" },
   { href: "/dashboard/recommendations", label: "Recommendations" },
   { href: "/dashboard/runs", label: "Runs" },
