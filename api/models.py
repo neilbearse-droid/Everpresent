@@ -61,6 +61,10 @@ class Tenant(SQLModel, table=True):
     aio_geo: dict = Field(
         default_factory=lambda: {"gl": "ca", "hl": "en"}, sa_column=Column(JSON)
     )
+    # Outcome attribution (panel #6): the tenant's GA4 property id (digits
+    # only, e.g. "123456789"). The shared service account must be granted
+    # Viewer on this property. Unset = the Outcome view stays empty.
+    ga4_property_id: str | None = Field(default=None)
 
     created_at: datetime = Field(default_factory=utcnow)
 
@@ -285,6 +289,22 @@ class VisibilityDaily(SQLModel, table=True):
     extras: dict = Field(default_factory=dict, sa_column=Column(JSON))
     scorer_version: str = ""
     computed_at: datetime = Field(default_factory=utcnow)
+
+
+class AiReferralDaily(SQLModel, table=True):
+    """Downstream outcome (panel #6): AI-referred sessions + key events by day
+    and engine, pulled from the tenant's GA4 property. Keyed (tenant, date,
+    engine); the pull upserts."""
+
+    __tablename__ = "ai_referral_daily"  # pyright: ignore[reportAssignmentType]
+
+    id: int | None = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenants.id", index=True)
+    date: str = Field(index=True)  # ISO yyyy-mm-dd
+    engine: str = Field(index=True)  # ChatGPT | Perplexity | Claude | Gemini | …
+    sessions: int = 0
+    conversions: int = 0
+    fetched_at: datetime = Field(default_factory=utcnow)
 
 
 class RunSchedule(SQLModel, table=True):

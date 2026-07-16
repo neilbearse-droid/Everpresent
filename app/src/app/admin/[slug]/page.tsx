@@ -4,6 +4,7 @@ import { apiFetch, type Me, type TenantDetail } from "@/lib/api";
 import { surfaceLabel } from "@/lib/viz";
 import { setGovernance, toggleSurface } from "../actions";
 import { ClerkOrgForm } from "./clerk-org-form";
+import { Ga4Form } from "./ga4-form";
 import { ImportYamlForm } from "./import-yaml-form";
 import { NotifyEmailsForm } from "./notify-emails-form";
 import { ScheduleForm } from "./schedule-form";
@@ -62,6 +63,15 @@ export default async function TenantAdminPage({
             (org_…) from the Clerk dashboard.
           </p>
           <ClerkOrgForm slug={tenant.slug} orgId={tenant.clerk_org_id ?? ""} />
+          <div className="mt-5 border-t border-slate-800 pt-4">
+            <h3 className="mb-1 text-sm font-medium">GA4 property (Outcome attribution)</h3>
+            <p className="mb-3 text-xs text-slate-400">
+              Numeric GA4 property id. Grant the EverPresent service account{" "}
+              <span className="font-mono">Viewer</span> on this property, then AI-referral
+              traffic populates the Outcome tab nightly.
+            </p>
+            <Ga4Form slug={tenant.slug} propertyId={tenant.ga4_property_id ?? ""} />
+          </div>
         </section>
 
         <section className="rounded-lg border border-slate-700 bg-slate-900 p-5">

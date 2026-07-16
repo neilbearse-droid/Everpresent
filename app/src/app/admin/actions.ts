@@ -68,6 +68,26 @@ export async function setGovernance(slug: string, approved: boolean): Promise<vo
   await patchTenant(slug, { ai_processing_approved: approved });
 }
 
+export async function setGa4Property(
+  slug: string,
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const pid = String(formData.get("ga4_property_id") ?? "").trim();
+  if (pid && !/^\d+$/.test(pid)) {
+    return { ok: false, message: "GA4 property id is digits only (e.g. 123456789)." };
+  }
+  try {
+    await patchTenant(slug, { ga4_property_id: pid });
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Save failed" };
+  }
+  return {
+    ok: true,
+    message: pid ? `Saved — GA4 property ${pid} linked.` : "Cleared the GA4 property.",
+  };
+}
+
 export async function triggerRun(slug: string, _prev: ActionState): Promise<ActionState> {
   const res = await apiFetch<{ id: number; status: string; error: string | null }>(
     `/api/admin/tenants/${slug}/runs`,

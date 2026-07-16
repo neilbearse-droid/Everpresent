@@ -68,7 +68,17 @@ export type Tenant = {
   approved_utility_models: string[];
   monthly_spend_cap_usd: number;
   notify_emails: string[];
+  ga4_property_id: string | null;
   created_at: string;
+};
+
+export type OutcomePayload = {
+  brand_name: string;
+  connected: boolean;
+  has_data: boolean;
+  series: { date: string; sessions: number; conversions: number; brand_score: number | null }[];
+  engine_totals: { engine: string; sessions: number; conversions: number }[];
+  totals: { sessions: number; conversions: number };
 };
 
 export type Run = {

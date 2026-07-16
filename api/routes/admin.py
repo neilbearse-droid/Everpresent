@@ -112,6 +112,7 @@ class TenantPatch(BaseModel):
     approved_utility_models: list[str] | None = None
     monthly_spend_cap_usd: float | None = None
     notify_emails: list[str] | None = None
+    ga4_property_id: str | None = None
 
 
 @router.patch("/tenants/{slug}")
@@ -158,6 +159,12 @@ def patch_tenant(slug: str, payload: TenantPatch, session: Db, admin: Admin) -> 
             raise HTTPException(status_code=422, detail="notify_emails must be email addresses")
         tenant.notify_emails = cleaned
         changed.append("notify_emails")
+    if payload.ga4_property_id is not None:
+        pid = payload.ga4_property_id.strip()
+        if pid and not pid.isdigit():
+            raise HTTPException(status_code=422, detail="GA4 property id is digits only")
+        tenant.ga4_property_id = pid or None
+        changed.append("ga4_property_id")
 
     session.add(tenant)
     write_audit(

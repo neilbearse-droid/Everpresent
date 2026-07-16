@@ -8,6 +8,7 @@ from datetime import UTC, datetime, timedelta
 from sqlmodel import Session, select
 
 from api.models import (
+    AiReferralDaily,
     BrandProfile,
     Citation,
     Mention,
@@ -577,6 +578,61 @@ def kpi_scorecard(session: Session, tenant_id: int) -> dict:
             "stdev": round(_stdev(rates), 1),
             "label": stability_label,
         },
+    }
+
+
+def outcome(session: Session, tenant_id: int) -> dict:
+    """The Outcome view (panel #6): AI-referred sessions + conversions from GA4,
+    overlaid on the brand-visibility trend. Answers 'did visibility move the
+    business'. Empty until a GA4 property is connected and the nightly pull
+    runs."""
+    tenant = session.get(Tenant, tenant_id)
+    referrals = list(
+        session.exec(select(AiReferralDaily).where(AiReferralDaily.tenant_id == tenant_id)).all()
+    )
+
+    def _zero() -> dict[str, int]:
+        return {"sessions": 0, "conversions": 0}
+
+    by_date: dict[str, dict[str, int]] = defaultdict(_zero)
+    engine_totals: dict[str, dict[str, int]] = defaultdict(_zero)
+    for r in referrals:
+        by_date[r.date]["sessions"] += r.sessions
+        by_date[r.date]["conversions"] += r.conversions
+        engine_totals[r.engine]["sessions"] += r.sessions
+        engine_totals[r.engine]["conversions"] += r.conversions
+
+    # Brand-visibility score per date (mean over the day's rollup rows).
+    vis_by_date: dict[str, list[float]] = defaultdict(list)
+    for v in session.exec(
+        select(VisibilityDaily).where(VisibilityDaily.tenant_id == tenant_id)
+    ).all():
+        vis_by_date[v.date].append(v.brand_score)
+
+    dates = sorted(set(by_date) | set(vis_by_date))
+    series = [
+        {
+            "date": d,
+            "sessions": by_date[d]["sessions"] if d in by_date else 0,
+            "conversions": by_date[d]["conversions"] if d in by_date else 0,
+            "brand_score": _mean(vis_by_date[d]) if d in vis_by_date else None,
+        }
+        for d in dates
+    ]
+    totals = {
+        "sessions": sum(e["sessions"] for e in engine_totals.values()),
+        "conversions": sum(e["conversions"] for e in engine_totals.values()),
+    }
+    return {
+        "brand_name": _brand_name(session, tenant_id),
+        "connected": bool(tenant and tenant.ga4_property_id),
+        "has_data": bool(referrals),
+        "series": series,
+        "engine_totals": [
+            {"engine": e, **vals}
+            for e, vals in sorted(engine_totals.items(), key=lambda kv: -kv[1]["sessions"])
+        ],
+        "totals": totals,
     }
 
 

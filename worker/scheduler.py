@@ -51,13 +51,16 @@ def tick(session: Session, now: datetime | None = None) -> list[int]:
         session.add(schedule)
         session.commit()
 
-    _maybe_enqueue_mirror(session, now)
+    _maybe_enqueue_nightly(session, now)
     return triggered
 
 
-def _maybe_enqueue_mirror(session: Session, now: datetime) -> None:
+def _maybe_enqueue_nightly(session: Session, now: datetime) -> None:
+    """Once-a-day, after mirror_hour_utc: enqueue the BigQuery mirror and the
+    GA4 outcome pull. A single day-watermark gates both; each is skipped if its
+    own integration isn't configured."""
     settings = get_settings()
-    if not settings.bigquery_project:
+    if not settings.bigquery_project and not settings.google_service_account_json:
         return
     if now.hour < settings.mirror_hour_utc:
         return
@@ -75,8 +78,13 @@ def _maybe_enqueue_mirror(session: Session, now: datetime) -> None:
     session.commit()
     from api.queue import get_queue
 
-    get_queue().enqueue("worker.mirror.mirror_to_bigquery", job_timeout=30 * 60)
-    log.info("mirror.enqueued", day=day_stamp)
+    queue = get_queue()
+    if settings.bigquery_project:
+        queue.enqueue("worker.mirror.mirror_to_bigquery", job_timeout=30 * 60)
+        log.info("mirror.enqueued", day=day_stamp)
+    if settings.google_service_account_json:
+        queue.enqueue("worker.ga4_pull.pull_ga4_referrals", job_timeout=15 * 60)
+        log.info("ga4.enqueued", day=day_stamp)
 
 
 def run() -> None:

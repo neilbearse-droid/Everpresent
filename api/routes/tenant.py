@@ -117,6 +117,11 @@ def kpi_scorecard(ctx: Ctx, session: Db) -> dict:
     return dashboards_service.kpi_scorecard(session, ctx.tenant_id)
 
 
+@router.get("/outcome")
+def outcome(ctx: Ctx, session: Db) -> dict:
+    return dashboards_service.outcome(session, ctx.tenant_id)
+
+
 @router.get("/recommendations")
 def recommendations(ctx: Ctx, session: Db) -> list[Recommendation]:
     return list(

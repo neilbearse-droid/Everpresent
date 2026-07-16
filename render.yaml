@@ -164,6 +164,13 @@ services:
         sync: false
       - key: GEMINI_MODEL
         value: gemini-2.5-flash
+      # GA4 Outcome attribution: path to the service-account JSON, added as a
+      # Render Secret File. The same SA is granted Viewer on each tenant's GA4
+      # property. Leave unset to disable the Outcome pull.
+      - key: GOOGLE_SERVICE_ACCOUNT_JSON
+        sync: false
+      - key: GA4_LOOKBACK_DAYS
+        value: "28"
       - key: SMTP_HOST
         sync: false
       - key: SMTP_PORT

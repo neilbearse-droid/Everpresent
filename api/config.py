@@ -78,6 +78,11 @@ class Settings(BaseSettings):
     smtp_from: str = "reports@everpresent.local"
     smtp_starttls: bool = True
 
+    # GA4 outcome attribution (panel #6). Reuses google_service_account_json
+    # below; the SA must be granted Viewer on each tenant's GA4 property.
+    # Lookback window pulled on each nightly refresh.
+    ga4_lookback_days: int = 28
+
     # BigQuery mirror (§5.3). Unset project = mirror disabled.
     bigquery_project: str = ""
     bigquery_dataset: str = "everpresent_v3"
