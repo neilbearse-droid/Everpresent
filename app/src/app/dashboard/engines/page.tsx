@@ -6,16 +6,16 @@ import { surfaceLabel } from "@/lib/viz";
 
 const DIAGNOSIS_ORDER = ["knowledge_gap", "content_gap", "undetermined", "visible"];
 const DIAGNOSIS_STYLE: Record<string, { chip: string; dot: string }> = {
-  visible: { chip: "text-emerald-300", dot: "bg-emerald-400" },
-  content_gap: { chip: "text-amber-300", dot: "bg-amber-400" },
-  knowledge_gap: { chip: "text-red-300", dot: "bg-red-400" },
-  undetermined: { chip: "text-slate-400", dot: "bg-slate-500" },
+  visible: { chip: "text-[var(--pos)]", dot: "bg-emerald-400" },
+  content_gap: { chip: "text-[var(--warn-t)]", dot: "bg-amber-400" },
+  knowledge_gap: { chip: "text-[var(--neg)]", dot: "bg-red-400" },
+  undetermined: { chip: "text-[var(--text-2)]", dot: "bg-slate-500" },
 };
 
 const CELL_STYLE: Record<string, string> = {
   brand: "bg-emerald-600 text-white",
   competitor: "bg-amber-700/70 text-amber-100",
-  absent: "bg-slate-800 text-slate-500",
+  absent: "bg-[var(--surface-2)] text-[var(--text-3)]",
 };
 const CELL_LABEL: Record<string, string> = { brand: "You", competitor: "Rival", absent: "—" };
 
@@ -40,7 +40,7 @@ export default async function EnginesPage() {
       {engines.length === 0 ? (
         <section className="card p-6">
           <h2 className="mb-2 text-lg font-medium">No engine data yet</h2>
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-[var(--text-2)]">
             Cross-engine analysis appears after a completed run. Enable more than one engine
             in the admin panel to compare them.
           </p>
@@ -49,10 +49,10 @@ export default async function EnginesPage() {
         <>
           {/* Per-engine visibility */}
           <section className="mb-6 card p-6">
-            <h2 className="mb-1 text-sm font-medium text-slate-400">
+            <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
               Where {data!.brand_name} shows up, by engine
             </h2>
-            <p className="mb-4 text-xs text-slate-500">
+            <p className="mb-4 text-xs text-[var(--text-3)]">
               Share of measured queries where your brand appears in the answer — per answer
               engine. A low bar on one engine is where to focus.
             </p>
@@ -70,7 +70,7 @@ export default async function EnginesPage() {
                 <div key={e.surface} className="rounded-md border border-[var(--border)] p-3 text-sm">
                   <div className="font-medium">{surfaceLabel(e.surface)}</div>
                   <div className="mt-1 text-2xl font-semibold tabular-nums">{e.brand_rate}%</div>
-                  <div className="text-xs text-slate-500">
+                  <div className="text-xs text-[var(--text-3)]">
                     {e.top_competitor
                       ? `Top rival cited: ${e.top_competitor}`
                       : "No rival cited"}
@@ -82,8 +82,8 @@ export default async function EnginesPage() {
 
           {/* Diagnosis summary */}
           <section className="mb-6 card p-6">
-            <h2 className="mb-1 text-sm font-medium text-slate-400">Why you're missing</h2>
-            <p className="mb-4 text-xs text-slate-500">
+            <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">Why you're missing</h2>
+            <p className="mb-4 text-xs text-[var(--text-3)]">
               For every query where you're absent, the search-vs-training diff tells us the
               cause — and the cause dictates the fix.
             </p>
@@ -95,7 +95,7 @@ export default async function EnginesPage() {
                 >
                   <span className={`h-2.5 w-2.5 rounded-full ${DIAGNOSIS_STYLE[t].dot}`} />
                   <span className="font-semibold tabular-nums">{summary[t]}</span>
-                  <span className="text-slate-400">
+                  <span className="text-[var(--text-2)]">
                     {t === "visible" ? "visible" : t.replace("_", " ")}
                   </span>
                 </div>
@@ -105,12 +105,12 @@ export default async function EnginesPage() {
 
           {/* Query × engine matrix with diagnosis */}
           <section className="card p-6">
-            <h2 className="mb-4 text-sm font-medium text-slate-400">
+            <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">
               Query × engine — who appears in each answer
             </h2>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
-                <thead className="text-slate-400">
+                <thead className="text-[var(--text-2)]">
                   <tr>
                     <th className="py-2 pr-4">Query</th>
                     {surfaces.map((s) => (
@@ -146,7 +146,7 @@ export default async function EnginesPage() {
                           {row.diagnosis.label}
                         </div>
                         {row.diagnosis.type !== "visible" && (
-                          <p className="mt-1 max-w-md text-xs text-slate-400">{row.diagnosis.fix}</p>
+                          <p className="mt-1 max-w-md text-xs text-[var(--text-2)]">{row.diagnosis.fix}</p>
                         )}
                       </td>
                     </tr>
@@ -154,9 +154,9 @@ export default async function EnginesPage() {
                 </tbody>
               </table>
             </div>
-            <p className="mt-4 text-xs text-slate-500">
-              <span className="text-emerald-300">You</span> = your brand named ·{" "}
-              <span className="text-amber-300">Rival</span> = a competitor named, you absent
+            <p className="mt-4 text-xs text-[var(--text-3)]">
+              <span className="text-[var(--pos)]">You</span> = your brand named ·{" "}
+              <span className="text-[var(--warn-t)]">Rival</span> = a competitor named, you absent
               (hover for names) · — = neither. Diagnosis uses the training-only baseline where
               available.
             </p>

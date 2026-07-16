@@ -10,12 +10,12 @@ function ClassificationChip({
   classification: { web_search_likelihood: string; signals: Record<string, number> } | null;
 }) {
   if (!classification) {
-    return <span className="text-xs text-slate-500">not classified yet</span>;
+    return <span className="text-xs text-[var(--text-3)]">not classified yet</span>;
   }
   const bucket = classification.web_search_likelihood;
   return (
     <span
-      className="inline-flex items-center gap-1.5 text-xs text-slate-200"
+      className="inline-flex items-center gap-1.5 text-xs text-[var(--text)]"
       title={`signals: ${JSON.stringify(classification.signals)}`}
     >
       <span
@@ -33,7 +33,7 @@ function ModeLinks({
   entries: [string, { result_id: number; run_id: number; status: string }][];
 }) {
   if (entries.length === 0) {
-    return <span className="text-xs text-slate-500">no results yet</span>;
+    return <span className="text-xs text-[var(--text-3)]">no results yet</span>;
   }
   return (
     <div className="flex flex-col gap-1">
@@ -42,12 +42,12 @@ function ModeLinks({
           <Link
             key={surface}
             href={`/dashboard/runs/${result.run_id}/results/${result.result_id}`}
-            className="text-xs text-indigo-400 hover:underline"
+            className="text-xs text-[var(--accent)] hover:underline"
           >
             {surfaceLabel(surface)} →
           </Link>
         ) : (
-          <span key={surface} className="text-xs text-red-400">
+          <span key={surface} className="text-xs text-[var(--neg)]">
             {surfaceLabel(surface)}: error
           </span>
         ),
@@ -73,20 +73,20 @@ export default async function QueriesPage() {
       <DashNav active="Queries" isSuperadmin={me.data?.is_superadmin} />
 
       <section className="card p-6">
-        <h2 className="mb-1 text-sm font-medium text-slate-400">
+        <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
           Query corpus · web-search likelihood · latest answers per surface and mode
         </h2>
-        <p className="mb-4 text-xs text-slate-500">
+        <p className="mb-4 text-xs text-[var(--text-3)]">
           "Web search" is the dual-query diff: how much the AI's answer depends on live
           retrieval vs training. Mode A = provider API (volume); Mode B = the real consumer
           web interface (fidelity). Compare shows both answers side by side.
         </p>
         {queries.length === 0 ? (
-          <p className="text-sm text-slate-500">No queries configured.</p>
+          <p className="text-sm text-[var(--text-3)]">No queries configured.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="text-slate-400">
+              <thead className="text-[var(--text-2)]">
                 <tr>
                   <th className="py-2 pr-4">Query</th>
                   <th className="pr-4">Corpus</th>
@@ -110,20 +110,20 @@ export default async function QueriesPage() {
                       <td className="max-w-md py-3 pr-4">
                         {query.text}
                         {!query.active && (
-                          <span className="ml-2 text-xs text-slate-500">(inactive)</span>
+                          <span className="ml-2 text-xs text-[var(--text-3)]">(inactive)</span>
                         )}
                       </td>
-                      <td className="pr-4 text-slate-400">{query.corpus_tag}</td>
+                      <td className="pr-4 text-[var(--text-2)]">{query.corpus_tag}</td>
                       <td className="pr-4">
                         <ClassificationChip classification={query.classification} />
                       </td>
                       <td className="pr-4">
                         {surfaces.length === 0 ? (
-                          <span className="text-slate-500">—</span>
+                          <span className="text-[var(--text-3)]">—</span>
                         ) : surfaces.some(([, r]) => r.brand_mentioned) ? (
-                          <span className="text-emerald-400">yes</span>
+                          <span className="text-[var(--pos)]">yes</span>
                         ) : (
-                          <span className="text-amber-400">no</span>
+                          <span className="text-[var(--warn-t)]">no</span>
                         )}
                       </td>
                       <td className="pr-4">
@@ -138,12 +138,12 @@ export default async function QueriesPage() {
                             href={`/dashboard/compare?a=${
                               modeA.find(([, r]) => r.status === "ok")![1].result_id
                             }&b=${modeB.find(([, r]) => r.status === "ok")![1].result_id}`}
-                            className="text-xs text-indigo-400 hover:underline"
+                            className="text-xs text-[var(--accent)] hover:underline"
                           >
                             A ⇄ B
                           </Link>
                         ) : (
-                          <span className="text-xs text-slate-600">—</span>
+                          <span className="text-xs text-[var(--text-3)]">—</span>
                         )}
                       </td>
                     </tr>

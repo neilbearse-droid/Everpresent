@@ -111,9 +111,9 @@ export default async function OverviewPage() {
       {!hasData ? (
         <section className="card p-6">
           <h2 className="mb-2 text-lg font-medium">No measurement data yet</h2>
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-[var(--text-2)]">
             Visibility appears here after the first completed run.{" "}
-            <Link href="/dashboard/runs" className="text-indigo-400 hover:underline">
+            <Link href="/dashboard/runs" className="text-[var(--accent)] hover:underline">
               See runs →
             </Link>
           </p>
@@ -121,7 +121,7 @@ export default async function OverviewPage() {
       ) : (
         <>
           <section className="mb-6 card p-6">
-            <h2 className="mb-4 text-sm font-medium text-slate-400">
+            <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">
               Visibility trend — {data!.brand_name} vs competitors
             </h2>
             <TrendChart data={trendRows} series={trendSeries} />
@@ -129,18 +129,18 @@ export default async function OverviewPage() {
 
           <div className="grid gap-6 lg:grid-cols-2">
             <section className="card p-6">
-              <h2 className="mb-4 text-sm font-medium text-slate-400">
+              <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">
                 Share of voice — mentions across AI answers (30 days)
               </h2>
               <HBars items={sovItems} max={Math.max(...sovItems.map((s) => s.value), 1)} unit="%" />
             </section>
 
             <section className="card p-6">
-              <h2 className="mb-4 text-sm font-medium text-slate-400">
+              <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">
                 Biggest movers since previous measurement day
               </h2>
               {data!.movers.length === 0 ? (
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-[var(--text-3)]">
                   Needs two measurement days — trigger another run tomorrow.
                 </p>
               ) : (
@@ -150,14 +150,14 @@ export default async function OverviewPage() {
                       key={mover.label}
                       className="flex items-center justify-between text-sm"
                     >
-                      <span className="text-slate-300">{mover.label}</span>
+                      <span className="text-[var(--text-2)]">{mover.label}</span>
                       <span
                         className="tabular-nums"
                         style={{ color: mover.delta >= 0 ? DELTA_UP : DELTA_DOWN }}
                       >
                         {mover.delta >= 0 ? "▲" : "▼"} {mover.delta >= 0 ? "+" : ""}
                         {mover.delta}
-                        <span className="ml-2 text-xs text-slate-500">
+                        <span className="ml-2 text-xs text-[var(--text-3)]">
                           {mover.before} → {mover.after}
                         </span>
                       </span>

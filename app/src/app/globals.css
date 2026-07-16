@@ -1,49 +1,93 @@
 @import "tailwindcss";
 
 /* ------------------------------------------------------------------ *
- * EverPresent design system — a calm, deep, high-contrast dark theme.
- * Semantic tokens + a small set of primitives (.card, .field, .chip,
- * .btn) so every screen reads as one product, not a set of prototypes.
+ * EverPresent design system.
+ * Light is the default (warm paper, editorial, deep-green accent — a
+ * mature-fintech look). Dark is a toggle. Both drive the SAME semantic
+ * tokens, so every component and utility works in either theme.
  * ------------------------------------------------------------------ */
 
 :root {
+  color-scheme: light;
+
+  /* Planes & surfaces — warm paper plane, crisp white cards */
+  --plane: #f5f4ef;
+  --plane-2: #efeee8;
+  --surface: #ffffff;
+  --surface-2: #f4f3ee;
+  --inset: #faf9f5;
+
+  /* Hairlines */
+  --border: rgba(24, 26, 20, 0.11);
+  --border-strong: rgba(24, 26, 20, 0.2);
+
+  /* Ink */
+  --text: #16180f;
+  --text-2: #565a4e;
+  --text-3: #8c9082;
+
+  /* Brand accent (deep emerald) + gradient */
+  --accent: #0f8a5c;
+  --accent-2: #14a06e;
+  --accent-soft: rgba(15, 138, 92, 0.12);
+  --accent-ring: rgba(15, 138, 92, 0.35);
+  --accent-ink: #ffffff;
+
+  /* Status — fills (mid-tone, work on both) + readable text tones */
+  --good: #12965f;
+  --warn: #d99a17;
+  --danger: #d0453b;
+  --pos: #0a7a4c;
+  --warn-t: #8a6410;
+  --neg: #bd3a30;
+
+  /* Glow used in hero washes (theme-tinted) */
+  --glow-1: rgba(15, 138, 92, 0.10);
+  --glow-2: rgba(20, 160, 110, 0.06);
+
+  --radius: 14px;
+  --radius-sm: 9px;
+  --shadow-1: 0 1px 2px rgba(30, 32, 24, 0.05), 0 1px 3px rgba(30, 32, 24, 0.07);
+  --shadow-2: 0 12px 32px rgba(30, 34, 24, 0.10), 0 2px 8px rgba(30, 32, 24, 0.06);
+
+  --background: var(--plane);
+  --foreground: var(--text);
+}
+
+:root[data-theme="dark"] {
   color-scheme: dark;
 
-  /* Planes & surfaces (near-black plane, subtly lifted cards) */
   --plane: #08090c;
   --plane-2: #0b0d11;
   --surface: #15171d;
   --surface-2: #1b1e26;
   --inset: #0c0e12;
 
-  /* Hairlines */
   --border: rgba(255, 255, 255, 0.09);
   --border-strong: rgba(255, 255, 255, 0.16);
 
-  /* Ink */
   --text: #f3f5fa;
   --text-2: #a8b0c0;
   --text-3: #6d7585;
 
-  /* Brand accent + gradient */
-  --accent: #6e79f6;
-  --accent-2: #9a6bf0;
-  --accent-soft: rgba(110, 121, 246, 0.14);
-  --accent-ring: rgba(110, 121, 246, 0.4);
+  --accent: #2bb37a;
+  --accent-2: #34c98a;
+  --accent-soft: rgba(43, 179, 122, 0.16);
+  --accent-ring: rgba(43, 179, 122, 0.4);
+  --accent-ink: #06130d;
 
-  /* Status (dataviz palette) */
-  --good: #22c55e;
+  --good: #34d399;
   --warn: #f5b544;
-  --serious: #ec835a;
   --danger: #f26d6d;
+  --pos: #34d399;
+  --warn-t: #f5b544;
+  --neg: #f26d6d;
 
-  --radius: 14px;
-  --radius-sm: 9px;
+  --glow-1: rgba(43, 179, 122, 0.12);
+  --glow-2: rgba(52, 201, 138, 0.07);
+
   --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.3);
   --shadow-2: 0 8px 24px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.35);
-
-  --background: var(--plane);
-  --foreground: var(--text);
 }
 
 html {
@@ -51,11 +95,11 @@ html {
 }
 
 body {
-  /* Two faint radial glows layered over the plane for depth without noise —
-     kept in the body background so nothing ever paints over content. */
+  /* Two faint radial glows over the plane for depth, kept in the body
+     background so nothing ever paints over content. */
   background:
-    radial-gradient(1200px 600px at 78% -8%, rgba(110, 121, 246, 0.10), transparent 62%),
-    radial-gradient(1000px 520px at -5% 0%, rgba(154, 107, 240, 0.06), transparent 55%),
+    radial-gradient(1200px 600px at 80% -8%, var(--glow-1), transparent 62%),
+    radial-gradient(1000px 520px at -5% 0%, var(--glow-2), transparent 55%),
     var(--plane);
   background-attachment: fixed;
   color: var(--text);
@@ -74,23 +118,22 @@ h1, h2, h3 {
   background: var(--accent-soft);
 }
 
-/* Refined scrollbars */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+  scrollbar-color: color-mix(in srgb, var(--text) 22%, transparent) transparent;
 }
 *::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 *::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
+  background: color-mix(in srgb, var(--text) 18%, transparent);
   border-radius: 999px;
   border: 3px solid transparent;
   background-clip: content-box;
 }
 *::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: color-mix(in srgb, var(--text) 30%, transparent);
   background-clip: content-box;
 }
 
@@ -118,7 +161,6 @@ a.card:hover,
   border-radius: var(--radius-sm);
 }
 
-/* Inputs / selects / textareas — quiet until focused. */
 .field,
 input.field,
 textarea.field {
@@ -148,7 +190,7 @@ textarea.field {
   font-size: 0.6875rem;
   font-weight: 500;
   color: var(--text-2);
-  background: rgba(255, 255, 255, 0.03);
+  background: color-mix(in srgb, var(--text) 3%, transparent);
 }
 
 .btn {
@@ -159,7 +201,7 @@ textarea.field {
   border-radius: var(--radius-sm);
   font-weight: 550;
   font-size: 0.875rem;
-  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease, filter 0.15s ease;
 }
 .btn:focus-visible {
   outline: none;
@@ -167,11 +209,11 @@ textarea.field {
 }
 .btn-primary {
   background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  color: #fff;
+  color: var(--accent-ink);
   box-shadow: var(--shadow-1);
 }
 .btn-primary:hover {
-  filter: brightness(1.08);
+  filter: brightness(1.06);
 }
 .btn-ghost {
   border: 1px solid var(--border);
@@ -188,7 +230,6 @@ textarea.field {
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
-/* Section eyebrow label */
 .eyebrow {
   font-size: 0.6875rem;
   font-weight: 600;

@@ -7,7 +7,7 @@ import { surfaceLabel } from "@/lib/viz";
 const CATEGORY_STYLES: Record<string, string> = {
   brand: "bg-emerald-700 text-white",
   competitor: "bg-amber-700 text-white",
-  other: "bg-slate-700 text-slate-200",
+  other: "bg-[var(--surface-2)] text-[var(--text)]",
 };
 
 export default async function CitationsPage() {
@@ -27,7 +27,7 @@ export default async function CitationsPage() {
       <DashNav active="Citations" isSuperadmin={me.data?.is_superadmin} />
 
       {!data ? (
-        <p className="text-sm text-slate-400">{payload.error}</p>
+        <p className="text-sm text-[var(--text-2)]">{payload.error}</p>
       ) : (
         <>
           <div className="mb-6 grid gap-4 sm:grid-cols-2">
@@ -36,25 +36,25 @@ export default async function CitationsPage() {
               <div className="text-3xl font-semibold tabular-nums">
                 {data.domains.filter((d) => d.category === "brand").length > 0 ? "Yes" : "No"}
               </div>
-              <div className="mt-1 text-sm text-slate-400">
+              <div className="mt-1 text-sm text-[var(--text-2)]">
                 Your domains appear among the sources AI answers cite
               </div>
             </div>
           </div>
 
           <section className="card p-6">
-            <h2 className="mb-1 text-sm font-medium text-slate-400">
+            <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
               Domains AI answers cite in this vertical
             </h2>
-            <p className="mb-4 text-xs text-slate-500">
+            <p className="mb-4 text-xs text-[var(--text-3)]">
               Across all measured surfaces, including Google's AI Overview. Getting your
               brand into these sources is how you enter the answers.
             </p>
             {data.domains.length === 0 ? (
-              <p className="text-sm text-slate-500">No citations captured yet.</p>
+              <p className="text-sm text-[var(--text-3)]">No citations captured yet.</p>
             ) : (
               <table className="w-full text-left text-sm">
-                <thead className="text-slate-400">
+                <thead className="text-[var(--text-2)]">
                   <tr>
                     <th className="py-2 pr-4">Domain</th>
                     <th className="pr-4">Category</th>
@@ -76,7 +76,7 @@ export default async function CitationsPage() {
                         </span>
                       </td>
                       <td className="pr-4 tabular-nums">{d.count}</td>
-                      <td className="font-mono text-xs text-slate-400">
+                      <td className="font-mono text-xs text-[var(--text-2)]">
                         {d.surfaces.map(surfaceLabel).join(", ")}
                       </td>
                     </tr>

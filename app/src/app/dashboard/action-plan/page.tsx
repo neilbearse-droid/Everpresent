@@ -6,12 +6,12 @@ import { surfaceLabel } from "@/lib/viz";
 const DIAG_STYLE: Record<string, string> = {
   content_gap: "border-amber-500/40 bg-amber-500/5",
   knowledge_gap: "border-red-500/40 bg-red-500/5",
-  undetermined: "border-[var(--border)] bg-slate-900",
+  undetermined: "border-[var(--border)] bg-[var(--surface-2)]",
 };
 const DIAG_CHIP: Record<string, string> = {
-  content_gap: "text-amber-300",
-  knowledge_gap: "text-red-300",
-  undetermined: "text-slate-400",
+  content_gap: "text-[var(--warn-t)]",
+  knowledge_gap: "text-[var(--neg)]",
+  undetermined: "text-[var(--text-2)]",
 };
 
 export default async function ActionPlanPage() {
@@ -33,7 +33,7 @@ export default async function ActionPlanPage() {
       {targets.length === 0 && briefs.length === 0 ? (
         <section className="card p-6">
           <h2 className="mb-2 text-lg font-medium">Nothing to action yet</h2>
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-[var(--text-2)]">
             Once a run finds visibility gaps, this tab turns each one into a source target
             list and a ready-to-work content brief.
           </p>
@@ -42,20 +42,20 @@ export default async function ActionPlanPage() {
         <div className="space-y-8">
           {/* #4 — Citation-gap target list */}
           <section className="card p-6">
-            <h2 className="mb-1 text-sm font-medium text-slate-400">
+            <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
               Source targets — where the AIs get their answers in your vertical
             </h2>
-            <p className="mb-4 text-xs text-slate-500">
+            <p className="mb-4 text-xs text-[var(--text-3)]">
               Third-party domains that AI answers cite alongside your competitors — but not
               you. Getting {data!.brand_name} covered on these is the highest-leverage way to
               enter the answers. Rivals' own sites and your own domains are excluded.
             </p>
             {targets.length === 0 ? (
-              <p className="text-sm text-slate-500">No third-party source gaps found.</p>
+              <p className="text-sm text-[var(--text-3)]">No third-party source gaps found.</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
-                  <thead className="text-slate-400">
+                  <thead className="text-[var(--text-2)]">
                     <tr>
                       <th className="py-2 pr-4">Source domain</th>
                       <th className="pr-4">Cites a rival</th>
@@ -72,21 +72,21 @@ export default async function ActionPlanPage() {
                             href={t.example_url}
                             target="_blank"
                             rel="noreferrer"
-                            className="font-mono text-indigo-400 hover:underline"
+                            className="font-mono text-[var(--accent)] hover:underline"
                           >
                             {t.domain}
                           </a>
                         </td>
                         <td className="pr-4 tabular-nums">{t.competitor_assoc}×</td>
                         <td className="pr-4 tabular-nums">{t.queries}</td>
-                        <td className="pr-4 text-xs text-slate-400">
+                        <td className="pr-4 text-xs text-[var(--text-2)]">
                           {t.surfaces.map(surfaceLabel).join(", ")}
                         </td>
                         <td>
                           {t.already_citing_you ? (
-                            <span className="text-emerald-400">already cites you</span>
+                            <span className="text-[var(--pos)]">already cites you</span>
                           ) : (
-                            <span className="text-amber-300">target</span>
+                            <span className="text-[var(--warn-t)]">target</span>
                           )}
                         </td>
                       </tr>
@@ -99,10 +99,10 @@ export default async function ActionPlanPage() {
 
           {/* #1 — Content briefs */}
           <section>
-            <h2 className="mb-1 text-sm font-medium text-slate-400">
+            <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
               Content briefs — one per gap, ready to hand to a writer
             </h2>
-            <p className="mb-4 text-xs text-slate-500">
+            <p className="mb-4 text-xs text-[var(--text-3)]">
               Each gap query, turned into a brief: what to write, who's beating you, which
               sources to earn, and the questions to cover so AI answer engines can cite it.
             </p>
@@ -118,36 +118,36 @@ export default async function ActionPlanPage() {
                       {b.diagnosis.label} · {b.corpus_tag}
                     </span>
                   </div>
-                  <p className="mb-4 text-sm text-slate-300">{b.diagnosis.fix}</p>
+                  <p className="mb-4 text-sm text-[var(--text-2)]">{b.diagnosis.fix}</p>
 
                   <div className="grid gap-4 md:grid-cols-2">
                     <div>
-                      <div className="mb-1 text-xs font-medium text-slate-400">Why it matters</div>
-                      <ul className="space-y-1 text-sm text-slate-300">
+                      <div className="mb-1 text-xs font-medium text-[var(--text-2)]">Why it matters</div>
+                      <ul className="space-y-1 text-sm text-[var(--text-2)]">
                         <li>
                           Missing on:{" "}
-                          <span className="text-amber-300">
+                          <span className="text-[var(--warn-t)]">
                             {b.engines_missing.join(", ") || "—"}
                           </span>
                         </li>
                         <li>
                           Winning instead:{" "}
-                          <span className="text-slate-200">
+                          <span className="text-[var(--text)]">
                             {b.competitors_winning.join(", ") || "no clear rival"}
                           </span>
                         </li>
                       </ul>
-                      <div className="m-1 mt-3 mb-1 text-xs font-medium text-slate-400">
+                      <div className="m-1 mt-3 mb-1 text-xs font-medium text-[var(--text-2)]">
                         Earn a citation on
                       </div>
                       {b.target_sources.length === 0 ? (
-                        <p className="text-sm text-slate-500">No specific source yet.</p>
+                        <p className="text-sm text-[var(--text-3)]">No specific source yet.</p>
                       ) : (
                         <ul className="space-y-1 text-sm">
                           {b.target_sources.map((s) => (
                             <li key={s.domain}>
-                              <span className="font-mono text-indigo-300">{s.domain}</span>
-                              <span className="ml-2 text-xs text-slate-500">
+                              <span className="font-mono text-[var(--accent)]">{s.domain}</span>
+                              <span className="ml-2 text-xs text-[var(--text-3)]">
                                 cites {s.rivals.join(", ")}
                               </span>
                             </li>
@@ -157,8 +157,8 @@ export default async function ActionPlanPage() {
                     </div>
 
                     <div>
-                      <div className="mb-1 text-xs font-medium text-slate-400">Suggested outline</div>
-                      <ul className="space-y-1 text-sm text-slate-300">
+                      <div className="mb-1 text-xs font-medium text-[var(--text-2)]">Suggested outline</div>
+                      <ul className="space-y-1 text-sm text-[var(--text-2)]">
                         {b.outline.map((line, i) => (
                           <li key={i} className="text-xs">
                             {line}

@@ -18,10 +18,10 @@ export function NoOrgNotice({
       <DashNav active={active} isSuperadmin={isSuperadmin} />
       <section className="card p-6">
         <h2 className="mb-2 text-lg font-medium">No organization selected</h2>
-        <p className="text-sm text-slate-400">
+        <p className="text-sm text-[var(--text-2)]">
           Pick an organization in the switcher above to see its dashboards, or ask your
           EverPresent contact for an invite.
-          {detail ? <span className="ml-1 text-slate-500">({detail})</span> : null}
+          {detail ? <span className="ml-1 text-[var(--text-3)]">({detail})</span> : null}
         </p>
       </section>
     </main>

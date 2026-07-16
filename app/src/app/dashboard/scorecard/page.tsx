@@ -5,18 +5,18 @@ import { HBars } from "@/components/charts";
 import { entityColors, surfaceLabel } from "@/lib/viz";
 
 const STABILITY_STYLE: Record<string, string> = {
-  Stable: "text-emerald-400",
-  "Some volatility": "text-amber-400",
-  Volatile: "text-red-400",
-  "Not enough history": "text-slate-500",
+  Stable: "text-[var(--pos)]",
+  "Some volatility": "text-[var(--warn-t)]",
+  Volatile: "text-[var(--neg)]",
+  "Not enough history": "text-[var(--text-3)]",
 };
 
 function Tile({ value, label, sub }: { value: string; label: string; sub?: string }) {
   return (
     <div className="card p-5">
       <div className="text-3xl font-semibold tabular-nums">{value}</div>
-      <div className="mt-1 text-sm text-slate-400">{label}</div>
-      {sub && <div className="text-xs text-slate-500">{sub}</div>}
+      <div className="mt-1 text-sm text-[var(--text-2)]">{label}</div>
+      {sub && <div className="text-xs text-[var(--text-3)]">{sub}</div>}
     </div>
   );
 }
@@ -36,7 +36,7 @@ export default async function ScorecardPage() {
         <DashNav active="Scorecard" isSuperadmin={me.data?.is_superadmin} />
         <section className="card p-6">
           <h2 className="mb-2 text-lg font-medium">No scorecard yet</h2>
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-[var(--text-2)]">
             The KPI scorecard appears after a completed run.
           </p>
         </section>
@@ -62,27 +62,23 @@ export default async function ScorecardPage() {
         className="card relative mb-6 overflow-hidden p-6"
         style={{
           background:
-            "linear-gradient(135deg, rgba(110,121,246,0.14), rgba(154,107,240,0.06) 55%, transparent), var(--surface)",
+            "linear-gradient(135deg, var(--accent-soft), color-mix(in srgb, var(--accent) 5%, transparent) 55%, transparent), var(--surface)",
           borderColor: "var(--accent-ring)",
         }}
       >
         <div
           aria-hidden
           className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full"
-          style={{ background: "radial-gradient(circle, rgba(110,121,246,0.25), transparent 70%)" }}
+          style={{
+            background:
+              "radial-gradient(circle, color-mix(in srgb, var(--accent) 22%, transparent), transparent 70%)",
+          }}
         />
         <div className="relative flex flex-wrap items-end justify-between gap-6">
           <div>
             <p className="eyebrow mb-2">Answer Share · {d.brand_name}</p>
             <div className="flex items-baseline gap-2">
-              <span
-                className="text-6xl font-semibold leading-none tabular-nums"
-                style={{
-                  background: "linear-gradient(135deg, #ffffff, #c7ccf7)",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                }}
-              >
+              <span className="text-6xl font-semibold leading-none tabular-nums text-[var(--text)]">
                 {d.answer_share}%
               </span>
             </div>
@@ -117,8 +113,8 @@ export default async function ScorecardPage() {
           <div className={`text-3xl font-semibold ${STABILITY_STYLE[d.stability.label] ?? ""}`}>
             {d.stability.label}
           </div>
-          <div className="mt-1 text-sm text-slate-400">Stability</div>
-          <div className="text-xs text-slate-500">
+          <div className="mt-1 text-sm text-[var(--text-2)]">Stability</div>
+          <div className="text-xs text-[var(--text-3)]">
             {d.stability.swing}pt swing over {d.stability.series.length} runs
           </div>
         </div>
@@ -127,7 +123,7 @@ export default async function ScorecardPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Prominence distribution */}
         <section className="card p-6">
-          <h2 className="mb-4 text-sm font-medium text-slate-400">
+          <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">
             Prominence — where you land when named
           </h2>
           <HBars
@@ -138,7 +134,7 @@ export default async function ScorecardPage() {
             ]}
             max={Math.max(pd.leads, pd.second, pd.third_plus, 1)}
           />
-          <p className="mt-3 text-xs text-slate-500">
+          <p className="mt-3 text-xs text-[var(--text-3)]">
             Being <em>named</em> isn't the same as being <em>recommended</em>. Leading the
             answer is what moves buyers.
           </p>
@@ -146,43 +142,43 @@ export default async function ScorecardPage() {
 
         {/* Sentiment / framing */}
         <section className="card p-6">
-          <h2 className="mb-4 text-sm font-medium text-slate-400">
+          <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">
             Framing — how you're described
           </h2>
           <div className="mb-4 flex gap-4 text-sm">
-            <span className="text-emerald-400">▲ {d.sentiment.counts.positive} positive</span>
-            <span className="text-slate-400">● {d.sentiment.counts.neutral} neutral</span>
-            <span className="text-red-400">▼ {d.sentiment.counts.negative} negative</span>
+            <span className="text-[var(--pos)]">▲ {d.sentiment.counts.positive} positive</span>
+            <span className="text-[var(--text-2)]">● {d.sentiment.counts.neutral} neutral</span>
+            <span className="text-[var(--neg)]">▼ {d.sentiment.counts.negative} negative</span>
           </div>
           {[...d.sentiment.examples.negative, ...d.sentiment.examples.positive]
             .slice(0, 3)
             .map((ex, i) => (
-              <blockquote key={i} className="mb-2 border-l-2 border-[var(--border)] pl-3 text-xs text-slate-400">
+              <blockquote key={i} className="mb-2 border-l-2 border-[var(--border)] pl-3 text-xs text-[var(--text-2)]">
                 "{ex.snippet}"
-                <span className="mt-0.5 block text-slate-600">
+                <span className="mt-0.5 block text-[var(--text-3)]">
                   {ex.query} · {surfaceLabel(ex.surface)}
                 </span>
               </blockquote>
             ))}
           {d.sentiment.counts.positive + d.sentiment.counts.negative === 0 && (
-            <p className="text-xs text-slate-500">Mostly neutral framing so far.</p>
+            <p className="text-xs text-[var(--text-3)]">Mostly neutral framing so far.</p>
           )}
         </section>
       </div>
 
       {/* Head-to-head */}
       <section className="mt-6 card p-6">
-        <h2 className="mb-1 text-sm font-medium text-slate-400">
+        <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
           Head-to-head — when you both appear, who leads
         </h2>
-        <p className="mb-4 text-xs text-slate-500">
+        <p className="mb-4 text-xs text-[var(--text-3)]">
           On queries where you and a rival are both named, how often you're named first.
         </p>
         {d.head_to_head.length === 0 ? (
-          <p className="text-sm text-slate-500">No shared appearances yet.</p>
+          <p className="text-sm text-[var(--text-3)]">No shared appearances yet.</p>
         ) : (
           <table className="w-full text-left text-sm">
-            <thead className="text-slate-400">
+            <thead className="text-[var(--text-2)]">
               <tr>
                 <th className="py-2 pr-4">Competitor</th>
                 <th className="pr-4">Shared queries</th>
@@ -197,7 +193,7 @@ export default async function ScorecardPage() {
                   <td className="pr-4 tabular-nums">{h.shared}</td>
                   <td className="pr-4 tabular-nums">{h.wins}</td>
                   <td
-                    className={`tabular-nums ${h.win_rate >= 50 ? "text-emerald-400" : "text-amber-400"}`}
+                    className={`tabular-nums ${h.win_rate >= 50 ? "text-[var(--pos)]" : "text-[var(--warn-t)]"}`}
                   >
                     {h.win_rate}%
                   </td>
@@ -210,18 +206,18 @@ export default async function ScorecardPage() {
 
       {d.stability.series.length >= 2 && (
         <section className="mt-6 card p-6">
-          <h2 className="mb-4 text-sm font-medium text-slate-400">
+          <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">
             Presence rate over recent runs (durability)
           </h2>
           <div className="flex items-end gap-2" style={{ height: 120 }}>
             {d.stability.series.map((s) => (
               <div key={s.run_id} className="flex flex-1 flex-col items-center gap-1">
                 <div
-                  className="w-full rounded-t bg-indigo-500"
+                  className="w-full rounded-t bg-[var(--accent)]"
                   style={{ height: `${(s.presence_rate / maxRate) * 100}%`, minHeight: 2 }}
                   title={`Run #${s.run_id}: ${s.presence_rate}%`}
                 />
-                <span className="text-[10px] text-slate-500">#{s.run_id}</span>
+                <span className="text-[10px] text-[var(--text-3)]">#{s.run_id}</span>
               </div>
             ))}
           </div>

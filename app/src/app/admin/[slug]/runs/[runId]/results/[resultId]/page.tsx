@@ -24,7 +24,7 @@ export default async function AdminRawResultPage({
     <main className="mx-auto max-w-4xl px-8 py-10">
       <Link
         href={`/admin/${slug}/runs/${runId}`}
-        className="text-sm text-indigo-400 hover:underline"
+        className="text-sm text-[var(--accent)] hover:underline"
       >
         ← Run #{runId}
       </Link>

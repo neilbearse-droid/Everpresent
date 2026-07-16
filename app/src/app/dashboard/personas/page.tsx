@@ -23,7 +23,7 @@ export default async function PersonasPage() {
       {!data || data.segments.length === 0 ? (
         <section className="card p-6">
           <h2 className="mb-2 text-lg font-medium">No persona data yet</h2>
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-[var(--text-2)]">
             Per-segment visibility appears after the first completed run.
             {personas.error ? ` (${personas.error})` : ""}
           </p>
@@ -31,7 +31,7 @@ export default async function PersonasPage() {
       ) : (
         <>
           <section className="mb-6 card p-6">
-            <h2 className="mb-4 text-sm font-medium text-slate-400">
+            <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">
               Brand visibility by persona segment · {data.date}
             </h2>
             {/* Single measure across segments: one hue, no legend. */}
@@ -45,12 +45,12 @@ export default async function PersonasPage() {
           </section>
 
           <section className="card p-6">
-            <h2 className="mb-4 text-sm font-medium text-slate-400">
+            <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">
               Segment detail — where the gaps are
             </h2>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
-                <thead className="text-slate-400">
+                <thead className="text-[var(--text-2)]">
                   <tr>
                     <th className="py-2 pr-4">Segment</th>
                     <th className="pr-4">Brand score</th>
@@ -81,9 +81,9 @@ export default async function PersonasPage() {
                         <td className="pr-4 tabular-nums">{segment.result_count}</td>
                         <td>
                           {topCompetitor ? (
-                            <span className="text-slate-300">
+                            <span className="text-[var(--text-2)]">
                               {topCompetitor[0]}{" "}
-                              <span className="tabular-nums text-slate-400">
+                              <span className="tabular-nums text-[var(--text-2)]">
                                 ({topCompetitor[1]}
                                 {gap !== null && gap > 0 ? `, +${gap} ahead` : ""})
                               </span>

@@ -14,11 +14,11 @@ const BRANCH_STYLES: Record<Recommendation["branch"], string> = {
   aio: "bg-emerald-800 text-emerald-100",
 };
 const STATUS_STYLES: Record<Recommendation["status"], string> = {
-  open: "text-amber-400",
-  in_progress: "text-sky-400",
-  done: "text-emerald-400",
-  dismissed: "text-slate-500",
-  resolved: "text-emerald-500",
+  open: "text-[var(--warn-t)]",
+  in_progress: "text-[var(--accent)]",
+  done: "text-[var(--pos)]",
+  dismissed: "text-[var(--text-3)]",
+  resolved: "text-[var(--pos)]",
 };
 const NEXT_ACTIONS: Record<string, { to: Recommendation["status"]; label: string }[]> = {
   open: [
@@ -55,7 +55,7 @@ export default async function RecommendationsPage() {
   return (
     <main className="mx-auto max-w-5xl px-8 py-10">
       <DashNav active="Recommendations" isSuperadmin={me.data?.is_superadmin} />
-      <p className="mb-6 text-sm text-slate-400">
+      <p className="mb-6 text-sm text-[var(--text-2)]">
         Each visibility gap, mapped to a prescribed action: web-search gaps want citable
         published content, training gaps want brand-corpus presence, AI Overview gaps want
         presence in the sources Google's AIO cites.
@@ -63,7 +63,7 @@ export default async function RecommendationsPage() {
 
       {items.length === 0 && (
         <section className="card p-6">
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-[var(--text-2)]">
             No recommendations yet — they appear after a processed run finds gaps.
           </p>
         </section>
@@ -76,7 +76,7 @@ export default async function RecommendationsPage() {
         ([title, group]) =>
           (group as Recommendation[]).length > 0 && (
             <section key={title as string} className="mb-8">
-              <h2 className="mb-3 text-sm font-medium text-slate-400">{title as string}</h2>
+              <h2 className="mb-3 text-sm font-medium text-[var(--text-2)]">{title as string}</h2>
               <ul className="space-y-3">
                 {(group as Recommendation[]).map((rec) => (
                   <li
@@ -93,7 +93,7 @@ export default async function RecommendationsPage() {
                         {rec.status.replace("_", " ")}
                       </span>
                     </div>
-                    <p className="text-sm leading-relaxed text-slate-200">{rec.action_text}</p>
+                    <p className="text-sm leading-relaxed text-[var(--text)]">{rec.action_text}</p>
                     {NEXT_ACTIONS[rec.status].length > 0 && (
                       <div className="mt-3 flex gap-2">
                         {NEXT_ACTIONS[rec.status].map(({ to, label }) => (
@@ -101,7 +101,7 @@ export default async function RecommendationsPage() {
                             key={to}
                             action={setRecommendationStatus.bind(null, rec.id, to)}
                           >
-                            <button className="rounded-md border border-slate-600 px-3 py-1.5 text-xs hover:bg-slate-800">
+                            <button className="rounded-md border border-[var(--border)] px-3 py-1.5 text-xs hover:bg-[var(--surface-2)]">
                               {label}
                             </button>
                           </form>

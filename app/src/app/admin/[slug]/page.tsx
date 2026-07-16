@@ -38,18 +38,18 @@ export default async function TenantAdminPage({
     <main className="mx-auto max-w-5xl px-8 py-10">
       <header className="mb-8 flex items-center justify-between">
         <div>
-          <Link href="/admin" className="text-sm text-indigo-400 hover:underline">
+          <Link href="/admin" className="text-sm text-[var(--accent)] hover:underline">
             ← All tenants
           </Link>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight">{tenant.name}</h1>
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-[var(--text-2)]">
             {tenant.slug} · {tenant.status} · brand:{" "}
             {brand_profile?.brand_name ?? "— no config imported —"}
           </p>
         </div>
         <Link
           href={`/admin/${tenant.slug}/runs`}
-          className="rounded-md bg-indigo-500 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-400"
+          className="rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
         >
           Runs →
         </Link>
@@ -58,14 +58,14 @@ export default async function TenantAdminPage({
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="card p-5">
           <h2 className="mb-3 font-medium">Clerk organization</h2>
-          <p className="mb-3 text-xs text-slate-400">
+          <p className="mb-3 text-xs text-[var(--text-2)]">
             Members of this Clerk org see this tenant's dashboards. Paste the org id
             (org_…) from the Clerk dashboard.
           </p>
           <ClerkOrgForm slug={tenant.slug} orgId={tenant.clerk_org_id ?? ""} />
           <div className="mt-5 border-t border-[var(--border)] pt-4">
             <h3 className="mb-1 text-sm font-medium">GA4 property (Outcome attribution)</h3>
-            <p className="mb-3 text-xs text-slate-400">
+            <p className="mb-3 text-xs text-[var(--text-2)]">
               Numeric GA4 property id. Grant the EverPresent service account{" "}
               <span className="font-mono">Viewer</span> on this property, then AI-referral
               traffic populates the Outcome tab nightly.
@@ -78,16 +78,16 @@ export default async function TenantAdminPage({
           <h2 className="mb-3 font-medium">Governance</h2>
           <p className="mb-3 text-sm">
             AI processing:{" "}
-            <span className={tenant.ai_processing_approved ? "text-emerald-400" : "text-amber-400"}>
+            <span className={tenant.ai_processing_approved ? "text-[var(--pos)]" : "text-[var(--warn-t)]"}>
               {tenant.ai_processing_approved ? "approved" : "gated"}
             </span>
           </p>
           <form action={setGovernance.bind(null, tenant.slug, !tenant.ai_processing_approved)}>
-            <button className="rounded-md border border-slate-600 px-3 py-2 text-sm hover:bg-slate-800">
+            <button className="rounded-md border border-[var(--border)] px-3 py-2 text-sm hover:bg-[var(--surface-2)]">
               {tenant.ai_processing_approved ? "Revoke approval" : "Approve AI processing"}
             </button>
           </form>
-          <p className="mt-3 text-xs text-slate-500">
+          <p className="mt-3 text-xs text-[var(--text-3)]">
             Runs for a gated tenant are recorded with status <code>gated</code>, never
             silently skipped.
           </p>
@@ -101,14 +101,14 @@ export default async function TenantAdminPage({
               <li key={s.code} className="flex items-center justify-between text-sm">
                 <span>
                   {surfaceLabel(s.code)}
-                  <span className="ml-2 font-mono text-xs text-slate-500">{s.code}</span>
+                  <span className="ml-2 font-mono text-xs text-[var(--text-3)]">{s.code}</span>
                 </span>
                 <form action={toggleSurface.bind(null, tenant.slug, s.code, !s.enabled)}>
                   <button
                     className={`rounded-md px-3 py-1 text-xs font-medium ${
                       s.enabled
                         ? "bg-emerald-600 text-white hover:bg-emerald-500"
-                        : "border border-slate-600 text-slate-400 hover:bg-slate-800"
+                        : "border border-[var(--border)] text-[var(--text-2)] hover:bg-[var(--surface-2)]"
                     }`}
                   >
                     {s.enabled ? "enabled" : "disabled"}
@@ -117,14 +117,14 @@ export default async function TenantAdminPage({
               </li>
             ))}
             {surfaces.length === 0 && (
-              <li className="text-sm text-slate-500">No surfaces yet — import a config.</li>
+              <li className="text-sm text-[var(--text-3)]">No surfaces yet — import a config.</li>
             )}
           </ul>
         </section>
 
         <section className="card p-5">
           <h2 className="mb-3 font-medium">Run schedule</h2>
-          <p className="mb-3 text-xs text-slate-400">
+          <p className="mb-3 text-xs text-[var(--text-2)]">
             Scheduled runs use the tenant's current surfaces and governance state at fire
             time.
             {schedule.data?.next_run_at &&
@@ -139,7 +139,7 @@ export default async function TenantAdminPage({
 
         <section className="card p-5">
           <h2 className="mb-3 font-medium">Notifications</h2>
-          <p className="mb-3 text-xs text-slate-400">
+          <p className="mb-3 text-xs text-[var(--text-2)]">
             Run-completion reports (PDF + CSV) go to these addresses. Comma-separated.
           </p>
           <NotifyEmailsForm slug={tenant.slug} emails={tenant.notify_emails.join(", ")} />
@@ -147,7 +147,7 @@ export default async function TenantAdminPage({
 
         <section className="card p-5">
           <h2 className="mb-3 font-medium">Import config YAML</h2>
-          <p className="mb-3 text-xs text-slate-400">
+          <p className="mb-3 text-xs text-[var(--text-2)]">
             Replace-semantics: brand, competitors, personas, queries, and surface
             enablement are swapped wholesale.
           </p>
@@ -162,7 +162,7 @@ export default async function TenantAdminPage({
             {personas.map((p) => (
               <li key={p.id} className="text-sm">
                 <div className="font-medium">{p.name}</div>
-                <div className="text-xs text-slate-500">{p.segment_tag}</div>
+                <div className="text-xs text-[var(--text-3)]">{p.segment_tag}</div>
               </li>
             ))}
           </ul>
@@ -174,7 +174,7 @@ export default async function TenantAdminPage({
             {competitors.map((c) => (
               <li key={c.id} className="text-sm">
                 {c.name}
-                <span className="ml-2 text-xs text-slate-500">{c.domains.join(", ")}</span>
+                <span className="ml-2 text-xs text-[var(--text-3)]">{c.domains.join(", ")}</span>
               </li>
             ))}
           </ul>
@@ -186,7 +186,7 @@ export default async function TenantAdminPage({
             {queries.map((q) => (
               <li key={q.id} className="text-sm">
                 {q.text}
-                <span className="ml-2 text-xs text-slate-500">{q.corpus_tag}</span>
+                <span className="ml-2 text-xs text-[var(--text-3)]">{q.corpus_tag}</span>
               </li>
             ))}
           </ul>

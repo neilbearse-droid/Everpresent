@@ -10,8 +10,8 @@ import {
   YAxis,
 } from "recharts";
 
-const GRID = "rgba(255,255,255,0.07)"; // recessive hairline on the dark surface
-const AXIS_TEXT = "#8b93a3";
+const GRID = "var(--border)"; // themed hairline, recessive on either surface
+const AXIS_TEXT = "var(--text-3)";
 
 type TrendRow = Record<string, string | number>;
 
@@ -30,7 +30,7 @@ export function TrendChart({
       {series.length > 1 && (
         <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1">
           {series.map((s) => (
-            <span key={s.name} className="flex items-center gap-1.5 text-xs text-slate-300">
+            <span key={s.name} className="flex items-center gap-1.5 text-xs text-[var(--text-2)]">
               <span
                 className="inline-block h-2.5 w-2.5 rounded-full"
                 style={{ background: s.color }}
@@ -59,13 +59,15 @@ export function TrendChart({
           <Tooltip
             cursor={{ stroke: AXIS_TEXT, strokeWidth: 1 }}
             contentStyle={{
-              background: "#15171d",
-              border: "1px solid rgba(255,255,255,0.12)",
+              background: "var(--surface)",
+              border: "1px solid var(--border-strong)",
               borderRadius: 10,
               fontSize: 12,
-              boxShadow: "0 8px 24px rgba(0,0,0,0.45)",
+              boxShadow: "var(--shadow-2)",
+              color: "var(--text)",
             }}
-            labelStyle={{ color: "#f3f5fa" }}
+            labelStyle={{ color: "var(--text)" }}
+            itemStyle={{ color: "var(--text-2)" }}
             formatter={(value: number | string, name: string) => [value, name]}
           />
           {series.map((s, seriesIndex) => (
@@ -119,26 +121,26 @@ export function HBars({
   unit?: string;
 }) {
   if (items.length === 0) {
-    return <p className="text-sm text-slate-500">No data yet.</p>;
+    return <p className="text-sm text-[var(--text-3)]">No data yet.</p>;
   }
   return (
     <ul className="space-y-2.5">
       {items.map((item) => (
         <li key={item.label} className="group" title={`${item.label}: ${item.value}${unit}`}>
           <div className="mb-1 flex items-baseline justify-between gap-3 text-xs">
-            <span className="flex min-w-0 items-center gap-1.5 text-slate-300">
+            <span className="flex min-w-0 items-center gap-1.5 text-[var(--text-2)]">
               <span
                 className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
                 style={{ background: item.color }}
               />
               <span className="truncate">{item.label}</span>
             </span>
-            <span className="tabular-nums text-slate-200">
+            <span className="tabular-nums text-[var(--text)]">
               {item.value}
               {unit}
             </span>
           </div>
-          <div className="h-2 w-full rounded-full bg-white/[0.06]">
+          <div className="h-2 w-full rounded-full bg-[color-mix(in_srgb,var(--text)_9%,transparent)]">
             <div
               className="h-2 rounded-full transition-opacity group-hover:opacity-80"
               style={{

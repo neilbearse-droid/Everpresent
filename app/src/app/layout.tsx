@@ -22,7 +22,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     process.env.CLERK_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
   return (
     <ClerkProvider publishableKey={publishableKey}>
-      <html lang="en">
+      <html lang="en" suppressHydrationWarning>
+        <head>
+          {/* Set the theme before first paint to avoid a flash. Light is the
+              default; the toggle persists the choice to localStorage. */}
+          <script
+            dangerouslySetInnerHTML={{
+              __html:
+                "try{var t=localStorage.getItem('theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');}catch(e){}",
+            }}
+          />
+        </head>
         <body className="min-h-screen antialiased">{children}</body>
       </html>
     </ClerkProvider>

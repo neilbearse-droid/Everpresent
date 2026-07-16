@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { OrganizationSwitcher, UserButton } from "@clerk/nextjs";
 import type { ReactNode } from "react";
+import { ThemeToggle } from "./theme-toggle";
 
 /* Minimal 16px stroke icons (currentColor) — no external dependency. */
 const I = {
@@ -50,7 +51,7 @@ const TABS: { href: string; label: string; icon: keyof typeof I }[] = [
 function BrandMark() {
   return (
     <span
-      className="grid h-7 w-7 place-items-center rounded-lg text-white shadow-[0_2px_8px_rgba(110,121,246,0.45)]"
+      className="grid h-7 w-7 place-items-center rounded-lg text-[var(--accent-ink)] shadow-[0_2px_8px_var(--accent-soft)]"
       style={{ background: "linear-gradient(135deg, var(--accent), var(--accent-2))" }}
       aria-hidden
     >
@@ -75,11 +76,12 @@ export function DashNav({ active, isSuperadmin }: { active: string; isSuperadmin
           {isSuperadmin && (
             <Link
               href="/admin"
-              className="rounded-md px-2.5 py-1.5 text-sm text-[var(--text-2)] transition-colors hover:bg-white/5 hover:text-[var(--text)]"
+              className="rounded-md px-2.5 py-1.5 text-sm text-[var(--text-2)] transition-colors hover:bg-[color-mix(in_srgb,var(--text)_7%,transparent)] hover:text-[var(--text)]"
             >
               Admin
             </Link>
           )}
+          <ThemeToggle />
           <OrganizationSwitcher hidePersonal />
           <UserButton />
         </div>

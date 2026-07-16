@@ -20,12 +20,12 @@ export function ImportYamlForm({ slug }: { slug: string }) {
       <button
         type="submit"
         disabled={pending}
-        className="self-start rounded-md bg-indigo-500 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-400 disabled:opacity-50"
+        className="self-start rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
       >
         {pending ? "Importing…" : "Import"}
       </button>
       {state && (
-        <p className={`text-sm ${state.ok ? "text-emerald-400" : "text-red-400"}`}>
+        <p className={`text-sm ${state.ok ? "text-[var(--pos)]" : "text-[var(--neg)]"}`}>
           {state.message}
         </p>
       )}
