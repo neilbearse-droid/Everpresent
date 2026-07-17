@@ -162,6 +162,24 @@ export type AIOSummary = {
   source_types: Record<string, number>;
 };
 
+/** Citability fingerprint of a page. Tier-1 = evidence-based citation levers;
+ * the rest are machine-legibility hygiene. Fields are optional because pages
+ * crawled before the M5 upgrade only carry the hygiene keys. */
+export type PageFeatures = {
+  quotation_count?: number;
+  statistic_count?: number;
+  data_point_density?: number;
+  has_answer_capsule?: boolean;
+  front_loaded?: boolean;
+  citation_count?: number;
+  promotional_tone_score?: number;
+  json_ld: boolean;
+  faq_schema: boolean;
+  has_tables: boolean;
+  recent_year_mentions: number;
+  word_count: number;
+};
+
 export type OverviewPayload = {
   brand_name: string;
   trend: { date: string; brand_score: number; competitors: Record<string, number> }[];
@@ -182,13 +200,7 @@ export type CitationsPayload = {
     surfaces: string[];
     on_page: boolean | null;
     competitors_on_page: string[];
-    page_features: {
-      json_ld: boolean;
-      faq_schema: boolean;
-      has_tables: boolean;
-      recent_year_mentions: number;
-      word_count: number;
-    } | null;
+    page_features: PageFeatures | null;
   }[];
   aio: AIOSummary;
 };
@@ -321,6 +333,12 @@ export type ActionPlan = {
       ready: boolean;
       winners?: string[];
       spec?: {
+        quotations: boolean;
+        statistic_count: number;
+        has_answer_capsule: boolean;
+        front_loaded: boolean;
+        citation_count: number;
+        promotional_tone_score: number;
         json_ld: boolean;
         faq_schema: boolean;
         has_tables: boolean;

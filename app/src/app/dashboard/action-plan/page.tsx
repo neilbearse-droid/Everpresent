@@ -326,15 +326,28 @@ export default async function ActionPlanPage() {
                         Citability diff — copy the winning fingerprint
                       </div>
                       <div className="mb-2 flex flex-wrap gap-1.5 text-[11px]">
-                        {b.citability.spec?.json_ld && <span className="chip">JSON-LD</span>}
-                        {b.citability.spec?.faq_schema && <span className="chip">FAQ schema</span>}
-                        {b.citability.spec?.has_tables && <span className="chip">comparison tables</span>}
-                        {(b.citability.spec?.recent_year_mentions ?? 0) >= 3 && (
-                          <span className="chip">
-                            ~{b.citability.spec!.recent_year_mentions} fresh-date mentions
+                        {b.citability.spec?.has_answer_capsule && (
+                          <span className="chip text-[var(--pos)]">answer capsules</span>
+                        )}
+                        {(b.citability.spec?.statistic_count ?? 0) >= 5 && (
+                          <span className="chip text-[var(--pos)]">
+                            ~{b.citability.spec!.statistic_count} data points
                           </span>
                         )}
+                        {b.citability.spec?.quotations && (
+                          <span className="chip text-[var(--pos)]">source quotations</span>
+                        )}
+                        {(b.citability.spec?.citation_count ?? 0) >= 3 && (
+                          <span className="chip text-[var(--pos)]">
+                            ~{b.citability.spec!.citation_count} cited sources
+                          </span>
+                        )}
+                        {b.citability.spec?.front_loaded && (
+                          <span className="chip text-[var(--pos)]">front-loaded</span>
+                        )}
                         <span className="chip">~{b.citability.spec?.word_count} words</span>
+                        {b.citability.spec?.json_ld && <span className="chip">JSON-LD (hygiene)</span>}
+                        {b.citability.spec?.has_tables && <span className="chip">tables</span>}
                         {b.citability.your_page && (
                           <a
                             href={b.citability.your_page.url}

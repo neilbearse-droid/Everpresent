@@ -54,6 +54,45 @@ def test_extract_features_fingerprint():
     assert features["word_count"] > 10
 
 
+_TIER1_HTML = """
+<html><body>
+<h2>What is the best MBA in Canada?</h2>
+<p>Smith School of Business is the top-ranked MBA in Canada, with 92% of
+graduates employed within three months and an average salary of $110,000,
+according to the 2026 QS rankings and the Financial Times survey of alumni
+outcomes across the country.</p>
+<blockquote>"Smith produced our strongest hires," said a Fortune 500 recruiter.</blockquote>
+<p>Tuition is $95,000. Class size is 80. See <a href="https://ft.com/x">FT</a>
+and <a href="https://qs.com/y">QS</a> for the underlying data.</p>
+</body></html>
+"""
+
+_PROMO_HTML = """
+<html><body><h1>Our Platform</h1>
+<p>Our world-class, best-in-class, industry-leading, cutting-edge platform is a
+revolutionary game-changer. Unlock seamless, effortless value and supercharge
+your team with our unparalleled state-of-the-art solution. Look no further.</p>
+</body></html>
+"""
+
+
+def test_extract_features_tier1_signals():
+    f = extract_features(_TIER1_HTML)
+    assert f["has_answer_capsule"] is True          # 40-60 word answer under a "?" H2
+    assert f["statistic_count"] >= 4                 # 92%, $110,000, 2026, $95,000, 80
+    assert f["quotation_count"] >= 1                 # the recruiter blockquote/quote
+    assert f["citation_count"] >= 2                  # ft.com + qs.com
+    assert f["front_loaded"] is True                 # stats in the first third
+    assert f["promotional_tone_score"] < 5.0
+
+
+def test_extract_features_flags_promotional_tone():
+    f = extract_features(_PROMO_HTML)
+    # Marketing-voice lexicon is dense here → high penalty score, no capsule.
+    assert f["promotional_tone_score"] >= 20.0
+    assert f["has_answer_capsule"] is False
+
+
 def test_crawl_job_upserts_presence_and_feeds_power_pages(db_session, monkeypatch):
     from api.dashboards_service import citations_intel
     from worker import page_crawl

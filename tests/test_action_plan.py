@@ -215,15 +215,21 @@ def test_citability_diff_specs_winners_and_flags_your_gaps(db_session):
                                 source_category=cat))
     db_session.commit()
 
-    # Crawled fingerprints: both winners have FAQ+tables+fresh dates; yours is thin.
-    winner_features = {"json_ld": True, "faq_schema": True, "has_tables": True,
-                       "recent_year_mentions": 8, "word_count": 2000}
+    # Crawled fingerprints: winners carry the Tier-1 levers (capsule, stats,
+    # quotations, cited sources) + tables; yours is thin and has none of them.
+    winner_features = {"has_answer_capsule": True, "statistic_count": 12,
+                       "quotation_count": 3, "citation_count": 6, "front_loaded": True,
+                       "promotional_tone_score": 0.0, "json_ld": True, "faq_schema": True,
+                       "has_tables": True, "recent_year_mentions": 8, "word_count": 2000}
     for url in ("https://g2.com/best", "https://blog.example.com/top"):
         db_session.add(PagePresence(tenant_id=tid, url=url, domain="x", status="ok",
                                     brand_found=False, features=dict(winner_features)))
     db_session.add(PagePresence(tenant_id=tid, url="https://acme.com/crm", domain="acme.com",
                                 status="ok", brand_found=True,
-                                features={"json_ld": True, "faq_schema": False,
+                                features={"has_answer_capsule": False, "statistic_count": 1,
+                                          "quotation_count": 0, "citation_count": 0,
+                                          "front_loaded": False, "promotional_tone_score": 0.0,
+                                          "json_ld": True, "faq_schema": False,
                                           "has_tables": False, "recent_year_mentions": 1,
                                           "word_count": 400}))
     db_session.commit()
@@ -232,14 +238,20 @@ def test_citability_diff_specs_winners_and_flags_your_gaps(db_session):
     cit = brief["citability"]
     assert cit["ready"] is True
     assert len(cit["winners"]) == 2
-    assert cit["spec"]["faq_schema"] is True and cit["spec"]["word_count"] == 2000
+    # Spec captures both Tier-1 medians and hygiene.
+    assert cit["spec"]["has_answer_capsule"] is True and cit["spec"]["statistic_count"] == 12
+    assert cit["spec"]["word_count"] == 2000
     assert cit["your_page"]["url"] == "https://acme.com/crm"
     gaps = " | ".join(cit["gaps"])
-    assert "FAQ schema" in gaps
-    assert "comparison tables" in gaps
-    assert "fresh stats" in gaps
+    # Tier-1 levers lead the gap list.
+    assert "answer capsule" in gaps
+    assert "statistics/data points" in gaps
+    assert "quotations" in gaps
+    assert "comparison tables" in gaps  # hygiene still flagged, but later
     assert "too thin" in gaps
-    assert "JSON-LD" not in gaps  # your page already has it
+    # Tier-1 gaps come before hygiene gaps.
+    assert cit["gaps"].index(next(g for g in cit["gaps"] if "answer capsule" in g)) < \
+        cit["gaps"].index(next(g for g in cit["gaps"] if "comparison tables" in g))
 
 
 def test_citability_handles_no_owned_page_and_uncrawled_winners(db_session):

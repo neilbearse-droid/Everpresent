@@ -1029,6 +1029,14 @@ def _citability_diff(
         return vals[len(vals) // 2]
 
     spec = {
+        # Tier-1 evidence-based levers.
+        "quotations": common("quotation_count"),
+        "statistic_count": median("statistic_count"),
+        "has_answer_capsule": common("has_answer_capsule"),
+        "front_loaded": common("front_loaded"),
+        "citation_count": median("citation_count"),
+        "promotional_tone_score": median("promotional_tone_score"),
+        # Hygiene (entity legibility, not citation levers).
         "json_ld": common("json_ld"),
         "faq_schema": common("faq_schema"),
         "has_tables": common("has_tables"),
@@ -1043,24 +1051,53 @@ def _citability_diff(
         )
     else:
         yf = your_page.features or {}
-        if spec["json_ld"] and not yf.get("json_ld"):
-            gaps.append("Winning pages carry JSON-LD structured data; yours doesn't")
-        if spec["faq_schema"] and not yf.get("faq_schema"):
-            gaps.append("Winning pages use FAQ schema; add a marked-up FAQ block")
-        if spec["has_tables"] and not yf.get("has_tables"):
-            gaps.append("Winning pages include comparison tables; yours has none")
-        if spec["recent_year_mentions"] >= 3 and yf.get("recent_year_mentions", 0) < max(
-            1, spec["recent_year_mentions"] // 2
+        # Tier-1 levers first — these are what actually move citation.
+        if spec["has_answer_capsule"] and not yf.get("has_answer_capsule"):
+            gaps.append(
+                "Winning pages open each section with a 40–60 word direct answer under a "
+                "question heading; yours has none — add answer capsules (the single "
+                "highest-correlation citation feature)"
+            )
+        if spec["statistic_count"] >= 5 and yf.get("statistic_count", 0) < max(
+            3, spec["statistic_count"] // 2
         ):
             gaps.append(
-                f"Winning pages average {spec['recent_year_mentions']} recent-date "
-                f"mentions (fresh stats); yours has {yf.get('recent_year_mentions', 0)}"
+                f"Winning pages carry ~{spec['statistic_count']} statistics/data points "
+                f"(data-rich pages earn 2–3× the citations); yours has "
+                f"{yf.get('statistic_count', 0)} — add verifiable figures"
+            )
+        if spec["quotations"] and not yf.get("quotation_count"):
+            gaps.append(
+                "Winning pages quote credible named sources (the top Princeton-validated "
+                "lever, ~41% lift); yours has none — add attributed quotations"
+            )
+        if spec["citation_count"] >= 3 and yf.get("citation_count", 0) < max(
+            2, spec["citation_count"] // 2
+        ):
+            gaps.append(
+                f"Winning pages cite ~{spec['citation_count']} outbound sources; yours "
+                f"cites {yf.get('citation_count', 0)} — cite your sources by name"
+            )
+        if spec["front_loaded"] and not yf.get("front_loaded"):
+            gaps.append(
+                "Winning pages front-load the answer (44% of citations come from the first "
+                "third); yours buries it — move the core answer and key stats to the top"
+            )
+        if yf.get("promotional_tone_score", 0) > max(6.0, spec["promotional_tone_score"] * 2):
+            gaps.append(
+                "Your page reads promotional; AI engines penalize marketing voice (~−26%) — "
+                "strip the sales language from anything you want cited"
             )
         if yf.get("word_count", 0) < spec["word_count"] * 0.5:
             gaps.append(
                 f"Winning pages run ~{spec['word_count']} words; yours is "
                 f"{yf.get('word_count', 0)} — likely too thin to cite"
             )
+        # Hygiene (secondary — legibility, not a citation lever).
+        if spec["json_ld"] and not yf.get("json_ld"):
+            gaps.append("Add JSON-LD structured data (entity-legibility hygiene)")
+        if spec["has_tables"] and not yf.get("has_tables"):
+            gaps.append("Winning pages use comparison tables; yours has none")
         if not gaps:
             gaps.append("Your page matches the winning fingerprint — the gap is likely "
                         "authority/recency, not structure")
