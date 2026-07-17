@@ -103,7 +103,19 @@ export default async function EnginesPage({
                 <div key={e.surface} className="rounded-md border border-[var(--border)] p-3 text-sm">
                   <div className="font-medium">{surfaceLabel(e.surface)}</div>
                   <div className="mt-1 text-2xl font-semibold tabular-nums">{e.brand_rate}%</div>
-                  <div className="text-xs text-[var(--text-3)]">
+                  <div className="text-xs text-[var(--text-3)]">mentioned</div>
+                  <div className="mt-1.5 flex items-baseline gap-1.5">
+                    <span className="text-sm font-semibold tabular-nums text-[var(--text-2)]">
+                      {e.citation_rate}%
+                    </span>
+                    <span className="text-xs text-[var(--text-3)]">cited (linked)</span>
+                  </div>
+                  {e.mention_citation_gap >= 10 && (
+                    <div className="mt-1 text-xs text-[var(--warn-t)]">
+                      named but not linked — {e.mention_citation_gap}pt gap
+                    </div>
+                  )}
+                  <div className="mt-1 text-xs text-[var(--text-3)]">
                     {e.top_competitor
                       ? `Top rival cited: ${e.top_competitor}`
                       : "No rival cited"}

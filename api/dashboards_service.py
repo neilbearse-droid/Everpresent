@@ -497,10 +497,24 @@ def engine_scorecard(
 
     surfaces = sorted({s for (_, s) in search})
 
+    # Brand-cited result ids (§AEO-plan m3): a citation to a brand-owned page,
+    # distinct from a brand *mention*. Mentions and citations move
+    # independently — you can be named without being linked, and vice versa.
+    search_ids = [r.id for r in search.values() if r.id is not None]
+    brand_cited_ids: set[int] = set()
+    if search_ids:
+        for c in session.exec(
+            select(Citation).where(
+                Citation.result_id.in_(search_ids),  # pyright: ignore[reportAttributeAccessIssue]
+                Citation.source_category == "brand",
+            )
+        ).all():
+            brand_cited_ids.add(c.result_id)
+
     # Per-engine rollup.
     engines = []
     for surface in surfaces:
-        measured = brand = comp = 0
+        measured = brand = comp = cited = 0
         comp_tally: dict[str, int] = defaultdict(int)
         for (_qtext, s), result in search.items():
             if s != surface:
@@ -508,17 +522,25 @@ def engine_scorecard(
             measured += 1
             if result.id in brand_ids:
                 brand += 1
+            if result.id in brand_cited_ids:
+                cited += 1
             comps = competitors_by_result.get(result.id or -1, set())
             if comps:
                 comp += 1
             for name in comps:
                 comp_tally[name] += 1
         top_comp = max(comp_tally, key=lambda n: comp_tally[n]) if comp_tally else None
+        brand_rate = round(100.0 * brand / measured, 1) if measured else 0.0
+        citation_rate = round(100.0 * cited / measured, 1) if measured else 0.0
         engines.append({
             "surface": surface,
             "queries_measured": measured,
             "brand_present": brand,
-            "brand_rate": round(100.0 * brand / measured, 1) if measured else 0.0,
+            "brand_rate": brand_rate,
+            "brand_cited": cited,
+            "citation_rate": citation_rate,
+            # Named but not linked: the gap the report says to watch per engine.
+            "mention_citation_gap": round(brand_rate - citation_rate, 1),
             "competitor_present": comp,
             "top_competitor": top_comp,
         })

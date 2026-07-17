@@ -23,21 +23,33 @@ import httpx
 
 from engine.audit.rendering import render_verdict
 
-# (agent, what it powers, kind). Retrieval agents fetch for live answers —
-# blocking one is an immediate visibility hole; training agents feed future
-# model knowledge — blocking one is a slow leak.
+# (agent, what it powers, kind). Three functional classes (§AEO-plan m2):
+#  - training: feeds the next model's parametric layer — blocking is a slow,
+#    multi-year knowledge leak (blocking GPTBot has no measured Google effect).
+#  - search_index: feeds live retrieval — blocking OAI-SearchBot removes you
+#    from ChatGPT search answers entirely, today.
+#  - user_fetch: retrieves a page because a conversation referenced it — the
+#    closest thing to an "AI impression" in your logs.
+# Blocking either live class (search_index / user_fetch) is an immediate
+# visibility hole; blocking training is a slow leak.
 AI_AGENTS: list[tuple[str, str, str]] = [
     ("GPTBot", "ChatGPT — model training", "training"),
-    ("OAI-SearchBot", "ChatGPT — search index", "retrieval"),
-    ("ChatGPT-User", "ChatGPT — live page fetch", "retrieval"),
-    ("PerplexityBot", "Perplexity — search index", "retrieval"),
-    ("Perplexity-User", "Perplexity — live page fetch", "retrieval"),
+    ("OAI-SearchBot", "ChatGPT — search index", "search_index"),
+    ("ChatGPT-User", "ChatGPT — live page fetch", "user_fetch"),
+    ("PerplexityBot", "Perplexity — search index", "search_index"),
+    ("Perplexity-User", "Perplexity — live page fetch", "user_fetch"),
     ("ClaudeBot", "Claude — model training", "training"),
-    ("Claude-User", "Claude — live page fetch", "retrieval"),
+    ("Claude-SearchBot", "Claude — search index", "search_index"),
+    ("Claude-User", "Claude — live page fetch", "user_fetch"),
     ("Google-Extended", "Gemini / AI Overviews — training", "training"),
-    ("Bingbot", "Copilot — retrieval", "retrieval"),
+    ("Bingbot", "Copilot — search index", "search_index"),
+    ("Meta-ExternalAgent", "Meta AI — training", "training"),
+    ("Bytespider", "ByteDance / TikTok — training", "training"),
     ("CCBot", "Common Crawl — many models' training", "training"),
 ]
+
+# The two live-answer classes: blocking either removes you from answers NOW.
+_LIVE_KINDS = {"search_index", "user_fetch"}
 
 BROWSER_UA = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
@@ -80,7 +92,7 @@ def summarize(
     retrieval right now (robots block, CDN challenge, or a JS-only page engines
     can't render); warn = training leaks or thin raw HTML."""
     issues: list[str] = []
-    retrieval_blocked = [a for a in agents if a["kind"] == "retrieval" and not a["allowed"]]
+    retrieval_blocked = [a for a in agents if a["kind"] in _LIVE_KINDS and not a["allowed"]]
     training_blocked = [a for a in agents if a["kind"] == "training" and not a["allowed"]]
 
     for a in retrieval_blocked:

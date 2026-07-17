@@ -260,6 +260,9 @@ export type EngineScorecard = {
     queries_measured: number;
     brand_present: number;
     brand_rate: number;
+    brand_cited: number;
+    citation_rate: number;
+    mention_citation_gap: number;
     competitor_present: number;
     top_competitor: string | null;
   }[];
