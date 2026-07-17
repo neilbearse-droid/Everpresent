@@ -1,4 +1,4 @@
-import { apiFetch, type CitationsPayload, type Me } from "@/lib/api";
+import { apiFetch, rangeQuery, type CitationsPayload, type Me } from "@/lib/api";
 import { DashNav } from "@/components/dash-nav";
 import { NoOrgNotice } from "@/components/no-org-notice";
 import { AIOTile } from "@/components/aio-tile";
@@ -10,10 +10,15 @@ const CATEGORY_STYLES: Record<string, string> = {
   other: "bg-[var(--surface-2)] text-[var(--text)]",
 };
 
-export default async function CitationsPage() {
+export default async function CitationsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ from?: string; to?: string }>;
+}) {
+  const { from, to } = await searchParams;
   const [me, payload] = await Promise.all([
     apiFetch<Me>("/api/me"),
-    apiFetch<CitationsPayload>("/api/tenant/citations-intel"),
+    apiFetch<CitationsPayload>(`/api/tenant/citations-intel${rangeQuery(from, to)}`),
   ]);
   if (payload.status === 403) {
     return (
@@ -24,7 +29,7 @@ export default async function CitationsPage() {
 
   return (
     <main className="mx-auto max-w-6xl px-8 py-10">
-      <DashNav active="Citations" isSuperadmin={me.data?.is_superadmin} />
+      <DashNav active="Citations" isSuperadmin={me.data?.is_superadmin} withDateRange />
 
       {!data ? (
         <p className="text-sm text-[var(--text-2)]">{payload.error}</p>

@@ -89,23 +89,29 @@ def surfaces(ctx: Ctx, session: Db) -> list[TenantSurface]:
 
 
 @router.get("/overview")
-def overview(ctx: Ctx, session: Db) -> dict:
-    return dashboards_service.overview(session, ctx.tenant_id)
+def overview(ctx: Ctx, session: Db, start: str | None = None, end: str | None = None) -> dict:
+    return dashboards_service.overview(session, ctx.tenant_id, start, end)
 
 
 @router.get("/personas-intel")
-def personas_intel(ctx: Ctx, session: Db) -> dict:
-    return dashboards_service.personas(session, ctx.tenant_id)
+def personas_intel(
+    ctx: Ctx, session: Db, start: str | None = None, end: str | None = None
+) -> dict:
+    return dashboards_service.personas(session, ctx.tenant_id, start, end)
 
 
 @router.get("/queries-intel")
-def queries_intel(ctx: Ctx, session: Db) -> dict:
-    return dashboards_service.queries_intel(session, ctx.tenant_id)
+def queries_intel(
+    ctx: Ctx, session: Db, start: str | None = None, end: str | None = None
+) -> dict:
+    return dashboards_service.queries_intel(session, ctx.tenant_id, start, end)
 
 
 @router.get("/engine-scorecard")
-def engine_scorecard(ctx: Ctx, session: Db) -> dict:
-    return dashboards_service.engine_scorecard(session, ctx.tenant_id)
+def engine_scorecard(
+    ctx: Ctx, session: Db, start: str | None = None, end: str | None = None
+) -> dict:
+    return dashboards_service.engine_scorecard(session, ctx.tenant_id, start, end)
 
 
 @router.get("/action-plan")
@@ -114,13 +120,15 @@ def action_plan(ctx: Ctx, session: Db) -> dict:
 
 
 @router.get("/kpi-scorecard")
-def kpi_scorecard(ctx: Ctx, session: Db) -> dict:
-    return dashboards_service.kpi_scorecard(session, ctx.tenant_id)
+def kpi_scorecard(
+    ctx: Ctx, session: Db, start: str | None = None, end: str | None = None
+) -> dict:
+    return dashboards_service.kpi_scorecard(session, ctx.tenant_id, start, end)
 
 
 @router.get("/outcome")
-def outcome(ctx: Ctx, session: Db) -> dict:
-    return dashboards_service.outcome(session, ctx.tenant_id)
+def outcome(ctx: Ctx, session: Db, start: str | None = None, end: str | None = None) -> dict:
+    return dashboards_service.outcome(session, ctx.tenant_id, start, end)
 
 
 class InterventionCreate(BaseModel):
@@ -204,8 +212,10 @@ def update_recommendation(
 
 
 @router.get("/citations-intel")
-def citations_intel(ctx: Ctx, session: Db) -> dict:
-    return dashboards_service.citations_intel(session, ctx.tenant_id)
+def citations_intel(
+    ctx: Ctx, session: Db, start: str | None = None, end: str | None = None
+) -> dict:
+    return dashboards_service.citations_intel(session, ctx.tenant_id, start, end)
 
 
 @router.get("/reports/results.csv")

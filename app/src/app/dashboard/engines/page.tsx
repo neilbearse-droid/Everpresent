@@ -1,4 +1,4 @@
-import { apiFetch, type EngineScorecard, type Me } from "@/lib/api";
+import { apiFetch, rangeQuery, type EngineScorecard, type Me } from "@/lib/api";
 import { DashNav } from "@/components/dash-nav";
 import { NoOrgNotice } from "@/components/no-org-notice";
 import { HBars } from "@/components/charts";
@@ -19,10 +19,15 @@ const CELL_STYLE: Record<string, string> = {
 };
 const CELL_LABEL: Record<string, string> = { brand: "You", competitor: "Rival", absent: "—" };
 
-export default async function EnginesPage() {
+export default async function EnginesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ from?: string; to?: string }>;
+}) {
+  const { from, to } = await searchParams;
   const [me, card] = await Promise.all([
     apiFetch<Me>("/api/me"),
-    apiFetch<EngineScorecard>("/api/tenant/engine-scorecard"),
+    apiFetch<EngineScorecard>(`/api/tenant/engine-scorecard${rangeQuery(from, to)}`),
   ]);
   if (card.status === 403) {
     return <NoOrgNotice active="Engines" isSuperadmin={me.data?.is_superadmin} detail={card.error} />;
@@ -35,7 +40,7 @@ export default async function EnginesPage() {
 
   return (
     <main className="mx-auto max-w-6xl px-8 py-10">
-      <DashNav active="Engines" isSuperadmin={me.data?.is_superadmin} />
+      <DashNav active="Engines" isSuperadmin={me.data?.is_superadmin} withDateRange />
 
       {engines.length === 0 ? (
         <section className="card p-6">

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   apiFetch,
+  rangeQuery,
   type Me,
   type OverviewPayload,
   type TenantSummary,
@@ -11,11 +12,16 @@ import { NoOrgNotice } from "@/components/no-org-notice";
 import { TrendChart, HBars } from "@/components/charts";
 import { DELTA_DOWN, DELTA_UP, entityColors } from "@/lib/viz";
 
-export default async function OverviewPage() {
+export default async function OverviewPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ from?: string; to?: string }>;
+}) {
+  const { from, to } = await searchParams;
   const [me, tenant, overview] = await Promise.all([
     apiFetch<Me>("/api/me"),
     apiFetch<TenantSummary>("/api/tenant"),
-    apiFetch<OverviewPayload>("/api/tenant/overview"),
+    apiFetch<OverviewPayload>(`/api/tenant/overview${rangeQuery(from, to)}`),
   ]);
 
   if (!tenant.data) {
@@ -58,7 +64,7 @@ export default async function OverviewPage() {
 
   return (
     <main className="mx-auto max-w-6xl px-8 py-10">
-      <DashNav active="Overview" isSuperadmin={me.data?.is_superadmin} />
+      <DashNav active="Overview" isSuperadmin={me.data?.is_superadmin} withDateRange />
 
       <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
         <div>

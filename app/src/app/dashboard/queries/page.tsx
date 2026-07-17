@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { apiFetch, type Me, type QueriesIntelPayload } from "@/lib/api";
+import { apiFetch, rangeQuery, type Me, type QueriesIntelPayload } from "@/lib/api";
 import { DashNav } from "@/components/dash-nav";
 import { NoOrgNotice } from "@/components/no-org-notice";
 import { LIKELIHOOD_COLORS, LIKELIHOOD_LABELS, surfaceLabel } from "@/lib/viz";
@@ -56,10 +56,15 @@ function ModeLinks({
   );
 }
 
-export default async function QueriesPage() {
+export default async function QueriesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ from?: string; to?: string }>;
+}) {
+  const { from, to } = await searchParams;
   const [me, intel] = await Promise.all([
     apiFetch<Me>("/api/me"),
-    apiFetch<QueriesIntelPayload>("/api/tenant/queries-intel"),
+    apiFetch<QueriesIntelPayload>(`/api/tenant/queries-intel${rangeQuery(from, to)}`),
   ]);
   if (intel.status === 403) {
     return (
@@ -70,7 +75,7 @@ export default async function QueriesPage() {
 
   return (
     <main className="mx-auto max-w-6xl px-8 py-10">
-      <DashNav active="Queries" isSuperadmin={me.data?.is_superadmin} />
+      <DashNav active="Queries" isSuperadmin={me.data?.is_superadmin} withDateRange />
 
       <section className="card p-6">
         <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">

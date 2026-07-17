@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { OrganizationSwitcher, UserButton } from "@clerk/nextjs";
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
+import { DateRange } from "./date-range";
 import { ThemeToggle } from "./theme-toggle";
 
 /* Minimal 16px stroke icons (currentColor) — no external dependency. */
@@ -62,7 +63,18 @@ function BrandMark() {
   );
 }
 
-export function DashNav({ active, isSuperadmin }: { active: string; isSuperadmin?: boolean }): ReactNode {
+export function DashNav({
+  active,
+  isSuperadmin,
+  withDateRange,
+}: {
+  active: string;
+  isSuperadmin?: boolean;
+  /** Show the GA4-style date-range picker. Only pages whose data is
+   * time-scoped pass this — to-do screens (Action Plan, Recommendations)
+   * always reflect the current state. */
+  withDateRange?: boolean;
+}): ReactNode {
   return (
     <header className="sticky top-0 z-30 -mx-8 mb-8 border-b border-[var(--border)] bg-[color-mix(in_srgb,var(--plane)_82%,transparent)] px-8 backdrop-blur-xl">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between">
@@ -86,7 +98,7 @@ export function DashNav({ active, isSuperadmin }: { active: string; isSuperadmin
           <UserButton />
         </div>
       </div>
-      <nav className="mx-auto -mb-px flex max-w-6xl gap-0.5 overflow-x-auto pb-0">
+      <nav className="mx-auto -mb-px flex max-w-6xl items-center gap-0.5 overflow-x-auto pb-0">
         {TABS.map((tab) => {
           const on = active === tab.label;
           return (
@@ -107,6 +119,13 @@ export function DashNav({ active, isSuperadmin }: { active: string; isSuperadmin
             </Link>
           );
         })}
+        {withDateRange && (
+          <div className="ml-auto shrink-0 py-1 pl-4">
+            <Suspense>
+              <DateRange />
+            </Suspense>
+          </div>
+        )}
       </nav>
     </header>
   );

@@ -40,6 +40,16 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   return { ok: res.ok, status: res.status, data, error };
 }
 
+/** Build the ?start=&end= suffix for time-scoped intel endpoints from the
+ * page's ?from=&to= search params (the DateRange picker's URL state). */
+export function rangeQuery(from?: string, to?: string): string {
+  const p = new URLSearchParams();
+  if (from) p.set("start", from);
+  if (to) p.set("end", to);
+  const qs = p.toString();
+  return qs ? `?${qs}` : "";
+}
+
 export type Me = {
   email: string;
   display_name: string | null;

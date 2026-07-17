@@ -1,4 +1,4 @@
-import { apiFetch, type KpiScorecard, type Me } from "@/lib/api";
+import { apiFetch, rangeQuery, type KpiScorecard, type Me } from "@/lib/api";
 import { DashNav } from "@/components/dash-nav";
 import { NoOrgNotice } from "@/components/no-org-notice";
 import { HBars } from "@/components/charts";
@@ -21,10 +21,15 @@ function Tile({ value, label, sub }: { value: string; label: string; sub?: strin
   );
 }
 
-export default async function ScorecardPage() {
+export default async function ScorecardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ from?: string; to?: string }>;
+}) {
+  const { from, to } = await searchParams;
   const [me, sc] = await Promise.all([
     apiFetch<Me>("/api/me"),
-    apiFetch<KpiScorecard>("/api/tenant/kpi-scorecard"),
+    apiFetch<KpiScorecard>(`/api/tenant/kpi-scorecard${rangeQuery(from, to)}`),
   ]);
   if (sc.status === 403) {
     return <NoOrgNotice active="Scorecard" isSuperadmin={me.data?.is_superadmin} detail={sc.error} />;
@@ -33,7 +38,7 @@ export default async function ScorecardPage() {
   if (!d || d.prominence.measured === 0) {
     return (
       <main className="mx-auto max-w-6xl px-8 py-10">
-        <DashNav active="Scorecard" isSuperadmin={me.data?.is_superadmin} />
+        <DashNav active="Scorecard" isSuperadmin={me.data?.is_superadmin} withDateRange />
         <section className="card p-6">
           <h2 className="mb-2 text-lg font-medium">No scorecard yet</h2>
           <p className="text-sm text-[var(--text-2)]">
@@ -55,7 +60,7 @@ export default async function ScorecardPage() {
 
   return (
     <main className="mx-auto max-w-6xl px-8 py-10">
-      <DashNav active="Scorecard" isSuperadmin={me.data?.is_superadmin} />
+      <DashNav active="Scorecard" isSuperadmin={me.data?.is_superadmin} withDateRange />
 
       {/* North-star */}
       <section

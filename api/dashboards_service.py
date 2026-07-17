@@ -42,6 +42,48 @@ def _mean(values: list[float]) -> float:
     return round(sum(values) / len(values), 2) if values else 0.0
 
 
+def _date_window(
+    start: str | None, end: str | None
+) -> tuple[datetime | None, datetime | None]:
+    """Inclusive ISO-date range → UTC datetime bounds (end is exclusive, +1 day).
+    Invalid values are ignored rather than erroring — a bad filter should
+    degrade to 'all time', not break the dashboard."""
+
+    def parse(value: str | None) -> datetime | None:
+        if not value:
+            return None
+        try:
+            return datetime.fromisoformat(value).replace(tzinfo=UTC)
+        except ValueError:
+            return None
+
+    lo = parse(start)
+    hi = parse(end)
+    return lo, (hi + timedelta(days=1)) if hi else None
+
+
+def _in_window(dt: datetime, lo: datetime | None, hi: datetime | None) -> bool:
+    d = dt if dt.tzinfo else dt.replace(tzinfo=UTC)
+    return (lo is None or d >= lo) and (hi is None or d < hi)
+
+
+def _date_in_range(date: str, start: str | None, end: str | None) -> bool:
+    """ISO date strings compare lexicographically, so plain string bounds work."""
+    return (not start or date >= start) and (not end or date <= end)
+
+
+def _clean_date(value: str | None) -> str | None:
+    """None out anything that isn't a parseable ISO date, so string-compare
+    filters degrade to 'unbounded' instead of silently matching nothing."""
+    if not value:
+        return None
+    try:
+        datetime.fromisoformat(value)
+    except ValueError:
+        return None
+    return value
+
+
 def aio_summary(session: Session, tenant_id: int) -> dict:
     """The AIO tile (§10 M6 gate): how often Google's AI Overview answers the
     corpus, and whether the brand's domains are among its sources."""
@@ -81,12 +123,15 @@ def aio_summary(session: Session, tenant_id: int) -> dict:
 MAX_POWER_PAGES = 30
 
 
-def citations_intel(session: Session, tenant_id: int) -> dict:
+def citations_intel(
+    session: Session, tenant_id: int, start: str | None = None, end: str | None = None
+) -> dict:
     """Citations screen (§7.1 #4): which domains AI answers cite in this
     vertical, and whether the client is among them — plus Power Pages, the
     specific URLs that feed the category's answers. Domains are trivia; pages
     are the battlefield: getting onto (or beating) one high-influence page
     moves every answer it feeds."""
+    lo, hi = _date_window(start, end)
     results_by_id = {
         r.id: r
         for r in session.exec(select(Result).where(Result.tenant_id == tenant_id)).all()
@@ -97,6 +142,10 @@ def citations_intel(session: Session, tenant_id: int) -> dict:
     for citation in session.exec(
         select(Citation).where(Citation.tenant_id == tenant_id)
     ).all():
+        if lo or hi:
+            src = results_by_id.get(citation.result_id)
+            if src is None or not _in_window(src.created_at, lo, hi):
+                continue
         entry = domains.setdefault(
             citation.domain,
             {"domain": citation.domain, "category": citation.source_category, "count": 0,
@@ -155,14 +204,23 @@ def citations_intel(session: Session, tenant_id: int) -> dict:
     }
 
 
-def overview(session: Session, tenant_id: int) -> dict:
-    cutoff = (datetime.now(UTC) - timedelta(days=TREND_DAYS)).date().isoformat()
+def overview(
+    session: Session, tenant_id: int, start: str | None = None, end: str | None = None
+) -> dict:
+    # With an explicit range, honor it exactly; otherwise default to the
+    # trailing TREND_DAYS window.
+    start, end = _clean_date(start), _clean_date(end)
+    cutoff = (
+        start
+        if start
+        else (datetime.now(UTC) - timedelta(days=TREND_DAYS)).date().isoformat()
+    )
     rows = [
         r
         for r in session.exec(
             select(VisibilityDaily).where(VisibilityDaily.tenant_id == tenant_id)
         ).all()
-        if r.date >= cutoff
+        if _date_in_range(r.date, cutoff, end)
     ]
 
     by_date: dict[str, list[VisibilityDaily]] = defaultdict(list)
@@ -184,15 +242,18 @@ def overview(session: Session, tenant_id: int) -> dict:
             }
         )
 
-    # Share of voice from mentions over the window.
-    sov_cutoff = datetime.now(UTC) - timedelta(days=SOV_DAYS)
+    # Share of voice from mentions over the window (explicit range wins over
+    # the trailing SOV_DAYS default).
+    if start or end:
+        sov_lo, sov_hi = _date_window(start, end)
+    else:
+        sov_lo, sov_hi = datetime.now(UTC) - timedelta(days=SOV_DAYS), None
     recent_result_ids = {
         r.id
         for r in session.exec(select(Result).where(Result.tenant_id == tenant_id)).all()
         if r.id is not None
         and r.variant == ResultVariant.search
-        and (r.created_at.replace(tzinfo=UTC) if r.created_at.tzinfo is None else r.created_at)
-        >= sov_cutoff
+        and _in_window(r.created_at, sov_lo, sov_hi)
     }
     mention_counts: dict[str, int] = defaultdict(int)
     for mention in session.exec(
@@ -265,14 +326,21 @@ def overview(session: Session, tenant_id: int) -> dict:
     }
 
 
-def personas(session: Session, tenant_id: int) -> dict:
-    cutoff = (datetime.now(UTC) - timedelta(days=TREND_DAYS)).date().isoformat()
+def personas(
+    session: Session, tenant_id: int, start: str | None = None, end: str | None = None
+) -> dict:
+    start, end = _clean_date(start), _clean_date(end)
+    cutoff = (
+        start
+        if start
+        else (datetime.now(UTC) - timedelta(days=TREND_DAYS)).date().isoformat()
+    )
     rows = [
         r
         for r in session.exec(
             select(VisibilityDaily).where(VisibilityDaily.tenant_id == tenant_id)
         ).all()
-        if r.date >= cutoff
+        if _date_in_range(r.date, cutoff, end)
     ]
     if not rows:
         return {"date": None, "segments": [], "trend": []}
@@ -317,9 +385,14 @@ def personas(session: Session, tenant_id: int) -> dict:
 
 
 def _latest_results_by_variant(
-    session: Session, tenant_id: int, variant: ResultVariant
+    session: Session,
+    tenant_id: int,
+    variant: ResultVariant,
+    lo: datetime | None = None,
+    hi: datetime | None = None,
 ) -> dict[tuple[str, str], Result]:
-    """Newest result per (query_text, surface) for one variant."""
+    """Newest result per (query_text, surface) for one variant, restricted to
+    the [lo, hi) window when given — i.e. the state 'as of' the range's end."""
     latest: dict[tuple[str, str], Result] = {}
     for result in session.exec(
         select(Result).where(
@@ -328,6 +401,8 @@ def _latest_results_by_variant(
             Result.status == "ok",
         )
     ).all():
+        if not _in_window(result.created_at, lo, hi):
+            continue
         key = (result.query_text, str(result.surface))
         if key not in latest or (result.id or 0) > (latest[key].id or 0):
             latest[key] = result
@@ -368,15 +443,18 @@ _DIAGNOSIS = {
 }
 
 
-def engine_scorecard(session: Session, tenant_id: int) -> dict:
+def engine_scorecard(
+    session: Session, tenant_id: int, start: str | None = None, end: str | None = None
+) -> dict:
     """Cross-engine analysis: per-engine visibility, a query×engine grid of who
     appears (you / competitor / absent), and a per-query 'why you're missing'
     diagnosis from the search-vs-training diff. Pure reads — no LLM, no spend."""
     brand_name = _brand_name(session, tenant_id)
     queries = list(session.exec(select(Query).where(Query.tenant_id == tenant_id)).all())
 
-    search = _latest_results_by_variant(session, tenant_id, ResultVariant.search)
-    nosearch = _latest_results_by_variant(session, tenant_id, ResultVariant.nosearch)
+    lo, hi = _date_window(start, end)
+    search = _latest_results_by_variant(session, tenant_id, ResultVariant.search, lo, hi)
+    nosearch = _latest_results_by_variant(session, tenant_id, ResultVariant.nosearch, lo, hi)
 
     # Mentions per result: brand present? which competitors?
     all_ids = [r.id for r in list(search.values()) + list(nosearch.values()) if r.id is not None]
@@ -483,13 +561,16 @@ def _stdev(values: list[float]) -> float:
 STABILITY_RUNS = 8
 
 
-def kpi_scorecard(session: Session, tenant_id: int) -> dict:
+def kpi_scorecard(
+    session: Session, tenant_id: int, start: str | None = None, end: str | None = None
+) -> dict:
     """The KPIs an AEO panel converged on (§panel): a prominence-weighted
     Answer Share (north-star), plus prominence, competitive head-to-head,
     sentiment/framing, and run-over-run stability. Pure reads over the
     mention/rank/sentiment data already captured — no LLM, no run spend."""
     brand_name = _brand_name(session, tenant_id)
-    search = _latest_results_by_variant(session, tenant_id, ResultVariant.search)
+    lo, hi = _date_window(start, end)
+    search = _latest_results_by_variant(session, tenant_id, ResultVariant.search, lo, hi)
     results = list(search.values())
     result_ids = [r.id for r in results if r.id is not None]
 
@@ -563,7 +644,7 @@ def kpi_scorecard(session: Session, tenant_id: int) -> dict:
         key=lambda x: -x["shared"],
     )
 
-    # Stability: brand presence rate across the last few runs.
+    # Stability: brand presence rate across the last few runs (in-window).
     by_run: dict[int, list[Result]] = defaultdict(list)
     for r in session.exec(
         select(Result).where(
@@ -571,6 +652,8 @@ def kpi_scorecard(session: Session, tenant_id: int) -> dict:
             Result.status == "ok",
         )
     ).all():
+        if not _in_window(r.created_at, lo, hi):
+            continue
         by_run[r.run_id].append(r)
     recent_runs = sorted(by_run)[-STABILITY_RUNS:]
     run_ids_flat = [x.id for rid in recent_runs for x in by_run[rid] if x.id is not None]
@@ -630,15 +713,19 @@ def kpi_scorecard(session: Session, tenant_id: int) -> dict:
     }
 
 
-def outcome(session: Session, tenant_id: int) -> dict:
+def outcome(
+    session: Session, tenant_id: int, start: str | None = None, end: str | None = None
+) -> dict:
     """The Outcome view (panel #6): AI-referred sessions + conversions from GA4,
     overlaid on the brand-visibility trend. Answers 'did visibility move the
     business'. Empty until a GA4 property is connected and the nightly pull
     runs."""
+    start, end = _clean_date(start), _clean_date(end)
     tenant = session.get(Tenant, tenant_id)
-    referrals = list(
+    all_referrals = list(
         session.exec(select(AiReferralDaily).where(AiReferralDaily.tenant_id == tenant_id)).all()
     )
+    referrals = [r for r in all_referrals if _date_in_range(r.date, start, end)]
 
     def _zero() -> dict[str, int]:
         return {"sessions": 0, "conversions": 0}
@@ -656,7 +743,8 @@ def outcome(session: Session, tenant_id: int) -> dict:
     for v in session.exec(
         select(VisibilityDaily).where(VisibilityDaily.tenant_id == tenant_id)
     ).all():
-        vis_by_date[v.date].append(v.brand_score)
+        if _date_in_range(v.date, start, end):
+            vis_by_date[v.date].append(v.brand_score)
 
     dates = sorted(set(by_date) | set(vis_by_date))
     series = [
@@ -675,7 +763,7 @@ def outcome(session: Session, tenant_id: int) -> dict:
     return {
         "brand_name": _brand_name(session, tenant_id),
         "connected": bool(tenant and tenant.ga4_property_id),
-        "has_data": bool(referrals),
+        "has_data": bool(all_referrals),
         "series": series,
         "engine_totals": [
             {"engine": e, **vals}
@@ -1205,7 +1293,9 @@ def _brief_outline(
     return outline
 
 
-def queries_intel(session: Session, tenant_id: int) -> dict:
+def queries_intel(
+    session: Session, tenant_id: int, start: str | None = None, end: str | None = None
+) -> dict:
     queries = list(session.exec(select(Query).where(Query.tenant_id == tenant_id)).all())
     classifications = {
         (c.query_text, str(c.surface)): c
@@ -1214,13 +1304,16 @@ def queries_intel(session: Session, tenant_id: int) -> dict:
         ).all()
     }
 
-    # Latest search-variant result per (query_text, surface).
+    # Latest search-variant result per (query_text, surface), in-window.
+    lo, hi = _date_window(start, end)
     latest_results: dict[tuple[str, str], Result] = {}
     for result in session.exec(
         select(Result).where(
             Result.tenant_id == tenant_id, Result.variant == ResultVariant.search
         )
     ).all():
+        if not _in_window(result.created_at, lo, hi):
+            continue
         key = (result.query_text, str(result.surface))
         if key not in latest_results or (result.id or 0) > (latest_results[key].id or 0):
             latest_results[key] = result

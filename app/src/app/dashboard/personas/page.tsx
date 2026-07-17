@@ -1,13 +1,18 @@
-import { apiFetch, type Me, type PersonasPayload } from "@/lib/api";
+import { apiFetch, rangeQuery, type Me, type PersonasPayload } from "@/lib/api";
 import { DashNav } from "@/components/dash-nav";
 import { NoOrgNotice } from "@/components/no-org-notice";
 import { HBars } from "@/components/charts";
 import { SERIES_COLORS } from "@/lib/viz";
 
-export default async function PersonasPage() {
+export default async function PersonasPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ from?: string; to?: string }>;
+}) {
+  const { from, to } = await searchParams;
   const [me, personas] = await Promise.all([
     apiFetch<Me>("/api/me"),
-    apiFetch<PersonasPayload>("/api/tenant/personas-intel"),
+    apiFetch<PersonasPayload>(`/api/tenant/personas-intel${rangeQuery(from, to)}`),
   ]);
   if (personas.status === 403) {
     return (
@@ -18,7 +23,7 @@ export default async function PersonasPage() {
 
   return (
     <main className="mx-auto max-w-6xl px-8 py-10">
-      <DashNav active="Personas" isSuperadmin={me.data?.is_superadmin} />
+      <DashNav active="Personas" isSuperadmin={me.data?.is_superadmin} withDateRange />
 
       {!data || data.segments.length === 0 ? (
         <section className="card p-6">

@@ -1,12 +1,17 @@
-import { apiFetch, type Me, type OutcomePayload } from "@/lib/api";
+import { apiFetch, rangeQuery, type Me, type OutcomePayload } from "@/lib/api";
 import { DashNav } from "@/components/dash-nav";
 import { NoOrgNotice } from "@/components/no-org-notice";
 import { HBars } from "@/components/charts";
 
-export default async function OutcomePage() {
+export default async function OutcomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ from?: string; to?: string }>;
+}) {
+  const { from, to } = await searchParams;
   const [me, out] = await Promise.all([
     apiFetch<Me>("/api/me"),
-    apiFetch<OutcomePayload>("/api/tenant/outcome"),
+    apiFetch<OutcomePayload>(`/api/tenant/outcome${rangeQuery(from, to)}`),
   ]);
   if (out.status === 403) {
     return <NoOrgNotice active="Outcome" isSuperadmin={me.data?.is_superadmin} detail={out.error} />;
@@ -15,7 +20,7 @@ export default async function OutcomePage() {
 
   const notReady = (title: string, body: string) => (
     <main className="mx-auto max-w-6xl px-8 py-10">
-      <DashNav active="Outcome" isSuperadmin={me.data?.is_superadmin} />
+      <DashNav active="Outcome" isSuperadmin={me.data?.is_superadmin} withDateRange />
       <section className="card p-6">
         <h2 className="mb-2 text-lg font-medium">{title}</h2>
         <p className="max-w-xl text-sm text-[var(--text-2)]">{body}</p>
@@ -41,7 +46,7 @@ export default async function OutcomePage() {
 
   return (
     <main className="mx-auto max-w-6xl px-8 py-10">
-      <DashNav active="Outcome" isSuperadmin={me.data?.is_superadmin} />
+      <DashNav active="Outcome" isSuperadmin={me.data?.is_superadmin} withDateRange />
 
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
         <div className="card p-5">
