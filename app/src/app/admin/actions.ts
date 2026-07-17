@@ -2,9 +2,28 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, type AccessAuditDomain } from "@/lib/api";
 
 export type ActionState = { ok: boolean; message: string } | null;
+
+export type AuditState = {
+  ok: boolean;
+  message: string;
+  domains?: AccessAuditDomain[];
+} | null;
+
+export async function runAccessAudit(
+  slug: string,
+  _prev: AuditState,
+  _formData: FormData,
+): Promise<AuditState> {
+  const res = await apiFetch<{ domains: AccessAuditDomain[] }>(
+    `/api/admin/tenants/${slug}/access-audit`,
+    { method: "POST" },
+  );
+  if (!res.ok) return { ok: false, message: res.error ?? "Audit failed" };
+  return { ok: true, message: "Audit complete.", domains: res.data!.domains };
+}
 
 export async function createTenant(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const name = String(formData.get("name") ?? "").trim();

@@ -283,6 +283,30 @@ def result_raw(result_id: int, session: Db) -> dict:
     return envelope
 
 
+@router.post("/tenants/{slug}/access-audit")
+def access_audit(slug: str, session: Db, admin: Admin) -> dict:
+    """AI-crawler access audit: probes the tenant's brand domains for
+    robots.txt AI-agent rules, CDN bot-blocking, llms.txt, and homepage
+    schema. Live outbound HTTP (a few requests per domain); on-demand only."""
+    from engine.audit.access import audit_domains
+
+    tenant = _tenant_or_404(session, slug)
+    brand = session.exec(
+        select(BrandProfile).where(BrandProfile.tenant_id == tenant.id)
+    ).first()
+    domains = brand.domains if brand else []
+    if not domains:
+        raise HTTPException(
+            status_code=422, detail="No brand domains configured — import a config first"
+        )
+    results = audit_domains(domains[:5])  # bound the probe fan-out
+    write_audit(
+        session, tenant_id=tenant.id, actor=admin.user.email, action=f"tenant.access-audit {slug}"
+    )
+    session.commit()
+    return {"domains": results}
+
+
 class SchedulePut(BaseModel):
     cron_expr: str
     enabled: bool = True

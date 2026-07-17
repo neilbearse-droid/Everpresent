@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { apiFetch, type Me, type TenantDetail } from "@/lib/api";
 import { surfaceLabel } from "@/lib/viz";
 import { setGovernance, toggleSurface } from "../actions";
+import { AccessAuditPanel } from "./access-audit-panel";
 import { ClerkOrgForm } from "./clerk-org-form";
 import { Ga4Form } from "./ga4-form";
 import { ImportYamlForm } from "./import-yaml-form";
@@ -156,6 +157,16 @@ export default async function TenantAdminPage({
             Run-completion reports (PDF + CSV) go to these addresses. Comma-separated.
           </p>
           <NotifyEmailsForm slug={tenant.slug} emails={tenant.notify_emails.join(", ")} />
+        </section>
+
+        <section className="card p-5">
+          <h2 className="mb-3 font-medium">AI access audit</h2>
+          <p className="mb-3 text-xs text-[var(--text-2)]">
+            Probes the brand's domains the way the answer engines do: robots.txt rules for
+            each AI crawler, CDN bot-blocking, llms.txt, and homepage structured data. A
+            surprising share of visibility gaps are a one-line config fix.
+          </p>
+          <AccessAuditPanel slug={tenant.slug} />
         </section>
 
         <section className="card p-5">

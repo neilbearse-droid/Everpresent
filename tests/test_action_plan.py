@@ -147,3 +147,40 @@ def test_contestability_ranks_briefs_and_power_pages_group_by_url(db_session):
     assert pages[0]["url"] == "https://g2.com/best-crm"
     assert pages[0]["queries"] == 2 and pages[0]["citations"] == 2
     assert pages[1]["queries"] == 1
+
+
+def test_lost_citation_radar_diffs_brand_pages_across_runs(db_session):
+    tenant = Tenant(name="Acme", slug="acme")
+    db_session.add(tenant)
+    db_session.commit()
+    tid = tenant.id
+    db_session.add(BrandProfile(tenant_id=tid, brand_name="Acme", domains=["acme.com"]))
+    db_session.add(Query(tenant_id=tid, text="q1", corpus_tag="c"))
+    db_session.add(Query(tenant_id=tid, text="q2", corpus_tag="c"))
+    db_session.commit()
+    run1 = Run(tenant_id=tid, trigger="manual", status=RunStatus.complete)
+    run2 = Run(tenant_id=tid, trigger="manual", status=RunStatus.complete)
+    db_session.add(run1)
+    db_session.add(run2)
+    db_session.commit()
+
+    def cite(run_id, qtext, url):
+        r = _result(db_session, run_id, tid, qtext, "openai_api", "search")
+        db_session.add(Citation(result_id=r.id, tenant_id=tid, url=url,
+                                domain="acme.com", source_category="brand"))
+        db_session.commit()
+
+    # Run 1: /guide cited on q1+q2, /pricing on q1. Run 2: only /guide on q1.
+    cite(run1.id, "q1", "https://acme.com/guide")
+    cite(run1.id, "q2", "https://acme.com/guide")
+    cite(run1.id, "q1", "https://acme.com/pricing")
+    cite(run2.id, "q1", "https://acme.com/guide")
+
+    protect = action_plan(db_session, tid)["protect"]
+    assert protect["ready"] is True
+    assert protect["held"] == 1 and protect["gained"] == 0
+    lost = {entry["url"]: entry for entry in protect["lost"]}
+    assert lost["https://acme.com/guide"]["queries"] == ["q2"]
+    assert lost["https://acme.com/guide"]["still_cited_on"] == 1
+    assert lost["https://acme.com/pricing"]["queries"] == ["q1"]
+    assert lost["https://acme.com/pricing"]["still_cited_on"] == 0

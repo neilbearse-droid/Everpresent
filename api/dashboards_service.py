@@ -729,6 +729,61 @@ def _contestability(session: Session, tenant_id: int, query_texts: set[str]) -> 
     return out
 
 
+def _lost_citations(session: Session, tenant_id: int) -> dict:
+    """Lost-Citation Radar (§focus-group #4): run-over-run diff of the brand's
+    OWN cited pages. Losing a citation is the earliest actionable decay signal,
+    and the proven fix is cheap — refresh the page's dates, stats, and examples.
+    Compares the last two runs that produced brand-page citations."""
+    result_ctx = {
+        r.id: (r.run_id, r.query_text)
+        for r in session.exec(
+            select(Result).where(
+                Result.tenant_id == tenant_id,
+                Result.variant == ResultVariant.search,
+                Result.status == "ok",
+            )
+        ).all()
+        if r.id is not None
+    }
+    by_run: dict[int, set[tuple[str, str]]] = defaultdict(set)
+    domain_of: dict[str, str] = {}
+    for c in session.exec(
+        select(Citation).where(
+            Citation.tenant_id == tenant_id, Citation.source_category == "brand"
+        )
+    ).all():
+        ctx = result_ctx.get(c.result_id)
+        if ctx is None:
+            continue
+        run_id, query_text = ctx
+        by_run[run_id].add((c.url, query_text))
+        domain_of[c.url] = c.domain
+
+    run_ids = sorted(by_run)
+    if len(run_ids) < 2:
+        return {"ready": False, "lost": [], "held": len(by_run[run_ids[0]]) if run_ids else 0,
+                "gained": 0}
+    prev_set, latest_set = by_run[run_ids[-2]], by_run[run_ids[-1]]
+    lost_pairs = prev_set - latest_set
+    latest_urls: dict[str, int] = defaultdict(int)
+    for url, _q in latest_set:
+        latest_urls[url] += 1
+
+    lost_by_url: dict[str, list[str]] = defaultdict(list)
+    for url, query in sorted(lost_pairs):
+        lost_by_url[url].append(query)
+    return {
+        "ready": True,
+        "lost": [
+            {"url": url, "domain": domain_of.get(url, ""), "queries": queries,
+             "still_cited_on": latest_urls.get(url, 0)}
+            for url, queries in sorted(lost_by_url.items(), key=lambda kv: -len(kv[1]))
+        ],
+        "held": len(prev_set & latest_set),
+        "gained": len(latest_set - prev_set),
+    }
+
+
 def action_plan(session: Session, tenant_id: int) -> dict:
     """The actionable layer (panel #1 + #4): a citation-gap target list — the
     third-party sources that cite rivals in this vertical but not you — and a
@@ -858,6 +913,7 @@ def action_plan(session: Session, tenant_id: int) -> dict:
         "targets": targets,
         "briefs": briefs,
         "strike_zone": strike_zone,
+        "protect": _lost_citations(session, tenant_id),
         "summary": {
             "target_domains": len(targets),
             "briefs": len(briefs),

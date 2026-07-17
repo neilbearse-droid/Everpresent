@@ -299,7 +299,35 @@ export type ActionPlan = {
     };
   }[];
   strike_zone: Record<string, number>;
+  protect: {
+    ready: boolean;
+    lost: { url: string; domain: string; queries: string[]; still_cited_on: number }[];
+    held: number;
+    gained: number;
+  };
   summary: Record<string, number>;
+};
+
+export type AccessAuditAgent = {
+  agent: string;
+  role: string;
+  kind: string;
+  allowed: boolean;
+  mentioned: boolean;
+};
+
+export type AccessAuditDomain = {
+  domain: string;
+  error: string | null;
+  robots_status: number | null;
+  agents: AccessAuditAgent[];
+  has_llms_txt: boolean;
+  has_json_ld: boolean;
+  status_normal: number | null;
+  status_bot: number | null;
+  ua_blocked: boolean;
+  grade: "pass" | "warn" | "fail";
+  issues: string[];
 };
 
 export type TenantDetail = {

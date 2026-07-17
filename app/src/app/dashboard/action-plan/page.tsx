@@ -104,6 +104,75 @@ export default async function ActionPlanPage() {
             )}
           </section>
 
+          {/* Lost-Citation Radar — protect what you've already won */}
+          {data!.protect?.ready && (
+            <section className="card p-6">
+              <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
+                Protect — your pages losing citations
+              </h2>
+              <p className="mb-3 text-xs text-[var(--text-3)]">
+                Run-over-run diff of your own cited pages. Losing a citation is the earliest
+                decay signal — the proven fix is a cheap refresh: update the page's dates,
+                stats, and examples.
+              </p>
+              <div className="mb-4 flex flex-wrap gap-2 text-xs">
+                <span className="chip text-[var(--pos)]">{data!.protect.held} held</span>
+                {data!.protect.gained > 0 && (
+                  <span className="chip text-[var(--pos)]">{data!.protect.gained} gained</span>
+                )}
+                <span
+                  className={`chip ${data!.protect.lost.length ? "text-[var(--neg)]" : ""}`}
+                >
+                  {data!.protect.lost.length} losing ground
+                </span>
+              </div>
+              {data!.protect.lost.length === 0 ? (
+                <p className="text-sm text-[var(--pos)]">
+                  No lost citations since the previous run — your cited pages are holding.
+                </p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className="text-[var(--text-2)]">
+                      <tr>
+                        <th className="py-2 pr-4">Your page</th>
+                        <th className="pr-4">Lost its citation on</th>
+                        <th>Still cited on</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {data!.protect.lost.map((entry) => (
+                        <tr key={entry.url} className="border-t border-[var(--border)]">
+                          <td className="max-w-sm py-2.5 pr-4">
+                            <a
+                              href={entry.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="block truncate font-mono text-xs text-[var(--accent)] hover:underline"
+                              title={entry.url}
+                            >
+                              {entry.url.replace(/^https?:\/\//, "")}
+                            </a>
+                          </td>
+                          <td className="pr-4 text-xs text-[var(--text-2)]">
+                            {entry.queries.join(" · ")}
+                          </td>
+                          <td className="tabular-nums text-xs">
+                            {entry.still_cited_on > 0 ? (
+                              `${entry.still_cited_on} ${entry.still_cited_on === 1 ? "query" : "queries"}`
+                            ) : (
+                              <span className="text-[var(--neg)]">nothing — fully dropped</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          )}
+
           {/* #1 — Content briefs */}
           <section>
             <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
