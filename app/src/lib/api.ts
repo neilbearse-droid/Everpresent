@@ -203,6 +203,7 @@ export type CitationsPayload = {
     page_features: PageFeatures | null;
   }[];
   consulted_domains: { domain: string; count: number; queries: number }[];
+  source_types_by_engine: Record<string, Record<string, number>>;
   aio: AIOSummary;
 };
 

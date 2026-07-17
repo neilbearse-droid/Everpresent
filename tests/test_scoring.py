@@ -1,6 +1,6 @@
 """Golden regression set for visibility scoring (DECISIONS.md M3.1)."""
 
-from engine.processing.citations import categorize_domain
+from engine.processing.citations import categorize_domain, classify_source_type
 from engine.processing.scoring import ResultSignals, score_entity, share_of_voice
 
 
@@ -43,3 +43,14 @@ def test_citation_categorization():
     assert categorize_domain("rotman.utoronto.ca", brand, comp) == "competitor"
     assert categorize_domain("ft.com", brand, comp) == "other"
     assert categorize_domain("notsmith.queensu.ca", brand, comp) == "other"
+
+
+def test_source_type_classification():
+    assert classify_source_type("en.wikipedia.org") == "encyclopedia"
+    assert classify_source_type("www.reddit.com") == "community"
+    assert classify_source_type("youtube.com") == "video"
+    assert classify_source_type("g2.com") == "review"
+    assert classify_source_type("linkedin.com") == "social"
+    # The long tail — real publishers — falls through to 'publisher'.
+    assert classify_source_type("ft.com") == "publisher"
+    assert classify_source_type("smith.queensu.ca") == "publisher"

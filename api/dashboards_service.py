@@ -24,7 +24,7 @@ from api.models import (
     Tenant,
     VisibilityDaily,
 )
-from engine.processing.citations import domain_is_owned
+from engine.processing.citations import classify_source_type, domain_is_owned
 
 TREND_DAYS = 90
 SOV_DAYS = 30
@@ -142,6 +142,9 @@ def citations_intel(
     }
     domains: dict[str, dict] = {}
     pages: dict[str, dict] = {}
+    # Per-engine source-type mix (§AEO-plan m4): where each engine draws its
+    # citations from, so the earned-media playbook can be tailored per engine.
+    source_types_by_engine: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
     for citation in session.exec(
         select(Citation).where(Citation.tenant_id == tenant_id)
     ).all():
@@ -149,6 +152,11 @@ def citations_intel(
             src = results_by_id.get(citation.result_id)
             if src is None or not _in_window(src.created_at, lo, hi):
                 continue
+        _res = results_by_id.get(citation.result_id)
+        if _res is not None:
+            source_types_by_engine[str(_res.surface)][
+                classify_source_type(citation.domain)
+            ] += 1
         entry = domains.setdefault(
             citation.domain,
             {"domain": citation.domain, "category": citation.source_category, "count": 0,
@@ -226,6 +234,10 @@ def citations_intel(
             {"domain": d["domain"], "count": d["count"], "queries": len(d["queries"])}
             for d in consulted_ranked
         ],
+        "source_types_by_engine": {
+            surface: dict(sorted(types.items(), key=lambda kv: -kv[1]))
+            for surface, types in source_types_by_engine.items()
+        },
         "aio": aio_summary(session, tenant_id),
     }
 

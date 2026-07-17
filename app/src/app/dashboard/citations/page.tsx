@@ -140,6 +140,39 @@ export default async function CitationsPage({
             </section>
           )}
 
+          {Object.keys(data.source_types_by_engine ?? {}).length > 0 && (
+            <section className="card mb-6 p-6">
+              <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
+                What each engine cites — source-type mix
+              </h2>
+              <p className="mb-4 text-xs text-[var(--text-3)]">
+                Engines draw from different kinds of sources: ChatGPT leans encyclopedia and
+                publishers, Perplexity and AI Overviews lean community (Reddit). Match your
+                earned-media effort to where each engine actually looks.
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {Object.entries(data.source_types_by_engine).map(([surface, types]) => {
+                  const total = Object.values(types).reduce((a, b) => a + b, 0) || 1;
+                  return (
+                    <div key={surface} className="card-inset p-3">
+                      <div className="mb-2 text-sm font-medium">{surfaceLabel(surface)}</div>
+                      <div className="space-y-1">
+                        {Object.entries(types).map(([type, count]) => (
+                          <div key={type} className="flex items-center justify-between text-xs">
+                            <span className="text-[var(--text-2)]">{type}</span>
+                            <span className="tabular-nums text-[var(--text-3)]">
+                              {Math.round((100 * count) / total)}%
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
+
           {(data.consulted_domains ?? []).length > 0 && (
             <section className="card mb-6 p-6">
               <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
