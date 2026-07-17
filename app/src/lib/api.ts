@@ -383,6 +383,23 @@ export type InterventionsReport = {
   } | null;
 };
 
+export type AccuracyReport = {
+  brand_name: string;
+  facts_on_file: number;
+  measured: number;
+  error_count: number;
+  errors: {
+    subject: string;
+    category: string;
+    severity: string;
+    expected: string;
+    stated: string;
+    detail: string;
+    snippet: string;
+    engines: string[];
+  }[];
+};
+
 export type FanoutReport = {
   brand_name: string;
   observed: boolean;

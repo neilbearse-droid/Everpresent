@@ -1,4 +1,4 @@
-import { apiFetch, rangeQuery, type KpiScorecard, type Me } from "@/lib/api";
+import { apiFetch, rangeQuery, type AccuracyReport, type KpiScorecard, type Me } from "@/lib/api";
 import { DashNav } from "@/components/dash-nav";
 import { NoOrgNotice } from "@/components/no-org-notice";
 import { HBars } from "@/components/charts";
@@ -27,9 +27,10 @@ export default async function ScorecardPage({
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
   const { from, to } = await searchParams;
-  const [me, sc] = await Promise.all([
+  const [me, sc, acc] = await Promise.all([
     apiFetch<Me>("/api/me"),
     apiFetch<KpiScorecard>(`/api/tenant/kpi-scorecard${rangeQuery(from, to)}`),
+    apiFetch<AccuracyReport>("/api/tenant/accuracy"),
   ]);
   if (sc.status === 403) {
     return <NoOrgNotice active="Scorecard" isSuperadmin={me.data?.is_superadmin} detail={sc.error} />;
@@ -124,6 +125,56 @@ export default async function ScorecardPage({
           </div>
         </div>
       </div>
+
+      {acc.data && acc.data.facts_on_file > 0 && (
+        <section className="card mb-6 p-6">
+          <div className="mb-1 flex items-center justify-between gap-3">
+            <h2 className="text-sm font-medium text-[var(--text-2)]">
+              Factual accuracy — what the engines get wrong about you
+            </h2>
+            <span
+              className={`rounded px-2 py-0.5 text-xs font-semibold ${
+                acc.data.error_count === 0
+                  ? "bg-emerald-600 text-white"
+                  : "bg-red-600 text-white"
+              }`}
+            >
+              {acc.data.error_count === 0
+                ? "clean"
+                : `${acc.data.error_count} error${acc.data.error_count > 1 ? "s" : ""}`}
+            </span>
+          </div>
+          <p className="mb-3 text-xs text-[var(--text-3)]">
+            Checked against {acc.data.facts_on_file} fact
+            {acc.data.facts_on_file > 1 ? "s" : ""} on file. A confidently wrong answer about
+            pricing or accreditation at scale is worse than a missing citation — fix the page
+            the engines are citing.
+          </p>
+          {acc.data.error_count === 0 ? (
+            <p className="text-sm text-[var(--pos)]">
+              No contradictions found in the latest answers.
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {acc.data.errors.map((e, i) => (
+                <li key={i} className="card-inset p-3 text-sm">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="chip text-[var(--neg)]">{e.category}</span>
+                    <span className="font-medium text-[var(--text)]">{e.subject}</span>
+                    <span className="text-xs text-[var(--text-3)]">
+                      on {e.engines.join(", ")}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-[var(--text-2)]">{e.detail}</p>
+                  {e.snippet && (
+                    <p className="mt-1 text-xs italic text-[var(--text-3)]">“{e.snippet}”</p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Prominence distribution */}

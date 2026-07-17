@@ -11,6 +11,7 @@ from api.audit import write_audit
 from api.auth import AuthedUser, require_superadmin
 from api.db import get_session
 from api.models import (
+    BrandFact,
     BrandProfile,
     Competitor,
     Persona,
@@ -305,6 +306,65 @@ def access_audit(slug: str, session: Db, admin: Admin) -> dict:
     )
     session.commit()
     return {"domains": results}
+
+
+@router.get("/tenants/{slug}/brand-facts")
+def list_brand_facts(slug: str, session: Db, admin: Admin) -> list[BrandFact]:
+    tenant = _tenant_or_404(session, slug)
+    return list(
+        session.exec(
+            select(BrandFact).where(BrandFact.tenant_id == tenant.id).order_by(
+                BrandFact.category, BrandFact.label  # pyright: ignore[reportArgumentType]
+            )
+        ).all()
+    )
+
+
+class BrandFactCreate(BaseModel):
+    category: str = "general"
+    label: str
+    subject: str
+    aliases: list[str] = []
+    kind: str = "numeric"  # numeric | disallowed
+    expected: str
+
+
+@router.post("/tenants/{slug}/brand-facts", status_code=201)
+def create_brand_fact(
+    slug: str, payload: BrandFactCreate, session: Db, admin: Admin
+) -> BrandFact:
+    tenant = _tenant_or_404(session, slug)
+    if payload.kind not in ("numeric", "disallowed"):
+        raise HTTPException(status_code=422, detail="kind must be 'numeric' or 'disallowed'")
+    if not payload.label.strip() or not payload.subject.strip() or not payload.expected.strip():
+        raise HTTPException(status_code=422, detail="label, subject, and expected are required")
+    fact = BrandFact(
+        tenant_id=tenant.id,
+        category=payload.category.strip() or "general",
+        label=payload.label.strip(),
+        subject=payload.subject.strip(),
+        aliases=[a.strip() for a in payload.aliases if a.strip()],
+        kind=payload.kind,
+        expected=payload.expected.strip(),
+    )
+    session.add(fact)
+    write_audit(session, tenant_id=tenant.id, actor=admin.user.email,
+                action=f"tenant.brand-fact.create {slug}")
+    session.commit()
+    session.refresh(fact)
+    return fact
+
+
+@router.delete("/tenants/{slug}/brand-facts/{fact_id}", status_code=204)
+def delete_brand_fact(slug: str, fact_id: int, session: Db, admin: Admin) -> None:
+    tenant = _tenant_or_404(session, slug)
+    fact = session.get(BrandFact, fact_id)
+    if fact is None or fact.tenant_id != tenant.id:
+        raise HTTPException(status_code=404, detail="No such fact")
+    session.delete(fact)
+    write_audit(session, tenant_id=tenant.id, actor=admin.user.email,
+                action=f"tenant.brand-fact.delete {slug}")
+    session.commit()
 
 
 @router.post("/tenants/{slug}/crawl-pages", status_code=202)

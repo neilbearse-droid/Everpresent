@@ -131,6 +131,11 @@ def fanout(ctx: Ctx, session: Db) -> dict:
     return dashboards_service.fanout_report(session, ctx.tenant_id)
 
 
+@router.get("/accuracy")
+def accuracy(ctx: Ctx, session: Db) -> dict:
+    return dashboards_service.accuracy_report(session, ctx.tenant_id)
+
+
 @router.get("/outcome")
 def outcome(ctx: Ctx, session: Db, start: str | None = None, end: str | None = None) -> dict:
     return dashboards_service.outcome(session, ctx.tenant_id, start, end)

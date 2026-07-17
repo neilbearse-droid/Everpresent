@@ -9,6 +9,8 @@ from datetime import UTC, datetime
 from sqlmodel import Session, delete, select
 
 from api.models import (
+    AccuracyFinding,
+    BrandFact,
     BrandProfile,
     Citation,
     Competitor,
@@ -24,6 +26,8 @@ from api.models import (
     utcnow,
 )
 from api.storage import read_raw_envelope
+from engine.processing.accuracy import DETECTOR_VERSION as ACCURACY_VERSION
+from engine.processing.accuracy import FactSpec, check_text
 from engine.processing.aio import classify_aio_capture
 from engine.processing.citations import categorize_domain, domain_is_owned
 from engine.processing.classify import (
@@ -79,12 +83,27 @@ def process_run(session: Session, run: Run) -> dict[str, int]:
         if r.variant == ResultVariant.nosearch and r.status == ResultStatus.ok
     }
 
+    # Ground-truth fact sheet for the accuracy check (§AEO-plan M4); empty is
+    # fine — the check degrades to "no facts on file".
+    fact_specs = [
+        FactSpec(id=f.id, category=f.category, label=f.label, subject=f.subject,
+                 aliases=list(f.aliases or []), kind=f.kind, expected=f.expected)
+        for f in session.exec(
+            select(BrandFact).where(
+                BrandFact.tenant_id == run.tenant_id, BrandFact.active == True  # noqa: E712
+            )
+        ).all()
+        if f.id is not None
+    ]
+
     # Idempotent reprocess: clear this run's derived rows.
     result_ids = [r.id for r in results if r.id is not None]
     if result_ids:
         session.exec(delete(Mention).where(Mention.result_id.in_(result_ids)))  # pyright: ignore[reportAttributeAccessIssue, reportCallIssue, reportArgumentType]
+        session.exec(delete(AccuracyFinding).where(AccuracyFinding.result_id.in_(result_ids)))  # pyright: ignore[reportAttributeAccessIssue, reportCallIssue, reportArgumentType]
 
-    counts = {"mentions": 0, "classified_queries": 0, "citations_categorized": 0}
+    counts = {"mentions": 0, "classified_queries": 0, "citations_categorized": 0,
+              "accuracy_findings": 0}
 
     texts: dict[int, str] = {}
     for result in search_results:
@@ -105,6 +124,24 @@ def process_run(session: Session, run: Run) -> dict[str, int]:
                     sentiment=detected.sentiment,
                     context_snippet=detected.context_snippet,
                     detector_version=DETECTOR_VERSION,
+                )
+            )
+        # Accuracy: does this answer state anything the fact sheet contradicts?
+        for hit in check_text(text, fact_specs):
+            counts["accuracy_findings"] += 1
+            session.add(
+                AccuracyFinding(
+                    result_id=result.id,
+                    tenant_id=run.tenant_id,
+                    fact_id=hit.fact_id,
+                    category=hit.category,
+                    severity=hit.severity,
+                    subject=hit.subject,
+                    expected=hit.expected,
+                    stated=hit.stated,
+                    snippet=hit.snippet,
+                    detail=hit.detail,
+                    detector_version=ACCURACY_VERSION,
                 )
             )
 

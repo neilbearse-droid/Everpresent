@@ -8,7 +8,9 @@ from datetime import UTC, datetime, timedelta
 from sqlmodel import Session, select
 
 from api.models import (
+    AccuracyFinding,
     AiReferralDaily,
+    BrandFact,
     BrandProfile,
     Citation,
     ConsultedSource,
@@ -627,6 +629,55 @@ def fanout_report(session: Session, tenant_id: int) -> dict:
         "brand_name": _brand_name(session, tenant_id),
         "prompts": prompts,
         "observed": bool(prompts),
+    }
+
+
+def accuracy_report(session: Session, tenant_id: int) -> dict:
+    """Factual-accuracy findings over the latest answers (§AEO-plan M4): where
+    engines state something the fact sheet says is wrong, grouped by fact with
+    the engines that repeat it. Degrades to 'no facts on file' when the tenant
+    hasn't entered any."""
+    facts_on_file = len(session.exec(
+        select(BrandFact).where(
+            BrandFact.tenant_id == tenant_id, BrandFact.active == True  # noqa: E712
+        )
+    ).all())
+
+    search = _latest_results_by_variant(session, tenant_id, ResultVariant.search)
+    surface_by_id = {r.id: str(r.surface) for r in search.values() if r.id is not None}
+    ids = list(surface_by_id)
+    grouped: dict[tuple, dict] = {}
+    if ids:
+        for fnd in session.exec(
+            select(AccuracyFinding).where(
+                AccuracyFinding.tenant_id == tenant_id,
+                AccuracyFinding.result_id.in_(ids),  # pyright: ignore[reportAttributeAccessIssue]
+            )
+        ).all():
+            key = (fnd.fact_id, fnd.stated)
+            g = grouped.setdefault(key, {
+                "subject": fnd.subject, "category": fnd.category, "severity": fnd.severity,
+                "expected": fnd.expected, "stated": fnd.stated, "detail": fnd.detail,
+                "snippet": fnd.snippet, "engines": set(),
+            })
+            surface = surface_by_id.get(fnd.result_id)
+            if surface:
+                g["engines"].add(_surface_label(surface))
+
+    errors = sorted(
+        (
+            {**{k: v for k, v in g.items() if k != "engines"},
+             "engines": sorted(g["engines"])}
+            for g in grouped.values()
+        ),
+        key=lambda e: (-len(e["engines"]), e["subject"]),
+    )
+    return {
+        "brand_name": _brand_name(session, tenant_id),
+        "facts_on_file": facts_on_file,
+        "measured": len(ids),
+        "error_count": len(errors),
+        "errors": errors,
     }
 
 

@@ -286,6 +286,47 @@ class ConsultedSource(SQLModel, table=True):
     domain: str = Field(index=True)
 
 
+class BrandFact(SQLModel, table=True):
+    """A ground-truth fact about the tenant's brand (§AEO-plan M4), used to
+    catch answers that state something false — the highest-stakes error for a
+    regulated or credentialed brand. `kind` selects the check: 'numeric' (a
+    tracked subject stated with a contradicting same-unit number) or
+    'disallowed' (a claim that must never appear)."""
+
+    __tablename__ = "brand_facts"  # pyright: ignore[reportAssignmentType]
+
+    id: int | None = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenants.id", index=True)
+    category: str = "general"  # pricing | accreditation | leadership | coverage | …
+    label: str  # human name, e.g. "Full-time MBA tuition"
+    subject: str  # the topic term to detect in an answer, e.g. "tuition"
+    aliases: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    kind: str = "numeric"  # numeric | disallowed
+    expected: str  # correct value (numeric) or the forbidden phrase (disallowed)
+    active: bool = Field(default=True)
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class AccuracyFinding(SQLModel, table=True):
+    """A contradiction between an answer and the fact sheet (§AEO-plan M4).
+    Rebuilt per-run like Mentions."""
+
+    __tablename__ = "accuracy_findings"  # pyright: ignore[reportAssignmentType]
+
+    id: int | None = Field(default=None, primary_key=True)
+    result_id: int = Field(foreign_key="results.id", index=True)
+    tenant_id: int = Field(foreign_key="tenants.id", index=True)
+    fact_id: int = Field(index=True)
+    category: str = ""
+    severity: str = "high"
+    subject: str = ""
+    expected: str = ""
+    stated: str = ""
+    snippet: str = ""
+    detail: str = ""
+    detector_version: str = ""
+
+
 class Mention(SQLModel, table=True):
     __tablename__ = "mentions"  # pyright: ignore[reportAssignmentType]
 

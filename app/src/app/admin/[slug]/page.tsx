@@ -4,6 +4,7 @@ import { apiFetch, type Me, type TenantDetail } from "@/lib/api";
 import { surfaceLabel } from "@/lib/viz";
 import { setGovernance, toggleSurface } from "../actions";
 import { AccessAuditPanel } from "./access-audit-panel";
+import { BrandFactsPanel, type BrandFact } from "./brand-facts-panel";
 import { ClerkOrgForm } from "./clerk-org-form";
 import { CrawlPagesButton } from "./crawl-pages-button";
 import { Ga4Form } from "./ga4-form";
@@ -28,11 +29,12 @@ export default async function TenantAdminPage({
     );
   }
 
-  const [detail, schedule] = await Promise.all([
+  const [detail, schedule, facts] = await Promise.all([
     apiFetch<TenantDetail>(`/api/admin/tenants/${slug}`),
     apiFetch<{ cron_expr: string; enabled: boolean; next_run_at: string | null } | null>(
       `/api/admin/tenants/${slug}/schedule`,
     ),
+    apiFetch<BrandFact[]>(`/api/admin/tenants/${slug}/brand-facts`),
   ]);
   if (detail.status === 404 || !detail.data) notFound();
   const { tenant, brand_profile, competitors, personas, queries, surfaces, plans } = detail.data;
@@ -176,6 +178,17 @@ export default async function TenantAdminPage({
             </p>
             <CrawlPagesButton slug={tenant.slug} />
           </div>
+        </section>
+
+        <section className="card p-5">
+          <h2 className="mb-3 font-medium">Brand fact sheet — accuracy monitoring</h2>
+          <p className="mb-3 text-xs text-[var(--text-2)]">
+            Ground-truth facts the answer engines must get right. Each run checks every answer
+            against these and flags contradictions on the Scorecard — the highest-stakes error
+            for a credentialed or regulated brand. Numeric facts catch wrong figures near the
+            subject; disallowed facts catch a phrase that must never appear.
+          </p>
+          <BrandFactsPanel slug={tenant.slug} facts={facts.data ?? []} />
         </section>
 
         <section className="card p-5">

@@ -38,6 +38,46 @@ export async function runAccessAudit(
   return { ok: true, message: "Audit complete.", domains: res.data!.domains };
 }
 
+export async function addBrandFact(
+  slug: string,
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const aliases = String(formData.get("aliases") ?? "")
+    .split(",")
+    .map((a) => a.trim())
+    .filter(Boolean);
+  const res = await apiFetch(`/api/admin/tenants/${slug}/brand-facts`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      category: String(formData.get("category") ?? "general").trim(),
+      label: String(formData.get("label") ?? "").trim(),
+      subject: String(formData.get("subject") ?? "").trim(),
+      aliases,
+      kind: String(formData.get("kind") ?? "numeric"),
+      expected: String(formData.get("expected") ?? "").trim(),
+    }),
+  });
+  if (!res.ok) return { ok: false, message: res.error ?? "Could not add the fact" };
+  revalidatePath(`/admin/${slug}`);
+  return { ok: true, message: "Fact added — it applies on the next run." };
+}
+
+export async function deleteBrandFact(
+  slug: string,
+  factId: number,
+  _prev: ActionState,
+  _formData: FormData,
+): Promise<ActionState> {
+  const res = await apiFetch(`/api/admin/tenants/${slug}/brand-facts/${factId}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) return { ok: false, message: res.error ?? "Could not remove" };
+  revalidatePath(`/admin/${slug}`);
+  return { ok: true, message: "Removed." };
+}
+
 export async function createTenant(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const name = String(formData.get("name") ?? "").trim();
   const slug = String(formData.get("slug") ?? "").trim();
