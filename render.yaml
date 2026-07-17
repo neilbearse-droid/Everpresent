@@ -152,6 +152,13 @@ services:
         value: serpapi
       - key: SERPAPI_KEY
         sync: false
+      # Cost governance (§9): the monthly cap counts these Mode B estimates
+      # alongside token spend. Tune to your actual SerpApi plan and residential
+      # proxy price per page.
+      - key: SERPAPI_COST_PER_SEARCH
+        value: "0.0075"
+      - key: SCRAPE_COST_PER_PAGE_USD
+        value: "0.02"
       # Anti-blocking (SCRAPING_V3). Stealth is free and on by default; the
       # proxy/managed-browser layers activate only when set. SCRAPE_PROXY_URL
       # (or SCRAPE_PROXY_MAP for per-country residential IPs) both dodges

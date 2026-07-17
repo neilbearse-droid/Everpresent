@@ -36,6 +36,7 @@ from api.storage import read_raw_envelope, write_raw_envelope
 from engine.costs import (
     estimate_anthropic_cost_usd,
     estimate_gemini_cost_usd,
+    estimate_mode_b_cost_usd,
     estimate_openai_cost_usd,
     estimate_perplexity_cost_usd,
 )
@@ -635,6 +636,11 @@ async def _run_mode_b(run_id: int) -> None:
         tenant_id = run.tenant_id
         tenant_slug = tenant.slug
         aio_geo = dict(tenant.aio_geo)
+        # §9 cost governance: Mode B (scraping + SerpApi) is charged against the
+        # same monthly cap as token spend. month_spent_before already includes
+        # this run's Mode A cost (committed before B started).
+        cap_usd = tenant.monthly_spend_cap_usd
+        month_spent_before = month_spend_usd(session, tenant_id)
         limits = limits_for(tenant.plan)
         locations = _tenant_locations(session, tenant_id, aio_geo, limits.max_locations)
         b_surfaces = _b_surfaces(run)
@@ -678,8 +684,28 @@ async def _run_mode_b(run_id: int) -> None:
 
     counts = dict(base_counts)
     counts["planned"] = counts.get("planned", 0) + len(work)
+    mode_b_cost = 0.0
+    capped = False
 
     for index, wi in enumerate(work):
+        # Estimated cost of this call — charged whether it succeeds, blocks, or
+        # errors (the provider/proxy resources were consumed either way).
+        call_cost = estimate_mode_b_cost_usd(
+            wi.surface,
+            aio_provider=settings.google_aio_provider,
+            serpapi_cost_per_search=settings.serpapi_cost_per_search,
+            scrape_cost_per_page=settings.scrape_cost_per_page_usd,
+        )
+        # §9: unlike Mode A (whose token cost is only known after the call),
+        # a Mode B call's cost is known upfront, so we can refuse to START a
+        # call that would cross the cap — the run never exceeds it. month spend
+        # already includes this run's Mode A cost.
+        if month_spent_before + mode_b_cost + call_cost > cap_usd:
+            capped = True
+            counts["withheld_by_cap"] = counts.get("withheld_by_cap", 0) + (len(work) - index)
+            break
+        mode_b_cost += call_cost
+
         adapter_module, model_label, rate_attr = B_ADAPTERS[wi.surface]
         if index > 0:
             rate = max(float(getattr(settings, rate_attr)), 0.1)
@@ -777,7 +803,7 @@ async def _run_mode_b(run_id: int) -> None:
                         "adapter_version": adapter_module.ADAPTER_VERSION,
                         "response": response_payload,
                         "parsed_text": parsed_text,
-                        "cost_usd": 0.0,
+                        "cost_usd": call_cost,
                     },
                     session=session,
                 )
@@ -805,7 +831,12 @@ async def _run_mode_b(run_id: int) -> None:
         run = session.get(Run, run_id)
         tenant = session.get(Tenant, run.tenant_id) if run else None
         assert run is not None and tenant is not None
+        if capped:
+            counts["capped"] = True
+        counts["mode_b_cost_usd"] = round(mode_b_cost, 6)
         run.counts = counts
+        # Add Mode B spend to the run total (Mode A already committed it).
+        run.cost_usd = round((run.cost_usd or 0.0) + mode_b_cost, 6)
         session.add(run)
         session.commit()
         _finalize_run(session, run, tenant)

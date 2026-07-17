@@ -112,3 +112,21 @@ def estimate_gemini_cost_usd(
     )
     cost += web_search_calls * GEMINI_GROUNDING_PER_1K / 1_000
     return round(cost, 6)
+
+
+def estimate_mode_b_cost_usd(
+    surface: str,
+    *,
+    aio_provider: str,
+    serpapi_cost_per_search: float,
+    scrape_cost_per_page: float,
+) -> float:
+    """Per-call cost for a Mode B surface, so the spend cap governs scraping and
+    SerpApi spend the same way it governs token spend (§9). Google AIO via
+    SerpApi is a per-search API charge; every other Mode B call (consumer-web
+    scrape, or a direct SERP scrape) is priced at the residential-proxy +
+    compute estimate. Conservative by design — the cap should err toward not
+    overspending."""
+    if surface == "google_aio" and aio_provider == "serpapi":
+        return round(serpapi_cost_per_search, 6)
+    return round(scrape_cost_per_page, 6)

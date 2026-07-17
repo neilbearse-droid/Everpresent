@@ -90,6 +90,12 @@ class Settings(BaseSettings):
     google_aio_timeout_s: float = 120.0
     serpapi_key: str = ""
 
+    # Mode B cost governance (§9): scraping and SerpApi spend the monthly cap
+    # governs alongside token spend. Estimates for cap enforcement, not billing
+    # truth — reconcile against the provider dashboards and tune.
+    serpapi_cost_per_search: float = 0.0075  # SerpApi ~$5-7.5 / 1k searches
+    scrape_cost_per_page_usd: float = 0.02   # residential proxy + compute / page
+
     # Notifications (M5): run-completion reports by email. Unset host = skip.
     smtp_host: str = ""
     smtp_port: int = 587
