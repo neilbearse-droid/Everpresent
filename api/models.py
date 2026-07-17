@@ -310,6 +310,24 @@ class AiReferralDaily(SQLModel, table=True):
     fetched_at: datetime = Field(default_factory=utcnow)
 
 
+class Intervention(SQLModel, table=True):
+    """Intervention ledger (§CMO #1): the client marks a gap-query fix as
+    shipped (what/where/when); measurement then splits that query's results
+    into before/after so the lift is attributable. Query snapshotted by value,
+    like results — config re-imports never orphan the ledger."""
+
+    __tablename__ = "interventions"  # pyright: ignore[reportAssignmentType]
+
+    id: int | None = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenants.id", index=True)
+    query_text: str = Field(index=True)
+    description: str = ""
+    url: str = ""
+    shipped_at: datetime = Field(default_factory=utcnow)
+    created_by: str = ""
+    created_at: datetime = Field(default_factory=utcnow)
+
+
 class PagePresence(SQLModel, table=True):
     """On-page presence audit (§focus-group #2): for each Power Page (a URL
     the engines cite), whether the brand and competitors are actually named on

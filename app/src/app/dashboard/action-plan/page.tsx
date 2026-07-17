@@ -1,7 +1,8 @@
-import { apiFetch, type ActionPlan, type Me } from "@/lib/api";
+import { apiFetch, type ActionPlan, type InterventionsReport, type Me } from "@/lib/api";
 import { DashNav } from "@/components/dash-nav";
 import { NoOrgNotice } from "@/components/no-org-notice";
 import { surfaceLabel } from "@/lib/viz";
+import { MarkShipped } from "./mark-shipped";
 
 const DIAG_STYLE: Record<string, string> = {
   content_gap: "border-amber-500/40 bg-amber-500/5",
@@ -22,9 +23,10 @@ const CONTEST_CHIP: Record<string, string> = {
 };
 
 export default async function ActionPlanPage() {
-  const [me, plan] = await Promise.all([
+  const [me, plan, proof] = await Promise.all([
     apiFetch<Me>("/api/me"),
     apiFetch<ActionPlan>("/api/tenant/action-plan"),
+    apiFetch<InterventionsReport>("/api/tenant/interventions"),
   ]);
   if (plan.status === 403) {
     return <NoOrgNotice active="Action Plan" isSuperadmin={me.data?.is_superadmin} detail={plan.error} />;
@@ -316,10 +318,114 @@ export default async function ActionPlanPage() {
                       </p>
                     </div>
                   )}
+
+                  <MarkShipped queryText={b.query} intervention={b.intervention ?? null} />
                 </article>
               ))}
             </div>
           </section>
+
+          {/* Proof — the fix→proof loop */}
+          {(proof.data?.interventions.length ?? 0) > 0 && (
+            <section className="card p-6">
+              <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
+                Proof — did the shipped fixes move the needle?
+              </h2>
+              <p className="mb-4 text-xs text-[var(--text-3)]">
+                Brand presence on each fixed query, before vs after its ship date — with the
+                same-window change on untouched queries as the control, so lift beats tide.
+              </p>
+              {proof.data!.aggregate && (
+                <div className="mb-4 flex flex-wrap gap-2 text-xs">
+                  <span className="chip">
+                    {proof.data!.aggregate.measured} measured
+                  </span>
+                  <span
+                    className={`chip ${proof.data!.aggregate.avg_delta >= 0 ? "text-[var(--pos)]" : "text-[var(--neg)]"}`}
+                  >
+                    fixed queries {proof.data!.aggregate.avg_delta >= 0 ? "+" : ""}
+                    {proof.data!.aggregate.avg_delta} pts
+                  </span>
+                  {proof.data!.aggregate.avg_control_delta !== null && (
+                    <span className="chip">
+                      untouched queries{" "}
+                      {proof.data!.aggregate.avg_control_delta >= 0 ? "+" : ""}
+                      {proof.data!.aggregate.avg_control_delta} pts
+                    </span>
+                  )}
+                </div>
+              )}
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="text-[var(--text-2)]">
+                    <tr>
+                      <th className="py-2 pr-4">Query</th>
+                      <th className="pr-4">Shipped</th>
+                      <th className="pr-4">Presence before → after</th>
+                      <th className="pr-4">Lift vs control</th>
+                      <th>Newly visible on</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {proof.data!.interventions.map((iv) => (
+                      <tr key={iv.id} className="border-t border-[var(--border)] align-top">
+                        <td className="max-w-xs py-2.5 pr-4">
+                          {iv.query}
+                          {iv.url && (
+                            <a
+                              href={iv.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="ml-2 text-xs text-[var(--accent)] hover:underline"
+                            >
+                              fix ↗
+                            </a>
+                          )}
+                        </td>
+                        <td className="pr-4 text-xs tabular-nums text-[var(--text-2)]">
+                          {iv.shipped_at}
+                        </td>
+                        {iv.awaiting ? (
+                          <td colSpan={3} className="text-xs text-[var(--text-3)]">
+                            Awaiting post-ship runs — measurement starts with the next run.
+                          </td>
+                        ) : (
+                          <>
+                            <td className="pr-4 text-xs tabular-nums">
+                              {iv.before_rate ?? "—"}% → {iv.after_rate ?? "—"}%
+                            </td>
+                            <td className="pr-4 text-xs tabular-nums">
+                              <span
+                                className={
+                                  (iv.delta ?? 0) > 0
+                                    ? "font-medium text-[var(--pos)]"
+                                    : "text-[var(--text-2)]"
+                                }
+                              >
+                                {(iv.delta ?? 0) >= 0 ? "+" : ""}
+                                {iv.delta} pts
+                              </span>
+                              {iv.control_delta !== null && (
+                                <span className="ml-1.5 text-[var(--text-3)]">
+                                  (control {iv.control_delta >= 0 ? "+" : ""}
+                                  {iv.control_delta})
+                                </span>
+                              )}
+                            </td>
+                            <td className="text-xs text-[var(--text-2)]">
+                              {iv.newly_visible.length
+                                ? iv.newly_visible.map(surfaceLabel).join(", ")
+                                : "—"}
+                            </td>
+                          </>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
         </div>
       )}
     </main>

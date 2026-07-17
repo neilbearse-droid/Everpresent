@@ -306,6 +306,7 @@ export type ActionPlan = {
       volatility: number | null;
       dependence: number;
     };
+    intervention: { id: number; shipped_at: string; url: string } | null;
     citability: {
       ready: boolean;
       winners?: string[];
@@ -328,6 +329,28 @@ export type ActionPlan = {
     gained: number;
   };
   summary: Record<string, number>;
+};
+
+export type InterventionsReport = {
+  interventions: {
+    id: number;
+    query: string;
+    description: string;
+    url: string;
+    shipped_at: string;
+    created_by: string;
+    before_rate: number | null;
+    after_rate: number | null;
+    delta: number | null;
+    control_delta: number | null;
+    newly_visible: string[];
+    awaiting: boolean;
+  }[];
+  aggregate: {
+    measured: number;
+    avg_delta: number;
+    avg_control_delta: number | null;
+  } | null;
 };
 
 export type AccessAuditAgent = {

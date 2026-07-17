@@ -12,6 +12,7 @@ from api.db import get_session
 from api.models import (
     BrandProfile,
     Competitor,
+    Intervention,
     Persona,
     Query,
     Recommendation,
@@ -120,6 +121,56 @@ def kpi_scorecard(ctx: Ctx, session: Db) -> dict:
 @router.get("/outcome")
 def outcome(ctx: Ctx, session: Db) -> dict:
     return dashboards_service.outcome(session, ctx.tenant_id)
+
+
+class InterventionCreate(BaseModel):
+    query_text: str
+    description: str = ""
+    url: str = ""
+    shipped_at: str | None = None  # ISO date; defaults to today
+
+
+@router.get("/interventions")
+def list_interventions(ctx: Ctx, session: Db) -> dict:
+    return dashboards_service.interventions_report(session, ctx.tenant_id)
+
+
+@router.post("/interventions", status_code=201)
+def create_intervention(payload: InterventionCreate, ctx: Ctx, session: Db) -> Intervention:
+    from datetime import UTC, datetime
+
+    text = payload.query_text.strip()
+    if not text:
+        raise HTTPException(status_code=422, detail="query_text is required")
+    shipped = utcnow()
+    if payload.shipped_at:
+        try:
+            shipped = datetime.fromisoformat(payload.shipped_at).replace(tzinfo=UTC)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=422, detail="shipped_at must be an ISO date (YYYY-MM-DD)"
+            ) from exc
+    item = Intervention(
+        tenant_id=ctx.tenant_id,
+        query_text=text,
+        description=payload.description.strip(),
+        url=payload.url.strip(),
+        shipped_at=shipped,
+        created_by=ctx.authed.user.email,
+    )
+    session.add(item)
+    session.commit()
+    session.refresh(item)
+    return item
+
+
+@router.delete("/interventions/{intervention_id}", status_code=204)
+def delete_intervention(intervention_id: int, ctx: Ctx, session: Db) -> None:
+    item = session.get(Intervention, intervention_id)
+    if item is None or item.tenant_id != ctx.tenant_id:
+        raise HTTPException(status_code=404, detail="No such intervention")
+    session.delete(item)
+    session.commit()
 
 
 @router.get("/recommendations")

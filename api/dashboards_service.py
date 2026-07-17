@@ -11,6 +11,7 @@ from api.models import (
     AiReferralDaily,
     BrandProfile,
     Citation,
+    Intervention,
     Mention,
     PagePresence,
     Query,
@@ -684,6 +685,121 @@ def outcome(session: Session, tenant_id: int) -> dict:
     }
 
 
+def _as_utc(dt: datetime) -> datetime:
+    return dt if dt.tzinfo else dt.replace(tzinfo=UTC)
+
+
+def interventions_report(session: Session, tenant_id: int) -> dict:
+    """The fix→proof loop (§CMO #1): for every shipped intervention, brand
+    presence on its query before vs after the ship date — with a same-window
+    control (all queries with no intervention) so the client can see whether
+    the lift beats the tide. Honest 'awaiting post-ship runs' state until a
+    run lands after the ship date."""
+    ledger = list(
+        session.exec(
+            select(Intervention)
+            .where(Intervention.tenant_id == tenant_id)
+            .order_by(Intervention.shipped_at.desc())  # pyright: ignore[reportAttributeAccessIssue]
+        ).all()
+    )
+
+    rows = [
+        (r.query_text, str(r.surface), _as_utc(r.created_at), r.id)
+        for r in session.exec(
+            select(Result).where(
+                Result.tenant_id == tenant_id,
+                Result.variant == ResultVariant.search,
+                Result.status == "ok",
+            )
+        ).all()
+        if r.id is not None
+    ]
+    brand_ids: set[int] = set()
+    ids = [rid for (_q, _s, _c, rid) in rows]
+    if ids:
+        for m in session.exec(
+            select(Mention).where(
+                Mention.result_id.in_(ids),  # pyright: ignore[reportAttributeAccessIssue]
+                Mention.entity_type == "brand",
+            )
+        ).all():
+            brand_ids.add(m.result_id)
+
+    treated_queries = {i.query_text for i in ledger}
+
+    def rate(queries: set[str], *, before: datetime | None = None,
+             after: datetime | None = None) -> tuple[int, int]:
+        present = total = 0
+        for q, _s, created, rid in rows:
+            if q not in queries:
+                continue
+            if before is not None and created >= before:
+                continue
+            if after is not None and created < after:
+                continue
+            total += 1
+            if rid in brand_ids:
+                present += 1
+        return present, total
+
+    def pct(present: int, total: int) -> float | None:
+        return round(100.0 * present / total, 1) if total else None
+
+    out = []
+    deltas: list[float] = []
+    control_deltas: list[float] = []
+    control_queries = {q for (q, _s, _c, _r) in rows} - treated_queries
+    for item in ledger:
+        shipped = _as_utc(item.shipped_at)
+        b_present, b_total = rate({item.query_text}, before=shipped)
+        a_present, a_total = rate({item.query_text}, after=shipped)
+        before_rate, after_rate = pct(b_present, b_total), pct(a_present, a_total)
+
+        # Engines where the brand was absent before and present after.
+        engines_before = {s for (q, s, c, rid) in rows
+                          if q == item.query_text and c < shipped and rid in brand_ids}
+        engines_after = {s for (q, s, c, rid) in rows
+                         if q == item.query_text and c >= shipped and rid in brand_ids}
+        newly_visible = sorted(engines_after - engines_before)
+
+        delta = None
+        control_delta = None
+        if before_rate is not None and after_rate is not None:
+            delta = round(after_rate - before_rate, 1)
+            deltas.append(delta)
+            cb = pct(*rate(control_queries, before=shipped))
+            ca = pct(*rate(control_queries, after=shipped))
+            if cb is not None and ca is not None:
+                control_delta = round(ca - cb, 1)
+                control_deltas.append(control_delta)
+
+        out.append({
+            "id": item.id,
+            "query": item.query_text,
+            "description": item.description,
+            "url": item.url,
+            "shipped_at": shipped.date().isoformat(),
+            "created_by": item.created_by,
+            "before_rate": before_rate,
+            "after_rate": after_rate,
+            "delta": delta,
+            "control_delta": control_delta,
+            "newly_visible": newly_visible,
+            "awaiting": a_total == 0,
+        })
+
+    aggregate = None
+    if deltas:
+        aggregate = {
+            "measured": len(deltas),
+            "avg_delta": round(sum(deltas) / len(deltas), 1),
+            "avg_control_delta": (
+                round(sum(control_deltas) / len(control_deltas), 1) if control_deltas else None
+            ),
+        }
+    return {"interventions": out, "aggregate": aggregate}
+
+
 def _owned_domains(session: Session, tenant_id: int) -> list[str]:
     brand = session.exec(
         select(BrandProfile).where(BrandProfile.tenant_id == tenant_id)
@@ -1009,6 +1125,22 @@ def action_plan(session: Session, tenant_id: int) -> dict:
             None,
         )
         b["citability"] = _citability_diff(winners, your_page)
+
+    # Shipped-state per brief (intervention ledger).
+    shipped_by_query = {
+        i.query_text: i
+        for i in session.exec(
+            select(Intervention).where(Intervention.tenant_id == tenant_id)
+        ).all()
+    }
+    for b in briefs:
+        item = shipped_by_query.get(b["query"])
+        b["intervention"] = (
+            {"id": item.id, "shipped_at": _as_utc(item.shipped_at).date().isoformat(),
+             "url": item.url}
+            if item is not None
+            else None
+        )
 
     # Contestability ranking: spend effort where the answer is still in play.
     scores = _contestability(session, tenant_id, {b["query"] for b in briefs})
