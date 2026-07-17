@@ -6,6 +6,19 @@ with the July 2026 deep-research brief on how LLM search actually works
 This document is a self-contained handoff: an implementing agent should be able
 to execute it item by item without the originating conversation.
 
+## Implementation status (updated)
+
+**Shipped:** all six MAJOR items — M1 fan-out, M2 natural routing, M3 CSR
+audit, M4 accuracy, M5 citability, M6 consulted sources — plus minors m1–m5.
+Migrations M13–M16 (single head `d0e1f2a3b4c5`). Suite 162 → 191 passing.
+
+**Remaining (optional tail):** m6 (new engine surfaces Copilot/Meta/Grok —
+large, needs new adapters + cost fns), m7 (model-release re-baseline flag —
+needs per-result model history), m8 (OpenAI licensed-feed `oai-*` labels —
+needs a live-API response to confirm shape). None blocks the engagement.
+
+---
+
 **Framing.** The report *validates* EverPresent's core architecture — the
 two-mode design (API vs. consumer web), the search/nosearch dual-query diff
 (= the parametric-vs-retrieval distinction), structured citation parsing, the
