@@ -35,7 +35,7 @@ AIO_TEXT = (
 @pytest.fixture()
 def fake_aio(monkeypatch):
     async def _fake(query_text, *, geo, provider, serpapi_key, headless, timeout_s,
-                    executable_path=None):
+                    executable_path=None, env=None):
         return AIOOutcome(
             summary=AIOCaptureSummary(
                 aio_present=True, aio_position_index=0, aio_text_len=len(AIO_TEXT),

@@ -20,10 +20,12 @@ from typing import Any
 import httpx
 
 from engine.retrievers import google_aio_selectors as sel
+from engine.retrievers.blocking import assert_not_blocked
 from engine.retrievers.html_extract import extract_text_and_links
 from engine.retrievers.openai_api import ParsedCitation
+from engine.retrievers.stealth import ScrapeEnv, browser_page
 
-ADAPTER_VERSION = "v3.0.0"
+ADAPTER_VERSION = "v3.1.0"
 
 _SKIP_HOST_FRAGMENTS = ("google.com", "google.ca", "gstatic.com", "googleusercontent.com")
 
@@ -111,85 +113,83 @@ async def _capture_direct(
     headless: bool,
     timeout_s: float,
     executable_path: str | None,
+    env: ScrapeEnv | None = None,
 ) -> AIOOutcome:
-    from playwright.async_api import async_playwright  # lazy: scrape worker only
+    scrape_env = env or ScrapeEnv(
+        headless=headless,
+        executable_path=executable_path,
+        country=gl,
+        language=hl,
+        latitude=geolocation["latitude"] if geolocation else None,
+        longitude=geolocation["longitude"] if geolocation else None,
+    )
 
     started = time.monotonic()
-    async with async_playwright() as pw:
-        browser = await pw.chromium.launch(
-            headless=headless, executable_path=executable_path or None
+    async with browser_page(scrape_env) as (_browser, _context, page):
+        await page.goto(
+            f"{sel.SEARCH_URL}?q={query_text}&gl={gl}&hl={hl}",
+            wait_until="domcontentloaded",
+            timeout=60_000,
         )
-        try:
-            context_kwargs: dict[str, Any] = {"locale": hl}
-            if geolocation:
-                context_kwargs["geolocation"] = geolocation
-                context_kwargs["permissions"] = ["geolocation"]
-            context = await browser.new_context(**context_kwargs)
-            page = await context.new_page()
-            await page.goto(
-                f"{sel.SEARCH_URL}?q={query_text}&gl={gl}&hl={hl}",
-                wait_until="domcontentloaded",
-                timeout=60_000,
-            )
-            for dismiss in sel.CONSENT_DISMISS_CANDIDATES:
-                try:
-                    await page.locator(dismiss).first.click(timeout=2_000)
-                except Exception:  # noqa: BLE001 — consent walls are optional
-                    pass
-            await page.wait_for_selector(sel.ORGANIC_RESULT, timeout=30_000)
+        # Google's "unusual traffic" wall is the single likeliest block; catch
+        # it before waiting for organic results that will never render.
+        await assert_not_blocked(page)
+        for dismiss in sel.CONSENT_DISMISS_CANDIDATES:
+            try:
+                await page.locator(dismiss).first.click(timeout=2_000)
+            except Exception:  # noqa: BLE001 — consent walls are optional
+                pass
+        await page.wait_for_selector(sel.ORGANIC_RESULT, timeout=30_000)
 
-            aio_block = None
-            for candidate in sel.AIO_BLOCK_CANDIDATES:
-                locator = page.locator(candidate).first
-                if await locator.count() > 0:
-                    aio_block = locator
-                    break
-            if aio_block is None:
-                heading = page.get_by_text(sel.AIO_HEADING_TEXT, exact=True).first
-                if await heading.count() > 0:
-                    aio_block = heading.locator(
-                        "xpath=ancestor::div[@data-hveid or @jscontroller][1]"
-                    )
+        aio_block = None
+        for candidate in sel.AIO_BLOCK_CANDIDATES:
+            locator = page.locator(candidate).first
+            if await locator.count() > 0:
+                aio_block = locator
+                break
+        if aio_block is None:
+            heading = page.get_by_text(sel.AIO_HEADING_TEXT, exact=True).first
+            if await heading.count() > 0:
+                aio_block = heading.locator(
+                    "xpath=ancestor::div[@data-hveid or @jscontroller][1]"
+                )
 
-            expanded = False
-            aio_html = ""
-            aio_text = ""
-            citations: list[ParsedCitation] = []
-            position_index = -1
-            if aio_block is not None and await aio_block.count() > 0:
-                try:
-                    await page.locator(sel.SHOW_MORE_BUTTON).first.click(timeout=3_000)
-                    expanded = True
-                    await asyncio.sleep(1.0)
-                except Exception:  # noqa: BLE001 — collapsed AIO is data too
-                    pass
-                aio_html = await aio_block.inner_html()
-                aio_text, citations = parse_aio_fragment(aio_html)
-                aio_box = await aio_block.bounding_box()
-                first_organic = page.locator(sel.ORGANIC_RESULT).first
-                organic_box = await first_organic.bounding_box()
-                if aio_box and organic_box:
-                    position_index = 0 if aio_box["y"] < organic_box["y"] else 1
+        expanded = False
+        aio_html = ""
+        aio_text = ""
+        citations: list[ParsedCitation] = []
+        position_index = -1
+        if aio_block is not None and await aio_block.count() > 0:
+            try:
+                await page.locator(sel.SHOW_MORE_BUTTON).first.click(timeout=3_000)
+                expanded = True
+                await asyncio.sleep(1.0)
+            except Exception:  # noqa: BLE001 — collapsed AIO is data too
+                pass
+            aio_html = await aio_block.inner_html()
+            aio_text, citations = parse_aio_fragment(aio_html)
+            aio_box = await aio_block.bounding_box()
+            first_organic = page.locator(sel.ORGANIC_RESULT).first
+            organic_box = await first_organic.bounding_box()
+            if aio_box and organic_box:
+                position_index = 0 if aio_box["y"] < organic_box["y"] else 1
 
-            organic_count = await page.locator(sel.ORGANIC_RESULT).count()
-            page_html = await page.content()
-            await context.close()
-            return AIOOutcome(
-                summary=AIOCaptureSummary(
-                    aio_present=bool(aio_html),
-                    aio_position_index=position_index,
-                    aio_text_len=len(aio_text),
-                    expanded=expanded,
-                    organic_count=organic_count,
-                ),
-                aio_text=aio_text,
-                aio_html=aio_html,
-                page_html=page_html,
-                citations=citations,
-                latency_ms=int((time.monotonic() - started) * 1000),
-            )
-        finally:
-            await browser.close()
+        organic_count = await page.locator(sel.ORGANIC_RESULT).count()
+        page_html = await page.content()
+        return AIOOutcome(
+            summary=AIOCaptureSummary(
+                aio_present=bool(aio_html),
+                aio_position_index=position_index,
+                aio_text_len=len(aio_text),
+                expanded=expanded,
+                organic_count=organic_count,
+            ),
+            aio_text=aio_text,
+            aio_html=aio_html,
+            page_html=page_html,
+            citations=citations,
+            latency_ms=int((time.monotonic() - started) * 1000),
+        )
 
 
 async def capture(
@@ -201,6 +201,7 @@ async def capture(
     headless: bool = True,
     timeout_s: float = 120.0,
     executable_path: str | None = None,
+    env: ScrapeEnv | None = None,
 ) -> AIOOutcome:
     gl = str(geo.get("gl", "ca"))
     hl = str(geo.get("hl", "en"))
@@ -211,6 +212,14 @@ async def capture(
         return await _capture_serpapi(
             query_text, gl=gl, hl=hl, api_key=serpapi_key, timeout_s=timeout_s
         )
+    # When an env is supplied (proxy/stealth from Settings), keep the request's
+    # geo authoritative over whatever the caller pre-filled.
+    if env is not None:
+        env.country = gl
+        env.language = hl
+        if geolocation:
+            env.latitude = geolocation["latitude"]
+            env.longitude = geolocation["longitude"]
     return await _capture_direct(
         query_text,
         gl=gl,
@@ -219,4 +228,5 @@ async def capture(
         headless=headless,
         timeout_s=timeout_s,
         executable_path=executable_path,
+        env=env,
     )

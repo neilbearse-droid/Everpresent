@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -62,6 +63,21 @@ class Settings(BaseSettings):
     # bundled path.
     playwright_chromium_path: str = ""
     perplexity_web_rate_per_min: float = 4.0
+
+    # Anti-blocking (§SCRAPING_V3). All vendor-neutral and off by default —
+    # stealth hardening is free and always on; proxy and managed-browser
+    # layers activate only when their env is set.
+    scrape_stealth: bool = True
+    # A single proxy URL (http://user:pass@host:port). Used for any country
+    # unless the map overrides it. Empty = no proxy (direct, as today).
+    scrape_proxy_url: str = ""
+    # JSON object mapping country code -> proxy URL, for residential
+    # geo-targeting. Selection: map[country] -> proxy_url -> none.
+    scrape_proxy_map: dict[str, str] = Field(default_factory=dict)
+    # A managed scraping browser CDP endpoint (Layer 3). When set, adapters
+    # connect over CDP instead of launching local Chromium; the provider
+    # handles proxy + captcha. Use only if a surface blocks through the proxy.
+    scrape_cdp_endpoint: str = ""
 
     # Google AIO capture (§6.3). Provider "direct" scrapes the SERP;
     # "serpapi" uses the JSON fallback when the key is set.

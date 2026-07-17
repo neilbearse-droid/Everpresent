@@ -147,6 +147,16 @@ services:
         value: "6"
       - key: GOOGLE_AIO_PROVIDER
         value: direct
+      # Anti-blocking (SCRAPING_V3). Stealth is free and on by default; the
+      # proxy/managed-browser layers activate only when set. SCRAPE_PROXY_URL
+      # (or SCRAPE_PROXY_MAP for per-country residential IPs) both dodges
+      # datacenter blocking AND localizes location-based queries.
+      - key: SCRAPE_PROXY_URL
+        sync: false
+      - key: SCRAPE_PROXY_MAP
+        sync: false
+      - key: SCRAPE_CDP_ENDPOINT
+        sync: false
       - key: OPENAI_API_KEY
         sync: false
       - key: OPENAI_MODEL

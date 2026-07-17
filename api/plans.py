@@ -32,28 +32,32 @@ class PlanLimits:
     outcome: bool                # GA4 outcome attribution available
     max_runs_per_day: int | None  # scheduled-run frequency cap (None = uncapped)
     monthly_price_usd: int
+    # Location-based queries (§SCRAPING_V3 Part 2). Mode B fans out over this
+    # many active locations; volume = queries × surfaces × locations, so this
+    # is the multi-location cost gate. 1 = single (default) location only.
+    max_locations: int | None = 1
 
 
 PLANS: dict[str, PlanLimits] = {
     "monitor": PlanLimits(
         "Monitor", max_prompts=25, max_personas=1, max_engines=3,
         diagnosis=False, model_tier="economy", outcome=False,
-        max_runs_per_day=1, monthly_price_usd=149,
+        max_runs_per_day=1, monthly_price_usd=149, max_locations=1,
     ),
     "diagnose": PlanLimits(
         "Diagnose", max_prompts=50, max_personas=2, max_engines=4,
         diagnosis=True, model_tier="standard", outcome=True,
-        max_runs_per_day=1, monthly_price_usd=549,
+        max_runs_per_day=1, monthly_price_usd=549, max_locations=1,
     ),
     "command": PlanLimits(
         "Command", max_prompts=None, max_personas=None, max_engines=None,
         diagnosis=True, model_tier="premium", outcome=True,
-        max_runs_per_day=None, monthly_price_usd=2900,
+        max_runs_per_day=None, monthly_price_usd=2900, max_locations=5,
     ),
     "custom": PlanLimits(
         "Custom", max_prompts=None, max_personas=None, max_engines=None,
         diagnosis=True, model_tier="configured", outcome=True,
-        max_runs_per_day=None, monthly_price_usd=0,
+        max_runs_per_day=None, monthly_price_usd=0, max_locations=None,
     ),
 }
 

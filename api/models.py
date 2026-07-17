@@ -142,6 +142,26 @@ class Query(SQLModel, table=True):
     active: bool = Field(default=True)
 
 
+class Location(SQLModel, table=True):
+    """A place the corpus is measured from (§SCRAPING_V3 Part 2). Mode B work
+    fans out over the tenant's active locations; `country` doubles as the
+    proxy-selection key so a location-based run can exit from a matching
+    residential IP. A tenant with no locations uses its `aio_geo` default —
+    every existing tenant is unchanged."""
+
+    __tablename__ = "locations"  # pyright: ignore[reportAssignmentType]
+
+    id: int | None = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenants.id", index=True)
+    label: str  # human name, e.g. "Toronto — Downtown"
+    country: str = Field(default="ca")  # Google gl / proxy-selection key
+    language: str = Field(default="en")  # hl
+    latitude: float | None = None
+    longitude: float | None = None
+    active: bool = Field(default=True)
+    created_at: datetime = Field(default_factory=utcnow)
+
+
 class TenantSurface(SQLModel, table=True):
     __tablename__ = "tenant_surfaces"  # pyright: ignore[reportAssignmentType]
 
@@ -187,6 +207,10 @@ class Run(SQLModel, table=True):
 class ResultStatus(StrEnum):
     ok = "ok"
     error = "error"
+    # Scrape hit an anti-bot wall (Cloudflare/captcha/consent), not a real
+    # answer (§SCRAPING_V3 Layer 0). Kept OUT of absent/negative scoring: a
+    # blocked cell is missing data, never evidence the brand isn't mentioned.
+    blocked = "blocked"
 
 
 class ResultVariant(StrEnum):
@@ -216,6 +240,9 @@ class Result(SQLModel, table=True):
     variant: ResultVariant = Field(default=ResultVariant.search, index=True)
     status: ResultStatus = Field(default=ResultStatus.ok)
     error: str | None = None
+    # Location this cell was measured from (§SCRAPING_V3 Part 2). Empty =
+    # the tenant's single default location — every existing result.
+    location_label: str = Field(default="", index=True)
     # Raw payload envelope in object storage; Postgres stores derived data
     # only (§5.1).
     raw_uri: str = ""

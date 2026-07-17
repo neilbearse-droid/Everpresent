@@ -4,7 +4,7 @@ only place the two meet a database session and a provider key."""
 
 import asyncio
 import hashlib
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field, replace
 from datetime import UTC, timedelta
 from typing import Any
 
@@ -14,6 +14,7 @@ from api.config import get_settings
 from api.db import get_engine
 from api.models import (
     Citation,
+    Location,
     Persona,
     Query,
     Result,
@@ -46,6 +47,8 @@ from engine.retrievers import (
     perplexity_api,
     perplexity_web,
 )
+from engine.retrievers.blocking import BlockedError
+from engine.retrievers.stealth import ScrapeEnv
 
 
 def ping() -> str:
@@ -150,9 +153,17 @@ def _finalize_run(session: Session, run: Run, tenant: Tenant) -> None:
         run.error = run.error or (
             f"monthly spend cap reached (cap ${tenant.monthly_spend_cap_usd:.2f})"
         )
-    elif counts.get("completed", 0) == 0 and counts.get("failed", 0) > 0:
+    elif counts.get("completed", 0) == 0 and (
+        counts.get("failed", 0) + counts.get("blocked", 0)
+    ) > 0:
         run.status = RunStatus.failed
-        run.error = run.error or "all calls failed; see per-result errors"
+        blocked = counts.get("blocked", 0)
+        run.error = run.error or (
+            f"all calls blocked ({blocked}); the exit IP is being challenged — "
+            "configure a residential proxy (§SCRAPING_V3)"
+            if blocked and not counts.get("failed", 0)
+            else "all calls failed; see per-result errors"
+        )
     else:
         run.status = RunStatus.complete
     run.finished_at = utcnow()
@@ -194,7 +205,9 @@ class _AWorkItem:
 
 @dataclass
 class _BWorkItem:
-    """Plain snapshot of one Mode B (query × persona? × surface) cell."""
+    """Plain snapshot of one Mode B (query × persona? × surface × location)
+    cell. `geo` selects locale/proxy; `location_label` is stamped on the result
+    ("" = the tenant's single default location)."""
 
     query_id: int | None
     query_text: str
@@ -203,6 +216,58 @@ class _BWorkItem:
     persona_prompt: str
     persona_segment: str
     surface: str
+    location_label: str = ""
+    geo: dict[str, Any] = field(default_factory=dict)
+
+
+def _base_scrape_env(settings: Any) -> ScrapeEnv:
+    """The deployment-wide scrape environment (stealth + proxy + managed
+    browser), before per-location geo is applied. All off by default."""
+    return ScrapeEnv(
+        headless=settings.chatgpt_web_headless,
+        executable_path=settings.playwright_chromium_path or None,
+        proxy_url=settings.scrape_proxy_url,
+        proxy_map=dict(settings.scrape_proxy_map),
+        cdp_endpoint=settings.scrape_cdp_endpoint,
+        stealth=settings.scrape_stealth,
+    )
+
+
+def _env_for_geo(base: ScrapeEnv, geo: dict[str, Any]) -> ScrapeEnv:
+    """Clone the base env with a location's geo — country drives both locale and
+    residential-proxy selection."""
+    return replace(
+        base,
+        country=str(geo.get("gl", base.country)),
+        language=str(geo.get("hl", base.language)),
+        latitude=float(geo["lat"]) if "lat" in geo else None,
+        longitude=float(geo["lng"]) if "lng" in geo else None,
+    )
+
+
+def _tenant_locations(
+    session: Session, tenant_id: int, aio_geo: dict, max_locations: int | None
+) -> list[tuple[str, dict]]:
+    """Active locations as (label, geo) pairs, capped by the plan. A tenant with
+    no locations gets one implicit entry from aio_geo with an empty label — the
+    pre-location behaviour every existing tenant already has."""
+    rows = session.exec(
+        select(Location)
+        .where(Location.tenant_id == tenant_id, Location.active == True)  # noqa: E712
+        .order_by(Location.id)  # pyright: ignore[reportArgumentType]
+    ).all()
+    if not rows:
+        return [("", dict(aio_geo))]
+    if max_locations is not None:
+        rows = rows[:max_locations]
+    out: list[tuple[str, dict]] = []
+    for loc in rows:
+        geo: dict[str, Any] = {"gl": loc.country, "hl": loc.language}
+        if loc.latitude is not None and loc.longitude is not None:
+            geo["lat"] = loc.latitude
+            geo["lng"] = loc.longitude
+        out.append((loc.label, geo))
+    return out
 
 
 async def _dispatch_all(
@@ -532,6 +597,8 @@ async def _run_mode_b(run_id: int) -> None:
         tenant_id = run.tenant_id
         tenant_slug = tenant.slug
         aio_geo = dict(tenant.aio_geo)
+        limits = limits_for(tenant.plan)
+        locations = _tenant_locations(session, tenant_id, aio_geo, limits.max_locations)
         b_surfaces = _b_surfaces(run)
         if run.status == RunStatus.pending:  # B-only run, not chained from A
             run.status = RunStatus.running
@@ -550,21 +617,26 @@ async def _run_mode_b(run_id: int) -> None:
         ]
         base_counts = dict(run.counts) if run.counts else {}
 
+    # Work fans out over locations × queries × surfaces (§SCRAPING_V3 Part 2).
     # google_aio is per (query, geo) — a SERP takes no persona (§6.3);
     # persona-framed web surfaces use the first persona (DECISIONS M4.1).
     work: list[_BWorkItem] = []
     for surface in b_surfaces:
         if surface == str(SurfaceCode.google_aio):
             work += [
-                _BWorkItem(qid, qtext, None, "(serp)", "", "", surface)
+                _BWorkItem(qid, qtext, None, "(serp)", "", "", surface, label, geo)
+                for (label, geo) in locations
                 for (qid, qtext) in queries
             ]
         elif personas:
             pid0, pname0, pprompt0, pseg0 = personas[0]
             work += [
-                _BWorkItem(qid, qtext, pid0, pname0, pprompt0, pseg0, surface)
+                _BWorkItem(qid, qtext, pid0, pname0, pprompt0, pseg0, surface, label, geo)
+                for (label, geo) in locations
                 for (qid, qtext) in queries
             ]
+
+    base_env = _base_scrape_env(settings)
 
     counts = dict(base_counts)
     counts["planned"] = counts.get("planned", 0) + len(work)
@@ -576,8 +648,13 @@ async def _run_mode_b(run_id: int) -> None:
             await asyncio.sleep(60.0 / rate)
         is_aio = wi.surface == str(SurfaceCode.google_aio)
 
+        # The request's geo (from its location) drives locale + residential
+        # proxy selection; empty geo falls back to the tenant default.
+        env = _env_for_geo(base_env, wi.geo or aio_geo)
+
         # Phase 2 — scrape. NO DB CONNECTION HELD (a scrape can take minutes).
         error: str | None = None
+        blocked = False
         outcome = None
         parsed_text = ""
         response_payload: dict[str, Any] = {}
@@ -585,12 +662,13 @@ async def _run_mode_b(run_id: int) -> None:
             if is_aio:
                 outcome = await google_aio.capture(
                     wi.query_text,
-                    geo=aio_geo,
+                    geo=wi.geo or aio_geo,
                     provider=settings.google_aio_provider,
                     serpapi_key=settings.serpapi_key,
                     headless=settings.chatgpt_web_headless,
                     timeout_s=settings.google_aio_timeout_s,
                     executable_path=settings.playwright_chromium_path or None,
+                    env=env,
                 )
                 parsed_text = outcome.aio_text
                 response_payload = {
@@ -606,9 +684,15 @@ async def _run_mode_b(run_id: int) -> None:
                     headless=settings.chatgpt_web_headless,
                     timeout_s=settings.chatgpt_web_timeout_s,
                     executable_path=settings.playwright_chromium_path or None,
+                    env=env,
                 )
                 parsed_text = outcome.text
                 response_payload = {"html": outcome.html_fragment}
+        except BlockedError as exc:
+            # §SCRAPING_V3 Layer 0: an anti-bot wall is missing data, NOT a
+            # "brand absent" signal. Recorded distinctly and kept out of scoring.
+            blocked = True
+            error = f"blocked: {exc.reason}"
         except Exception as exc:  # noqa: BLE001 — a failed scrape is data
             error = f"{type(exc).__name__}: {exc}"[:500]
 
@@ -624,8 +708,14 @@ async def _run_mode_b(run_id: int) -> None:
                 persona_segment=wi.persona_segment,
                 surface=SurfaceCode(wi.surface),
                 mode=RunMode.B,
+                location_label=wi.location_label,
             )
-            if error is not None or outcome is None:
+            if blocked:
+                counts["blocked"] = counts.get("blocked", 0) + 1
+                result.status = ResultStatus.blocked
+                result.error = error
+                session.add(result)
+            elif error is not None or outcome is None:
                 counts["failed"] = counts.get("failed", 0) + 1
                 result.status = ResultStatus.error
                 result.error = error or "no outcome"

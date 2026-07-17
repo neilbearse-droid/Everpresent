@@ -62,7 +62,8 @@ def as_superadmin(login, superadmin):
 def fake_web_retrieve(monkeypatch):
     text, citations = parse_assistant_html(FIXTURE_HTML)
 
-    async def _fake(persona_prompt, query_text, *, headless, timeout_s, executable_path=None):
+    async def _fake(persona_prompt, query_text, *, headless, timeout_s,
+                    executable_path=None, env=None):
         return WebRetrievalOutcome(
             text=text,
             citations=list(citations),
@@ -169,7 +170,8 @@ def test_a_chains_into_b_and_b_finalizes(
 def test_failed_scrapes_are_data(db_session, job_env, fake_retrieve, monkeypatch):  # noqa: F811
     from worker.jobs import run_mode_b
 
-    async def _blocked(persona_prompt, query_text, *, headless, timeout_s, executable_path=None):
+    async def _blocked(persona_prompt, query_text, *, headless, timeout_s,
+                       executable_path=None, env=None):
         raise TimeoutError("cloudflare interstitial never cleared")
 
     monkeypatch.setattr("engine.retrievers.chatgpt_web.retrieve", _blocked)
