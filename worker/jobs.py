@@ -101,6 +101,10 @@ class _AAdapter:
     cost_fn: Any  # (model, in_tok, out_tok, search_calls) -> usd
     env_var: str  # for the "not configured" message
     supports_nosearch: bool  # whether the search-disabled dual-query twin applies
+    # Whether the search variant is FORCED (tool_choice). Only a forced surface
+    # hides natural routing, so only these get the M2 natural probe; the others
+    # already reveal routing via their search variant's web_search_calls.
+    forces_search: bool = False
 
 
 # Adding a Mode A surface = one line here plus its adapter + cost function.
@@ -108,6 +112,7 @@ A_ADAPTERS: dict[str, _AAdapter] = {
     "openai_api": _AAdapter(
         openai_api, "openai_api_key", "openai_model", "openai_timeout_s",
         estimate_openai_cost_usd, "OPENAI_API_KEY", supports_nosearch=True,
+        forces_search=True,
     ),
     "perplexity_api": _AAdapter(
         perplexity_api, "perplexity_api_key", "perplexity_model", "perplexity_timeout_s",
@@ -305,7 +310,9 @@ async def _dispatch_all(
                     api_key=getattr(settings, adapter.key_attr),
                     model=model,
                     timeout_s=getattr(settings, adapter.timeout_attr),
-                    web_search=item.variant == ResultVariant.search,
+                    web_search=item.variant in (ResultVariant.search, ResultVariant.natural),
+                    # M2 natural probe: offer the tool but don't force it.
+                    force_search=item.variant != ResultVariant.natural,
                 )
             except Exception as exc:  # noqa: BLE001 — a failed call is data, not a crash
                 return {"item": item, "model": model, "error": f"{type(exc).__name__}: {exc}"[:500]}
@@ -441,6 +448,21 @@ async def _run_mode_a(run_id: int) -> None:
             if (qtext, s) not in cached_twins  # twin still fresh — reuse below
         ]
 
+    # M2 natural routing probe: an un-forced call on a deterministic fraction of
+    # queries, for the surfaces that force search (only those hide routing).
+    # First persona only; measurement-only, excluded from scoring.
+    probe_frac = getattr(settings, "natural_probe_fraction", 0.0)
+    forced_surfaces = [s for s in configured if A_ADAPTERS[s].forces_search]
+    if personas and probe_frac > 0 and forced_surfaces and queries:
+        n_probe = max(1, round(probe_frac * len(queries)))
+        probe_queries = queries[:n_probe]
+        pid0, pname0, pprompt0, pseg0 = personas[0]
+        work += [
+            _AWorkItem(qid, qtext, pid0, pname0, pprompt0, pseg0, s, ResultVariant.natural)
+            for s in forced_surfaces
+            for (qid, qtext) in probe_queries
+        ]
+
     counts = {"planned": len(work), "completed": 0, "failed": 0, "withheld_by_cap": 0}
     if unconfigured:
         counts["skipped_unconfigured"] = len(unconfigured)
@@ -494,6 +516,7 @@ async def _run_mode_a(run_id: int) -> None:
                 counts["completed"] += 1
                 total_cost += item["cost"]
                 result.latency_ms = outcome.latency_ms
+                result.web_search_calls = outcome.parsed.web_search_calls
                 result.fanout_queries = list(outcome.parsed.fanout_queries)
                 result.response_hash = hashlib.sha256(
                     outcome.parsed.text.encode("utf-8")

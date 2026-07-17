@@ -78,6 +78,7 @@ async def retrieve(
     api_key: str,
     model: str,
     web_search: bool = True,  # accepted for a uniform adapter interface; Sonar always searches
+    force_search: bool = True,  # §AEO-plan M2: honored only by OpenAI
     timeout_s: float = 90.0,
     max_attempts: int = 3,
 ) -> RetrievalOutcome:

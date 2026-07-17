@@ -123,7 +123,8 @@ NOSEARCH_PAYLOAD = {
 
 @pytest.fixture()
 def fake_retrieve(monkeypatch):
-    async def _fake(persona_prompt, query_text, *, api_key, model, timeout_s, web_search=True):
+    async def _fake(persona_prompt, query_text, *,
+        api_key, model, timeout_s, web_search=True, force_search=True):
         payload = FIXTURE if web_search else NOSEARCH_PAYLOAD
         return RetrievalOutcome(
             payload=payload, parsed=parse_responses_payload(payload), latency_ms=42
@@ -262,7 +263,8 @@ def test_job_fails_loudly_without_api_key(db_session, job_env, fake_retrieve, mo
 def test_failed_calls_are_data_not_crashes(db_session, job_env, monkeypatch):
     from worker.jobs import run_mode_a
 
-    async def _boom(persona_prompt, query_text, *, api_key, model, timeout_s, web_search=True):
+    async def _boom(persona_prompt, query_text, *,
+        api_key, model, timeout_s, web_search=True, force_search=True):
         raise RuntimeError("provider exploded")
 
     monkeypatch.setattr("engine.retrievers.openai_api.retrieve", _boom)

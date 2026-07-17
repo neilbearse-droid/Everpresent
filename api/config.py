@@ -109,6 +109,14 @@ class Settings(BaseSettings):
     # re-buying it every run. 0 disables the cache (always refresh).
     diagnosis_refresh_days: int = 7
 
+    # Natural search-routing probe (§AEO-plan M2). OpenAI's search variant is
+    # forced (to guarantee citations), so it can't reveal whether a prompt
+    # would trigger search on its own. This runs an un-forced probe on a
+    # deterministic fraction of queries to map routing without doubling cost.
+    # 0 disables it (default); 1.0 probes every query. Enabled in production via
+    # render.yaml (NATURAL_PROBE_FRACTION) so it's an explicit, costed opt-in.
+    natural_probe_fraction: float = 0.0
+
     # BigQuery mirror (§5.3). Unset project = mirror disabled.
     bigquery_project: str = ""
     bigquery_dataset: str = "everpresent_v3"

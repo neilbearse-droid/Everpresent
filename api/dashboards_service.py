@@ -632,6 +632,58 @@ def fanout_report(session: Session, tenant_id: int) -> dict:
     }
 
 
+# Surfaces whose search variant is FORCED (tool_choice), so their search-variant
+# results can't reveal natural routing — only their M2 natural probe can. Kept
+# in sync with worker.jobs.A_ADAPTERS[...].forces_search.
+_FORCED_SEARCH_SURFACES = {"openai_api"}
+
+
+def routing_report(session: Session, tenant_id: int) -> dict:
+    """Search-routing map (§AEO-plan M2): per engine, the share of priority
+    prompts that trigger live search vs. are answered from training. Retrieval
+    optimization only pays off for prompts that actually search — this is the
+    'step one' diagnostic. For forced surfaces the signal comes from the
+    un-forced natural probe; for the rest, from their (already un-forced)
+    search variant's observed search count."""
+    search = _latest_results_by_variant(session, tenant_id, ResultVariant.search)
+    natural = _latest_results_by_variant(session, tenant_id, ResultVariant.natural)
+
+    per_surface: dict[str, dict] = defaultdict(lambda: {"measured": 0, "searched": 0})
+    prompts: dict[str, dict[str, bool]] = defaultdict(dict)
+    for qtext, surface in set(search) | set(natural):
+        if surface in _FORCED_SEARCH_SURFACES:
+            src = natural.get((qtext, surface))  # only probed queries have a signal
+        else:
+            src = search.get((qtext, surface))
+        if src is None:
+            continue
+        searched = (src.web_search_calls or 0) > 0
+        per_surface[surface]["measured"] += 1
+        per_surface[surface]["searched"] += 1 if searched else 0
+        prompts[qtext][surface] = searched
+
+    engines = [
+        {
+            "surface": s,
+            "measured": v["measured"],
+            "searched": v["searched"],
+            "search_rate": _pct(v["searched"], v["measured"]),
+            "from_probe": s in _FORCED_SEARCH_SURFACES,
+        }
+        for s, v in sorted(per_surface.items())
+    ]
+    rows = [
+        {"query": q, "engines": dict(sorted(d.items()))}
+        for q, d in sorted(prompts.items())
+    ]
+    return {
+        "brand_name": _brand_name(session, tenant_id),
+        "engines": engines,
+        "prompts": rows,
+        "observed": any(e["measured"] for e in engines),
+    }
+
+
 def accuracy_report(session: Session, tenant_id: int) -> dict:
     """Factual-accuracy findings over the latest answers (§AEO-plan M4): where
     engines state something the fact sheet says is wrong, grouped by fact with

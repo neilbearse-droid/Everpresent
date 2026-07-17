@@ -122,7 +122,8 @@ ANSWER_MAX_TOKENS = 1200
 
 
 def build_request_body(
-    persona_prompt: str, query_text: str, *, model: str, web_search: bool = True
+    persona_prompt: str, query_text: str, *, model: str, web_search: bool = True,
+    force_search: bool = True,
 ) -> dict[str, Any]:
     body: dict[str, Any] = {
         "model": model,
@@ -136,12 +137,16 @@ def build_request_body(
         # The search-DISABLED variant of the same call is the other half of
         # the dual-query diff the classifier consumes.
         body["tools"] = [{"type": "web_search"}]
-        # FORCE the search: given only the tool, gpt-4o often answers from
-        # training and never searches, so the answer carries no url_citation
-        # annotations. tool_choice makes the search variant reliably retrieve —
-        # this is what yields ChatGPT citations, and better matches the
-        # consumer app (whose hidden system prompt pushes it to search).
-        body["tool_choice"] = {"type": "web_search"}
+        if force_search:
+            # FORCE the search: given only the tool, gpt-4o often answers from
+            # training and never searches, so the answer carries no url_citation
+            # annotations. tool_choice makes the search variant reliably
+            # retrieve — this is what yields ChatGPT citations, and matches the
+            # consumer app (whose hidden system prompt pushes it to search).
+            body["tool_choice"] = {"type": "web_search"}
+        # else (§AEO-plan M2 natural probe): tool offered, `auto` tool_choice —
+        # the model decides, so we can observe whether the prompt triggers
+        # search at all.
     return body
 
 
@@ -152,10 +157,14 @@ async def retrieve(
     api_key: str,
     model: str,
     web_search: bool = True,
+    force_search: bool = True,
     timeout_s: float = 90.0,
     max_attempts: int = 3,
 ) -> RetrievalOutcome:
-    body = build_request_body(persona_prompt, query_text, model=model, web_search=web_search)
+    body = build_request_body(
+        persona_prompt, query_text, model=model, web_search=web_search,
+        force_search=force_search,
+    )
     headers = {"Authorization": f"Bearer {api_key}"}
     started = time.monotonic()
     async with httpx.AsyncClient(timeout=timeout_s) as client:

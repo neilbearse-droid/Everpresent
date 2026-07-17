@@ -383,6 +383,19 @@ export type InterventionsReport = {
   } | null;
 };
 
+export type RoutingReport = {
+  brand_name: string;
+  observed: boolean;
+  engines: {
+    surface: string;
+    measured: number;
+    searched: number;
+    search_rate: number;
+    from_probe: boolean;
+  }[];
+  prompts: { query: string; engines: Record<string, boolean> }[];
+};
+
 export type AccuracyReport = {
   brand_name: string;
   facts_on_file: number;

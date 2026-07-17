@@ -37,7 +37,8 @@ def test_plan_limits_and_helpers():
 
 
 def _fake(surface):
-    async def _f(persona_prompt, query_text, *, api_key, model, timeout_s, web_search=True):
+    async def _f(persona_prompt, query_text, *,
+        api_key, model, timeout_s, web_search=True, force_search=True):
         return RetrievalOutcome(
             payload={"model": model},
             parsed=ParsedResponse(text=f"{surface} {model}", input_tokens=1, output_tokens=1,
@@ -115,7 +116,8 @@ def test_diagnosis_twin_cached_across_runs(db_session, env, monkeypatch):
     calls: list[tuple[str, bool]] = []
 
     def make(surface):
-        async def _f(persona_prompt, query_text, *, api_key, model, timeout_s, web_search=True):
+        async def _f(persona_prompt, query_text, *,
+            api_key, model, timeout_s, web_search=True, force_search=True):
             calls.append((surface, web_search))
             return RetrievalOutcome(
                 payload={"model": model},

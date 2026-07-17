@@ -44,7 +44,8 @@ def _make_multi_tenant(db_session: Session) -> Tenant:
 
 
 def _fake_for(surface: str):
-    async def _fake(persona_prompt, query_text, *, api_key, model, timeout_s, web_search=True):
+    async def _fake(persona_prompt, query_text, *,
+        api_key, model, timeout_s, web_search=True, force_search=True):
         return RetrievalOutcome(
             payload={"surface": surface},
             parsed=ParsedResponse(

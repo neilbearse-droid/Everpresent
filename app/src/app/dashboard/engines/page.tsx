@@ -1,4 +1,4 @@
-import { apiFetch, rangeQuery, type EngineScorecard, type Me } from "@/lib/api";
+import { apiFetch, rangeQuery, type EngineScorecard, type Me, type RoutingReport } from "@/lib/api";
 import { DashNav } from "@/components/dash-nav";
 import { NoOrgNotice } from "@/components/no-org-notice";
 import { HBars } from "@/components/charts";
@@ -25,9 +25,10 @@ export default async function EnginesPage({
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
   const { from, to } = await searchParams;
-  const [me, card] = await Promise.all([
+  const [me, card, routing] = await Promise.all([
     apiFetch<Me>("/api/me"),
     apiFetch<EngineScorecard>(`/api/tenant/engine-scorecard${rangeQuery(from, to)}`),
+    apiFetch<RoutingReport>("/api/tenant/routing"),
   ]);
   if (card.status === 403) {
     return <NoOrgNotice active="Engines" isSuperadmin={me.data?.is_superadmin} detail={card.error} />;
@@ -41,6 +42,33 @@ export default async function EnginesPage({
   return (
     <main className="mx-auto max-w-6xl px-8 py-10">
       <DashNav active="Engines" isSuperadmin={me.data?.is_superadmin} withDateRange />
+
+      {routing.data?.observed && (
+        <section className="mb-6 card p-6">
+          <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
+            Do your prompts even trigger search?
+          </h2>
+          <p className="mb-4 text-xs text-[var(--text-3)]">
+            Retrieval optimization only pays off for prompts the engine actually searches —
+            the rest are answered from training, where only broad brand presence moves the
+            needle. Share of priority prompts that triggered live search, per engine.
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {routing.data.engines.map((e) => (
+              <div key={e.surface} className="card-inset p-4">
+                <div className="text-3xl font-semibold tabular-nums text-[var(--text)]">
+                  {e.search_rate}%
+                </div>
+                <div className="mt-1 text-sm text-[var(--text-2)]">{surfaceLabel(e.surface)}</div>
+                <div className="text-xs text-[var(--text-3)]">
+                  {e.searched}/{e.measured} prompts searched
+                  {e.from_probe ? " · natural probe" : ""}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {engines.length === 0 ? (
         <section className="card p-6">

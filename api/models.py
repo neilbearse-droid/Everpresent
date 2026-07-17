@@ -219,6 +219,10 @@ class ResultVariant(StrEnum):
     # Classifier input only: same query/persona with search disabled — the
     # other half of the dual-query diff (§6.1). Excluded from scoring.
     nosearch = "nosearch"
+    # Routing probe (§AEO-plan M2): the search tool is offered but NOT forced,
+    # so whether the model searches reveals natural routing (~31% of prompts
+    # are answered from training). Measurement only — excluded from scoring.
+    natural = "natural"
 
 
 class Result(SQLModel, table=True):
@@ -238,6 +242,10 @@ class Result(SQLModel, table=True):
     surface: SurfaceCode
     mode: RunMode = Field(default=RunMode.A)
     variant: ResultVariant = Field(default=ResultVariant.search, index=True)
+    # How many web searches the surface actually ran for this call (§AEO-plan
+    # M2). On the `natural` variant this reveals whether the prompt triggered
+    # search at all.
+    web_search_calls: int = Field(default=0)
     status: ResultStatus = Field(default=ResultStatus.ok)
     error: str | None = None
     # Location this cell was measured from (§SCRAPING_V3 Part 2). Empty =
