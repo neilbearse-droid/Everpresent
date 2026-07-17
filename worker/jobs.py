@@ -493,6 +493,7 @@ async def _run_mode_a(run_id: int) -> None:
                 counts["completed"] += 1
                 total_cost += item["cost"]
                 result.latency_ms = outcome.latency_ms
+                result.fanout_queries = list(outcome.parsed.fanout_queries)
                 result.response_hash = hashlib.sha256(
                     outcome.parsed.text.encode("utf-8")
                 ).hexdigest()

@@ -320,6 +320,34 @@ export default async function ActionPlanPage() {
                     </div>
                   </div>
 
+                  {b.subtopics.length > 0 && (
+                    <div className="mt-4 border-t border-[var(--border)] pt-3">
+                      <div className="mb-1.5 flex items-center gap-2 text-xs font-medium text-[var(--text-2)]">
+                        Sub-queries to cover
+                        <span
+                          className="chip text-[10px]"
+                          title={
+                            b.subtopics_source === "observed"
+                              ? "The actual sub-queries engines fanned out into for this prompt"
+                              : "Related prompts in the same set (no engine fan-out observed yet)"
+                          }
+                        >
+                          {b.subtopics_source === "observed" ? "engine fan-out" : "related"}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 text-[11px]">
+                        {b.subtopics.map((s, i) => (
+                          <span key={i} className="chip">
+                            {s}
+                          </span>
+                        ))}
+                      </div>
+                      <p className="mt-1.5 text-[10px] text-[var(--text-3)]">
+                        You compete shard by shard — win each of these, not just the headline prompt.
+                      </p>
+                    </div>
+                  )}
+
                   {b.citability?.ready && (
                     <div className="mt-4 border-t border-[var(--border)] pt-3">
                       <div className="mb-1.5 text-xs font-medium text-[var(--text-2)]">

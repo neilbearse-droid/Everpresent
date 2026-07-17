@@ -547,6 +547,65 @@ def engine_scorecard(
     }
 
 
+def _fanout_by_query(
+    search: dict[tuple[str, str], Result],
+) -> dict[str, list[str]]:
+    """Union of observed fan-out sub-queries per prompt across engines, deduped
+    case-insensitively and excluding the prompt itself (§AEO-plan M1)."""
+    out: dict[str, list[str]] = {}
+    seen: dict[str, set[str]] = {}
+    for (qtext, _surface), r in search.items():
+        for sub in getattr(r, "fanout_queries", None) or []:
+            s = str(sub).strip()
+            low = s.lower()
+            if not s or low == qtext.lower():
+                continue
+            bucket = seen.setdefault(qtext, set())
+            if low in bucket:
+                continue
+            bucket.add(low)
+            out.setdefault(qtext, []).append(s)
+    return out
+
+
+def fanout_report(session: Session, tenant_id: int) -> dict:
+    """Query fan-out (§AEO-plan M1): the sub-queries engines actually issued on
+    the way to answering each priority prompt. You no longer compete for the
+    prompt — you compete shard by shard for its fan-out, so this is the map of
+    the real contest surface. Populated where engines expose it (Gemini always;
+    OpenAI when present)."""
+    search = _latest_results_by_variant(session, tenant_id, ResultVariant.search)
+    # Track, per prompt, each sub-query (deduped case-insensitively, keeping the
+    # first display form) and which surfaces issued it.
+    per_prompt: dict[str, dict[str, dict]] = defaultdict(dict)
+    for (qtext, surface), r in search.items():
+        for sub in getattr(r, "fanout_queries", None) or []:
+            s = str(sub).strip()
+            low = s.lower()
+            if not s or low == qtext.lower():
+                continue
+            entry = per_prompt[qtext].setdefault(low, {"text": s, "engines": set()})
+            entry["engines"].add(_surface_label(surface))
+
+    prompts = []
+    for qtext in sorted(per_prompt):
+        subs = list(per_prompt[qtext].values())
+        prompts.append({
+            "query": qtext,
+            "count": len(subs),
+            "subqueries": [
+                {"text": e["text"], "engines": sorted(e["engines"])}
+                for e in sorted(subs, key=lambda e: (-len(e["engines"]), e["text"].lower()))
+            ],
+        })
+    prompts.sort(key=lambda p: -p["count"])
+    return {
+        "brand_name": _brand_name(session, tenant_id),
+        "prompts": prompts,
+        "observed": bool(prompts),
+    }
+
+
 def _pct(part: float, whole: float) -> float:
     return round(100.0 * part / whole, 1) if whole else 0.0
 
@@ -1123,6 +1182,7 @@ def action_plan(session: Session, tenant_id: int) -> dict:
 
     # Latest search result per (query, surface) and its mention context.
     search = _latest_results_by_variant(session, tenant_id, ResultVariant.search)
+    fanout_by_query = _fanout_by_query(search)
     results_by_id = {r.id: r for r in search.values() if r.id is not None}
     ids = list(results_by_id)
     brand_ids: set[int] = set()
@@ -1217,8 +1277,12 @@ def action_plan(session: Session, tenant_id: int) -> dict:
                 key=lambda kv: -len(kv[1]),
             )
         ][:5]
-        subtopics = [t for t in by_corpus.get(corpus_of.get(row["query"], ""), [])
+        # Prefer the real fan-out the engines issued for this prompt (§AEO M1);
+        # fall back to the same-corpus heuristic when none was observed.
+        observed = fanout_by_query.get(row["query"], [])
+        heuristic = [t for t in by_corpus.get(corpus_of.get(row["query"], ""), [])
                      if t != row["query"]][:6]
+        subtopics = (observed[:8] if observed else heuristic)
         briefs.append({
             "query_id": row["id"],
             "query": row["query"],
@@ -1228,6 +1292,7 @@ def action_plan(session: Session, tenant_id: int) -> dict:
             "competitors_winning": competitors_winning,
             "target_sources": q_targets,
             "subtopics": subtopics,
+            "subtopics_source": "observed" if observed else "heuristic",
             "outline": _brief_outline(row["query"], brand_name, competitors_winning, subtopics),
         })
 

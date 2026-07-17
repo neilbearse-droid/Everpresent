@@ -40,6 +40,11 @@ class ParsedResponse:
     input_tokens: int = 0
     output_tokens: int = 0
     model: str = ""
+    # The sub-queries the engine actually issued on the way to this answer
+    # (§AEO-plan M1 — query fan-out). Exposed by Gemini (webSearchQueries) and,
+    # where present, OpenAI web_search_call actions. Empty when the surface
+    # doesn't reveal it.
+    fanout_queries: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -53,11 +58,16 @@ def parse_responses_payload(payload: dict[str, Any]) -> ParsedResponse:
     """Pure parser over a Responses API body; fixture-tested, never network."""
     texts: list[str] = []
     citations: list[ParsedCitation] = []
+    fanout_queries: list[str] = []
     web_search_calls = 0
     for item in payload.get("output", []):
         item_type = item.get("type")
         if item_type == "web_search_call":
             web_search_calls += 1
+            # The Responses API carries the issued query on the search action.
+            query = (item.get("action") or {}).get("query")
+            if query:
+                fanout_queries.append(query)
             continue
         if item_type != "message":
             continue
@@ -78,6 +88,7 @@ def parse_responses_payload(payload: dict[str, Any]) -> ParsedResponse:
         input_tokens=usage.get("input_tokens", 0),
         output_tokens=usage.get("output_tokens", 0),
         model=payload.get("model", ""),
+        fanout_queries=fanout_queries,
     )
 
 

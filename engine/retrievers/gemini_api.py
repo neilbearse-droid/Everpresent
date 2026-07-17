@@ -40,7 +40,7 @@ def parse_gemini_payload(payload: dict[str, Any]) -> ParsedResponse:
             if url and url not in seen:
                 seen.add(url)
                 citations.append(ParsedCitation(url=url, title=web.get("title", "")))
-        queries = grounding.get("webSearchQueries", []) or []
+        queries = list(grounding.get("webSearchQueries", []) or [])
         web_search_calls = len(queries) if queries else (1 if citations else 0)
 
     usage = payload.get("usageMetadata", {})
@@ -51,6 +51,8 @@ def parse_gemini_payload(payload: dict[str, Any]) -> ParsedResponse:
         input_tokens=usage.get("promptTokenCount", 0),
         output_tokens=usage.get("candidatesTokenCount", 0),
         model=payload.get("modelVersion", ""),
+        # Gemini is the richest fan-out source: the exact sub-queries it ran.
+        fanout_queries=queries if candidates else [],
     )
 
 

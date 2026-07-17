@@ -321,6 +321,7 @@ export type ActionPlan = {
     competitors_winning: string[];
     target_sources: { domain: string; rivals: string[] }[];
     subtopics: string[];
+    subtopics_source?: "observed" | "heuristic";
     outline: string[];
     contestability: {
       score: number | null;
@@ -379,6 +380,16 @@ export type InterventionsReport = {
     avg_delta: number;
     avg_control_delta: number | null;
   } | null;
+};
+
+export type FanoutReport = {
+  brand_name: string;
+  observed: boolean;
+  prompts: {
+    query: string;
+    count: number;
+    subqueries: { text: string; engines: string[] }[];
+  }[];
 };
 
 export type AccessAuditAgent = {

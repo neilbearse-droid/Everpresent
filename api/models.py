@@ -243,6 +243,10 @@ class Result(SQLModel, table=True):
     # Location this cell was measured from (§SCRAPING_V3 Part 2). Empty =
     # the tenant's single default location — every existing result.
     location_label: str = Field(default="", index=True)
+    # The sub-queries the engine fanned out into on the way to this answer
+    # (§AEO-plan M1). Populated where the surface exposes it (Gemini always,
+    # OpenAI when present); empty otherwise.
+    fanout_queries: list[str] = Field(default_factory=list, sa_column=Column(JSON))
     # Raw payload envelope in object storage; Postgres stores derived data
     # only (§5.1).
     raw_uri: str = ""
