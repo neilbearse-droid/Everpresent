@@ -145,8 +145,13 @@ services:
         value: "4"
       - key: GOOGLE_AIO_RATE_PER_MIN
         value: "6"
+      # Google AI Overview capture: "serpapi" returns the AIO block + cited
+      # sources as structured JSON via SerpApi (reliable, per-search cost),
+      # falling back to direct scraping until SERPAPI_KEY is set.
       - key: GOOGLE_AIO_PROVIDER
-        value: direct
+        value: serpapi
+      - key: SERPAPI_KEY
+        sync: false
       # Anti-blocking (SCRAPING_V3). Stealth is free and on by default; the
       # proxy/managed-browser layers activate only when set. SCRAPE_PROXY_URL
       # (or SCRAPE_PROXY_MAP for per-country residential IPs) both dodges
