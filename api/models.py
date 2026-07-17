@@ -310,6 +310,29 @@ class AiReferralDaily(SQLModel, table=True):
     fetched_at: datetime = Field(default_factory=utcnow)
 
 
+class PagePresence(SQLModel, table=True):
+    """On-page presence audit (§focus-group #2): for each Power Page (a URL
+    the engines cite), whether the brand and competitors are actually named on
+    it, plus cheap citability features. Upserted per (tenant, url) by the
+    nightly/on-demand crawl."""
+
+    __tablename__ = "page_presence"  # pyright: ignore[reportAssignmentType]
+
+    id: int | None = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenants.id", index=True)
+    url: str = Field(index=True)
+    domain: str = ""
+    status: str = "ok"  # ok | error
+    http_status: int | None = None
+    error: str | None = None
+    brand_found: bool = False
+    competitors_found: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    # Citability fingerprint features (json_ld, faq_schema, has_tables,
+    # recent_year_mentions, word_count).
+    features: dict = Field(default_factory=dict, sa_column=Column(JSON))
+    fetched_at: datetime = Field(default_factory=utcnow)
+
+
 class RunSchedule(SQLModel, table=True):
     """§5.1 run_schedules. Surfaces/modes are resolved from the tenant's
     live config at fire time rather than frozen on the schedule

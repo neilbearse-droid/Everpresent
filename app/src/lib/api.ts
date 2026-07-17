@@ -170,6 +170,15 @@ export type CitationsPayload = {
     citations: number;
     queries: number;
     surfaces: string[];
+    on_page: boolean | null;
+    competitors_on_page: string[];
+    page_features: {
+      json_ld: boolean;
+      faq_schema: boolean;
+      has_tables: boolean;
+      recent_year_mentions: number;
+      word_count: number;
+    } | null;
   }[];
   aio: AIOSummary;
 };

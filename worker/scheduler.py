@@ -11,7 +11,7 @@ from sqlmodel import Session, select
 
 from api.config import get_settings
 from api.db import get_engine
-from api.models import MirrorState, RunSchedule, Tenant, utcnow
+from api.models import Citation, MirrorState, RunSchedule, Tenant, utcnow
 from api.runs_service import trigger_run
 
 log = structlog.get_logger()
@@ -66,12 +66,11 @@ def tick(session: Session, now: datetime | None = None) -> list[int]:
 
 
 def _maybe_enqueue_nightly(session: Session, now: datetime) -> None:
-    """Once-a-day, after mirror_hour_utc: enqueue the BigQuery mirror and the
-    GA4 outcome pull. A single day-watermark gates both; each is skipped if its
-    own integration isn't configured."""
+    """Once-a-day, after mirror_hour_utc: enqueue the BigQuery mirror, the GA4
+    outcome pull, and the Power Pages presence crawl. A single day-watermark
+    gates all three; the first two are skipped when their integration isn't
+    configured, the crawl needs none."""
     settings = get_settings()
-    if not settings.bigquery_project and not settings.google_service_account_json:
-        return
     if now.hour < settings.mirror_hour_utc:
         return
     day_stamp = int(now.strftime("%Y%m%d"))
@@ -95,6 +94,12 @@ def _maybe_enqueue_nightly(session: Session, now: datetime) -> None:
     if settings.google_service_account_json:
         queue.enqueue("worker.ga4_pull.pull_ga4_referrals", job_timeout=15 * 60)
         log.info("ga4.enqueued", day=day_stamp)
+    # Presence crawl for every tenant that has citation data to audit.
+    tenant_ids = {tid for tid in session.exec(select(Citation.tenant_id).distinct()).all()}
+    for tid in sorted(tenant_ids):
+        queue.enqueue("worker.page_crawl.crawl_power_pages", tid, job_timeout=15 * 60)
+    if tenant_ids:
+        log.info("page_crawl.enqueued", day=day_stamp, tenants=len(tenant_ids))
 
 
 def run() -> None:

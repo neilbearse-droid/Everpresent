@@ -12,6 +12,19 @@ export type AuditState = {
   domains?: AccessAuditDomain[];
 } | null;
 
+export async function crawlPowerPages(
+  slug: string,
+  _prev: ActionState,
+  _formData: FormData,
+): Promise<ActionState> {
+  const res = await apiFetch(`/api/admin/tenants/${slug}/crawl-pages`, { method: "POST" });
+  if (!res.ok) return { ok: false, message: res.error ?? "Could not queue the crawl" };
+  return {
+    ok: true,
+    message: "Crawl queued — presence results appear on the Citations tab in a few minutes.",
+  };
+}
+
 export async function runAccessAudit(
   slug: string,
   _prev: AuditState,

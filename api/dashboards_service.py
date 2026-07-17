@@ -12,6 +12,7 @@ from api.models import (
     BrandProfile,
     Citation,
     Mention,
+    PagePresence,
     Query,
     QueryClassification,
     Result,
@@ -124,12 +125,31 @@ def citations_intel(session: Session, tenant_id: int) -> dict:
     # Influence = breadth (distinct queries the page's answers cover) first,
     # then raw citation volume.
     power = sorted(pages.values(), key=lambda p: (-len(p["queries"]), -p["citations"]))
+
+    # On-page presence (§focus-group #2): join the crawl results so each
+    # Power Page says whether the brand is actually named on it.
+    presence_by_url = {
+        row.url: row
+        for row in session.exec(
+            select(PagePresence).where(PagePresence.tenant_id == tenant_id)
+        ).all()
+    }
+
+    def _with_presence(p: dict) -> dict:
+        row = presence_by_url.get(p["url"])
+        crawled = row is not None and row.status == "ok"
+        return {
+            **p,
+            "queries": len(p["queries"]),
+            "surfaces": sorted(p["surfaces"]),
+            "on_page": row.brand_found if crawled else None,
+            "competitors_on_page": row.competitors_found if crawled else [],
+            "page_features": row.features if crawled else None,
+        }
+
     return {
         "domains": [{**d, "surfaces": sorted(d["surfaces"])} for d in ranked],
-        "power_pages": [
-            {**p, "queries": len(p["queries"]), "surfaces": sorted(p["surfaces"])}
-            for p in power[:MAX_POWER_PAGES]
-        ],
+        "power_pages": [_with_presence(p) for p in power[:MAX_POWER_PAGES]],
         "aio": aio_summary(session, tenant_id),
     }
 

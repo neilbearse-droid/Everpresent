@@ -58,6 +58,7 @@ export default async function CitationsPage() {
                     <tr>
                       <th className="py-2 pr-4">Page</th>
                       <th className="pr-4">Owner</th>
+                      <th className="pr-4">You named?</th>
                       <th className="pr-4">Queries fed</th>
                       <th className="pr-4">Citations</th>
                       <th>Engines</th>
@@ -89,6 +90,37 @@ export default async function CitationsPage() {
                                 ? "rival"
                                 : "third party"}
                           </span>
+                        </td>
+                        <td className="pr-4 text-xs">
+                          {p.category !== "other" ? (
+                            <span className="text-[var(--text-3)]">—</span>
+                          ) : p.on_page === null ? (
+                            <span className="text-[var(--text-3)]" title="Not crawled yet">
+                              not crawled
+                            </span>
+                          ) : p.on_page ? (
+                            <span
+                              className="font-medium text-[var(--pos)]"
+                              title={
+                                p.competitors_on_page.length
+                                  ? `Also names: ${p.competitors_on_page.join(", ")}`
+                                  : "You're named; no rivals detected"
+                              }
+                            >
+                              ✓ named
+                            </span>
+                          ) : (
+                            <span
+                              className="font-medium text-[var(--neg)]"
+                              title={
+                                p.competitors_on_page.length
+                                  ? `Names ${p.competitors_on_page.join(", ")} — not you. Pitch this page.`
+                                  : "Neither you nor tracked rivals are named"
+                              }
+                            >
+                              ✗ absent
+                            </span>
+                          )}
                         </td>
                         <td className="pr-4 tabular-nums">{p.queries}</td>
                         <td className="pr-4 tabular-nums">{p.citations}</td>

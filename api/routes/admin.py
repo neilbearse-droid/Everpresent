@@ -307,6 +307,22 @@ def access_audit(slug: str, session: Db, admin: Admin) -> dict:
     return {"domains": results}
 
 
+@router.post("/tenants/{slug}/crawl-pages", status_code=202)
+def crawl_pages(slug: str, session: Db, admin: Admin) -> dict:
+    """Enqueue the Power Pages presence crawl (runs on the worker; results
+    appear on the Citations tab as each page is fetched)."""
+    from api.queue import enqueue_page_crawl
+
+    tenant = _tenant_or_404(session, slug)
+    assert tenant.id is not None
+    enqueue_page_crawl(tenant.id)
+    write_audit(
+        session, tenant_id=tenant.id, actor=admin.user.email, action=f"tenant.crawl-pages {slug}"
+    )
+    session.commit()
+    return {"queued": True}
+
+
 class SchedulePut(BaseModel):
     cron_expr: str
     enabled: bool = True

@@ -5,6 +5,7 @@ import { surfaceLabel } from "@/lib/viz";
 import { setGovernance, toggleSurface } from "../actions";
 import { AccessAuditPanel } from "./access-audit-panel";
 import { ClerkOrgForm } from "./clerk-org-form";
+import { CrawlPagesButton } from "./crawl-pages-button";
 import { Ga4Form } from "./ga4-form";
 import { ImportYamlForm } from "./import-yaml-form";
 import { NotifyEmailsForm } from "./notify-emails-form";
@@ -167,6 +168,14 @@ export default async function TenantAdminPage({
             surprising share of visibility gaps are a one-line config fix.
           </p>
           <AccessAuditPanel slug={tenant.slug} />
+          <div className="mt-5 border-t border-[var(--border)] pt-4">
+            <h3 className="mb-1 text-sm font-medium">Power Pages presence crawl</h3>
+            <p className="mb-3 text-xs text-[var(--text-2)]">
+              Fetches the top third-party pages the engines cite and checks whether the brand
+              is actually named on each. Runs nightly; queue one now after a fresh run.
+            </p>
+            <CrawlPagesButton slug={tenant.slug} />
+          </div>
         </section>
 
         <section className="card p-5">
