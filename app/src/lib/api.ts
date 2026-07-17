@@ -453,6 +453,12 @@ export type AccessAuditDomain = {
   status_bot: number | null;
   ua_blocked: boolean;
   rendering: AccessRendering;
+  entity: {
+    has_sameas: boolean;
+    has_org_schema: boolean;
+    links_wikipedia: boolean;
+    links_wikidata: boolean;
+  };
   grade: "pass" | "warn" | "fail";
   issues: string[];
 };

@@ -70,6 +70,19 @@ export function AccessAuditPanel({ slug }: { slug: string }) {
                 </span>
               )}
               <span className="chip">{d.has_llms_txt ? "llms.txt ✓" : "no llms.txt (optional)"}</span>
+              {d.entity && (
+                <span
+                  className={`chip ${
+                    d.entity.has_sameas || d.entity.links_wikipedia
+                      ? "text-[var(--pos)]"
+                      : "text-[var(--text-3)]"
+                  }`}
+                >
+                  {d.entity.has_sameas || d.entity.links_wikipedia
+                    ? "entity signals ✓"
+                    : "no entity signals"}
+                </span>
+              )}
               {d.ua_blocked && (
                 <span className="chip text-[var(--neg)]">bot UA rejected</span>
               )}

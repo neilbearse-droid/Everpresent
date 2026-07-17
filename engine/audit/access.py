@@ -60,6 +60,20 @@ _BLOCKED_STATUSES = {401, 403, 429}
 MAX_HTML_BYTES = 1_500_000  # bound the homepage read; a page, not a tarpit
 
 
+def entity_signals(html: str) -> dict[str, Any]:
+    """Entity-authority signals on the homepage (§AEO-plan m5, Pillar C): the
+    machine-readable identity cues engines use to disambiguate the brand as a
+    known entity — sameAs links, Organization schema, and Wikipedia/Wikidata
+    presence. Pure string inspection."""
+    lower = html.lower()
+    return {
+        "has_sameas": '"sameas"' in lower,
+        "has_org_schema": '"organization"' in lower and "application/ld+json" in lower,
+        "links_wikipedia": "wikipedia.org" in lower,
+        "links_wikidata": "wikidata.org" in lower,
+    }
+
+
 def evaluate_robots(robots_text: str) -> list[dict[str, Any]]:
     """Per-AI-agent verdicts for a robots.txt body. `mentioned` distinguishes
     an explicit rule from falling through to the * group."""
@@ -87,6 +101,7 @@ def summarize(
     robots_status: int | None,
     render_verdict: str = "pass",
     render_reason: str = "",
+    entity: dict[str, Any] | None = None,
 ) -> tuple[str, list[str]]:
     """Grade + human-readable issues. fail = something is blocking live
     retrieval right now (robots block, CDN challenge, or a JS-only page engines
@@ -124,6 +139,11 @@ def summarize(
         issues.append("No JSON-LD structured data detected on the homepage — engines lean "
                       "on schema to disambiguate the entity (machine-legibility hygiene, "
                       "not a citation lever)")
+    # Entity authority (§AEO-plan m5, Pillar C): advisory, not graded.
+    if entity is not None and not (entity.get("has_sameas") or entity.get("links_wikipedia")):
+        issues.append("No entity-authority signals on the homepage (sameAs links, "
+                      "Wikipedia/Wikidata presence) — engines use these to recognize the "
+                      "brand as a known entity")
     # llms.txt is deliberately NOT an issue: 2026 log studies observe zero AI
     # crawler consumption of it, so its absence is not a defect. The frontend
     # still shows a neutral presence chip.
@@ -165,6 +185,8 @@ def audit_domain(client: httpx.Client, domain: str) -> dict[str, Any]:
     status_bot: int | None = None
     has_json_ld = False
     rendering: dict[str, Any] = {"verdict": "pass", "word_count": 0, "reason": "", "signals": {}}
+    entity: dict[str, Any] = {"has_sameas": False, "has_org_schema": False,
+                              "links_wikipedia": False, "links_wikidata": False}
     try:
         resp = client.get(base, headers={"User-Agent": BROWSER_UA})
         status_normal = resp.status_code
@@ -173,6 +195,7 @@ def audit_domain(client: httpx.Client, domain: str) -> dict[str, Any]:
         # M3: grade the raw HTML the way non-rendering AI crawlers see it.
         if status_normal < 400:
             rendering = render_verdict(homepage_html)
+            entity = entity_signals(homepage_html)
     except httpx.HTTPError as exc:
         out["error"] = out["error"] or f"homepage unreachable: {type(exc).__name__}"
     try:
@@ -195,6 +218,7 @@ def audit_domain(client: httpx.Client, domain: str) -> dict[str, Any]:
         robots_status=robots_status,
         render_verdict=rendering["verdict"],
         render_reason=rendering["reason"],
+        entity=entity,
     )
     out.update(
         robots_status=robots_status,
@@ -205,6 +229,7 @@ def audit_domain(client: httpx.Client, domain: str) -> dict[str, Any]:
         status_bot=status_bot,
         ua_blocked=ua_blocked,
         rendering=rendering,
+        entity=entity,
         grade=grade,
         issues=issues,
     )

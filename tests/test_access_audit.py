@@ -1,7 +1,7 @@
 """AI-crawler access audit: pure robots evaluation + grading. No network —
 the fetch layer is thin and exercised in production only."""
 
-from engine.audit.access import evaluate_robots, summarize
+from engine.audit.access import entity_signals, evaluate_robots, summarize
 
 BLOCKING_ROBOTS = """
 User-agent: GPTBot
@@ -86,3 +86,26 @@ def test_grade_passes_when_everything_is_open_and_present():
     grade, issues = summarize(evaluate_robots(""), ua_blocked=False, has_llms_txt=True,
                               has_json_ld=True, robots_status=200)
     assert grade == "pass" and issues == []
+
+
+def test_entity_signals_detection():
+    rich = (
+        '<script type="application/ld+json">{"@type":"Organization",'
+        '"sameAs":["https://en.wikipedia.org/wiki/Smith","https://www.wikidata.org/wiki/Q1"]}'
+        "</script>"
+    )
+    e = entity_signals(rich)
+    assert e["has_sameas"] and e["has_org_schema"]
+    assert e["links_wikipedia"] and e["links_wikidata"]
+
+    bare = entity_signals("<html><body>Welcome</body></html>")
+    assert not any(bare.values())
+
+
+def test_missing_entity_signals_is_advisory_only():
+    # No entity signals → an advisory issue, but not a graded failure.
+    grade, issues = summarize(evaluate_robots(""), ua_blocked=False, has_llms_txt=True,
+                              has_json_ld=True, robots_status=200,
+                              entity={"has_sameas": False, "links_wikipedia": False})
+    assert grade == "pass"
+    assert any("entity-authority" in i for i in issues)
