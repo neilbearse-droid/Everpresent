@@ -68,6 +68,10 @@ class Settings(BaseSettings):
     # stealth hardening is free and always on; proxy and managed-browser
     # layers activate only when their env is set.
     scrape_stealth: bool = True
+    # Abort image/media/font requests during scrapes — pure proxy-byte savings
+    # (§SCRAPING_V3 cost), roughly halving GB/scrape. Off only if a surface
+    # somehow needs media to render its answer text.
+    scrape_block_assets: bool = True
     # A single proxy URL (http://user:pass@host:port). Used for any country
     # unless the map overrides it. Empty = no proxy (direct, as today).
     scrape_proxy_url: str = ""

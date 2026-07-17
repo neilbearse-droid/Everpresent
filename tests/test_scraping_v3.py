@@ -74,6 +74,43 @@ def test_context_options_no_proxy_is_clean():
     assert timezone_for("zz") == "UTC"  # unknown country → safe default
 
 
+def test_route_blocker_drops_only_heavy_assets():
+    import asyncio
+
+    from engine.retrievers.stealth import _route_blocker
+
+    class _Req:
+        def __init__(self, rt):
+            self.resource_type = rt
+
+    class _Route:
+        def __init__(self, rt):
+            self.request = _Req(rt)
+            self.aborted = False
+            self.continued = False
+
+        async def abort(self):
+            self.aborted = True
+
+        async def continue_(self):
+            self.continued = True
+
+    def check(rt) -> _Route:
+        route = _Route(rt)
+        asyncio.run(_route_blocker(route))
+        return route
+
+    # Images/media/fonts are aborted (never parsed → pure proxy cost saved).
+    for rt in ("image", "media", "font"):
+        route = check(rt)
+        assert route.aborted and not route.continued
+
+    # Document/script/stylesheet/xhr are kept — needed for text + layout.
+    for rt in ("document", "script", "stylesheet", "xhr", "fetch"):
+        route = check(rt)
+        assert route.continued and not route.aborted
+
+
 # --- Part 2: location fan-out ------------------------------------------------
 
 @pytest.fixture()

@@ -230,6 +230,7 @@ def _base_scrape_env(settings: Any) -> ScrapeEnv:
         proxy_map=dict(settings.scrape_proxy_map),
         cdp_endpoint=settings.scrape_cdp_endpoint,
         stealth=settings.scrape_stealth,
+        block_assets=settings.scrape_block_assets,
     )
 
 

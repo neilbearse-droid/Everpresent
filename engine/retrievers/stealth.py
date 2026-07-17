@@ -79,6 +79,17 @@ class ScrapeEnv:
     latitude: float | None = None
     longitude: float | None = None
     user_agent: str = DEFAULT_USER_AGENT
+    # Abort image/media/font requests (§SCRAPING_V3 cost). We parse only text
+    # and links, so these bytes are pure proxy cost — dropping them roughly
+    # halves GB/scrape with no loss of measurement fidelity. Stylesheets and
+    # scripts are kept so layout-dependent capture (AIO block vs organic
+    # position) stays accurate.
+    block_assets: bool = True
+
+
+# Resource types safe to abort: never parsed, and don't affect the DOM layout
+# the capture relies on.
+_BLOCKED_RESOURCE_TYPES = frozenset({"image", "media", "font"})
 
 
 def resolve_proxy(env: ScrapeEnv) -> str:
@@ -131,6 +142,15 @@ def context_options(env: ScrapeEnv) -> dict[str, Any]:
     return opts
 
 
+async def _route_blocker(route) -> None:
+    """Abort never-parsed heavy resources to cut proxy bytes; let everything
+    else through."""
+    if route.request.resource_type in _BLOCKED_RESOURCE_TYPES:
+        await route.abort()
+    else:
+        await route.continue_()
+
+
 @asynccontextmanager
 async def browser_page(env: ScrapeEnv):
     """Yield a fresh (browser, context, page) for one scrape and tear it all
@@ -151,6 +171,8 @@ async def browser_page(env: ScrapeEnv):
             context = await browser.new_context(**context_options(env))
             if env.stealth:
                 await context.add_init_script(_INIT_SCRIPT)
+            if env.block_assets:
+                await context.route("**/*", _route_blocker)
             page = await context.new_page()
             try:
                 yield browser, context, page

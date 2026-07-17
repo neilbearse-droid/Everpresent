@@ -131,6 +131,13 @@ runtime ≈ scrapes ÷ rate_per_min      (default 4/min per surface, sequential)
 50 queries × 3 surfaces × 1 location = 150 scrapes ≈ 40 min.
 50 queries × 3 surfaces × 6 locations = 900 scrapes ≈ 4 h.
 
+**Byte reduction (halves the proxy bill).** We parse only text and links, so
+images, media, and fonts are pure proxy cost. `scrape_block_assets` (on by
+default) aborts those resource types at the network layer — roughly halving
+GB/scrape — while keeping scripts and stylesheets so layout-dependent capture
+(AIO block vs. organic position) stays accurate. On residential proxies billed
+per GB, this is the single biggest cost lever after cadence.
+
 So multi-location is **plan-gated and capped**:
 
 - `PlanLimits.max_locations` (monitor/diagnose = 1; command = few; custom =
