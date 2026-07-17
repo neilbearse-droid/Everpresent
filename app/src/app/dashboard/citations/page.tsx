@@ -140,6 +140,27 @@ export default async function CitationsPage({
             </section>
           )}
 
+          {(data.consulted_domains ?? []).length > 0 && (
+            <section className="card mb-6 p-6">
+              <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
+                Consulted but not cited — warm targets
+              </h2>
+              <p className="mb-4 text-xs text-[var(--text-3)]">
+                The engines read these sources on the way to their answers but didn&apos;t
+                cite them. They&apos;re already in the consideration set — earning a citation
+                here is a shorter path than starting cold.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {data.consulted_domains.slice(0, 20).map((d) => (
+                  <span key={d.domain} className="chip" title={`${d.queries} queries`}>
+                    <span className="font-mono">{d.domain}</span>
+                    <span className="ml-1.5 text-[var(--text-3)]">·{d.count}</span>
+                  </span>
+                ))}
+              </div>
+            </section>
+          )}
+
           <section className="card p-6">
             <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
               Domains AI answers cite in this vertical

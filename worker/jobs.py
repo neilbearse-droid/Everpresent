@@ -14,6 +14,7 @@ from api.config import get_settings
 from api.db import get_engine
 from api.models import (
     Citation,
+    ConsultedSource,
     Location,
     Persona,
     Query,
@@ -529,6 +530,18 @@ async def _run_mode_a(run_id: int) -> None:
                             tenant_id=run.tenant_id,
                             url=parsed_citation.url,
                             domain=parsed_citation.domain,
+                            cited_text=parsed_citation.cited_text,
+                        )
+                    )
+                # Consulted-but-not-cited sources (§AEO-plan M6): competitive
+                # intel, kept out of the citations table.
+                for src in item["outcome"].parsed.consulted_sources:
+                    session.add(
+                        ConsultedSource(
+                            result_id=result.id,
+                            tenant_id=run.tenant_id,
+                            url=src.url,
+                            domain=src.domain,
                         )
                     )
 

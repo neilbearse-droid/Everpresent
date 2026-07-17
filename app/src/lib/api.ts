@@ -202,6 +202,7 @@ export type CitationsPayload = {
     competitors_on_page: string[];
     page_features: PageFeatures | null;
   }[];
+  consulted_domains: { domain: string; count: number; queries: number }[];
   aio: AIOSummary;
 };
 

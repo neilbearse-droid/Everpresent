@@ -36,6 +36,31 @@ def test_parser_tolerates_minimal_payload():
     assert parsed.citations == []
 
 
+def test_captures_consulted_sources_when_present():
+    # §AEO-plan M6: when the Responses API returns a fuller `sources` list, the
+    # non-cited entries are captured as consulted (competitive intel).
+    payload = {
+        "output": [
+            {"type": "web_search_call", "action": {"query": "best mba canada"}},
+            {"type": "message", "content": [{
+                "type": "output_text", "text": "Smith is strong.",
+                "annotations": [
+                    {"type": "url_citation", "url": "https://ft.com/x", "title": "FT"},
+                ],
+            }]},
+        ],
+        "sources": [
+            {"url": "https://ft.com/x"},                 # already cited → skipped
+            {"url": "https://reddit.com/r/mba", "title": "r/MBA"},  # consulted only
+        ],
+        "usage": {"input_tokens": 5, "output_tokens": 4},
+        "model": "gpt-x",
+    }
+    parsed = parse_responses_payload(payload)
+    assert [c.url for c in parsed.citations] == ["https://ft.com/x"]
+    assert [c.url for c in parsed.consulted_sources] == ["https://reddit.com/r/mba"]
+
+
 def test_request_body_uses_persona_as_instructions():
     body = build_request_body("You are a persona.", "best MBA?", model="gpt-4o")
     assert body["instructions"] == "You are a persona."

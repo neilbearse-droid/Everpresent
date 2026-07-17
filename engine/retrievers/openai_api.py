@@ -26,6 +26,9 @@ RETRYABLE_STATUS = {429, 500, 502, 503, 504}
 class ParsedCitation:
     url: str
     title: str = ""
+    # The exact snippet the engine quoted from this source (§AEO-plan M6).
+    # Claude exposes it (≤150 chars); other surfaces usually leave it empty.
+    cited_text: str = ""
 
     @property
     def domain(self) -> str:
@@ -45,6 +48,10 @@ class ParsedResponse:
     # where present, OpenAI web_search_call actions. Empty when the surface
     # doesn't reveal it.
     fanout_queries: list[str] = field(default_factory=list)
+    # Sources the engine consulted but did NOT cite in the answer (§AEO-plan
+    # M6). A domain the engines read but skipped is competitive intel. Kept
+    # separate from `citations` so citation counts stay clean.
+    consulted_sources: list[ParsedCitation] = field(default_factory=list)
 
 
 @dataclass
@@ -80,6 +87,18 @@ def parse_responses_payload(payload: dict[str, Any]) -> ParsedResponse:
                     citations.append(
                         ParsedCitation(url=annotation["url"], title=annotation.get("title", ""))
                     )
+    # Consulted-but-not-cited: the Responses API may return a fuller `sources`
+    # list than the visible url_citations (§AEO-plan M6). Read it defensively —
+    # absent on many responses — and exclude anything already cited.
+    cited_urls = {c.url for c in citations}
+    consulted: list[ParsedCitation] = []
+    consulted_seen: set[str] = set()
+    for src in payload.get("sources", []) or []:
+        url = src.get("url") if isinstance(src, dict) else None
+        if url and url not in cited_urls and url not in consulted_seen:
+            consulted_seen.add(url)
+            consulted.append(ParsedCitation(url=url, title=src.get("title", "")))
+
     usage = payload.get("usage", {})
     return ParsedResponse(
         text="\n\n".join(t for t in texts if t),
@@ -89,6 +108,7 @@ def parse_responses_payload(payload: dict[str, Any]) -> ParsedResponse:
         output_tokens=usage.get("output_tokens", 0),
         model=payload.get("model", ""),
         fanout_queries=fanout_queries,
+        consulted_sources=consulted,
     )
 
 

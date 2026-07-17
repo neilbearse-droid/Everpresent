@@ -265,6 +265,25 @@ class Citation(SQLModel, table=True):
     domain: str = Field(index=True)
     # Rule-based categorization arrives with M3 processing.
     source_category: str = ""
+    # The exact snippet the engine quoted from this source, where the surface
+    # exposes it (Claude ≤150 chars) (§AEO-plan M6). Empty otherwise.
+    cited_text: str = ""
+
+
+class ConsultedSource(SQLModel, table=True):
+    """A source the engine consulted but did NOT cite in the answer (§AEO-plan
+    M6). Kept in its own table so it never inflates citation counts, but it is
+    real competitive intel: the engines read this page and chose not to cite
+    it. Populated where the surface distinguishes the two (Claude always;
+    OpenAI when it returns a fuller `sources` list)."""
+
+    __tablename__ = "consulted_sources"  # pyright: ignore[reportAssignmentType]
+
+    id: int | None = Field(default=None, primary_key=True)
+    result_id: int = Field(foreign_key="results.id", index=True)
+    tenant_id: int = Field(foreign_key="tenants.id", index=True)
+    url: str
+    domain: str = Field(index=True)
 
 
 class Mention(SQLModel, table=True):

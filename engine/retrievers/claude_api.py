@@ -30,27 +30,45 @@ WEB_SEARCH_TOOL = {"type": "web_search_20250305", "name": "web_search", "max_use
 RETRYABLE_STATUS = {429, 500, 502, 503, 504}
 
 
-def _collect_citations(payload: dict[str, Any]) -> list[ParsedCitation]:
-    citations: list[ParsedCitation] = []
-    seen: set[str] = set()
-
-    def add(url: str | None, title: str = "") -> None:
-        if url and url not in seen:
-            seen.add(url)
-            citations.append(ParsedCitation(url=url, title=title or ""))
-
+def _collect_citations(
+    payload: dict[str, Any],
+) -> tuple[list[ParsedCitation], list[ParsedCitation]]:
+    """Claude distinguishes the two naturally (§AEO-plan M6): text-block
+    `citations` are what the answer actually referenced (they carry the quoted
+    `cited_text`), while `web_search_tool_result` blocks are everything search
+    surfaced. Cited = the former; consulted = search results the answer didn't
+    reference."""
+    cited: list[ParsedCitation] = []
+    cited_seen: set[str] = set()
     for block in payload.get("content", []):
-        btype = block.get("type")
-        if btype == "text":
-            for cite in block.get("citations", []) or []:
-                add(cite.get("url"), cite.get("title", ""))
-        elif btype == "web_search_tool_result":
-            content = block.get("content", [])
-            if isinstance(content, list):
-                for item in content:
-                    if item.get("type") == "web_search_result":
-                        add(item.get("url"), item.get("title", ""))
-    return citations
+        if block.get("type") != "text":
+            continue
+        for cite in block.get("citations", []) or []:
+            url = cite.get("url")
+            if url and url not in cited_seen:
+                cited_seen.add(url)
+                cited.append(ParsedCitation(
+                    url=url,
+                    title=cite.get("title", "") or "",
+                    cited_text=(cite.get("cited_text", "") or "")[:150],
+                ))
+
+    consulted: list[ParsedCitation] = []
+    consulted_seen: set[str] = set()
+    for block in payload.get("content", []):
+        if block.get("type") != "web_search_tool_result":
+            continue
+        content = block.get("content", [])
+        if not isinstance(content, list):
+            continue
+        for item in content:
+            if item.get("type") != "web_search_result":
+                continue
+            url = item.get("url")
+            if url and url not in cited_seen and url not in consulted_seen:
+                consulted_seen.add(url)
+                consulted.append(ParsedCitation(url=url, title=item.get("title", "") or ""))
+    return cited, consulted
 
 
 def parse_claude_payload(payload: dict[str, Any]) -> ParsedResponse:
@@ -62,13 +80,15 @@ def parse_claude_payload(payload: dict[str, Any]) -> ParsedResponse:
     ]
     usage = payload.get("usage", {})
     server_tool = usage.get("server_tool_use", {}) or {}
+    cited, consulted = _collect_citations(payload)
     return ParsedResponse(
         text="\n\n".join(t for t in texts if t),
-        citations=_collect_citations(payload),
+        citations=cited,
         web_search_calls=int(server_tool.get("web_search_requests", 0)),
         input_tokens=usage.get("input_tokens", 0),
         output_tokens=usage.get("output_tokens", 0),
         model=payload.get("model", ""),
+        consulted_sources=consulted,
     )
 
 

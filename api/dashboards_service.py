@@ -11,6 +11,7 @@ from api.models import (
     AiReferralDaily,
     BrandProfile,
     Citation,
+    ConsultedSource,
     Intervention,
     Mention,
     PagePresence,
@@ -197,9 +198,32 @@ def citations_intel(
             "page_features": row.features if crawled else None,
         }
 
+    # Consulted-but-not-cited domains (§AEO-plan M6): the engines read these on
+    # the way to their answers but didn't cite them — a warm target list, since
+    # they're already in the consideration set. Excludes anything already cited.
+    cited_domains = set(domains)
+    consulted: dict[str, dict] = {}
+    for cs in session.exec(
+        select(ConsultedSource).where(ConsultedSource.tenant_id == tenant_id)
+    ).all():
+        src = results_by_id.get(cs.result_id)
+        if (lo or hi) and (src is None or not _in_window(src.created_at, lo, hi)):
+            continue
+        if cs.domain in cited_domains:
+            continue
+        entry = consulted.setdefault(cs.domain, {"domain": cs.domain, "count": 0, "queries": set()})
+        entry["count"] += 1
+        if src is not None:
+            entry["queries"].add(src.query_text)
+    consulted_ranked = sorted(consulted.values(), key=lambda d: -d["count"])[:MAX_POWER_PAGES]
+
     return {
         "domains": [{**d, "surfaces": sorted(d["surfaces"])} for d in ranked],
         "power_pages": [_with_presence(p) for p in power[:MAX_POWER_PAGES]],
+        "consulted_domains": [
+            {"domain": d["domain"], "count": d["count"], "queries": len(d["queries"])}
+            for d in consulted_ranked
+        ],
         "aio": aio_summary(session, tenant_id),
     }
 

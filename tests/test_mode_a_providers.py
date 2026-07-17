@@ -55,18 +55,38 @@ def test_perplexity_cost_uses_sonar_prices():
 
 # --- Anthropic Claude -------------------------------------------------------
 
-def test_claude_parses_text_and_deduped_citations():
+def test_claude_parses_text_and_splits_cited_from_consulted():
     parsed = parse_claude_payload(
         json.loads((FIX / "claude_messages_web_search.json").read_text())
     )
     assert "Smith School of Business" in parsed.text
-    # citations come from both the tool-result block and the text block, deduped
+    # §AEO-plan M6: cited = what the answer text actually referenced; consulted
+    # = search results the answer read but didn't cite.
     assert [c.url for c in parsed.citations] == [
-        "https://www.ft.com/mba-rankings/canada",
         "https://smith.queensu.ca/programs/mba/full-time",
+    ]
+    assert [c.url for c in parsed.consulted_sources] == [
+        "https://www.ft.com/mba-rankings/canada",
     ]
     assert parsed.web_search_calls == 1
     assert parsed.input_tokens == 320 and parsed.output_tokens == 96
+
+
+def test_claude_captures_cited_text_snippet():
+    payload = {
+        "content": [
+            {"type": "text", "text": "Smith is top-ranked.", "citations": [
+                {"url": "https://ft.com/x", "title": "FT",
+                 "cited_text": "Smith placed first in Canada for 2026." + "x" * 200},
+            ]},
+        ],
+        "usage": {"input_tokens": 5, "output_tokens": 4,
+                  "server_tool_use": {"web_search_requests": 1}},
+        "model": "claude-x",
+    }
+    parsed = parse_claude_payload(payload)
+    assert parsed.citations[0].cited_text.startswith("Smith placed first in Canada")
+    assert len(parsed.citations[0].cited_text) == 150  # capped
 
 
 def test_claude_body_includes_web_search_tool_only_when_enabled():
