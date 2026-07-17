@@ -274,6 +274,48 @@ export default async function ActionPlanPage() {
                       </ul>
                     </div>
                   </div>
+
+                  {b.citability?.ready && (
+                    <div className="mt-4 border-t border-[var(--border)] pt-3">
+                      <div className="mb-1.5 text-xs font-medium text-[var(--text-2)]">
+                        Citability diff — copy the winning fingerprint
+                      </div>
+                      <div className="mb-2 flex flex-wrap gap-1.5 text-[11px]">
+                        {b.citability.spec?.json_ld && <span className="chip">JSON-LD</span>}
+                        {b.citability.spec?.faq_schema && <span className="chip">FAQ schema</span>}
+                        {b.citability.spec?.has_tables && <span className="chip">comparison tables</span>}
+                        {(b.citability.spec?.recent_year_mentions ?? 0) >= 3 && (
+                          <span className="chip">
+                            ~{b.citability.spec!.recent_year_mentions} fresh-date mentions
+                          </span>
+                        )}
+                        <span className="chip">~{b.citability.spec?.word_count} words</span>
+                        {b.citability.your_page && (
+                          <a
+                            href={b.citability.your_page.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="chip text-[var(--accent)] hover:underline"
+                            title={b.citability.your_page.url}
+                          >
+                            your page ↗
+                          </a>
+                        )}
+                      </div>
+                      <ul className="space-y-1 text-xs text-[var(--text-2)]">
+                        {b.citability.gaps?.map((gap, i) => (
+                          <li key={i} className="flex gap-2">
+                            <span aria-hidden className="text-[var(--warn-t)]">▲</span>
+                            {gap}
+                          </li>
+                        ))}
+                      </ul>
+                      <p className="mt-1.5 text-[10px] text-[var(--text-3)]">
+                        Spec drawn from {b.citability.winners?.length} crawled winning page
+                        {(b.citability.winners?.length ?? 0) > 1 ? "s" : ""} cited on this query.
+                      </p>
+                    </div>
+                  )}
                 </article>
               ))}
             </div>

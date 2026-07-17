@@ -3,9 +3,9 @@
 For a tenant's top Power Pages (the URLs the engines cite), fetch each page
 and record whether the brand/competitors are named on it plus the citability
 fingerprint. Upserts page_presence keyed (tenant, url). Runs nightly for every
-tenant with citations, and on demand from the admin panel. Own-brand and
-competitor-owned URLs are skipped — the question only matters for third-party
-pages you could pitch."""
+tenant with citations, and on demand from the admin panel. Competitor-owned
+URLs are skipped; the brand's own cited pages ARE crawled — their fingerprint
+is the "your page" side of the citability diff (§focus-group #3)."""
 
 import httpx
 import structlog
@@ -38,7 +38,7 @@ def crawl_power_pages(tenant_id: int) -> int:
         ]
         pages = [
             p for p in citations_intel(session, tenant_id)["power_pages"]
-            if p["category"] == "other"
+            if p["category"] != "competitor"
         ][:MAX_PAGES]
 
         crawled = 0

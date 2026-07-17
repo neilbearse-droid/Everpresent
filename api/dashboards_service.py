@@ -804,6 +804,74 @@ def _lost_citations(session: Session, tenant_id: int) -> dict:
     }
 
 
+_MAX_DIFF_WINNERS = 3
+
+
+def _citability_diff(
+    winners: list[PagePresence], your_page: PagePresence | None
+) -> dict:
+    """Citability fingerprint diff (§focus-group #3): the structural spec the
+    winning cited pages share, and where your page falls short of it. Turns a
+    '$4k rewrite' into a '$400 edit': add the 3 features every winner has."""
+    if not winners:
+        return {"ready": False}
+    half = len(winners) / 2
+
+    def common(key: str) -> bool:
+        return sum(1 for w in winners if (w.features or {}).get(key)) >= half
+
+    def median(key: str) -> int:
+        vals = sorted((w.features or {}).get(key, 0) for w in winners)
+        return vals[len(vals) // 2]
+
+    spec = {
+        "json_ld": common("json_ld"),
+        "faq_schema": common("faq_schema"),
+        "has_tables": common("has_tables"),
+        "recent_year_mentions": median("recent_year_mentions"),
+        "word_count": median("word_count"),
+    }
+
+    gaps: list[str] = []
+    if your_page is None:
+        gaps.append(
+            "None of your pages is cited on this query — build one to the winning spec"
+        )
+    else:
+        yf = your_page.features or {}
+        if spec["json_ld"] and not yf.get("json_ld"):
+            gaps.append("Winning pages carry JSON-LD structured data; yours doesn't")
+        if spec["faq_schema"] and not yf.get("faq_schema"):
+            gaps.append("Winning pages use FAQ schema; add a marked-up FAQ block")
+        if spec["has_tables"] and not yf.get("has_tables"):
+            gaps.append("Winning pages include comparison tables; yours has none")
+        if spec["recent_year_mentions"] >= 3 and yf.get("recent_year_mentions", 0) < max(
+            1, spec["recent_year_mentions"] // 2
+        ):
+            gaps.append(
+                f"Winning pages average {spec['recent_year_mentions']} recent-date "
+                f"mentions (fresh stats); yours has {yf.get('recent_year_mentions', 0)}"
+            )
+        if yf.get("word_count", 0) < spec["word_count"] * 0.5:
+            gaps.append(
+                f"Winning pages run ~{spec['word_count']} words; yours is "
+                f"{yf.get('word_count', 0)} — likely too thin to cite"
+            )
+        if not gaps:
+            gaps.append("Your page matches the winning fingerprint — the gap is likely "
+                        "authority/recency, not structure")
+
+    return {
+        "ready": True,
+        "winners": [w.url for w in winners],
+        "spec": spec,
+        "your_page": (
+            {"url": your_page.url, "features": your_page.features} if your_page else None
+        ),
+        "gaps": gaps,
+    }
+
+
 def action_plan(session: Session, tenant_id: int) -> dict:
     """The actionable layer (panel #1 + #4): a citation-gap target list — the
     third-party sources that cite rivals in this vertical but not you — and a
@@ -830,13 +898,24 @@ def action_plan(session: Session, tenant_id: int) -> dict:
     # Aggregate third-party ("other") citation domains across those results.
     domain_stats: dict[str, dict] = {}
     per_query_targets: dict[str, dict[str, set[str]]] = defaultdict(lambda: defaultdict(set))
+    # Per-query cited URLs for the citability diff: the winning third-party
+    # pages on each query, and the brand's own cited page (if any).
+    winning_urls_by_query: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
+    brand_urls_by_query: dict[str, list[str]] = defaultdict(list)
     if ids:
         for c in session.exec(
             select(Citation).where(Citation.result_id.in_(ids))  # pyright: ignore[reportAttributeAccessIssue]
         ).all():
             result = results_by_id.get(c.result_id)
-            if result is None or c.source_category != "other" or domain_is_owned(c.domain, owned):
-                continue  # skip owned + rivals' own sites; keep pitchable third parties
+            if result is None:
+                continue
+            if c.source_category == "brand":
+                if c.url not in brand_urls_by_query[result.query_text]:
+                    brand_urls_by_query[result.query_text].append(c.url)
+                continue
+            if c.source_category != "other" or domain_is_owned(c.domain, owned):
+                continue  # skip rivals' own sites; keep pitchable third parties
+            winning_urls_by_query[result.query_text][c.url] += 1
             comps = comps_by_result.get(c.result_id, set())
             brand_here = c.result_id in brand_ids
             entry = domain_stats.setdefault(
@@ -910,6 +989,26 @@ def action_plan(session: Session, tenant_id: int) -> dict:
             "subtopics": subtopics,
             "outline": _brief_outline(row["query"], brand_name, competitors_winning, subtopics),
         })
+
+    # Citability diff per brief: your page vs the crawled winning pages.
+    crawled = {
+        row.url: row
+        for row in session.exec(
+            select(PagePresence).where(
+                PagePresence.tenant_id == tenant_id, PagePresence.status == "ok"
+            )
+        ).all()
+    }
+    for b in briefs:
+        ranked_winners = sorted(
+            winning_urls_by_query.get(b["query"], {}).items(), key=lambda kv: -kv[1]
+        )
+        winners = [crawled[u] for u, _n in ranked_winners if u in crawled][:_MAX_DIFF_WINNERS]
+        your_page = next(
+            (crawled[u] for u in brand_urls_by_query.get(b["query"], []) if u in crawled),
+            None,
+        )
+        b["citability"] = _citability_diff(winners, your_page)
 
     # Contestability ranking: spend effort where the answer is still in play.
     scores = _contestability(session, tenant_id, {b["query"] for b in briefs})

@@ -306,6 +306,19 @@ export type ActionPlan = {
       volatility: number | null;
       dependence: number;
     };
+    citability: {
+      ready: boolean;
+      winners?: string[];
+      spec?: {
+        json_ld: boolean;
+        faq_schema: boolean;
+        has_tables: boolean;
+        recent_year_mentions: number;
+        word_count: number;
+      };
+      your_page?: { url: string; features: Record<string, unknown> } | null;
+      gaps?: string[];
+    };
   }[];
   strike_zone: Record<string, number>;
   protect: {

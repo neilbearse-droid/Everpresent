@@ -184,3 +184,98 @@ def test_lost_citation_radar_diffs_brand_pages_across_runs(db_session):
     assert lost["https://acme.com/guide"]["still_cited_on"] == 1
     assert lost["https://acme.com/pricing"]["queries"] == ["q1"]
     assert lost["https://acme.com/pricing"]["still_cited_on"] == 0
+
+
+def test_citability_diff_specs_winners_and_flags_your_gaps(db_session):
+    from api.models import PagePresence
+
+    tenant = Tenant(name="Acme", slug="acme")
+    db_session.add(tenant)
+    db_session.commit()
+    tid = tenant.id
+    db_session.add(BrandProfile(tenant_id=tid, brand_name="Acme", domains=["acme.com"]))
+    db_session.add(Query(tenant_id=tid, text="best crm", corpus_tag="crm"))
+    db_session.commit()
+    run = Run(tenant_id=tid, trigger="manual", status=RunStatus.complete)
+    db_session.add(run)
+    db_session.commit()
+
+    # Gap query: rival named, brand absent; twin knows brand -> content gap.
+    s = _result(db_session, run.id, tid, "best crm", "openai_api", "search")
+    db_session.add(Mention(result_id=s.id, tenant_id=tid, entity_type="competitor",
+                           entity_name="Globex", position=0, rank=1))
+    ns = _result(db_session, run.id, tid, "best crm", "openai_api", "nosearch")
+    db_session.add(Mention(result_id=ns.id, tenant_id=tid, entity_type="brand",
+                           entity_name="Acme", position=0, rank=1))
+    # Cited on the query: two third-party winners and the brand's own page.
+    for url, dom, cat in [("https://g2.com/best", "g2.com", "other"),
+                          ("https://blog.example.com/top", "blog.example.com", "other"),
+                          ("https://acme.com/crm", "acme.com", "brand")]:
+        db_session.add(Citation(result_id=s.id, tenant_id=tid, url=url, domain=dom,
+                                source_category=cat))
+    db_session.commit()
+
+    # Crawled fingerprints: both winners have FAQ+tables+fresh dates; yours is thin.
+    winner_features = {"json_ld": True, "faq_schema": True, "has_tables": True,
+                       "recent_year_mentions": 8, "word_count": 2000}
+    for url in ("https://g2.com/best", "https://blog.example.com/top"):
+        db_session.add(PagePresence(tenant_id=tid, url=url, domain="x", status="ok",
+                                    brand_found=False, features=dict(winner_features)))
+    db_session.add(PagePresence(tenant_id=tid, url="https://acme.com/crm", domain="acme.com",
+                                status="ok", brand_found=True,
+                                features={"json_ld": True, "faq_schema": False,
+                                          "has_tables": False, "recent_year_mentions": 1,
+                                          "word_count": 400}))
+    db_session.commit()
+
+    brief = action_plan(db_session, tid)["briefs"][0]
+    cit = brief["citability"]
+    assert cit["ready"] is True
+    assert len(cit["winners"]) == 2
+    assert cit["spec"]["faq_schema"] is True and cit["spec"]["word_count"] == 2000
+    assert cit["your_page"]["url"] == "https://acme.com/crm"
+    gaps = " | ".join(cit["gaps"])
+    assert "FAQ schema" in gaps
+    assert "comparison tables" in gaps
+    assert "fresh stats" in gaps
+    assert "too thin" in gaps
+    assert "JSON-LD" not in gaps  # your page already has it
+
+
+def test_citability_handles_no_owned_page_and_uncrawled_winners(db_session):
+    from api.models import PagePresence
+
+    tenant = Tenant(name="Acme", slug="acme")
+    db_session.add(tenant)
+    db_session.commit()
+    tid = tenant.id
+    db_session.add(BrandProfile(tenant_id=tid, brand_name="Acme", domains=["acme.com"]))
+    db_session.add(Query(tenant_id=tid, text="q a", corpus_tag="c"))
+    db_session.add(Query(tenant_id=tid, text="q b", corpus_tag="c"))
+    db_session.commit()
+    run = Run(tenant_id=tid, trigger="manual", status=RunStatus.complete)
+    db_session.add(run)
+    db_session.commit()
+
+    for q in ("q a", "q b"):
+        s = _result(db_session, run.id, tid, q, "openai_api", "search")
+        db_session.add(Mention(result_id=s.id, tenant_id=tid, entity_type="competitor",
+                               entity_name="Globex", position=0, rank=1))
+        _result(db_session, run.id, tid, q, "openai_api", "nosearch")
+        db_session.add(Citation(result_id=s.id, tenant_id=tid,
+                                url=f"https://site.example/{q.replace(' ', '')}",
+                                domain="site.example", source_category="other"))
+    db_session.commit()
+    # Only q a's winner has been crawled; no brand page anywhere.
+    db_session.add(PagePresence(tenant_id=tid, url="https://site.example/qa", domain="x",
+                                status="ok", brand_found=False,
+                                features={"json_ld": False, "faq_schema": False,
+                                          "has_tables": False, "recent_year_mentions": 0,
+                                          "word_count": 900}))
+    db_session.commit()
+
+    briefs = {b["query"]: b for b in action_plan(db_session, tid)["briefs"]}
+    assert briefs["q a"]["citability"]["ready"] is True
+    assert briefs["q a"]["citability"]["your_page"] is None
+    assert any("build one" in g for g in briefs["q a"]["citability"]["gaps"])
+    assert briefs["q b"]["citability"]["ready"] is False  # winners not crawled yet
