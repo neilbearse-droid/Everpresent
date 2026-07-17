@@ -117,16 +117,59 @@ export default async function ActionPlanPage() {
                 decay signal — the proven fix is a cheap refresh: update the page's dates,
                 stats, and examples.
               </p>
-              <div className="mb-4 flex flex-wrap gap-2 text-xs">
-                <span className="chip text-[var(--pos)]">{data!.protect.held} held</span>
-                {data!.protect.gained > 0 && (
-                  <span className="chip text-[var(--pos)]">{data!.protect.gained} gained</span>
-                )}
-                <span
-                  className={`chip ${data!.protect.lost.length ? "text-[var(--neg)]" : ""}`}
-                >
-                  {data!.protect.lost.length} losing ground
-                </span>
+              <div className="mb-5 grid gap-3 sm:grid-cols-3">
+                <div className="card-inset p-4">
+                  <div className="flex items-baseline gap-2">
+                    <span
+                      aria-hidden
+                      className={`text-xl font-semibold ${
+                        data!.protect.gained > 0 ? "text-[var(--pos)]" : "text-[var(--text-3)]"
+                      }`}
+                    >
+                      ↑
+                    </span>
+                    <span className="text-3xl font-semibold tabular-nums text-[var(--text)]">
+                      {data!.protect.gained}
+                    </span>
+                  </div>
+                  <div className="mt-1 text-sm text-[var(--text-2)]">Gained</div>
+                  <div className="text-xs text-[var(--text-3)]">
+                    citations won since the last run
+                  </div>
+                </div>
+                <div className="card-inset p-4">
+                  <div className="flex items-baseline gap-2">
+                    <span aria-hidden className="text-xl font-semibold text-[var(--text-3)]">
+                      →
+                    </span>
+                    <span className="text-3xl font-semibold tabular-nums text-[var(--text)]">
+                      {data!.protect.held}
+                    </span>
+                  </div>
+                  <div className="mt-1 text-sm text-[var(--text-2)]">Held</div>
+                  <div className="text-xs text-[var(--text-3)]">
+                    citations steady run-over-run
+                  </div>
+                </div>
+                <div className="card-inset p-4">
+                  <div className="flex items-baseline gap-2">
+                    <span
+                      aria-hidden
+                      className={`text-xl font-semibold ${
+                        data!.protect.lost.length ? "text-[var(--neg)]" : "text-[var(--text-3)]"
+                      }`}
+                    >
+                      ↓
+                    </span>
+                    <span className="text-3xl font-semibold tabular-nums text-[var(--text)]">
+                      {data!.protect.lost.length}
+                    </span>
+                  </div>
+                  <div className="mt-1 text-sm text-[var(--text-2)]">Losing ground</div>
+                  <div className="text-xs text-[var(--text-3)]">
+                    pages that dropped a citation — refresh these
+                  </div>
+                </div>
               </div>
               {data!.protect.lost.length === 0 ? (
                 <p className="text-sm text-[var(--pos)]">
