@@ -54,12 +54,23 @@ def parse_gemini_payload(payload: dict[str, Any]) -> ParsedResponse:
     )
 
 
+# See openai_api.ANSWER_MAX_TOKENS — the same methodology cap. Gemini bills
+# "thinking" as output tokens; Flash models accept thinkingBudget 0, which we
+# set (matching the consumer product's fast path). Pro models don't allow
+# disabling thinking, so they get only the output cap.
+ANSWER_MAX_TOKENS = 1200
+
+
 def build_request_body(
-    persona_prompt: str, query_text: str, *, web_search: bool = True
+    persona_prompt: str, query_text: str, *, model: str = "", web_search: bool = True
 ) -> dict[str, Any]:
+    generation_config: dict[str, Any] = {"maxOutputTokens": ANSWER_MAX_TOKENS}
+    if "flash" in model:
+        generation_config["thinkingConfig"] = {"thinkingBudget": 0}
     body: dict[str, Any] = {
         "system_instruction": {"parts": [{"text": persona_prompt.strip()}]},
         "contents": [{"role": "user", "parts": [{"text": query_text.strip()}]}],
+        "generationConfig": generation_config,
     }
     if web_search:
         # The grounding-DISABLED twin is the other half of the dual-query diff.
@@ -77,7 +88,7 @@ async def retrieve(
     timeout_s: float = 90.0,
     max_attempts: int = 3,
 ) -> RetrievalOutcome:
-    body = build_request_body(persona_prompt, query_text, web_search=web_search)
+    body = build_request_body(persona_prompt, query_text, model=model, web_search=web_search)
     url = f"{GEMINI_BASE}/{model}:generateContent"
     started = time.monotonic()
     async with httpx.AsyncClient(timeout=timeout_s) as client:

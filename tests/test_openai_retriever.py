@@ -44,9 +44,20 @@ def test_request_body_uses_persona_as_instructions():
     # Search is forced so gpt-4o reliably retrieves (and returns citations),
     # instead of often answering from training with no sources.
     assert body["tool_choice"] == {"type": "web_search"}
+    # Cost cap: consumer-length answers, no runaway output billing.
+    assert body["max_output_tokens"] == 1200
+    assert "reasoning" not in body  # gpt-4o is not a reasoning model
     # Search-disabled variant (dual-query diff): no tool, no forcing.
     nosearch = build_request_body("p", "q", model="gpt-4o", web_search=False)
     assert "tools" not in nosearch and "tool_choice" not in nosearch
+
+
+def test_gpt5_models_pin_low_reasoning_effort():
+    # Reasoning tokens bill as output; low effort matches the consumer app's
+    # fast default and bounds cost.
+    body = build_request_body("p", "q", model="gpt-5.6-terra")
+    assert body["reasoning"] == {"effort": "low"}
+    assert body["max_output_tokens"] == 1200
 
 
 def test_cost_estimate_matches_price_table():

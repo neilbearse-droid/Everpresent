@@ -5,6 +5,7 @@ only place the two meet a database session and a provider key."""
 import asyncio
 import hashlib
 from dataclasses import asdict, dataclass
+from datetime import UTC, timedelta
 from typing import Any
 
 from sqlmodel import Session, select
@@ -29,7 +30,7 @@ from api.plans import cap_engines, limits_for, model_for
 from api.processing_service import process_run
 from api.queue import enqueue_run_mode_b
 from api.runs_service import MODE_A_SURFACES, MODE_B_SURFACES, month_spend_usd
-from api.storage import write_raw_envelope
+from api.storage import read_raw_envelope, write_raw_envelope
 from engine.costs import (
     estimate_anthropic_cost_usd,
     estimate_gemini_cost_usd,
@@ -297,6 +298,42 @@ async def _run_mode_a(run_id: int) -> None:
             personas = personas[: limits.max_personas]
         month_spent_before = month_spend_usd(session, run.tenant_id)
 
+        # Diagnosis-twin cache (§cost): training knowledge is frozen between
+        # model snapshots, so re-buying the nosearch twin every run measures a
+        # constant. Reuse a recent twin for the same (query, surface) when the
+        # stored envelope was produced by the model this plan would use now —
+        # a plan/model change invalidates automatically. TTL-bounded; 0 = off.
+        cached_twins: dict[tuple[str, str], tuple[str, str]] = {}
+        if personas and limits.diagnosis and settings.diagnosis_refresh_days > 0:
+            cutoff = utcnow() - timedelta(days=settings.diagnosis_refresh_days)
+            query_texts = {qtext for (_qid, qtext) in queries}
+            candidates = session.exec(
+                select(Result)
+                .where(
+                    Result.tenant_id == tenant.id,
+                    Result.variant == ResultVariant.nosearch,
+                    Result.status == ResultStatus.ok,
+                )
+                .order_by(Result.id.desc())  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
+                .limit(4000)
+            ).all()
+            for r in candidates:
+                key = (r.query_text, str(r.surface))
+                if key in cached_twins or r.query_text not in query_texts or not r.raw_uri:
+                    continue
+                created = r.created_at if r.created_at.tzinfo else r.created_at.replace(tzinfo=UTC)
+                if created < cutoff:
+                    continue
+                adapter = A_ADAPTERS.get(str(r.surface))
+                if adapter is None or not adapter.supports_nosearch:
+                    continue
+                expected = model_for(
+                    str(r.surface), limits.model_tier, getattr(settings, adapter.model_attr)
+                )
+                envelope = read_raw_envelope(r.raw_uri, session=session) or {}
+                if envelope.get("model") == expected:
+                    cached_twins[key] = (r.raw_uri, r.response_hash)
+
     # Only dispatch surfaces whose provider key is configured; an enabled
     # surface with no key is skipped with a clear reason, never a crash. If
     # NONE of the enabled Mode A surfaces has a key, the run fails loudly.
@@ -334,6 +371,7 @@ async def _run_mode_a(run_id: int) -> None:
             for s in configured
             if A_ADAPTERS[s].supports_nosearch
             for (qid, qtext) in queries
+            if (qtext, s) not in cached_twins  # twin still fresh — reuse below
         ]
 
     counts = {"planned": len(work), "completed": 0, "failed": 0, "withheld_by_cap": 0}
@@ -426,6 +464,36 @@ async def _run_mode_a(run_id: int) -> None:
                             domain=parsed_citation.domain,
                         )
                     )
+
+        # Materialize cached diagnosis twins as rows in this run (same raw
+        # envelope, zero provider spend) so the classifier's within-run
+        # variant pairing works unchanged.
+        if cached_twins and personas:
+            qid_by_text = {qtext: qid for (qid, qtext) in queries}
+            pid0, pname0, _pprompt0, pseg0 = personas[0]
+            cloned = 0
+            for (qtext, twin_surface), (uri, rhash) in cached_twins.items():
+                if twin_surface not in configured:
+                    continue
+                session.add(
+                    Result(
+                        run_id=run_id,
+                        tenant_id=run.tenant_id,
+                        query_id=qid_by_text.get(qtext),
+                        persona_id=pid0,
+                        query_text=qtext,
+                        persona_name=pname0,
+                        persona_segment=pseg0,
+                        surface=SurfaceCode(twin_surface),
+                        variant=ResultVariant.nosearch,
+                        raw_uri=uri,
+                        response_hash=rhash,
+                        latency_ms=0,
+                    )
+                )
+                cloned += 1
+            if cloned:
+                counts["diagnosis_cached"] = cloned
 
         counts["citations"] = citation_count
         if capped:

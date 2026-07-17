@@ -56,6 +56,10 @@ def parse_perplexity_payload(payload: dict[str, Any]) -> ParsedResponse:
     )
 
 
+# See openai_api.ANSWER_MAX_TOKENS — the same methodology cap.
+ANSWER_MAX_TOKENS = 1200
+
+
 def build_request_body(persona_prompt: str, query_text: str, *, model: str) -> dict[str, Any]:
     return {
         "model": model,
@@ -63,6 +67,7 @@ def build_request_body(persona_prompt: str, query_text: str, *, model: str) -> d
             {"role": "system", "content": persona_prompt.strip()},
             {"role": "user", "content": query_text.strip()},
         ],
+        "max_tokens": ANSWER_MAX_TOKENS,
     }
 
 

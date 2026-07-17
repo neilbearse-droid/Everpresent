@@ -107,6 +107,45 @@ def test_monitor_caps_personas_engines_and_skips_diagnosis(db_session, env):
     assert openai.status == ResultStatus.ok
 
 
+def test_diagnosis_twin_cached_across_runs(db_session, env, monkeypatch):
+    """Training knowledge is frozen between model snapshots, so the second run
+    reuses the twins (zero provider calls) while searches stay live."""
+    from worker.jobs import run_mode_a
+
+    calls: list[tuple[str, bool]] = []
+
+    def make(surface):
+        async def _f(persona_prompt, query_text, *, api_key, model, timeout_s, web_search=True):
+            calls.append((surface, web_search))
+            return RetrievalOutcome(
+                payload={"model": model},
+                parsed=ParsedResponse(text="x", input_tokens=1, output_tokens=1,
+                                      web_search_calls=0, model=model),
+                latency_ms=1,
+            )
+        return _f
+
+    for s in A_SURFACES:
+        monkeypatch.setattr(f"engine.retrievers.{s}.retrieve", make(s))
+
+    t = _tenant(db_session, "diagnose")
+    run1 = _run(db_session, t)
+    run_mode_a(run1)
+    assert sum(1 for (_s, ws) in calls if not ws) == 9  # 3 queries × 3 twin engines
+
+    calls.clear()
+    run2 = _run(db_session, t)
+    run_mode_a(run2)
+    assert sum(1 for (_s, ws) in calls if not ws) == 0   # twins reused, not re-bought
+    assert sum(1 for (_s, ws) in calls if ws) == 24      # searches still live
+
+    nosearch2 = [r for r in _results(db_session, run2) if r.variant == ResultVariant.nosearch]
+    assert len(nosearch2) == 9  # cloned into the run so the classifier pairing works
+    assert all(r.latency_ms == 0 and r.raw_uri for r in nosearch2)
+    run = db_session.get(Run, run2)
+    assert run is not None and run.counts["diagnosis_cached"] == 9
+
+
 def test_diagnose_enables_twin_and_two_personas(db_session, env):
     from worker.jobs import run_mode_a
 

@@ -23,7 +23,10 @@ from engine.retrievers.openai_api import ParsedCitation, ParsedResponse, Retriev
 
 ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
 ANTHROPIC_VERSION = "2023-06-01"
-WEB_SEARCH_TOOL = {"type": "web_search_20250305", "name": "web_search", "max_uses": 5}
+# max_uses 3: web search bills per search performed ($10/1k); consumer-style
+# queries rarely need more, so this caps the fee tail without changing the
+# answer for the typical case.
+WEB_SEARCH_TOOL = {"type": "web_search_20250305", "name": "web_search", "max_uses": 3}
 RETRYABLE_STATUS = {429, 500, 502, 503, 504}
 
 

@@ -81,6 +81,15 @@ def parse_responses_payload(payload: dict[str, Any]) -> ParsedResponse:
     )
 
 
+# Consumer answers run a few hundred tokens; reasoning models bill their
+# thinking as output. Capping output (and pinning low reasoning effort on
+# GPT-5-class models) bounds cost without changing who gets cited — and
+# matches the consumer app, which defaults to fast, low-reasoning replies.
+# A methodology constant, not deployment config: comparability across runs
+# requires every tenant to be measured the same way.
+ANSWER_MAX_TOKENS = 1200
+
+
 def build_request_body(
     persona_prompt: str, query_text: str, *, model: str, web_search: bool = True
 ) -> dict[str, Any]:
@@ -88,7 +97,10 @@ def build_request_body(
         "model": model,
         "instructions": persona_prompt.strip(),
         "input": query_text,
+        "max_output_tokens": ANSWER_MAX_TOKENS,
     }
+    if model.startswith("gpt-5"):
+        body["reasoning"] = {"effort": "low"}
     if web_search:
         # The search-DISABLED variant of the same call is the other half of
         # the dual-query diff the classifier consumes.

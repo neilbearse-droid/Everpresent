@@ -96,11 +96,28 @@ def test_gemini_parses_text_and_grounding_citations():
 
 
 def test_gemini_body_includes_google_search_only_when_enabled():
-    with_search = gemini_body("p", "q", web_search=True)
+    with_search = gemini_body("p", "q", model="gemini-2.5-flash", web_search=True)
     assert with_search["tools"] == [{"google_search": {}}]
     assert with_search["system_instruction"]["parts"][0]["text"] == "p"
-    without = gemini_body("p", "q", web_search=False)
+    without = gemini_body("p", "q", model="gemini-2.5-flash", web_search=False)
     assert "tools" not in without
+
+
+def test_gemini_body_caps_output_and_disables_flash_thinking():
+    flash = gemini_body("p", "q", model="gemini-2.5-flash")
+    assert flash["generationConfig"]["maxOutputTokens"] == 1200
+    assert flash["generationConfig"]["thinkingConfig"] == {"thinkingBudget": 0}
+    # Pro models can't disable thinking — cap output only.
+    pro = gemini_body("p", "q", model="gemini-2.5-pro")
+    assert pro["generationConfig"]["maxOutputTokens"] == 1200
+    assert "thinkingConfig" not in pro["generationConfig"]
+
+
+def test_claude_web_search_capped_and_perplexity_output_capped():
+    from engine.retrievers.claude_api import WEB_SEARCH_TOOL
+
+    assert WEB_SEARCH_TOOL["max_uses"] == 3  # bounds the $10/1k fee tail
+    assert pplx_body("p", "q", model="sonar")["max_tokens"] == 1200
 
 
 def test_gemini_cost_uses_flash_prices():

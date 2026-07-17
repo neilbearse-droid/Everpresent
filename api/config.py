@@ -83,6 +83,12 @@ class Settings(BaseSettings):
     # Lookback window pulled on each nightly refresh.
     ga4_lookback_days: int = 28
 
+    # Diagnosis-twin cache (§cost): the training-only (nosearch) variant
+    # measures model knowledge, which is frozen between model snapshots —
+    # reuse a recent twin for the same (query, surface, model) instead of
+    # re-buying it every run. 0 disables the cache (always refresh).
+    diagnosis_refresh_days: int = 7
+
     # BigQuery mirror (§5.3). Unset project = mirror disabled.
     bigquery_project: str = ""
     bigquery_dataset: str = "everpresent_v3"
