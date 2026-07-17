@@ -76,15 +76,22 @@ def aio_summary(session: Session, tenant_id: int) -> dict:
     }
 
 
+MAX_POWER_PAGES = 30
+
+
 def citations_intel(session: Session, tenant_id: int) -> dict:
     """Citations screen (§7.1 #4): which domains AI answers cite in this
-    vertical, and whether the client is among them."""
+    vertical, and whether the client is among them — plus Power Pages, the
+    specific URLs that feed the category's answers. Domains are trivia; pages
+    are the battlefield: getting onto (or beating) one high-influence page
+    moves every answer it feeds."""
     results_by_id = {
         r.id: r
         for r in session.exec(select(Result).where(Result.tenant_id == tenant_id)).all()
         if r.id is not None
     }
     domains: dict[str, dict] = {}
+    pages: dict[str, dict] = {}
     for citation in session.exec(
         select(Citation).where(Citation.tenant_id == tenant_id)
     ).all():
@@ -99,9 +106,30 @@ def citations_intel(session: Session, tenant_id: int) -> dict:
         result = results_by_id.get(citation.result_id)
         if result is not None:
             entry["surfaces"].add(str(result.surface))
+
+        page = pages.setdefault(
+            citation.url,
+            {"url": citation.url, "domain": citation.domain,
+             "category": citation.source_category or "other",
+             "citations": 0, "queries": set(), "surfaces": set()},
+        )
+        page["citations"] += 1
+        if citation.source_category:
+            page["category"] = citation.source_category
+        if result is not None:
+            page["queries"].add(result.query_text)
+            page["surfaces"].add(str(result.surface))
+
     ranked = sorted(domains.values(), key=lambda d: -d["count"])
+    # Influence = breadth (distinct queries the page's answers cover) first,
+    # then raw citation volume.
+    power = sorted(pages.values(), key=lambda p: (-len(p["queries"]), -p["citations"]))
     return {
         "domains": [{**d, "surfaces": sorted(d["surfaces"])} for d in ranked],
+        "power_pages": [
+            {**p, "queries": len(p["queries"]), "surfaces": sorted(p["surfaces"])}
+            for p in power[:MAX_POWER_PAGES]
+        ],
         "aio": aio_summary(session, tenant_id),
     }
 
@@ -643,6 +671,64 @@ def _owned_domains(session: Session, tenant_id: int) -> list[str]:
     return brand.domains if brand else []
 
 
+# Retrieval-dependence weight per classification bucket: a query the engine
+# answers from live search is winnable with citable content; a training-locked
+# answer is a long game regardless of what you publish.
+_DEPENDENCE_WEIGHT = {"very_likely": 1.0, "likely": 0.75, "possible": 0.5, "unlikely": 0.25}
+
+
+def _contestability(session: Session, tenant_id: int, query_texts: set[str]) -> dict[str, dict]:
+    """Contestability = answer volatility × retrieval dependence, per query.
+
+    Volatility comes from response_hash churn across runs (per surface, then
+    averaged): a changing answer means the engine's retrieval is still
+    shopping and fresh content can win it now; a byte-stable answer is locked
+    in. Needs ≥2 runs of history to say anything — reported honestly as
+    'needs history' until then."""
+    hashes_by_key: dict[tuple[str, str], list[str]] = defaultdict(list)
+    for r in session.exec(
+        select(Result)
+        .where(
+            Result.tenant_id == tenant_id,
+            Result.variant == ResultVariant.search,
+            Result.status == "ok",
+        )
+        .order_by(Result.id)  # pyright: ignore[reportArgumentType]
+    ).all():
+        if r.query_text in query_texts and r.response_hash:
+            hashes_by_key[(r.query_text, str(r.surface))].append(r.response_hash)
+
+    dependence_by_query: dict[str, list[float]] = defaultdict(list)
+    for c in session.exec(
+        select(QueryClassification).where(QueryClassification.tenant_id == tenant_id)
+    ).all():
+        if c.query_text in query_texts:
+            dependence_by_query[c.query_text].append(
+                _DEPENDENCE_WEIGHT.get(c.web_search_likelihood, 0.5)
+            )
+
+    out: dict[str, dict] = {}
+    for q in query_texts:
+        churns: list[float] = []
+        for (qt, _s), hashes in hashes_by_key.items():
+            if qt != q or len(hashes) < 2:
+                continue
+            transitions = sum(1 for a, b in zip(hashes, hashes[1:], strict=False) if a != b)
+            churns.append(transitions / (len(hashes) - 1))
+        deps = dependence_by_query.get(q) or [0.5]
+        dependence = sum(deps) / len(deps)
+        if not churns:
+            out[q] = {"score": None, "label": "needs history",
+                      "volatility": None, "dependence": round(dependence, 2)}
+            continue
+        volatility = sum(churns) / len(churns)
+        score = round(100 * volatility * dependence)
+        label = "winnable now" if score >= 50 else ("contested" if score >= 20 else "locked in")
+        out[q] = {"score": score, "label": label,
+                  "volatility": round(volatility, 2), "dependence": round(dependence, 2)}
+    return out
+
+
 def action_plan(session: Session, tenant_id: int) -> dict:
     """The actionable layer (panel #1 + #4): a citation-gap target list — the
     third-party sources that cite rivals in this vertical but not you — and a
@@ -750,10 +836,28 @@ def action_plan(session: Session, tenant_id: int) -> dict:
             "outline": _brief_outline(row["query"], brand_name, competitors_winning, subtopics),
         })
 
+    # Contestability ranking: spend effort where the answer is still in play.
+    scores = _contestability(session, tenant_id, {b["query"] for b in briefs})
+    for b in briefs:
+        b["contestability"] = scores.get(
+            b["query"],
+            {"score": None, "label": "needs history", "volatility": None, "dependence": 0.5},
+        )
+    briefs.sort(
+        key=lambda b: (
+            b["contestability"]["score"] is None,
+            -(b["contestability"]["score"] or 0),
+        )
+    )
+    strike_zone = {"winnable now": 0, "contested": 0, "locked in": 0, "needs history": 0}
+    for b in briefs:
+        strike_zone[b["contestability"]["label"]] += 1
+
     return {
         "brand_name": brand_name,
         "targets": targets,
         "briefs": briefs,
+        "strike_zone": strike_zone,
         "summary": {
             "target_domains": len(targets),
             "briefs": len(briefs),

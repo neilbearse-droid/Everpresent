@@ -14,6 +14,13 @@ const DIAG_CHIP: Record<string, string> = {
   undetermined: "text-[var(--text-2)]",
 };
 
+const CONTEST_CHIP: Record<string, string> = {
+  "winnable now": "text-[var(--pos)]",
+  contested: "text-[var(--warn-t)]",
+  "locked in": "text-[var(--text-3)]",
+  "needs history": "text-[var(--text-3)]",
+};
+
 export default async function ActionPlanPage() {
   const [me, plan] = await Promise.all([
     apiFetch<Me>("/api/me"),
@@ -102,10 +109,26 @@ export default async function ActionPlanPage() {
             <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
               Content briefs — one per gap, ready to hand to a writer
             </h2>
-            <p className="mb-4 text-xs text-[var(--text-3)]">
+            <p className="mb-3 text-xs text-[var(--text-3)]">
               Each gap query, turned into a brief: what to write, who's beating you, which
               sources to earn, and the questions to cover so AI answer engines can cite it.
+              Ordered by contestability — answer churn × search-dependence — so effort goes
+              where the answer is still in play.
             </p>
+            {data!.strike_zone && (
+              <div className="mb-4 flex flex-wrap gap-2 text-xs">
+                {(["winnable now", "contested", "locked in", "needs history"] as const)
+                  .filter((k) => data!.strike_zone[k])
+                  .map((k) => (
+                    <span
+                      key={k}
+                      className={`rounded-full border border-[var(--border)] px-2.5 py-1 font-medium ${CONTEST_CHIP[k] ?? ""}`}
+                    >
+                      {data!.strike_zone[k]} {k}
+                    </span>
+                  ))}
+              </div>
+            )}
             <div className="space-y-5">
               {briefs.map((b) => (
                 <article
@@ -114,8 +137,23 @@ export default async function ActionPlanPage() {
                 >
                   <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
                     <h3 className="text-base font-medium">{b.query}</h3>
-                    <span className={`text-xs font-medium ${DIAG_CHIP[b.diagnosis.type] ?? ""}`}>
-                      {b.diagnosis.label} · {b.corpus_tag}
+                    <span className="flex items-center gap-2 text-xs font-medium">
+                      {b.contestability && (
+                        <span
+                          className={CONTEST_CHIP[b.contestability.label] ?? "text-[var(--text-3)]"}
+                          title={
+                            b.contestability.score === null
+                              ? "Needs at least two runs of history to score"
+                              : `Answer churn ${b.contestability.volatility} × search-dependence ${b.contestability.dependence}`
+                          }
+                        >
+                          {b.contestability.score !== null && `${b.contestability.score} · `}
+                          {b.contestability.label}
+                        </span>
+                      )}
+                      <span className={DIAG_CHIP[b.diagnosis.type] ?? ""}>
+                        {b.diagnosis.label} · {b.corpus_tag}
+                      </span>
                     </span>
                   </div>
                   <p className="mb-4 text-sm text-[var(--text-2)]">{b.diagnosis.fix}</p>

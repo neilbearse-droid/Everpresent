@@ -163,6 +163,14 @@ export type OverviewPayload = {
 
 export type CitationsPayload = {
   domains: { domain: string; category: string; count: number; surfaces: string[] }[];
+  power_pages: {
+    url: string;
+    domain: string;
+    category: string;
+    citations: number;
+    queries: number;
+    surfaces: string[];
+  }[];
   aio: AIOSummary;
 };
 
@@ -283,7 +291,14 @@ export type ActionPlan = {
     target_sources: { domain: string; rivals: string[] }[];
     subtopics: string[];
     outline: string[];
+    contestability: {
+      score: number | null;
+      label: string;
+      volatility: number | null;
+      dependence: number;
+    };
   }[];
+  strike_zone: Record<string, number>;
   summary: Record<string, number>;
 };
 

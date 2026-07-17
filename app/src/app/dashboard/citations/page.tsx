@@ -42,6 +42,67 @@ export default async function CitationsPage() {
             </div>
           </div>
 
+          {(data.power_pages ?? []).length > 0 && (
+            <section className="card mb-6 p-6">
+              <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
+                Power Pages — the specific pages that feed your category's answers
+              </h2>
+              <p className="mb-4 text-xs text-[var(--text-3)]">
+                Domains are trivia; pages are the battlefield. These URLs power the most
+                answers across engines — getting onto (or beating) one high-influence page
+                moves every answer it feeds.
+              </p>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="text-[var(--text-2)]">
+                    <tr>
+                      <th className="py-2 pr-4">Page</th>
+                      <th className="pr-4">Owner</th>
+                      <th className="pr-4">Queries fed</th>
+                      <th className="pr-4">Citations</th>
+                      <th>Engines</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.power_pages.slice(0, 15).map((p) => (
+                      <tr key={p.url} className="border-t border-[var(--border)]">
+                        <td className="max-w-md py-2.5 pr-4">
+                          <a
+                            href={p.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="block truncate font-mono text-xs text-[var(--accent)] hover:underline"
+                            title={p.url}
+                          >
+                            {p.url.replace(/^https?:\/\//, "")}
+                          </a>
+                        </td>
+                        <td className="pr-4">
+                          <span
+                            className={`rounded px-2 py-0.5 text-xs font-medium ${
+                              CATEGORY_STYLES[p.category] ?? CATEGORY_STYLES.other
+                            }`}
+                          >
+                            {p.category === "brand"
+                              ? "yours"
+                              : p.category === "competitor"
+                                ? "rival"
+                                : "third party"}
+                          </span>
+                        </td>
+                        <td className="pr-4 tabular-nums">{p.queries}</td>
+                        <td className="pr-4 tabular-nums">{p.citations}</td>
+                        <td className="text-xs text-[var(--text-2)]">
+                          {p.surfaces.map(surfaceLabel).join(", ")}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
+
           <section className="card p-6">
             <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
               Domains AI answers cite in this vertical
