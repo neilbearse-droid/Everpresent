@@ -142,6 +142,13 @@ B_ADAPTERS: dict[str, tuple[Any, str, str]] = {
 }
 
 
+# Conservative per-call upper bounds for the cap reservation (§audit H6). A
+# real call rarely exceeds these; over-reserving errs toward withholding early.
+_EST_INPUT_TOKENS = 3000
+_EST_OUTPUT_TOKENS = 1500
+_EST_SEARCH_CALLS = 4
+
+
 def _a_surfaces(run: Run) -> list[str]:
     return [s for s in run.surface_set if s in {str(m) for m in MODE_A_SURFACES}]
 
@@ -294,16 +301,24 @@ async def _dispatch_all(
     means the call was withheld by the cap."""
     semaphore = asyncio.Semaphore(concurrency)
     lock = asyncio.Lock()
-    state = {"cost": 0.0, "capped": False}
+    # `spent` = actual cost of returned calls; `reserved` = conservative
+    # estimate held for in-flight calls. Reserving BEFORE dispatch (§audit H6)
+    # closes the race where up to `concurrency` calls all pass a check that
+    # only reads post-call `spent` — which let the cap be silently overshot.
+    state = {"spent": 0.0, "reserved": 0.0, "capped": False}
 
     async def one(item: _AWorkItem) -> dict[str, Any] | None:
         adapter = A_ADAPTERS[item.surface]
         model = model_for(item.surface, model_tier, getattr(settings, adapter.model_attr))
+        # Conservative upper-bound estimate for the reservation (over-reserving
+        # withholds slightly early — the safe direction for a spend cap).
+        est = adapter.cost_fn(model, _EST_INPUT_TOKENS, _EST_OUTPUT_TOKENS, _EST_SEARCH_CALLS)
         async with semaphore:
             async with lock:
-                if month_spent_before + state["cost"] >= cap_usd:
+                if month_spent_before + state["spent"] + state["reserved"] + est > cap_usd:
                     state["capped"] = True
                     return None
+                state["reserved"] += est
             try:
                 outcome = await adapter.module.retrieve(
                     item.persona_prompt,
@@ -316,6 +331,8 @@ async def _dispatch_all(
                     force_search=item.variant != ResultVariant.natural,
                 )
             except Exception as exc:  # noqa: BLE001 — a failed call is data, not a crash
+                async with lock:
+                    state["reserved"] -= est
                 return {"item": item, "model": model, "error": f"{type(exc).__name__}: {exc}"[:500]}
             cost = adapter.cost_fn(
                 outcome.parsed.model or model,
@@ -324,11 +341,15 @@ async def _dispatch_all(
                 outcome.parsed.web_search_calls,
             )
             async with lock:
-                state["cost"] += cost
+                state["reserved"] -= est
+                state["spent"] += cost
             return {"item": item, "outcome": outcome, "cost": cost, "model": model}
 
     results = await asyncio.gather(*[one(item) for item in work])
-    return list(results), state["capped"]
+    # Belt-and-suspenders: if an estimate under-shot actual token use enough to
+    # cross the cap, still surface the run as capped.
+    capped = state["capped"] or (month_spent_before + state["spent"] > cap_usd)
+    return list(results), capped
 
 
 async def _run_mode_a(run_id: int) -> None:
@@ -635,7 +656,10 @@ async def _run_mode_b(run_id: int) -> None:
         assert tenant is not None
         tenant_id = run.tenant_id
         tenant_slug = tenant.slug
-        aio_geo = dict(tenant.aio_geo)
+        # Guard legacy rows: M6 backfilled aio_geo NULL on pre-existing tenants
+        # (no server_default), and default_factory fires only on construction,
+        # not on load — so a migrated row can load None here.
+        aio_geo = dict(tenant.aio_geo or {"gl": "ca", "hl": "en"})
         # §9 cost governance: Mode B (scraping + SerpApi) is charged against the
         # same monthly cap as token spend. month_spent_before already includes
         # this run's Mode A cost (committed before B started).

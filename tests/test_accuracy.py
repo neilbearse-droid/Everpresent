@@ -63,6 +63,21 @@ def test_no_facts_returns_empty():
     assert check_text("Anything at all, $5, 10%.", []) == []
 
 
+def test_correct_decimal_value_is_not_flagged():
+    # The decimal point must not be read as a sentence terminator (§audit H2).
+    facts = [_fact(1, "tuition", "numeric", "$1,000.50")]
+    assert check_text("The tuition is $1,000.50 per course.", facts) == []
+    # And a genuinely wrong decimal IS still caught.
+    hits = check_text("The tuition is $2,000.75 per course.", facts)
+    assert len(hits) == 1 and hits[0].stated == "$2,000.75"
+
+
+def test_blank_alias_does_not_match_everything():
+    # A whitespace-only alias must not turn the checker loose on every sentence.
+    facts = [_fact(1, "tuition", "numeric", "$120,000", aliases=["   "])]
+    assert check_text("Enrollment grew 15% and the campus has 900 students.", facts) == []
+
+
 # --- processing integration --------------------------------------------------
 
 def test_process_run_writes_accuracy_findings(db_session, job_env):  # noqa: F811

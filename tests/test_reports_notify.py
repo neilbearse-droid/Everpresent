@@ -96,15 +96,20 @@ def test_no_email_without_recipients_or_smtp(
 def test_cap_alert_appears_at_80_percent(
     db_session, job_env, fake_retrieve, configured_tenant, monkeypatch  # noqa: F811
 ):
+    from api.models import Run, RunStatus
     from worker.jobs import run_mode_a
 
     sent: list[dict] = []
     monkeypatch.setattr("api.notifications.smtp_configured", lambda: True)
     monkeypatch.setattr("api.notifications.send_email", lambda **kw: sent.append(kw) or True)
     configured_tenant.notify_emails = ["neil@example.com"]
-    # Tiny cap: the run's own cost crosses 80% immediately (but starts under).
-    configured_tenant.monthly_spend_cap_usd = 0.01
+    configured_tenant.monthly_spend_cap_usd = 1.00
     db_session.add(configured_tenant)
+    # Cumulative month spend already at 85% of the cap (prior runs) — the
+    # alert is about month-to-date spend crossing 80%, which is what the
+    # reservation-based cap lets a run approach without overshooting.
+    db_session.add(Run(tenant_id=configured_tenant.id, trigger="manual",
+                       status=RunStatus.complete, cost_usd=0.85))
     db_session.commit()
 
     run_id = _pending_run(db_session, configured_tenant)

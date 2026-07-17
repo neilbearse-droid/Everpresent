@@ -40,7 +40,7 @@ def _collect_citations(
     reference."""
     cited: list[ParsedCitation] = []
     cited_seen: set[str] = set()
-    for block in payload.get("content", []):
+    for block in payload.get("content") or []:
         if block.get("type") != "text":
             continue
         for cite in block.get("citations", []) or []:
@@ -55,7 +55,7 @@ def _collect_citations(
 
     consulted: list[ParsedCitation] = []
     consulted_seen: set[str] = set()
-    for block in payload.get("content", []):
+    for block in payload.get("content") or []:
         if block.get("type") != "web_search_tool_result":
             continue
         content = block.get("content", [])
@@ -75,10 +75,10 @@ def parse_claude_payload(payload: dict[str, Any]) -> ParsedResponse:
     """Pure parser over a Messages API body; fixture-tested, never network."""
     texts = [
         block.get("text", "")
-        for block in payload.get("content", [])
+        for block in payload.get("content") or []
         if block.get("type") == "text"
     ]
-    usage = payload.get("usage", {})
+    usage = payload.get("usage") or {}
     server_tool = usage.get("server_tool_use", {}) or {}
     cited, consulted = _collect_citations(payload)
     return ParsedResponse(

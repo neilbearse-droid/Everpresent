@@ -27,8 +27,15 @@ _BLOCK_SIGNATURES: tuple[tuple[str, str], ...] = (
     ("recaptcha/api2", "captcha"),
     ("hcaptcha.com/captcha", "captcha"),
     ("g-recaptcha", "captcha"),
-    ("verify you are a human", "captcha"),
     ("enable javascript and cookies to continue", "js_wall"),
+)
+
+# Ambiguous phrases that occur in genuine answers (e.g. an answer explaining
+# HTTP 429). These signal a block ONLY when they are the page TITLE — a wall
+# puts them front-and-center; a real answer buries them mid-body. Matched
+# against the title only to avoid dropping real answers as "blocked".
+_BLOCK_TITLE_SIGNATURES: tuple[tuple[str, str], ...] = (
+    ("verify you are a human", "captcha"),
     ("access denied", "access_denied"),
     ("you have been blocked", "access_denied"),
     ("rate limit exceeded", "rate_limited"),
@@ -63,6 +70,10 @@ def detect_block(*, url: str = "", title: str = "", body_text: str = "") -> Bloc
     haystack = f"{title}\n{body_text}".lower()
     for needle, reason in _BLOCK_SIGNATURES:
         if needle in haystack:
+            return BlockCheck(True, reason)
+    low_title = (title or "").lower()
+    for needle, reason in _BLOCK_TITLE_SIGNATURES:
+        if needle in low_title:
             return BlockCheck(True, reason)
     low_url = (url or "").lower()
     for fragment, reason in _BLOCK_URL_FRAGMENTS:

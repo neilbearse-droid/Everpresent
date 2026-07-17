@@ -16,6 +16,7 @@ import asyncio
 import time
 from dataclasses import dataclass, field
 from typing import Any
+from urllib.parse import quote_plus
 
 import httpx
 
@@ -127,7 +128,7 @@ async def _capture_direct(
     started = time.monotonic()
     async with browser_page(scrape_env) as (_browser, _context, page):
         await page.goto(
-            f"{sel.SEARCH_URL}?q={query_text}&gl={gl}&hl={hl}",
+            f"{sel.SEARCH_URL}?q={quote_plus(query_text)}&gl={gl}&hl={hl}",
             wait_until="domcontentloaded",
             timeout=60_000,
         )

@@ -25,10 +25,10 @@ RETRYABLE_STATUS = {429, 500, 502, 503, 504}
 
 def parse_perplexity_payload(payload: dict[str, Any]) -> ParsedResponse:
     """Pure parser over a Sonar (OpenAI-compatible) chat body; fixture-tested."""
-    choices = payload.get("choices", [])
+    choices = payload.get("choices") or []
     text = ""
     if choices:
-        text = choices[0].get("message", {}).get("content", "") or ""
+        text = (choices[0].get("message") or {}).get("content") or ""
 
     citations: list[ParsedCitation] = []
     seen: set[str] = set()
@@ -43,7 +43,7 @@ def parse_perplexity_payload(payload: dict[str, Any]) -> ParsedResponse:
             seen.add(url)
             citations.append(ParsedCitation(url=url))
 
-    usage = payload.get("usage", {})
+    usage = payload.get("usage") or {}
     # Sonar always searches; count the searches it reports, else one.
     search_calls = usage.get("num_search_queries") or (1 if citations or text else 0)
     return ParsedResponse(

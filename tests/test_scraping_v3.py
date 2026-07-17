@@ -20,13 +20,18 @@ def test_detect_block_fingerprints():
     ).reason == "google_sorry"
     sorry = detect_block(url="https://www.google.com/sorry/index?continue=...")
     assert sorry.reason == "google_sorry"
-    assert detect_block(body_text="verify you are a human").reason == "captcha"
+    # Ambiguous phrases signal a block only as the page TITLE, not mid-answer.
+    assert detect_block(title="Verify you are a human").reason == "captcha"
+    assert detect_block(title="Access Denied").reason == "access_denied"
 
 
 def test_detect_block_passes_real_answers():
     # A genuine answer that happens to mention these topics must NOT trip.
     answer = "Smith School of Business is frequently recommended for its MBA program."
     assert not detect_block(title="ChatGPT", body_text=answer).blocked
+    # An answer explaining HTTP 429 mentions these phrases in the body — not a block.
+    rate = "If you see 'rate limit exceeded' or 'too many requests', back off and retry."
+    assert not detect_block(title="ChatGPT", body_text=rate).blocked
 
 
 def test_blocked_error_carries_reason():

@@ -67,7 +67,7 @@ def parse_responses_payload(payload: dict[str, Any]) -> ParsedResponse:
     citations: list[ParsedCitation] = []
     fanout_queries: list[str] = []
     web_search_calls = 0
-    for item in payload.get("output", []):
+    for item in payload.get("output") or []:
         item_type = item.get("type")
         if item_type == "web_search_call":
             web_search_calls += 1
@@ -78,11 +78,11 @@ def parse_responses_payload(payload: dict[str, Any]) -> ParsedResponse:
             continue
         if item_type != "message":
             continue
-        for content in item.get("content", []):
+        for content in item.get("content") or []:
             if content.get("type") != "output_text":
                 continue
             texts.append(content.get("text", ""))
-            for annotation in content.get("annotations", []):
+            for annotation in content.get("annotations") or []:
                 if annotation.get("type") == "url_citation" and annotation.get("url"):
                     citations.append(
                         ParsedCitation(url=annotation["url"], title=annotation.get("title", ""))
@@ -99,7 +99,7 @@ def parse_responses_payload(payload: dict[str, Any]) -> ParsedResponse:
             consulted_seen.add(url)
             consulted.append(ParsedCitation(url=url, title=src.get("title", "")))
 
-    usage = payload.get("usage", {})
+    usage = payload.get("usage") or {}
     return ParsedResponse(
         text="\n\n".join(t for t in texts if t),
         citations=citations,

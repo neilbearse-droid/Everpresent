@@ -48,14 +48,6 @@ def _response_text(result: Result, session: Session) -> str:
     return (envelope or {}).get("parsed_text", "")
 
 
-def _web_search_calls(result: Result, session: Session) -> int:
-    if not result.raw_uri:
-        return 0
-    envelope = read_raw_envelope(result.raw_uri, session=session) or {}
-    output = (envelope.get("response") or {}).get("output", [])
-    return sum(1 for item in output if item.get("type") == "web_search_call")
-
-
 def process_run(session: Session, run: Run) -> dict[str, int]:
     assert run.id is not None
     tenant = session.get(Tenant, run.tenant_id)
@@ -176,7 +168,11 @@ def process_run(session: Session, run: Run) -> dict[str, int]:
             session.exec(select(Citation).where(Citation.result_id == twin.id)).all()
         )
         signals = WebSearchSignals(
-            web_search_calls=_web_search_calls(twin, session),
+            # Use the count each adapter's parser already stored on the row
+            # (§audit H3). The old envelope-scan only understood OpenAI's shape
+            # and returned 0 for Gemini/Claude/Perplexity, biasing them toward
+            # "did not search".
+            web_search_calls=twin.web_search_calls,
             citation_count=citation_count,
             divergence=compute_divergence(
                 texts.get(twin.id, ""), _response_text(nosearch, session)

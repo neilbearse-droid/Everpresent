@@ -51,8 +51,26 @@ def _norm(s: str) -> str:
     return re.sub(r"\s+", " ", s.lower()).strip()
 
 
+_DECIMAL = re.compile(r"(\d)\.(\d)")
+_DOT = chr(0xF8FF)  # private-use placeholder for a decimal point during split
+
+
 def _sentences(text: str) -> list[str]:
-    return [s.strip() for s in _SENTENCE_RE.findall(text) if s.strip()]
+    # Protect decimal points (e.g. $1,000.50) so they aren't treated as
+    # sentence terminators, then restore them after splitting.
+    protected = _DECIMAL.sub(r"\1" + _DOT + r"\2", text)
+    return [
+        s.replace(_DOT, ".").strip()
+        for s in _SENTENCE_RE.findall(protected)
+        if s.strip()
+    ]
+
+
+def _sentences(text: str) -> list[str]:
+    # Protect decimal points (e.g. $1,000.50) so they aren't treated as
+    # sentence terminators, then restore them.
+    protected = _DECIMAL.sub("\\1\\2", text)
+    return [s.replace("", ".").strip() for s in _SENTENCE_RE.findall(protected) if s.strip()]
 
 
 def _numbers(s: str) -> list[tuple[str, float, str]]:
@@ -86,7 +104,7 @@ def check_text(text: str, facts: list[FactSpec]) -> list[AccuracyHit]:
 
     for f in facts:
         subj_low = _norm(f.subject)
-        alias_lows = [_norm(a) for a in f.aliases if a]
+        alias_lows = [n for n in (_norm(a) for a in f.aliases) if n]
 
         if f.kind == "disallowed":
             needle = _norm(f.expected)

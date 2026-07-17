@@ -135,11 +135,18 @@ def citations_intel(
     are the battlefield: getting onto (or beating) one high-influence page
     moves every answer it feeds."""
     lo, hi = _date_window(start, end)
+    # Count citations from the LATEST result per (query, surface) only (§audit
+    # H4) — not every result across every run. Otherwise domain/Power-Page
+    # counts scale with run cadence (a page cited once per daily run reads as
+    # ~30) instead of reflecting citation reality.
     results_by_id = {
         r.id: r
-        for r in session.exec(select(Result).where(Result.tenant_id == tenant_id)).all()
+        for r in _latest_results_by_variant(
+            session, tenant_id, ResultVariant.search, lo, hi
+        ).values()
         if r.id is not None
     }
+    latest_ids = set(results_by_id)
     domains: dict[str, dict] = {}
     pages: dict[str, dict] = {}
     # Per-engine source-type mix (§AEO-plan m4): where each engine draws its
@@ -148,10 +155,8 @@ def citations_intel(
     for citation in session.exec(
         select(Citation).where(Citation.tenant_id == tenant_id)
     ).all():
-        if lo or hi:
-            src = results_by_id.get(citation.result_id)
-            if src is None or not _in_window(src.created_at, lo, hi):
-                continue
+        if citation.result_id not in latest_ids:
+            continue
         _res = results_by_id.get(citation.result_id)
         if _res is not None:
             source_types_by_engine[str(_res.surface)][
@@ -216,9 +221,9 @@ def citations_intel(
     for cs in session.exec(
         select(ConsultedSource).where(ConsultedSource.tenant_id == tenant_id)
     ).all():
-        src = results_by_id.get(cs.result_id)
-        if (lo or hi) and (src is None or not _in_window(src.created_at, lo, hi)):
+        if cs.result_id not in latest_ids:  # §audit H4: latest results only
             continue
+        src = results_by_id.get(cs.result_id)
         if cs.domain in cited_domains:
             continue
         entry = consulted.setdefault(cs.domain, {"domain": cs.domain, "count": 0, "queries": set()})
@@ -507,7 +512,11 @@ def engine_scorecard(
             else:
                 competitors_by_result[m.result_id].add(m.entity_name)
 
-    surfaces = sorted({s for (_, s) in search})
+    # Include surfaces that produced a nosearch (training-twin) result even if
+    # their search variant failed (§audit H5) — otherwise the diagnosis can't
+    # see "known from training but not surfaced" and mislabels content_gap as
+    # knowledge_gap/undetermined.
+    surfaces = sorted({s for (_, s) in search} | {s for (_, s) in nosearch})
 
     # Brand-cited result ids (§AEO-plan m3): a citation to a brand-owned page,
     # distinct from a brand *mention*. Mentions and citations move
@@ -564,6 +573,14 @@ def engine_scorecard(
         cells: dict[str, dict] = {}
         brand_in_search = brand_in_nosearch = has_nosearch = False
         for surface in surfaces:
+            # Check the training twin FIRST, so a surface whose search variant
+            # failed but whose nosearch succeeded still informs the diagnosis
+            # (§audit H5).
+            ns = nosearch.get((query.text, surface))
+            if ns is not None:
+                has_nosearch = True
+                if ns.id in brand_ids:
+                    brand_in_nosearch = True
             result = search.get((query.text, surface))
             if result is None:
                 continue
@@ -576,11 +593,6 @@ def engine_scorecard(
             else:
                 state = "absent"
             cells[surface] = {"state": state, "competitors": comps}
-            ns = nosearch.get((query.text, surface))
-            if ns is not None:
-                has_nosearch = True
-                if ns.id in brand_ids:
-                    brand_in_nosearch = True
 
         if brand_in_search:
             dtype = "visible"

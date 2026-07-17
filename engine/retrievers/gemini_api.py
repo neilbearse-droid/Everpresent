@@ -23,13 +23,13 @@ RETRYABLE_STATUS = {429, 500, 502, 503, 504}
 
 def parse_gemini_payload(payload: dict[str, Any]) -> ParsedResponse:
     """Pure parser over a generateContent body; fixture-tested, never network."""
-    candidates = payload.get("candidates", [])
+    candidates = payload.get("candidates") or []
     text = ""
     citations: list[ParsedCitation] = []
     web_search_calls = 0
     if candidates:
         first = candidates[0]
-        parts = first.get("content", {}).get("parts", [])
+        parts = (first.get("content") or {}).get("parts") or []
         text = "\n\n".join(p.get("text", "") for p in parts if p.get("text"))
 
         grounding = first.get("groundingMetadata", {}) or {}
@@ -43,7 +43,7 @@ def parse_gemini_payload(payload: dict[str, Any]) -> ParsedResponse:
         queries = list(grounding.get("webSearchQueries", []) or [])
         web_search_calls = len(queries) if queries else (1 if citations else 0)
 
-    usage = payload.get("usageMetadata", {})
+    usage = payload.get("usageMetadata") or {}
     return ParsedResponse(
         text=text,
         citations=citations,
