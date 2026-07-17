@@ -21,6 +21,8 @@ from urllib import robotparser
 
 import httpx
 
+from engine.audit.rendering import render_verdict
+
 # (agent, what it powers, kind). Retrieval agents fetch for live answers —
 # blocking one is an immediate visibility hole; training agents feed future
 # model knowledge — blocking one is a slow leak.
@@ -43,6 +45,7 @@ BROWSER_UA = (
 )
 GPTBOT_UA = "Mozilla/5.0 AppleWebKit/537.36 (compatible; GPTBot/1.2; +https://openai.com/gptbot)"
 _BLOCKED_STATUSES = {401, 403, 429}
+MAX_HTML_BYTES = 1_500_000  # bound the homepage read; a page, not a tarpit
 
 
 def evaluate_robots(robots_text: str) -> list[dict[str, Any]]:
@@ -70,9 +73,12 @@ def summarize(
     has_llms_txt: bool,
     has_json_ld: bool,
     robots_status: int | None,
+    render_verdict: str = "pass",
+    render_reason: str = "",
 ) -> tuple[str, list[str]]:
     """Grade + human-readable issues. fail = something is blocking live
-    retrieval right now; warn = training leaks or missing best practices."""
+    retrieval right now (robots block, CDN challenge, or a JS-only page engines
+    can't render); warn = training leaks or thin raw HTML."""
     issues: list[str] = []
     retrieval_blocked = [a for a in agents if a["kind"] == "retrieval" and not a["allowed"]]
     training_blocked = [a for a in agents if a["kind"] == "training" and not a["allowed"]]
@@ -88,6 +94,10 @@ def summarize(
             "likely CDN bot protection (e.g. a 'block AI bots' default). Engines can't "
             "read the site even where robots.txt allows them."
         )
+    # M3: a JS-only page is as invisible as a hard block — no major AI crawler
+    # runs JavaScript, so a CSR shell is a blank page to them.
+    if render_verdict == "fail" and render_reason:
+        issues.append(render_reason)
     for a in training_blocked:
         issues.append(
             f"robots.txt blocks {a['agent']} ({a['role']}) — future model versions "
@@ -96,16 +106,19 @@ def summarize(
     if robots_status is not None and robots_status >= 500:
         issues.append(f"robots.txt returns HTTP {robots_status} — crawlers may treat the "
                       f"whole site as off-limits")
-    if not has_llms_txt:
-        issues.append("No llms.txt — an easy, emerging way to guide AI crawlers to your "
-                      "canonical pages")
+    if render_verdict == "warn" and render_reason:
+        issues.append(render_reason)
     if not has_json_ld:
         issues.append("No JSON-LD structured data detected on the homepage — engines lean "
-                      "on schema to extract citable facts")
+                      "on schema to disambiguate the entity (machine-legibility hygiene, "
+                      "not a citation lever)")
+    # llms.txt is deliberately NOT an issue: 2026 log studies observe zero AI
+    # crawler consumption of it, so its absence is not a defect. The frontend
+    # still shows a neutral presence chip.
 
-    if retrieval_blocked or ua_blocked:
+    if retrieval_blocked or ua_blocked or render_verdict == "fail":
         grade = "fail"
-    elif training_blocked or not has_llms_txt or not has_json_ld:
+    elif training_blocked or render_verdict == "warn" or not has_json_ld:
         grade = "warn"
     else:
         grade = "pass"
@@ -139,10 +152,15 @@ def audit_domain(client: httpx.Client, domain: str) -> dict[str, Any]:
     status_normal: int | None = None
     status_bot: int | None = None
     has_json_ld = False
+    rendering: dict[str, Any] = {"verdict": "pass", "word_count": 0, "reason": "", "signals": {}}
     try:
         resp = client.get(base, headers={"User-Agent": BROWSER_UA})
         status_normal = resp.status_code
-        has_json_ld = "application/ld+json" in resp.text.lower()
+        homepage_html = resp.text[:MAX_HTML_BYTES]
+        has_json_ld = "application/ld+json" in homepage_html.lower()
+        # M3: grade the raw HTML the way non-rendering AI crawlers see it.
+        if status_normal < 400:
+            rendering = render_verdict(homepage_html)
     except httpx.HTTPError as exc:
         out["error"] = out["error"] or f"homepage unreachable: {type(exc).__name__}"
     try:
@@ -163,6 +181,8 @@ def audit_domain(client: httpx.Client, domain: str) -> dict[str, Any]:
         has_llms_txt=has_llms_txt,
         has_json_ld=has_json_ld,
         robots_status=robots_status,
+        render_verdict=rendering["verdict"],
+        render_reason=rendering["reason"],
     )
     out.update(
         robots_status=robots_status,
@@ -172,6 +192,7 @@ def audit_domain(client: httpx.Client, domain: str) -> dict[str, Any]:
         status_normal=status_normal,
         status_bot=status_bot,
         ua_blocked=ua_blocked,
+        rendering=rendering,
         grade=grade,
         issues=issues,
     )

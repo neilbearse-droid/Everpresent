@@ -50,8 +50,26 @@ export function AccessAuditPanel({ slug }: { slug: string }) {
                   ? "all AI crawlers allowed"
                   : `${blocked.length} crawler${blocked.length > 1 ? "s" : ""} blocked`}
               </span>
-              <span className="chip">{d.has_llms_txt ? "llms.txt ✓" : "no llms.txt"}</span>
               <span className="chip">{d.has_json_ld ? "JSON-LD ✓" : "no JSON-LD"}</span>
+              {d.rendering && (
+                <span
+                  className={`chip ${
+                    d.rendering.verdict === "fail"
+                      ? "text-[var(--neg)]"
+                      : d.rendering.verdict === "warn"
+                        ? "text-[var(--warn-t)]"
+                        : "text-[var(--pos)]"
+                  }`}
+                  title={d.rendering.reason}
+                >
+                  {d.rendering.verdict === "pass"
+                    ? "AI-readable HTML ✓"
+                    : d.rendering.verdict === "warn"
+                      ? "thin raw HTML"
+                      : "JS-only (crawlers see blank)"}
+                </span>
+              )}
+              <span className="chip">{d.has_llms_txt ? "llms.txt ✓" : "no llms.txt (optional)"}</span>
               {d.ua_blocked && (
                 <span className="chip text-[var(--neg)]">bot UA rejected</span>
               )}

@@ -60,8 +60,26 @@ def test_grade_warns_on_training_blocks_and_missing_best_practices():
     grade, issues = summarize(clean, ua_blocked=False, has_llms_txt=False,
                               has_json_ld=False, robots_status=200)
     assert grade == "warn"
-    assert any("llms.txt" in i for i in issues)
+    # llms.txt is unproven (zero observed crawler consumption) — its absence is
+    # NOT a graded defect anymore (§AEO-plan m1).
+    assert not any("llms.txt" in i for i in issues)
     assert any("JSON-LD" in i for i in issues)
+
+
+def test_missing_llms_txt_alone_does_not_lower_grade():
+    # Everything open + JSON-LD present, only llms.txt missing → still pass.
+    grade, issues = summarize(evaluate_robots(""), ua_blocked=False, has_llms_txt=False,
+                              has_json_ld=True, robots_status=200)
+    assert grade == "pass" and issues == []
+
+
+def test_grade_fails_on_csr_shell():
+    # A JS-only homepage is as invisible as a hard block (§AEO-plan M3).
+    grade, issues = summarize(evaluate_robots(""), ua_blocked=False, has_llms_txt=True,
+                              has_json_ld=True, robots_status=200,
+                              render_verdict="fail", render_reason="JS-only shell.")
+    assert grade == "fail"
+    assert any("JS-only shell." in i for i in issues)
 
 
 def test_grade_passes_when_everything_is_open_and_present():

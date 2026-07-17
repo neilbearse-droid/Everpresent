@@ -371,6 +371,13 @@ export type AccessAuditAgent = {
   mentioned: boolean;
 };
 
+export type AccessRendering = {
+  verdict: "pass" | "warn" | "fail";
+  word_count: number;
+  reason: string;
+  signals: { mount_node?: boolean; noscript_warning?: boolean; script_heavy?: boolean };
+};
+
 export type AccessAuditDomain = {
   domain: string;
   error: string | null;
@@ -381,6 +388,7 @@ export type AccessAuditDomain = {
   status_normal: number | null;
   status_bot: number | null;
   ua_blocked: boolean;
+  rendering: AccessRendering;
   grade: "pass" | "warn" | "fail";
   issues: string[];
 };
