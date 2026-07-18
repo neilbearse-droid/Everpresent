@@ -768,6 +768,7 @@ def accuracy_report(
         ).all():
             key = (fnd.fact_id, fnd.stated)
             g = grouped.setdefault(key, {
+                "fact_id": fnd.fact_id,  # to close the loop: generate corrective content
                 "subject": fnd.subject, "category": fnd.category, "severity": fnd.severity,
                 "expected": fnd.expected, "stated": fnd.stated, "detail": fnd.detail,
                 "snippet": fnd.snippet, "engines": set(),

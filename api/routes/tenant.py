@@ -12,6 +12,8 @@ from api.db import get_session
 from api.models import (
     BrandProfile,
     Competitor,
+    ContentDraft,
+    ContentDraftStatus,
     Intervention,
     Persona,
     Query,
@@ -150,6 +152,47 @@ def whitespace(
     ctx: Ctx, session: Db, start: str | None = None, end: str | None = None
 ) -> dict:
     return dashboards_service.whitespace_report(session, ctx.tenant_id, start, end)
+
+
+@router.get("/content/drafts")
+def content_drafts(ctx: Ctx, session: Db) -> list[ContentDraft]:
+    from api.content_service import list_drafts
+
+    return list_drafts(session, ctx.tenant_id)
+
+
+@router.post("/content/accuracy/{fact_id}/draft")
+def generate_accuracy_draft(fact_id: int, ctx: Ctx, session: Db) -> ContentDraft:
+    """Close the loop: generate the corrective content for an accuracy gap.
+    Governed — returns 409 with a clear reason when the tenant/config can't."""
+    from api.content_service import ContentGenUnavailable
+    from api.content_service import generate_accuracy_draft as _gen
+
+    if ctx.tenant is None or not ctx.tenant.ai_processing_approved:
+        raise HTTPException(status_code=403, detail="AI processing not approved for this tenant")
+    try:
+        return _gen(session, ctx.tenant, fact_id)
+    except ContentGenUnavailable as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+class ContentDraftStatusPatch(BaseModel):
+    status: ContentDraftStatus
+
+
+@router.patch("/content/drafts/{draft_id}")
+def update_content_draft(
+    draft_id: int, payload: ContentDraftStatusPatch, ctx: Ctx, session: Db
+) -> ContentDraft:
+    draft = session.get(ContentDraft, draft_id)
+    if draft is None or draft.tenant_id != ctx.tenant_id:
+        raise HTTPException(status_code=404, detail="No such draft")
+    draft.status = payload.status
+    draft.updated_at = utcnow()
+    session.add(draft)
+    session.commit()
+    session.refresh(draft)
+    return draft
 
 
 @router.get("/outcome")

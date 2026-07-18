@@ -400,12 +400,24 @@ export type RoutingReport = {
   prompts: { query: string; engines: Record<string, boolean> }[];
 };
 
+export type ContentDraft = {
+  id: number;
+  source_kind: string;
+  source_ref: string;
+  title: string;
+  body: string;
+  model: string;
+  status: string;
+  updated_at: string;
+};
+
 export type AccuracyReport = {
   brand_name: string;
   facts_on_file: number;
   measured: number;
   error_count: number;
   errors: {
+    fact_id: number;
     subject: string;
     category: string;
     severity: string;

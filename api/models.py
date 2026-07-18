@@ -554,6 +554,34 @@ class Recommendation(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=utcnow)
 
 
+class ContentDraftStatus(StrEnum):
+    draft = "draft"
+    approved = "approved"
+    published = "published"
+    dismissed = "dismissed"
+
+
+class ContentDraft(SQLModel, table=True):
+    """The generated corrective/optimized content that closes the loop (§step 5:
+    question → wrong/absent answer → cited sources → gap → GENERATED content →
+    publish). Produced by the governed utility-LLM (draft model). source_kind +
+    source_ref tie it back to the gap it answers ('accuracy:fact:<id>' or a
+    recommendation gap_ref), so regenerating replaces rather than duplicates."""
+
+    __tablename__ = "content_drafts"  # pyright: ignore[reportAssignmentType]
+
+    id: int | None = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenants.id", index=True)
+    source_kind: str = Field(index=True)  # accuracy | recommendation
+    source_ref: str = Field(index=True)  # e.g. "fact:12" or a recommendation gap_ref
+    title: str = ""
+    body: str = ""
+    model: str = ""
+    status: ContentDraftStatus = Field(default=ContentDraftStatus.draft, index=True)
+    created_at: datetime = Field(default_factory=utcnow)
+    updated_at: datetime = Field(default_factory=utcnow)
+
+
 class AuditLog(SQLModel, table=True):
     __tablename__ = "audit_log"  # pyright: ignore[reportAssignmentType]
 

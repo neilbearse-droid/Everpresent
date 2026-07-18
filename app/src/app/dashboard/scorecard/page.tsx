@@ -1,4 +1,5 @@
 import { apiFetch, rangeQuery, type AccuracyReport, type KpiScorecard, type Me } from "@/lib/api";
+import { GenerateDraft } from "./generate-draft";
 import { DashNav } from "@/components/dash-nav";
 import { NoOrgNotice } from "@/components/no-org-notice";
 import { HBars } from "@/components/charts";
@@ -169,6 +170,9 @@ export default async function ScorecardPage({
                   {e.snippet && (
                     <p className="mt-1 text-xs italic text-[var(--text-3)]">“{e.snippet}”</p>
                   )}
+                  {/* Close the loop: generate the corrective content EverPresent
+                      would publish for this gap (§step 5). */}
+                  <GenerateDraft factId={e.fact_id} />
                 </li>
               ))}
             </ul>
