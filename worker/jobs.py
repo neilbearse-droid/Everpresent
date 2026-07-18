@@ -85,8 +85,36 @@ def run_mode_b(run_id: int) -> None:
     try:
         asyncio.run(_run_mode_b(run_id))
     except Exception as exc:  # noqa: BLE001
-        _mark_run_failed(run_id, f"run crashed in Mode B: {type(exc).__name__}: {exc}")
+        # A Mode B crash must not strand Mode A's already-committed results
+        # unprocessed (§audit worker-3). Salvage them: run the normal finalize
+        # (status + processing pass) over whatever completed, recording the
+        # error. Only if there is nothing to salvage do we mark the run failed.
+        salvaged = _finalize_after_crash(
+            run_id, f"Mode B crashed: {type(exc).__name__}: {exc}"
+        )
+        if not salvaged:
+            _mark_run_failed(run_id, f"run crashed in Mode B: {type(exc).__name__}: {exc}")
         raise
+
+
+def _finalize_after_crash(run_id: int, error: str) -> bool:
+    """Salvage a run after a mid-run crash: if any results already completed,
+    record the error and run the normal finalize (status + processing pass) so
+    a partial-mode failure doesn't discard committed results. Returns True when
+    it finalized, False when there was nothing to salvage."""
+    try:
+        with Session(get_engine()) as session:
+            run = session.get(Run, run_id)
+            if run is None or run.status not in (RunStatus.pending, RunStatus.running):
+                return False
+            tenant = session.get(Tenant, run.tenant_id)
+            if tenant is None or (run.counts or {}).get("completed", 0) == 0:
+                return False
+            run.error = (run.error or error)[:500]
+            _finalize_run(session, run, tenant)
+            return True
+    except Exception:  # noqa: BLE001 — fall back to plain failure marking
+        return False
 
 
 @dataclass(frozen=True)
@@ -399,7 +427,7 @@ async def _run_mode_a(run_id: int) -> None:
         # constant. Reuse a recent twin for the same (query, surface) when the
         # stored envelope was produced by the model this plan would use now —
         # a plan/model change invalidates automatically. TTL-bounded; 0 = off.
-        cached_twins: dict[tuple[str, str], tuple[str, str]] = {}
+        cached_twins: dict[tuple[str, str], tuple[str, str, Any]] = {}
         if personas and limits.diagnosis and settings.diagnosis_refresh_days > 0:
             cutoff = utcnow() - timedelta(days=settings.diagnosis_refresh_days)
             query_texts = {qtext for (_qid, qtext) in queries}
@@ -428,7 +456,11 @@ async def _run_mode_a(run_id: int) -> None:
                 )
                 envelope = read_raw_envelope(r.raw_uri, session=session) or {}
                 if envelope.get("model") == expected:
-                    cached_twins[key] = (r.raw_uri, r.response_hash)
+                    # Carry the ORIGINAL capture's timestamp (§audit worker-5).
+                    # Cloning with a fresh created_at would keep the twin
+                    # perpetually "fresh", so it would be re-cloned every run and
+                    # the TTL would never age it out.
+                    cached_twins[key] = (r.raw_uri, r.response_hash, created)
 
     # Only dispatch surfaces whose provider key is configured; an enabled
     # surface with no key is skipped with a clear reason, never a crash. If
@@ -597,7 +629,7 @@ async def _run_mode_a(run_id: int) -> None:
             qid_by_text = {qtext: qid for (qid, qtext) in queries}
             pid0, pname0, _pprompt0, pseg0 = personas[0]
             cloned = 0
-            for (qtext, twin_surface), (uri, rhash) in cached_twins.items():
+            for (qtext, twin_surface), (uri, rhash, created_ts) in cached_twins.items():
                 if twin_surface not in configured:
                     continue
                 session.add(
@@ -614,6 +646,9 @@ async def _run_mode_a(run_id: int) -> None:
                         raw_uri=uri,
                         response_hash=rhash,
                         latency_ms=0,
+                        # Inherit the source capture's age so the TTL cutoff can
+                        # eventually expire it (§audit worker-5).
+                        created_at=created_ts,
                     )
                 )
                 cloned += 1

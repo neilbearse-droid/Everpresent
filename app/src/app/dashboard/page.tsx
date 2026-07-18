@@ -62,6 +62,18 @@ export default async function OverviewPage({
 
   const hasData = trendRows.length > 0;
 
+  // Share-of-voice honours the picked range; the label must follow it rather
+  // than always claiming "30 days" (the trailing default only applies when no
+  // range is set).
+  const sovRangeLabel =
+    from && to
+      ? `${from} → ${to}`
+      : from
+        ? `since ${from}`
+        : to
+          ? `through ${to}`
+          : "last 30 days";
+
   return (
     <main className="mx-auto max-w-6xl px-8 py-10">
       <DashNav active="Overview" isSuperadmin={me.data?.is_superadmin} withDateRange />
@@ -106,7 +118,7 @@ export default async function OverviewPage({
               ? `${data.share_of_voice[data.brand_name]}%`
               : "—"}
           </div>
-          <p className="mt-2.5 text-xs text-[var(--text-3)]">Of AI mentions · last 30 days</p>
+          <p className="mt-2.5 text-xs text-[var(--text-3)]">Of AI mentions · {sovRangeLabel}</p>
         </div>
         <AIOTile aio={data?.aio ?? {
           queries_measured: 0, queries_with_aio: 0, aio_share_pct: 0,
@@ -136,7 +148,7 @@ export default async function OverviewPage({
           <div className="grid gap-6 lg:grid-cols-2">
             <section className="card p-6">
               <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">
-                Share of voice — mentions across AI answers (30 days)
+                Share of voice — mentions across AI answers ({sovRangeLabel})
               </h2>
               <HBars items={sovItems} max={Math.max(...sovItems.map((s) => s.value), 1)} unit="%" />
             </section>

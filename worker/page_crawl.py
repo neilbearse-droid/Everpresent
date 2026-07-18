@@ -22,10 +22,15 @@ TIMEOUT_S = 10.0
 
 
 def crawl_power_pages(tenant_id: int) -> int:
+    # Phase 1 — load config, then RELEASE the connection. A DB connection must
+    # not be held across the ~20 sequential page fetches below (§connection-
+    # lifetime): each fetch can take up to TIMEOUT_S, so holding one would pin a
+    # pool slot for minutes of pure network wait.
     with Session(_engine()) as session:
         tenant = session.get(Tenant, tenant_id)
         if tenant is None:
             return 0
+        tenant_slug = tenant.slug
         brand = session.exec(
             select(BrandProfile).where(BrandProfile.tenant_id == tenant_id)
         ).first()
@@ -41,36 +46,58 @@ def crawl_power_pages(tenant_id: int) -> int:
             if p["category"] != "competitor"
         ][:MAX_PAGES]
 
+    if not pages:
+        log.info("page_crawl.done", tenant=tenant_slug, pages=0)
+        return 0
+
+    # Phase 2 — fetch + parse each page. NO DB CONNECTION HELD.
+    parsed: list[dict] = []
+    with httpx.Client(timeout=TIMEOUT_S, follow_redirects=True) as client:
+        for page in pages:
+            fetched = crawl_page(client, page["url"])
+            row_data: dict = {
+                "url": page["url"],
+                "domain": page["domain"],
+                "http_status": fetched.get("http_status"),
+            }
+            if "error" in fetched or (fetched.get("http_status") or 600) >= 400:
+                row_data["status"] = "error"
+                row_data["error"] = fetched.get("error") or f"HTTP {fetched.get('http_status')}"
+            else:
+                html = fetched["html"]
+                presence = detect_presence(html, brand_names, competitors)
+                row_data["status"] = "ok"
+                row_data["error"] = None
+                row_data["brand_found"] = presence["brand_found"]
+                row_data["competitors_found"] = presence["competitors_found"]
+                row_data["features"] = extract_features(html)
+            parsed.append(row_data)
+
+    # Phase 3 — persist with a fresh connection.
+    with Session(_engine()) as session:
         crawled = 0
-        with httpx.Client(timeout=TIMEOUT_S, follow_redirects=True) as client:
-            for page in pages:
-                fetched = crawl_page(client, page["url"])
-                row = session.exec(
-                    select(PagePresence).where(
-                        PagePresence.tenant_id == tenant_id, PagePresence.url == page["url"]
-                    )
-                ).first()
-                if row is None:
-                    row = PagePresence(tenant_id=tenant_id, url=page["url"])
-                row.domain = page["domain"]
-                row.http_status = fetched.get("http_status")
-                row.fetched_at = utcnow()
-                if "error" in fetched or (fetched.get("http_status") or 600) >= 400:
-                    row.status = "error"
-                    row.error = fetched.get("error") or f"HTTP {fetched.get('http_status')}"
-                else:
-                    html = fetched["html"]
-                    presence = detect_presence(html, brand_names, competitors)
-                    row.status = "ok"
-                    row.error = None
-                    row.brand_found = presence["brand_found"]
-                    row.competitors_found = presence["competitors_found"]
-                    row.features = extract_features(html)
-                session.add(row)
-                session.commit()
-                crawled += 1
-        log.info("page_crawl.done", tenant=tenant.slug, pages=crawled)
-        return crawled
+        for rd in parsed:
+            row = session.exec(
+                select(PagePresence).where(
+                    PagePresence.tenant_id == tenant_id, PagePresence.url == rd["url"]
+                )
+            ).first()
+            if row is None:
+                row = PagePresence(tenant_id=tenant_id, url=rd["url"])
+            row.domain = rd["domain"]
+            row.http_status = rd["http_status"]
+            row.fetched_at = utcnow()
+            row.status = rd["status"]
+            row.error = rd["error"]
+            if rd["status"] == "ok":
+                row.brand_found = rd["brand_found"]
+                row.competitors_found = rd["competitors_found"]
+                row.features = rd["features"]
+            session.add(row)
+            session.commit()
+            crawled += 1
+    log.info("page_crawl.done", tenant=tenant_slug, pages=crawled)
+    return crawled
 
 
 def _engine():

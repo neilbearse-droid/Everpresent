@@ -56,9 +56,12 @@ def _date_window(
         if not value:
             return None
         try:
-            return datetime.fromisoformat(value).replace(tzinfo=UTC)
+            dt = datetime.fromisoformat(value)
         except ValueError:
             return None
+        # Convert an offset-aware input to UTC; assume UTC for a naive one
+        # (don't silently reinterpret an offset as UTC).
+        return dt.astimezone(UTC) if dt.tzinfo else dt.replace(tzinfo=UTC)
 
     lo = parse(start)
     hi = parse(end)
@@ -76,15 +79,16 @@ def _date_in_range(date: str, start: str | None, end: str | None) -> bool:
 
 
 def _clean_date(value: str | None) -> str | None:
-    """None out anything that isn't a parseable ISO date, so string-compare
-    filters degrade to 'unbounded' instead of silently matching nothing."""
+    """Normalize to a bare YYYY-MM-DD string (or None if unparseable). Callers
+    string-compare these against stored `date` columns, so a datetime input
+    like '2026-07-01T00:00:00' must be truncated — otherwise the lexicographic
+    compare drops the boundary day ('2026-07-01' >= '2026-07-01T…' is False)."""
     if not value:
         return None
     try:
-        datetime.fromisoformat(value)
+        return datetime.fromisoformat(value).date().isoformat()
     except ValueError:
         return None
-    return value
 
 
 def aio_summary(session: Session, tenant_id: int) -> dict:
@@ -684,15 +688,18 @@ def fanout_report(session: Session, tenant_id: int) -> dict:
 _FORCED_SEARCH_SURFACES = {"openai_api"}
 
 
-def routing_report(session: Session, tenant_id: int) -> dict:
+def routing_report(
+    session: Session, tenant_id: int, start: str | None = None, end: str | None = None
+) -> dict:
     """Search-routing map (§AEO-plan M2): per engine, the share of priority
     prompts that trigger live search vs. are answered from training. Retrieval
     optimization only pays off for prompts that actually search — this is the
     'step one' diagnostic. For forced surfaces the signal comes from the
     un-forced natural probe; for the rest, from their (already un-forced)
     search variant's observed search count."""
-    search = _latest_results_by_variant(session, tenant_id, ResultVariant.search)
-    natural = _latest_results_by_variant(session, tenant_id, ResultVariant.natural)
+    lo, hi = _date_window(start, end)
+    search = _latest_results_by_variant(session, tenant_id, ResultVariant.search, lo, hi)
+    natural = _latest_results_by_variant(session, tenant_id, ResultVariant.natural, lo, hi)
 
     per_surface: dict[str, dict] = defaultdict(lambda: {"measured": 0, "searched": 0})
     prompts: dict[str, dict[str, bool]] = defaultdict(dict)
@@ -730,7 +737,9 @@ def routing_report(session: Session, tenant_id: int) -> dict:
     }
 
 
-def accuracy_report(session: Session, tenant_id: int) -> dict:
+def accuracy_report(
+    session: Session, tenant_id: int, start: str | None = None, end: str | None = None
+) -> dict:
     """Factual-accuracy findings over the latest answers (§AEO-plan M4): where
     engines state something the fact sheet says is wrong, grouped by fact with
     the engines that repeat it. Degrades to 'no facts on file' when the tenant
@@ -741,7 +750,8 @@ def accuracy_report(session: Session, tenant_id: int) -> dict:
         )
     ).all())
 
-    search = _latest_results_by_variant(session, tenant_id, ResultVariant.search)
+    lo, hi = _date_window(start, end)
+    search = _latest_results_by_variant(session, tenant_id, ResultVariant.search, lo, hi)
     surface_by_id = {r.id: str(r.surface) for r in search.values() if r.id is not None}
     ids = list(surface_by_id)
     grouped: dict[tuple, dict] = {}

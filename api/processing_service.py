@@ -207,9 +207,29 @@ def process_run(session: Session, run: Run) -> dict[str, int]:
     # Google AIO dimension (§5.2) — orthogonal to web-search-likelihood.
     # Each captured SERP classifies onto the query's classification row(s);
     # queries with no row yet get one keyed to the google_aio surface.
+    #
+    # A multi-location run captures the same query's SERP once per location, but
+    # QueryClassification is keyed per (query, surface), not per location — so
+    # classify ONE representative capture per query (§audit worker-4). Without
+    # this, each location's capture overwrites the previous one (last-location-
+    # wins) and aio_classified is inflated N×. Representative = the tenant's
+    # default-location capture when present, else the earliest by id.
+    aio_reps: dict[str, Result] = {}
     for result in search_results:
         if result.surface != SurfaceCode.google_aio or not result.raw_uri:
             continue
+        current = aio_reps.get(result.query_text)
+        if current is None:
+            aio_reps[result.query_text] = result
+            continue
+        prefer_new = (result.location_label == "" and current.location_label != "") or (
+            (result.location_label == "") == (current.location_label == "")
+            and (result.id or 0) < (current.id or 0)
+        )
+        if prefer_new:
+            aio_reps[result.query_text] = result
+
+    for result in aio_reps.values():
         envelope = read_raw_envelope(result.raw_uri, session=session) or {}
         summary_dict = (envelope.get("response") or {}).get("aio_summary") or {}
         summary = (
@@ -317,9 +337,13 @@ def rollup_day(session: Session, tenant_id: int, day: str) -> int:
         ).all():
             citations_by_result[c.result_id].append(c)
 
-    groups: dict[tuple[SurfaceCode, str], list[Result]] = defaultdict(list)
+    # Keyed by (surface, segment, location) so a multi-location tenant keeps a
+    # per-location score instead of blending all locations into one (§audit
+    # worker-8). Mode A results carry location_label "" — their grouping is
+    # unchanged.
+    groups: dict[tuple[SurfaceCode, str, str], list[Result]] = defaultdict(list)
     for r in results:
-        groups[(r.surface, r.persona_segment)].append(r)
+        groups[(r.surface, r.persona_segment, r.location_label)].append(r)
 
     brand_profile = session.exec(
         select(BrandProfile).where(BrandProfile.tenant_id == tenant_id)
@@ -352,7 +376,7 @@ def rollup_day(session: Session, tenant_id: int, day: str) -> int:
         return signals
 
     rows = 0
-    for (surface, segment), group in sorted(groups.items()):
+    for (surface, segment, location_label), group in sorted(groups.items()):
         brand_score = score_entity(entity_signals(group, brand_name, brand_domains, is_brand=True))
         competitor_scores = {
             c.name: score_entity(entity_signals(group, c.name, c.domains, is_brand=False)).score
@@ -364,6 +388,7 @@ def rollup_day(session: Session, tenant_id: int, day: str) -> int:
                 date=day,
                 surface=surface,
                 persona_segment=segment,
+                location_label=location_label,
                 brand_score=brand_score.score,
                 competitor_scores=competitor_scores,
                 extras={

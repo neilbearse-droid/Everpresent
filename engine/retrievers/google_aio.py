@@ -61,23 +61,34 @@ def parse_aio_fragment(html: str) -> tuple[str, list[ParsedCitation]]:
     return extract_text_and_links(html, _SKIP_HOST_FRAGMENTS)
 
 
+def _serpapi_block_text(block: dict[str, Any]) -> str:
+    """Snippet text of one AIO text-block, including nested list/table items
+    (SerpApi puts list content under a `list` of sub-blocks, not `snippet`)."""
+    if block.get("snippet"):
+        return str(block["snippet"])
+    nested = block.get("list") or block.get("text_blocks") or []
+    return "\n".join(_serpapi_block_text(b) for b in nested if isinstance(b, dict))
+
+
 def parse_serpapi_payload(payload: dict[str, Any]) -> AIOOutcome:
     """SerpAPI's google engine returns `ai_overview` when the SERP had one."""
     aio = payload.get("ai_overview") or {}
     text = "\n".join(
-        block.get("snippet", "")
-        for block in aio.get("text_blocks", [])
-        if block.get("snippet")
+        t for t in (_serpapi_block_text(b) for b in (aio.get("text_blocks") or [])) if t
     )
     citations = []
     seen: set[str] = set()
-    for reference in aio.get("references", []):
+    for reference in aio.get("references") or []:
         link = reference.get("link")
         if link and link not in seen:
             seen.add(link)
             citations.append(ParsedCitation(url=link, title=reference.get("title", "")))
-    organic_count = len(payload.get("organic_results", []))
-    present = bool(text or citations)
+    organic_count = len(payload.get("organic_results") or [])
+    # An AIO that requires a second fetch comes back as just a `page_token`
+    # with no inline blocks. It still MEANS an AIO appeared — treat it as
+    # present (not a false "no AIO") even though we don't expand it here.
+    has_page_token = bool(aio.get("page_token"))
+    present = bool(text or citations or has_page_token)
     summary = AIOCaptureSummary(
         aio_present=present,
         # SerpAPI surfaces the AIO as a top-of-page module when present.

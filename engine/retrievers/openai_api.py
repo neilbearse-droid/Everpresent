@@ -2,8 +2,9 @@
 
 The persona's prompt_text is the system prompt ("instructions"), the query is
 the user turn — one call per (query × persona). Citations are read from
-response.output[i].content[j].annotations; there is NO top-level `sources`
-attribute (carried over from v1, §4).
+response.output[i].content[j].annotations. v1 saw no top-level `sources`
+attribute; §AEO-plan M6 reads one defensively in case newer API versions
+expose the fuller consulted-source list, and no-ops when it's absent.
 
 This is a *measured surface*, not a utility LLM call: it exists because
 clients want visibility on it, and it deliberately bypasses engine/llm's

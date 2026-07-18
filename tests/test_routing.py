@@ -70,6 +70,20 @@ def test_routing_report_uses_probe_for_forced_surface(db_session):
     assert engines["gemini_api"]["from_probe"] is False
 
 
+def test_forced_surfaces_stay_in_sync_with_worker_registry():
+    # api.dashboards_service._FORCED_SEARCH_SURFACES is a hand-maintained copy
+    # of which worker adapters force search. If a new forced surface is added
+    # to the worker registry without updating the dashboard set, routing_report
+    # would read the (forced, uninformative) search variant instead of the M2
+    # natural probe and silently report 100% search rates. Couple them here.
+    from api.dashboards_service import _FORCED_SEARCH_SURFACES
+    from worker.jobs import A_ADAPTERS
+
+    assert _FORCED_SEARCH_SURFACES == {
+        s for s, a in A_ADAPTERS.items() if a.forces_search
+    }
+
+
 def test_natural_probe_dispatched_for_openai(
     db_session, job_env, fake_retrieve, monkeypatch  # noqa: F811
 ):

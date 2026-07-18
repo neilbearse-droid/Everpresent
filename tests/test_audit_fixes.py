@@ -1,5 +1,7 @@
-"""Regression tests for the bug-audit fixes (C1, H1, H4, H5)."""
+"""Regression tests for the bug-audit fixes (C1, H1, H4, H5, worker-4/8)."""
 
+
+from sqlmodel import select
 
 from api.dashboards_service import citations_intel, engine_scorecard
 from api.models import (
@@ -11,9 +13,11 @@ from api.models import (
     ResultStatus,
     ResultVariant,
     Run,
+    RunMode,
     RunStatus,
     SurfaceCode,
     Tenant,
+    VisibilityDaily,
 )
 from engine.retrievers.claude_api import parse_claude_payload
 from engine.retrievers.gemini_api import parse_gemini_payload
@@ -124,3 +128,32 @@ def test_engine_scorecard_uses_nosearch_when_search_absent(db_session):
     # Before the fix this was "undetermined"/"knowledge_gap" (twin unseen);
     # now the training twin is visible → content_gap.
     assert diag == "content_gap"
+
+
+# --- worker-8: visibility rollup keeps one row per location ------------------
+
+def test_rollup_keeps_per_location_rows(db_session):
+    from api.processing_service import _run_day, rollup_day
+
+    tid = _tenant(db_session)
+    run = Run(tenant_id=tid, trigger="manual", status=RunStatus.complete)
+    db_session.add(run)
+    db_session.commit()
+    db_session.refresh(run)
+    day = _run_day(run)
+
+    # Same (surface, segment), two different locations.
+    for loc in ("Toronto", "Vancouver"):
+        r = Result(run_id=run.id, tenant_id=tid, query_text="best crm", persona_name="p",
+                   surface=SurfaceCode.google_aio, variant=ResultVariant.search,
+                   status=ResultStatus.ok, mode=RunMode.B, location_label=loc)
+        db_session.add(r)
+    db_session.commit()
+
+    rollup_day(db_session, tid, day)
+    rows = db_session.exec(
+        select(VisibilityDaily).where(VisibilityDaily.tenant_id == tid)
+    ).all()
+    labels = sorted(r.location_label for r in rows)
+    # Two locations → two rows, not one blended row (§audit worker-8).
+    assert labels == ["Toronto", "Vancouver"]

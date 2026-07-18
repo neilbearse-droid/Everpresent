@@ -384,6 +384,10 @@ class VisibilityDaily(SQLModel, table=True):
     date: str = Field(index=True)  # ISO yyyy-mm-dd (UTC day of the run)
     surface: SurfaceCode
     persona_segment: str = Field(default="", index=True)
+    # Mode B location dimension: "" is the tenant's single default location (and
+    # every Mode A result). A multi-location tenant gets one row per location so
+    # per-location visibility isn't blended away (§audit worker-8).
+    location_label: str = Field(default="", index=True)
     brand_score: float = 0.0
     # {competitor_name: score 0-100}
     competitor_scores: dict[str, float] = Field(default_factory=dict, sa_column=Column(JSON))

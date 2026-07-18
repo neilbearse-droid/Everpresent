@@ -30,7 +30,7 @@ export default async function ScorecardPage({
   const [me, sc, acc] = await Promise.all([
     apiFetch<Me>("/api/me"),
     apiFetch<KpiScorecard>(`/api/tenant/kpi-scorecard${rangeQuery(from, to)}`),
-    apiFetch<AccuracyReport>("/api/tenant/accuracy"),
+    apiFetch<AccuracyReport>(`/api/tenant/accuracy${rangeQuery(from, to)}`),
   ]);
   if (sc.status === 403) {
     return <NoOrgNotice active="Scorecard" isSuperadmin={me.data?.is_superadmin} detail={sc.error} />;

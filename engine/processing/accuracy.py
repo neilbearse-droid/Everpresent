@@ -66,13 +66,6 @@ def _sentences(text: str) -> list[str]:
     ]
 
 
-def _sentences(text: str) -> list[str]:
-    # Protect decimal points (e.g. $1,000.50) so they aren't treated as
-    # sentence terminators, then restore them.
-    protected = _DECIMAL.sub("\\1\\2", text)
-    return [s.replace("", ".").strip() for s in _SENTENCE_RE.findall(protected) if s.strip()]
-
-
 def _numbers(s: str) -> list[tuple[str, float, str]]:
     """(kind, value, raw) for each number, where kind ∈ currency|percent|plain."""
     out: list[tuple[str, float, str]] = []
@@ -126,14 +119,24 @@ def check_text(text: str, facts: list[FactSpec]) -> list[AccuracyHit]:
             if not exp_nums:
                 continue
             exp_kind, exp_val, _ = exp_nums[0]
+            expected_is_year = exp_kind == "plain" and 1900 <= exp_val <= 2099
             for s, ls in zip(sents, low_sents, strict=False):
                 if not _mentions_subject(ls, subj_low, alias_lows):
                     continue
                 same_kind = [(v, raw) for (k, v, raw) in _numbers(s) if k == exp_kind]
+                # Plain numbers that look like years are almost always dates,
+                # not the metric — drop them unless the fact itself is a year.
+                if exp_kind == "plain" and not expected_is_year:
+                    same_kind = [(v, raw) for v, raw in same_kind if not 1900 <= v <= 2099]
                 if not same_kind:
                     continue
                 # Correct value present in the sentence → no contradiction.
                 if any(abs(v - exp_val) <= 0.001 for v, _ in same_kind):
+                    continue
+                # Precision-first: only flag when the wrong value is
+                # unambiguous — exactly one candidate number of the same unit.
+                # Multiple competing numbers → too risky to call.
+                if len(same_kind) != 1:
                     continue
                 wrong_v, wrong_raw = same_kind[0]
                 hits.append(AccuracyHit(

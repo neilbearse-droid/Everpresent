@@ -59,8 +59,8 @@ MIRRORED: list[tuple[type[SQLModel], str, list[str]]] = [
     (
         VisibilityDaily,
         "visibility_daily_v3",
-        ["id", "tenant_id", "date", "surface", "persona_segment", "brand_score",
-         "competitor_scores", "extras", "scorer_version", "computed_at"],
+        ["id", "tenant_id", "date", "surface", "persona_segment", "location_label",
+         "brand_score", "competitor_scores", "extras", "scorer_version", "computed_at"],
     ),
 ]
 

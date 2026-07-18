@@ -132,13 +132,17 @@ def fanout(ctx: Ctx, session: Db) -> dict:
 
 
 @router.get("/accuracy")
-def accuracy(ctx: Ctx, session: Db) -> dict:
-    return dashboards_service.accuracy_report(session, ctx.tenant_id)
+def accuracy(
+    ctx: Ctx, session: Db, start: str | None = None, end: str | None = None
+) -> dict:
+    return dashboards_service.accuracy_report(session, ctx.tenant_id, start, end)
 
 
 @router.get("/routing")
-def routing(ctx: Ctx, session: Db) -> dict:
-    return dashboards_service.routing_report(session, ctx.tenant_id)
+def routing(
+    ctx: Ctx, session: Db, start: str | None = None, end: str | None = None
+) -> dict:
+    return dashboards_service.routing_report(session, ctx.tenant_id, start, end)
 
 
 @router.get("/outcome")

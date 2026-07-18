@@ -28,7 +28,7 @@ export default async function EnginesPage({
   const [me, card, routing] = await Promise.all([
     apiFetch<Me>("/api/me"),
     apiFetch<EngineScorecard>(`/api/tenant/engine-scorecard${rangeQuery(from, to)}`),
-    apiFetch<RoutingReport>("/api/tenant/routing"),
+    apiFetch<RoutingReport>(`/api/tenant/routing${rangeQuery(from, to)}`),
   ]);
   if (card.status === 403) {
     return <NoOrgNotice active="Engines" isSuperadmin={me.data?.is_superadmin} detail={card.error} />;
