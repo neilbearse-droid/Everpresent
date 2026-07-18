@@ -60,12 +60,17 @@ def generate_recommendations(session: Session, tenant: Tenant) -> int:
     queries = session.exec(
         select(Query).where(Query.tenant_id == tenant_id, Query.active == True)  # noqa: E712
     ).all()
-    classifications = {
-        c.query_text: c
-        for c in session.exec(
-            select(QueryClassification).where(QueryClassification.tenant_id == tenant_id)
-        ).all()
-    }
+    # A query is classified per (query_text, surface); collapse to one row per
+    # query DETERMINISTICALLY (lowest surface code wins) rather than last-wins
+    # over an unordered result set, so the web_search-vs-training branch a query
+    # takes doesn't flip between runs (§audit low).
+    classifications: dict[str, QueryClassification] = {}
+    for c in session.exec(
+        select(QueryClassification)
+        .where(QueryClassification.tenant_id == tenant_id)
+        .order_by(QueryClassification.surface)  # pyright: ignore[reportArgumentType]
+    ).all():
+        classifications.setdefault(c.query_text, c)
 
     # Latest ok search-variant result per (query_text, surface) + brand hits.
     latest: dict[tuple[str, str], Result] = {}

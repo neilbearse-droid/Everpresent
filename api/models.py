@@ -6,7 +6,7 @@ mentions, citations) arrive with M2+."""
 from datetime import UTC, datetime
 from enum import StrEnum
 
-from sqlalchemy import JSON, Column
+from sqlalchemy import JSON, Column, Index
 from sqlmodel import Field, SQLModel
 
 
@@ -227,6 +227,12 @@ class ResultVariant(StrEnum):
 
 class Result(SQLModel, table=True):
     __tablename__ = "results"  # pyright: ignore[reportAssignmentType]
+    # Most dashboard reads filter (tenant_id, variant, status) together; a
+    # composite index serves them directly instead of scanning the tenant's
+    # whole result history and filtering variant/status in Postgres (§audit low).
+    __table_args__ = (
+        Index("ix_results_tenant_variant_status", "tenant_id", "variant", "status"),
+    )
 
     id: int | None = Field(default=None, primary_key=True)
     run_id: int = Field(foreign_key="runs.id", index=True)

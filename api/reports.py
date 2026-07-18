@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 from fpdf import FPDF
 from sqlmodel import Session, select
 
+from api import dashboards_service
 from api.dashboards_service import overview, personas
 from api.models import (
     Citation,
@@ -38,7 +39,13 @@ def build_results_csv(session: Session, tenant_id: int, run_id: int | None = Non
             select(Mention).where(Mention.result_id.in_(result_ids))  # pyright: ignore[reportAttributeAccessIssue]
         ).all():
             if m.entity_type == "brand":
-                brand_mentions.setdefault(m.result_id, m)
+                # Keep the BEST-ranked brand mention per result (lowest rank),
+                # matching kpi_scorecard's min(...key=rank); setdefault kept the
+                # first row the DB happened to return, which could be a lower
+                # slot and disagree with the dashboard.
+                current = brand_mentions.get(m.result_id)
+                if current is None or (m.rank or 999) < (current.rank or 999):
+                    brand_mentions[m.result_id] = m
         for c in session.exec(
             select(Citation).where(Citation.result_id.in_(result_ids))  # pyright: ignore[reportAttributeAccessIssue]
         ).all():
@@ -127,7 +134,8 @@ def build_summary_pdf(session: Session, tenant: Tenant, run: Run | None = None) 
     sov = ov.get("share_of_voice", {})
     brand_sov = sov.get(ov.get("brand_name", ""), None)
     if brand_sov is not None:
-        pdf.cell(0, 6, f"Share of voice (30d): {brand_sov}%", new_x="LMARGIN", new_y="NEXT")
+        pdf.cell(0, 6, f"Share of voice ({dashboards_service.SOV_DAYS}d): {brand_sov}%",
+                 new_x="LMARGIN", new_y="NEXT")
     if not latest and brand_sov is None:
         pdf.cell(0, 6, "No measurement data yet.", new_x="LMARGIN", new_y="NEXT")
     pdf.ln(3)

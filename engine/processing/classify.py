@@ -42,7 +42,10 @@ def compute_divergence(search_text: str, nosearch_text: str) -> float:
     b = nosearch_text.lower().split()
     if not a and not b:
         return 0.0
-    return round(1.0 - SequenceMatcher(None, a, b).ratio(), 4)
+    # autojunk=False: answers can exceed the 200-element autojunk threshold, and
+    # junking common tokens would depress .ratio() for long answers, pushing
+    # divergence up purely as a function of length (§audit low).
+    return round(1.0 - SequenceMatcher(None, a, b, autojunk=False).ratio(), 4)
 
 
 def classify_web_search_likelihood(signals: WebSearchSignals) -> str:

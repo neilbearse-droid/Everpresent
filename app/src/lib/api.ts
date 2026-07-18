@@ -125,7 +125,7 @@ export type RunResult = {
   persona_segment: string;
   surface: string;
   mode: string;
-  status: "ok" | "error";
+  status: "ok" | "error" | "blocked";
   error: string | null;
   latency_ms: number;
   response_hash: string;

@@ -17,24 +17,33 @@ class _ExtractingParser(HTMLParser):
         self.links: list[ParsedCitation] = []
         self._href: str | None = None
         self._link_text: list[str] = []
+        # Anchor nesting depth. Only the OUTERMOST <a> is captured, so an inner
+        # nested anchor (invalid but occurs in scraped fragments) can't clobber
+        # the outer link's href and drop it (§audit low).
+        self._anchor_depth = 0
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         if tag in _BLOCK_TAGS:
             self.parts.append("\n")
         if tag == "a":
-            href = dict(attrs).get("href") or ""
-            if href.startswith("http") and not any(
-                fragment in href for fragment in self.skip_host_fragments
-            ):
-                self._href = href
-                self._link_text = []
+            self._anchor_depth += 1
+            if self._anchor_depth == 1:
+                href = dict(attrs).get("href") or ""
+                if href.startswith("http") and not any(
+                    fragment in href for fragment in self.skip_host_fragments
+                ):
+                    self._href = href
+                    self._link_text = []
 
     def handle_endtag(self, tag: str) -> None:
-        if tag == "a" and self._href:
-            self.links.append(
-                ParsedCitation(url=self._href, title=" ".join(self._link_text).strip())
-            )
-            self._href = None
+        if tag == "a" and self._anchor_depth > 0:
+            self._anchor_depth -= 1
+            # Emit only when the outermost anchor closes.
+            if self._anchor_depth == 0 and self._href:
+                self.links.append(
+                    ParsedCitation(url=self._href, title=" ".join(self._link_text).strip())
+                )
+                self._href = None
 
     def handle_data(self, data: str) -> None:
         self.parts.append(data)

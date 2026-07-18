@@ -173,7 +173,10 @@ async def _capture_direct(
         position_index = -1
         if aio_block is not None and await aio_block.count() > 0:
             try:
-                await page.locator(sel.SHOW_MORE_BUTTON).first.click(timeout=3_000)
+                # Scope the "Show more" click to the AIO block: a page-wide
+                # .first can click another module's expander (e.g. "People also
+                # ask"), falsely setting expanded=True (§audit low).
+                await aio_block.locator(sel.SHOW_MORE_BUTTON).first.click(timeout=3_000)
                 expanded = True
                 await asyncio.sleep(1.0)
             except Exception:  # noqa: BLE001 — collapsed AIO is data too
@@ -185,6 +188,12 @@ async def _capture_direct(
             organic_box = await first_organic.bounding_box()
             if aio_box and organic_box:
                 position_index = 0 if aio_box["y"] < organic_box["y"] else 1
+            else:
+                # Geometry unavailable (element not laid out in headless): a
+                # present AIO defaults to top-of-page, matching the serpapi
+                # contract, instead of staying -1 → misclassified organic-first
+                # (§audit low).
+                position_index = 0
 
         organic_count = await page.locator(sel.ORGANIC_RESULT).count()
         page_html = await page.content()

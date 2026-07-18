@@ -103,6 +103,12 @@ export function RunDetailView({ detail, hrefBase }: { detail: RunDetail; hrefBas
               <td>
                 {result.status === "ok" ? (
                   <span className="text-[var(--pos)]">ok</span>
+                ) : result.status === "blocked" ? (
+                  // An anti-bot wall is missing data, not a brand-absence
+                  // signal — show it distinctly, not as a hard error.
+                  <span className="text-[var(--warn)]" title={result.error ?? ""}>
+                    blocked
+                  </span>
                 ) : (
                   <span className="text-[var(--neg)]" title={result.error ?? ""}>
                     error

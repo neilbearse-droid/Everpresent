@@ -91,6 +91,27 @@ def _access_token(client: httpx.Client) -> str:
     return resp.json()["access_token"]
 
 
+# Re-mint the access token well before the 3600s JWT expiry so a large backfill
+# that runs longer than an hour doesn't start getting 401s mid-run (§audit low).
+TOKEN_REFRESH_S = 3000
+
+
+class _Token:
+    """Lazily mints a BigQuery access token and refreshes it before expiry."""
+
+    def __init__(self, client: httpx.Client) -> None:
+        self._client = client
+        self._value = ""
+        self._minted_at = 0.0
+
+    def get(self) -> str:
+        now = time.time()
+        if not self._value or now - self._minted_at > TOKEN_REFRESH_S:
+            self._value = _access_token(self._client)
+            self._minted_at = now
+        return self._value
+
+
 def _serialize(value: Any) -> Any:
     if isinstance(value, datetime):
         return value.isoformat()
@@ -170,28 +191,41 @@ def mirror_to_bigquery() -> dict[str, int]:
 
     mirrored: dict[str, int] = {}
     with httpx.Client(timeout=60) as client, Session(get_engine()) as session:
-        token = _access_token(client)
+        token = _Token(client)
         for model, table, columns in MIRRORED:
             state = session.exec(
                 select(MirrorState).where(MirrorState.table_name == table)
             ).first()
             if state is None:
                 state = MirrorState(table_name=table)
-            new_rows = list(
-                session.exec(
-                    select(model).where(model.id > state.last_id).order_by(model.id)  # pyright: ignore[reportAttributeAccessIssue, reportArgumentType]
-                ).all()
-            )
-            if not new_rows:
-                continue
-            _ensure_table(client, token, table, columns)
-            for start in range(0, len(new_rows), BATCH_SIZE):
-                batch = new_rows[start : start + BATCH_SIZE]
-                _insert_all(client, token, table, _rows_for(table, columns, batch))
-            state.last_id = max(r.id for r in new_rows if r.id is not None)  # pyright: ignore[reportAttributeAccessIssue, reportGeneralTypeIssues]
-            state.updated_at = utcnow()
-            session.add(state)
-            session.commit()
-            mirrored[table] = len(new_rows)
-            log.info("mirror.table_done", table=table, rows=len(new_rows))
+            # Page the SELECT itself (§audit low): materializing the entire
+            # un-mirrored backlog at once is unbounded memory on a first-time
+            # mirror. Committing the watermark per page also means a mid-table
+            # failure resumes from the last committed page instead of redoing
+            # the whole table.
+            table_ready = False
+            total = 0
+            while True:
+                page = list(
+                    session.exec(
+                        select(model)
+                        .where(model.id > state.last_id)  # pyright: ignore[reportAttributeAccessIssue, reportArgumentType]
+                        .order_by(model.id)  # pyright: ignore[reportAttributeAccessIssue, reportArgumentType]
+                        .limit(BATCH_SIZE)
+                    ).all()
+                )
+                if not page:
+                    break
+                if not table_ready:
+                    _ensure_table(client, token.get(), table, columns)
+                    table_ready = True
+                _insert_all(client, token.get(), table, _rows_for(table, columns, page))
+                state.last_id = max(r.id for r in page if r.id is not None)  # pyright: ignore[reportAttributeAccessIssue, reportGeneralTypeIssues]
+                state.updated_at = utcnow()
+                session.add(state)
+                session.commit()
+                total += len(page)
+            if total:
+                mirrored[table] = total
+                log.info("mirror.table_done", table=table, rows=total)
     return mirrored

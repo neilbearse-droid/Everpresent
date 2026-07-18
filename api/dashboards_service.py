@@ -128,6 +128,9 @@ def aio_summary(session: Session, tenant_id: int) -> dict:
 
 
 MAX_POWER_PAGES = 30
+# The consulted-but-not-cited domains list is a separate ranking; give it its
+# own cap so tuning one doesn't silently move the other (§audit low).
+MAX_CONSULTED_DOMAINS = 30
 
 
 def citations_intel(
@@ -234,7 +237,7 @@ def citations_intel(
         entry["count"] += 1
         if src is not None:
             entry["queries"].add(src.query_text)
-    consulted_ranked = sorted(consulted.values(), key=lambda d: -d["count"])[:MAX_POWER_PAGES]
+    consulted_ranked = sorted(consulted.values(), key=lambda d: -d["count"])[:MAX_CONSULTED_DOMAINS]
 
     return {
         "domains": [{**d, "surfaces": sorted(d["surfaces"])} for d in ranked],
@@ -836,7 +839,9 @@ def kpi_scorecard(
     for r in results:
         ms = mentions_by_result.get(r.id or -1, [])
         for m in ms:
-            weight = 1.0 / m.rank if m.rank and m.rank > 0 else 0.0
+            # rank is 1-based (detector assigns 1..n); guard ≥1 explicitly so a
+            # stray 0 contributes no weight rather than dividing by zero.
+            weight = 1.0 / m.rank if m.rank >= 1 else 0.0
             weight_total += weight
             name = brand_name if m.entity_type == "brand" else m.entity_name
             weight_by_entity[name] += weight
@@ -1005,7 +1010,10 @@ def outcome(
     return {
         "brand_name": _brand_name(session, tenant_id),
         "connected": bool(tenant and tenant.ga4_property_id),
-        "has_data": bool(all_referrals),
+        # Reflect the SELECTED window, not all-time: series/totals are windowed,
+        # so an all-time flag would suppress the empty state for a range that
+        # happens to contain no referrals, leaving a blank chart (§audit low).
+        "has_data": bool(referrals),
         "series": series,
         "engine_totals": [
             {"engine": e, **vals}
@@ -1057,19 +1065,25 @@ def interventions_report(session: Session, tenant_id: int) -> dict:
 
     treated_queries = {i.query_text for i in ledger}
 
+    # Bucket results by query once so rate() scans only the queries it's asked
+    # about instead of the whole result history on every call (§audit low): the
+    # per-item treated + control rate() calls otherwise made it O(ledger × rows).
+    rows_by_query: dict[str, list[tuple[str, str, datetime, int]]] = defaultdict(list)
+    for row in rows:
+        rows_by_query[row[0]].append(row)
+
     def rate(queries: set[str], *, before: datetime | None = None,
              after: datetime | None = None) -> tuple[int, int]:
         present = total = 0
-        for q, _s, created, rid in rows:
-            if q not in queries:
-                continue
-            if before is not None and created >= before:
-                continue
-            if after is not None and created < after:
-                continue
-            total += 1
-            if rid in brand_ids:
-                present += 1
+        for q in queries:
+            for _q, _s, created, rid in rows_by_query.get(q, ()):
+                if before is not None and created >= before:
+                    continue
+                if after is not None and created < after:
+                    continue
+                total += 1
+                if rid in brand_ids:
+                    present += 1
         return present, total
 
     def pct(present: int, total: int) -> float | None:
@@ -1086,10 +1100,11 @@ def interventions_report(session: Session, tenant_id: int) -> dict:
         before_rate, after_rate = pct(b_present, b_total), pct(a_present, a_total)
 
         # Engines where the brand was absent before and present after.
-        engines_before = {s for (q, s, c, rid) in rows
-                          if q == item.query_text and c < shipped and rid in brand_ids}
-        engines_after = {s for (q, s, c, rid) in rows
-                         if q == item.query_text and c >= shipped and rid in brand_ids}
+        item_rows = rows_by_query.get(item.query_text, ())
+        engines_before = {s for (_q, s, c, rid) in item_rows
+                          if c < shipped and rid in brand_ids}
+        engines_after = {s for (_q, s, c, rid) in item_rows
+                         if c >= shipped and rid in brand_ids}
         newly_visible = sorted(engines_after - engines_before)
 
         delta = None
@@ -1627,16 +1642,22 @@ def queries_intel(
                 "mode": str(result.mode),
                 "brand_mentioned": result.id in brand_mentioned_ids,
             }
+        # A query can be classified per surface; pick a DETERMINISTIC one (the
+        # lowest surface code) rather than whichever the dict happens to yield
+        # first, so the reported likelihood doesn't drift between deploys.
         classification = None
-        for (query_text, surface), c in classifications.items():
-            if query_text == query.text:
-                classification = {
-                    "surface": surface,
-                    "web_search_likelihood": c.web_search_likelihood,
-                    "signals": c.signals,
-                    "classifier_version": c.classifier_version,
-                }
-                break
+        matches = sorted(
+            ((surface, c) for (qt, surface), c in classifications.items() if qt == query.text),
+            key=lambda pair: pair[0],
+        )
+        if matches:
+            surface, c = matches[0]
+            classification = {
+                "surface": surface,
+                "web_search_likelihood": c.web_search_likelihood,
+                "signals": c.signals,
+                "classifier_version": c.classifier_version,
+            }
         out.append(
             {
                 "id": query.id,

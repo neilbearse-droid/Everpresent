@@ -66,6 +66,7 @@ def parse_responses_payload(payload: dict[str, Any]) -> ParsedResponse:
     """Pure parser over a Responses API body; fixture-tested, never network."""
     texts: list[str] = []
     citations: list[ParsedCitation] = []
+    cited_seen: set[str] = set()
     fanout_queries: list[str] = []
     web_search_calls = 0
     for item in payload.get("output") or []:
@@ -84,9 +85,14 @@ def parse_responses_payload(payload: dict[str, Any]) -> ParsedResponse:
                 continue
             texts.append(content.get("text", ""))
             for annotation in content.get("annotations") or []:
-                if annotation.get("type") == "url_citation" and annotation.get("url"):
+                url = annotation.get("url")
+                # Dedupe by URL, matching claude/gemini/perplexity — a source
+                # referenced in several sentences must not inflate citation_count
+                # (and citation_rate) for this surface alone (§audit low).
+                if annotation.get("type") == "url_citation" and url and url not in cited_seen:
+                    cited_seen.add(url)
                     citations.append(
-                        ParsedCitation(url=annotation["url"], title=annotation.get("title", ""))
+                        ParsedCitation(url=url, title=annotation.get("title", ""))
                     )
     # Consulted-but-not-cited: the Responses API may return a fuller `sources`
     # list than the visible url_citations (§AEO-plan M6). Read it defensively —

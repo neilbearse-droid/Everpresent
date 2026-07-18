@@ -44,10 +44,13 @@ def score_entity(signals: list[ResultSignals]) -> EntityScore:
     n = len(signals)
     if n == 0:
         return EntityScore(score=0.0, mention_rate=0.0, citation_rate=0.0, result_count=0)
-    mentioned = [s for s in signals if s.mention_rank is not None]
+    # rank is 1-based; filter ≥1 once so numerator and denominator agree (the
+    # old `if s.mention_rank` in the numerator only, on top of the is-not-None
+    # filter, would have understated the score for a stray rank 0) — §audit low.
+    mentioned = [s for s in signals if s.mention_rank is not None and s.mention_rank >= 1]
     mention_rate = len(mentioned) / n
     rank_factor = (
-        sum(1.0 / s.mention_rank for s in mentioned if s.mention_rank) / len(mentioned)
+        sum(1.0 / s.mention_rank for s in mentioned) / len(mentioned)  # pyright: ignore[reportOptionalOperand]
         if mentioned
         else 0.0
     )

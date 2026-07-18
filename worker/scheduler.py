@@ -56,7 +56,11 @@ def tick(session: Session, now: datetime | None = None) -> list[int]:
                 log.info("schedule.fired", tenant=tenant.slug, run_id=run.id, status=run.status)
                 if run.id is not None:
                     triggered.append(run.id)
-        schedule.last_triggered_at = now
+                # Only stamp last_triggered_at when a run actually fired — a
+                # cap-skipped tick never triggered anything (§audit low).
+                schedule.last_triggered_at = now
+        # Always advance next_run_at (even on skip/no-tenant) so a due schedule
+        # doesn't re-evaluate every tick.
         schedule.next_run_at = next_fire(schedule.cron_expr, now)
         session.add(schedule)
         session.commit()
@@ -81,12 +85,11 @@ def _maybe_enqueue_nightly(session: Session, now: datetime) -> None:
         return
     if state is None:
         state = MirrorState(table_name=MIRROR_STATE_KEY)
-    state.last_id = day_stamp
-    state.updated_at = utcnow()
-    session.add(state)
-    session.commit()
     from api.queue import get_queue
 
+    # Enqueue FIRST, then advance the day-watermark (§audit low). Committing the
+    # watermark before enqueue meant a Redis/enqueue failure left the day
+    # stamped-done, silently skipping that day's mirror/GA4/crawl until tomorrow.
     queue = get_queue()
     if settings.bigquery_project:
         queue.enqueue("worker.mirror.mirror_to_bigquery", job_timeout=30 * 60)
@@ -100,6 +103,11 @@ def _maybe_enqueue_nightly(session: Session, now: datetime) -> None:
         queue.enqueue("worker.page_crawl.crawl_power_pages", tid, job_timeout=15 * 60)
     if tenant_ids:
         log.info("page_crawl.enqueued", day=day_stamp, tenants=len(tenant_ids))
+
+    state.last_id = day_stamp
+    state.updated_at = utcnow()
+    session.add(state)
+    session.commit()
 
 
 def run() -> None:

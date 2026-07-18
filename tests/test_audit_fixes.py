@@ -64,6 +64,29 @@ def test_worker_tolerates_null_aio_geo(db_session):
     assert locs == [("", {"gl": "ca", "hl": "en"})]
 
 
+# --- low: notify_emails NULL legacy row must not crash finalize --------------
+
+def test_notify_emails_null_tolerated(db_session):
+    from sqlalchemy import text
+
+    t = Tenant(name="LegacyN", slug="legacyn")
+    db_session.add(t)
+    db_session.commit()
+    # Pre-M5 rows loaded NULL (no server_default, no backfill until M19).
+    db_session.exec(text(f"UPDATE tenants SET notify_emails = NULL WHERE id = {t.id}"))
+    db_session.commit()
+    db_session.expire_all()
+    reloaded = db_session.get(Tenant, t.id)
+    assert reloaded.notify_emails is None
+    # notify_run_complete must treat None as "no recipients", not crash on len().
+    from api.notifications import notify_run_complete
+
+    run = Run(tenant_id=t.id, trigger="manual", status=RunStatus.complete)
+    db_session.add(run)
+    db_session.commit()
+    assert notify_run_complete(db_session, run, reloaded) is False
+
+
 # --- shared helpers ----------------------------------------------------------
 
 def _tenant(db):

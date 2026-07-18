@@ -50,11 +50,11 @@ export default async function OutcomePage({
 
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
         <div className="card p-5">
-          <div className="text-3xl font-semibold tabular-nums">{d.totals.sessions}</div>
+          <div className="text-3xl font-semibold tabular-nums">{d.totals.sessions.toLocaleString()}</div>
           <div className="mt-1 text-sm text-[var(--text-2)]">AI-referred sessions</div>
         </div>
         <div className="card p-5">
-          <div className="text-3xl font-semibold tabular-nums">{d.totals.conversions}</div>
+          <div className="text-3xl font-semibold tabular-nums">{d.totals.conversions.toLocaleString()}</div>
           <div className="mt-1 text-sm text-[var(--text-2)]">Key events from AI referrals</div>
         </div>
         <div className="card p-5">

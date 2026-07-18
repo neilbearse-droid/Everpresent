@@ -186,8 +186,8 @@ export default async function EnginesPage({
                         );
                       })}
                       <td className="pl-4">
-                        <div className={`flex items-center gap-1.5 text-xs font-medium ${DIAGNOSIS_STYLE[row.diagnosis.type].chip}`}>
-                          <span className={`h-2 w-2 rounded-full ${DIAGNOSIS_STYLE[row.diagnosis.type].dot}`} />
+                        <div className={`flex items-center gap-1.5 text-xs font-medium ${(DIAGNOSIS_STYLE[row.diagnosis.type] ?? DIAGNOSIS_STYLE.undetermined).chip}`}>
+                          <span className={`h-2 w-2 rounded-full ${(DIAGNOSIS_STYLE[row.diagnosis.type] ?? DIAGNOSIS_STYLE.undetermined).dot}`} />
                           {row.diagnosis.label}
                         </div>
                         {row.diagnosis.type !== "visible" && (

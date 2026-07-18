@@ -4,8 +4,9 @@ rollup. Idempotent — reprocessing a run (or a day) deletes and recomputes its
 derived rows, so detector/classifier upgrades can be applied to history."""
 
 from collections import defaultdict
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
+from sqlalchemy import and_, or_
 from sqlmodel import Session, delete, select
 
 from api.models import (
@@ -137,7 +138,10 @@ def process_run(session: Session, run: Run) -> dict[str, int]:
                 )
             )
 
-    # Citation categorization (all variants — cheap and harmless).
+    # Citation categorization (all variants — cheap and harmless). Bucket by
+    # result_id in the same pass so the twin/AIO loops below can index in memory
+    # instead of issuing one SELECT per result (§audit low, N+1).
+    citations_by_result: dict[int, list[Citation]] = defaultdict(list)
     if result_ids:
         for citation in session.exec(
             select(Citation).where(Citation.result_id.in_(result_ids))  # pyright: ignore[reportAttributeAccessIssue]
@@ -146,6 +150,7 @@ def process_run(session: Session, run: Run) -> dict[str, int]:
                 citation.domain, brand_domains, competitor_domains
             )
             session.add(citation)
+            citations_by_result[citation.result_id].append(citation)
             counts["citations_categorized"] += 1
 
     # Query classification from the dual-query diff. The nosearch variant ran
@@ -164,9 +169,7 @@ def process_run(session: Session, run: Run) -> dict[str, int]:
         )
         if twin is None or twin.id is None:
             continue
-        citation_count = len(
-            session.exec(select(Citation).where(Citation.result_id == twin.id)).all()
-        )
+        citation_count = len(citations_by_result.get(twin.id, ()))
         signals = WebSearchSignals(
             # Use the count each adapter's parser already stored on the row
             # (§audit H3). The old envelope-scan only understood OpenAI's shape
@@ -236,10 +239,7 @@ def process_run(session: Session, run: Run) -> dict[str, int]:
             AIOCaptureSummary(**summary_dict) if summary_dict else AIOCaptureSummary(ran=False)
         )
         assert result.id is not None
-        cited_urls = [
-            c.url
-            for c in session.exec(select(Citation).where(Citation.result_id == result.id)).all()
-        ]
+        cited_urls = [c.url for c in citations_by_result.get(result.id, ())]
         signal = classify_aio_capture(summary, cited_urls)
         rows = list(
             session.exec(
@@ -298,11 +298,23 @@ def rollup_day(session: Session, tenant_id: int, day: str) -> int:
     """Recompute visibility_daily for every (surface, segment) group of the
     tenant's search-variant results finished on `day` — across all of that
     day's runs, so repeated runs don't double-count."""
-    runs_of_day = [
-        r
-        for r in session.exec(select(Run).where(Run.tenant_id == tenant_id)).all()
-        if _run_day(r) == day and r.id is not None
-    ]
+    # Prefilter in SQL to runs plausibly on `day` instead of scanning the
+    # tenant's entire run history every rollup (§audit low). A run whose
+    # _run_day == day either finished on that day (finished_at in the window) or
+    # has no finished_at (fallback to started_at/now) — so this is a safe
+    # superset; the exact _run_day check below refines it.
+    day_start = datetime.fromisoformat(day).replace(tzinfo=UTC)
+    day_end = day_start + timedelta(days=1)
+    candidate_runs = session.exec(
+        select(Run).where(
+            Run.tenant_id == tenant_id,
+            or_(
+                Run.finished_at.is_(None),  # pyright: ignore[reportAttributeAccessIssue]
+                and_(Run.finished_at >= day_start, Run.finished_at < day_end),  # pyright: ignore[reportOptionalOperand]
+            ),
+        )
+    ).all()
+    runs_of_day = [r for r in candidate_runs if _run_day(r) == day and r.id is not None]
     run_ids = [r.id for r in runs_of_day]
     session.exec(
         delete(VisibilityDaily).where(  # pyright: ignore[reportCallIssue]

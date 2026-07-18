@@ -120,16 +120,34 @@ def timezone_for(country: str) -> str:
     return _TZ_BY_COUNTRY.get((country or "").lower(), "UTC")
 
 
+# Non-standard country inputs → valid BCP-47 region subtags. "uk" is accepted
+# for timezone lookup but is not a valid region tag ("en-UK"); the standard is
+# "GB" (§audit low).
+_REGION_ALIASES = {"uk": "GB"}
+
+
+def _region_tag(country: str) -> str:
+    """Uppercase BCP-47 region subtag for a country code, "" when unset."""
+    if not country:
+        return ""
+    return _REGION_ALIASES.get(country.lower(), country.upper())
+
+
 def context_options(env: ScrapeEnv) -> dict[str, Any]:
     """The new_context kwargs for this request — locale, timezone, UA, geo, and
     proxy. Broken out so tests can assert the shape without a browser."""
+    region = _region_tag(env.country)
+    # Build locale/Accept-Language from the same guarded region so an empty
+    # country never yields a malformed "en-" / "en-,en;q=0.9" tell (§audit low).
+    locale = f"{env.language}-{region}" if region else env.language
+    accept_language = (
+        f"{env.language}-{region},{env.language};q=0.9" if region else f"{env.language};q=0.9"
+    )
     opts: dict[str, Any] = {
-        "locale": f"{env.language}-{env.country.upper()}" if env.country else env.language,
+        "locale": locale,
         "timezone_id": timezone_for(env.country),
         "user_agent": env.user_agent,
-        "extra_http_headers": {
-            "Accept-Language": f"{env.language}-{env.country.upper()},{env.language};q=0.9"
-        },
+        "extra_http_headers": {"Accept-Language": accept_language},
     }
     if env.latitude is not None and env.longitude is not None:
         opts["geolocation"] = {"latitude": env.latitude, "longitude": env.longitude}

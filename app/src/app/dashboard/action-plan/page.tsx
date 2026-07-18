@@ -4,6 +4,19 @@ import { NoOrgNotice } from "@/components/no-org-notice";
 import { surfaceLabel } from "@/lib/viz";
 import { MarkShipped } from "./mark-shipped";
 
+// Format a backend YYYY-MM-DD into the app's friendly date style, matching the
+// runs table and date picker (§audit low). Parsed in local time so the day
+// doesn't shift across the UTC boundary.
+function fmtDay(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return iso;
+  return new Date(y, m - 1, d).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 const DIAG_STYLE: Record<string, string> = {
   content_gap: "border-amber-500/40 bg-amber-500/5",
   knowledge_gap: "border-red-500/40 bg-red-500/5",
@@ -467,7 +480,7 @@ export default async function ActionPlanPage() {
                           )}
                         </td>
                         <td className="pr-4 text-xs tabular-nums text-[var(--text-2)]">
-                          {iv.shipped_at}
+                          {fmtDay(iv.shipped_at)}
                         </td>
                         {iv.awaiting ? (
                           <td colSpan={3} className="text-xs text-[var(--text-3)]">

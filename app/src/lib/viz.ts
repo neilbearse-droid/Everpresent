@@ -34,9 +34,9 @@ export function entityColors(
 // any surface without an entry.
 export const SURFACE_LABELS: Record<string, string> = {
   openai_api: "ChatGPT (API)",
-  perplexity_api: "Perplexity",
-  claude_api: "Claude",
-  gemini_api: "Gemini",
+  perplexity_api: "Perplexity (API)",
+  claude_api: "Claude (API)",
+  gemini_api: "Gemini (API)",
   chatgpt_web: "ChatGPT (web)",
   perplexity_web: "Perplexity (web)",
   gemini_web: "Gemini (web)",
