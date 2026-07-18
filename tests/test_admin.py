@@ -79,7 +79,14 @@ def test_godaddy_seed_imports_facts_and_baseline(client, as_superadmin, db_sessi
 
     tenant = db_session.exec(select(Tenant).where(Tenant.slug == "godaddy")).one()
     personas = db_session.exec(select(Persona).where(Persona.tenant_id == tenant.id)).all()
-    assert [p.segment_tag for p in personas] == ["generic"]  # baseline only, for now
+    segments = {p.segment_tag for p in personas}
+    assert "generic" in segments  # baseline persona → selective-matrix mode
+    assert {"dreamer", "new_entrepreneur", "side_hustler", "domain_investor"} <= segments
+    # The selective matrix lives on the queries as persona_runs.
+    q_with_runs = db_session.exec(
+        select(Query).where(Query.tenant_id == tenant.id)
+    ).all()
+    assert sum(len(q.persona_runs) for q in q_with_runs) == 15  # brief's 15 persona combos
     competitors = db_session.exec(
         select(Competitor).where(Competitor.tenant_id == tenant.id)
     ).all()

@@ -48,53 +48,72 @@ competitors:
   - { name: Hostinger Horizon, aliases: [Horizon], domains: [hostinger.com] }
 
 personas:
-  # Generic baseline — no persona preamble. Every query runs this first
-  # ("all ten queries run generic as the baseline"). Empty prompt => the raw
-  # query with no first-person framing on both API and web surfaces.
+  # Generic baseline — no persona preamble. The presence of a "generic" persona
+  # puts the tenant in SELECTIVE-MATRIX mode: every query runs this baseline,
+  # plus only the personas each query names below. Empty prompt => the raw query
+  # with no first-person framing on both API and web surfaces.
   - name: Generic (baseline)
     segment: generic
     prompt: ""
+  # FROZEN DEMO PERSONAS — preambles verbatim from the client brief. Do NOT
+  # reword once live: changing persona wording mid-series breaks the trend line.
+  - name: Dreamer
+    segment: dreamer
+    prompt: >-
+      I've been thinking about starting a business someday. Nothing concrete
+      yet, but I want to grab a domain name before someone else takes it.
+  - name: New Entrepreneur
+    segment: new_entrepreneur
+    prompt: >-
+      I'm setting up my new business right now. I haven't launched yet, and I'm
+      building the website and need to sell online and manage customers.
+  - name: Side Hustler
+    segment: side_hustler
+    prompt: >-
+      I work full time and run a small side business on weekends.
+  - name: Domain Investor
+    segment: domain_investor
+    prompt: >-
+      I buy and sell domain names as an investment and hold a portfolio of
+      around 50.
 
-# ---------------------------------------------------------------------------
-# FROZEN DEMO PERSONAS — activated in GoDaddy step 3 with per-query targeting.
-# Preambles are verbatim from the client brief and MUST NOT be reworded once
-# live. Reproduced here so the wording is locked in version control now.
-#
-#  - name: Dreamer
-#    segment: dreamer
-#    prompt: >
-#      I've been thinking about starting a business someday. Nothing concrete
-#      yet, but I want to grab a domain name before someone else takes it.
-#  - name: New Entrepreneur
-#    segment: new_entrepreneur
-#    prompt: >
-#      I'm setting up my new business right now. I haven't launched yet, and
-#      I'm building the website and need to sell online and manage customers.
-#  - name: Side Hustler
-#    segment: side_hustler
-#    prompt: >
-#      I work full time and run a small side business on weekends.
-#  - name: Domain Investor
-#    segment: domain_investor
-#    prompt: >
-#      I buy and sell domain names as an investment and hold a portfolio of
-#      around 50.
-#
-# Vertical overlay (Q5/Q9): append one clause to the persona preamble, e.g.
-# "It's a small restaurant." / "It's an online store selling handmade goods."
-# ---------------------------------------------------------------------------
-
+# Query × persona matrix (client brief). Every query runs the generic baseline
+# implicitly; `personas` lists the ADDITIONAL persona-conditioned runs. Vertical
+# overlays (Q5/Q9) are an extra run of a persona with a clause appended.
 queries:
-  - { text: "What's the best place to buy a domain name?", corpus: domains }
-  - { text: "GoDaddy vs. Namecheap — which is better for domains?", corpus: domains }
-  - { text: "Is domain privacy free with GoDaddy?", corpus: domains }   # Q3 — accuracy specimen
-  - { text: "What's the best AI website builder?", corpus: ai_builder }
-  - { text: "How can I build an app for my small business without coding?", corpus: ai_builder }
-  - { text: "What's the best website builder for a small business?", corpus: website_builder }
-  - { text: "Best web hosting for a small business website?", corpus: hosting }
-  - { text: "What's the cheapest way to get a domain and website for a new business?", corpus: cross_category }
-  - { text: "Best all-in-one platform to start an online business?", corpus: cross_category }
-  - { text: "How much does it cost to build a website or app with AI?", corpus: ai_builder }
+  - text: "What's the best place to buy a domain name?"
+    corpus: domains
+    personas: [dreamer, domain_investor]
+  - text: "GoDaddy vs. Namecheap — which is better for domains?"
+    corpus: domains
+    personas: [domain_investor]
+  - text: "Is domain privacy free with GoDaddy?"   # Q3 — accuracy specimen, generic only
+    corpus: domains
+  - text: "What's the best AI website builder?"
+    corpus: ai_builder
+    personas: [new_entrepreneur, side_hustler]
+  - text: "How can I build an app for my small business without coding?"
+    corpus: ai_builder
+    personas:
+      - new_entrepreneur
+      - side_hustler
+      - { segment: new_entrepreneur, overlay: "It's a small restaurant." }
+  - text: "What's the best website builder for a small business?"
+    corpus: website_builder
+    personas: [new_entrepreneur, side_hustler]
+  - text: "Best web hosting for a small business website?"   # generic only for the demo
+    corpus: hosting
+  - text: "What's the cheapest way to get a domain and website for a new business?"
+    corpus: cross_category
+    personas: [dreamer, side_hustler]
+  - text: "Best all-in-one platform to start an online business?"
+    corpus: cross_category
+    personas:
+      - new_entrepreneur
+      - { segment: new_entrepreneur, overlay: "It's an online store selling handmade goods." }
+  - text: "How much does it cost to build a website or app with AI?"
+    corpus: ai_builder
+    personas: [new_entrepreneur]
 
 brand_facts:
   # Q3 WORKED SPECIMEN — "Is domain privacy free with GoDaddy?"

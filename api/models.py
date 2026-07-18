@@ -141,6 +141,13 @@ class Query(SQLModel, table=True):
     text: str
     corpus_tag: str = Field(default="core", index=True)
     active: bool = Field(default=True)
+    # Per-query persona targeting (selective query×persona matrix). Each entry
+    # is {"segment": str, "overlay": str}: run the persona with that segment on
+    # this query, optionally appending a vertical-overlay clause to its
+    # preamble. Empty = the query runs the baseline only. Only consulted when
+    # the tenant has a "generic" baseline persona (selective mode); tenants
+    # without one keep the full persona × query cross-product.
+    persona_runs: list[dict] = Field(default_factory=list, sa_column=Column(JSON))
 
 
 class Location(SQLModel, table=True):

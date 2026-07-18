@@ -270,6 +270,77 @@ class _BWorkItem:
     geo: dict[str, Any] = field(default_factory=dict)
 
 
+# (persona_id, persona_name, persona_prompt, persona_segment)
+_PersonaTuple = tuple[int | None, str, str, str]
+# (query_id, query_text, persona_runs)
+_QueryTuple = tuple[int | None, str, list[dict]]
+
+_GENERIC_SEGMENT = "generic"
+
+
+def _persona_cell(persona: _PersonaTuple, overlay: str = "") -> _PersonaTuple:
+    """A persona snapshot with an optional vertical-overlay clause appended to
+    its preamble; the name is annotated so overlay runs are distinguishable in
+    the results view while still rolling up under the base segment."""
+    pid, pname, pprompt, pseg = persona
+    if not overlay:
+        return persona
+    prompt = f"{pprompt} {overlay}".strip()
+    return (pid, f"{pname} ({overlay})", prompt, pseg)
+
+
+def _baseline_persona(personas: list[_PersonaTuple]) -> _PersonaTuple | None:
+    """The baseline persona used for the diagnosis twin and natural probe: the
+    'generic' persona when the tenant has one (selective mode), else the first
+    persona (legacy)."""
+    for p in personas:
+        if p[3] == _GENERIC_SEGMENT:
+            return p
+    return personas[0] if personas else None
+
+
+def matrix_cells(
+    queries: list[_QueryTuple],
+    personas: list[_PersonaTuple],
+    *,
+    first_persona_only: bool = False,
+) -> list[tuple[int | None, str, _PersonaTuple]]:
+    """The (query_id, query_text, persona) cells to run for the client-facing
+    matrix. Pure — unit-tested without a DB.
+
+    Selective mode (the tenant has a 'generic' persona): every query runs the
+    generic baseline PLUS the personas named in its persona_runs, each with its
+    optional vertical overlay. This is the curated query×persona matrix.
+
+    Legacy mode (no 'generic' persona): the full persona × query cross-product,
+    or the first persona only when first_persona_only=True (Mode B) — the exact
+    pre-matrix behaviour, so existing tenants are unaffected."""
+    if not personas:
+        return []
+    by_segment: dict[str, _PersonaTuple] = {}
+    for p in personas:
+        by_segment.setdefault(p[3], p)
+    generic = [p for p in personas if p[3] == _GENERIC_SEGMENT]
+
+    if not generic:
+        pool = personas[:1] if first_persona_only else personas
+        return [(qid, qtext, p) for (qid, qtext, _runs) in queries for p in pool]
+
+    cells: list[tuple[int | None, str, _PersonaTuple]] = []
+    for qid, qtext, runs in queries:
+        for g in generic:
+            cells.append((qid, qtext, g))
+        for run in runs or []:
+            seg = run.get("segment")
+            if not seg or seg == _GENERIC_SEGMENT:
+                continue
+            base = by_segment.get(seg)
+            if base is None:  # unknown segment in config — skip, don't crash
+                continue
+            cells.append((qid, qtext, _persona_cell(base, run.get("overlay", ""))))
+    return cells
+
+
 def _base_scrape_env(settings: Any) -> ScrapeEnv:
     """The deployment-wide scrape environment (stealth + proxy + managed
     browser), before per-location geo is applied. All off by default."""
@@ -411,7 +482,7 @@ async def _run_mode_a(run_id: int) -> None:
         # whether the dual-query diagnosis twin runs. Engines are already capped
         # into surface_set at run creation.
         queries = [
-            (q.id, q.text)
+            (q.id, q.text, list(q.persona_runs or []))
             for q in session.exec(
                 select(Query)
                 .where(Query.tenant_id == tenant.id, Query.active == True)  # noqa: E712
@@ -438,7 +509,7 @@ async def _run_mode_a(run_id: int) -> None:
         cached_twins: dict[tuple[str, str], tuple[str, str, Any]] = {}
         if personas and limits.diagnosis and settings.diagnosis_refresh_days > 0:
             cutoff = utcnow() - timedelta(days=settings.diagnosis_refresh_days)
-            query_texts = {qtext for (_qid, qtext) in queries}
+            query_texts = {qtext for (_qid, qtext, _runs) in queries}
             candidates = session.exec(
                 select(Result)
                 .where(
@@ -489,40 +560,42 @@ async def _run_mode_a(run_id: int) -> None:
             session.commit()
         return
 
-    # The client-facing matrix, plus one search-disabled twin per (query,
-    # surface) on the first persona — the dual-query diff the classifier
-    # consumes (§6.1). The twin only applies to providers with a non-search
-    # mode (Perplexity Sonar always searches). Plain snapshots: no DB
+    # The client-facing matrix (selective query×persona, or full cross-product
+    # for tenants without a 'generic' baseline), plus one search-disabled twin
+    # per (query, surface) on the baseline persona — the dual-query diff the
+    # classifier consumes (§6.1). The twin only applies to providers with a
+    # non-search mode (Perplexity Sonar always searches). Plain snapshots: no DB
     # connection during dispatch.
+    cells = matrix_cells(queries, personas)
     work: list[_AWorkItem] = [
         _AWorkItem(qid, qtext, pid, pname, pprompt, pseg, s, ResultVariant.search)
         for s in configured
-        for (qid, qtext) in queries
-        for (pid, pname, pprompt, pseg) in personas
+        for (qid, qtext, (pid, pname, pprompt, pseg)) in cells
     ]
-    if personas and limits.diagnosis:
-        pid0, pname0, pprompt0, pseg0 = personas[0]
+    baseline = _baseline_persona(personas)
+    if baseline is not None and limits.diagnosis:
+        bpid, bpname, bpprompt, bpseg = baseline
         work += [
-            _AWorkItem(qid, qtext, pid0, pname0, pprompt0, pseg0, s, ResultVariant.nosearch)
+            _AWorkItem(qid, qtext, bpid, bpname, bpprompt, bpseg, s, ResultVariant.nosearch)
             for s in configured
             if A_ADAPTERS[s].supports_nosearch
-            for (qid, qtext) in queries
+            for (qid, qtext, _runs) in queries
             if (qtext, s) not in cached_twins  # twin still fresh — reuse below
         ]
 
     # M2 natural routing probe: an un-forced call on a deterministic fraction of
     # queries, for the surfaces that force search (only those hide routing).
-    # First persona only; measurement-only, excluded from scoring.
+    # Baseline persona only; measurement-only, excluded from scoring.
     probe_frac = getattr(settings, "natural_probe_fraction", 0.0)
     forced_surfaces = [s for s in configured if A_ADAPTERS[s].forces_search]
-    if personas and probe_frac > 0 and forced_surfaces and queries:
+    if baseline is not None and probe_frac > 0 and forced_surfaces and queries:
         n_probe = max(1, round(probe_frac * len(queries)))
         probe_queries = queries[:n_probe]
-        pid0, pname0, pprompt0, pseg0 = personas[0]
+        bpid, bpname, bpprompt, bpseg = baseline
         work += [
-            _AWorkItem(qid, qtext, pid0, pname0, pprompt0, pseg0, s, ResultVariant.natural)
+            _AWorkItem(qid, qtext, bpid, bpname, bpprompt, bpseg, s, ResultVariant.natural)
             for s in forced_surfaces
-            for (qid, qtext) in probe_queries
+            for (qid, qtext, _runs) in probe_queries
         ]
 
     counts = {"planned": len(work), "completed": 0, "failed": 0, "withheld_by_cap": 0}
@@ -633,9 +706,10 @@ async def _run_mode_a(run_id: int) -> None:
         # Materialize cached diagnosis twins as rows in this run (same raw
         # envelope, zero provider spend) so the classifier's within-run
         # variant pairing works unchanged.
-        if cached_twins and personas:
-            qid_by_text = {qtext: qid for (qid, qtext) in queries}
-            pid0, pname0, _pprompt0, pseg0 = personas[0]
+        baseline_twin = _baseline_persona(personas)
+        if cached_twins and baseline_twin is not None:
+            qid_by_text = {qtext: qid for (qid, qtext, _runs) in queries}
+            bpid0, bpname0, _bpprompt0, bpseg0 = baseline_twin
             cloned = 0
             for (qtext, twin_surface), (uri, rhash, created_ts) in cached_twins.items():
                 if twin_surface not in configured:
@@ -645,10 +719,10 @@ async def _run_mode_a(run_id: int) -> None:
                         run_id=run_id,
                         tenant_id=run.tenant_id,
                         query_id=qid_by_text.get(qtext),
-                        persona_id=pid0,
+                        persona_id=bpid0,
                         query_text=qtext,
-                        persona_name=pname0,
-                        persona_segment=pseg0,
+                        persona_name=bpname0,
+                        persona_segment=bpseg0,
                         surface=SurfaceCode(twin_surface),
                         variant=ResultVariant.nosearch,
                         raw_uri=uri,
@@ -717,7 +791,7 @@ async def _run_mode_b(run_id: int) -> None:
             session.add(run)
             session.commit()
         queries = [
-            (q.id, q.text)
+            (q.id, q.text, list(q.persona_runs or []))
             for q in session.exec(
                 select(Query).where(Query.tenant_id == tenant.id, Query.active == True)  # noqa: E712
             ).all()
@@ -729,22 +803,24 @@ async def _run_mode_b(run_id: int) -> None:
         base_counts = dict(run.counts) if run.counts else {}
 
     # Work fans out over locations × queries × surfaces (§SCRAPING_V3 Part 2).
-    # google_aio is per (query, geo) — a SERP takes no persona (§6.3);
-    # persona-framed web surfaces use the first persona (DECISIONS M4.1).
+    # google_aio is per (query, geo) — a SERP takes no persona (§6.3).
+    # Persona-framed web surfaces run the selective query×persona matrix (or the
+    # first persona only for tenants without a 'generic' baseline — the
+    # pre-matrix DECISIONS M4.1 behaviour).
+    web_cells = matrix_cells(queries, personas, first_persona_only=True)
     work: list[_BWorkItem] = []
     for surface in b_surfaces:
         if surface == str(SurfaceCode.google_aio):
             work += [
                 _BWorkItem(qid, qtext, None, "(serp)", "", "", surface, label, geo)
                 for (label, geo) in locations
-                for (qid, qtext) in queries
+                for (qid, qtext, _runs) in queries
             ]
-        elif personas:
-            pid0, pname0, pprompt0, pseg0 = personas[0]
+        else:
             work += [
-                _BWorkItem(qid, qtext, pid0, pname0, pprompt0, pseg0, surface, label, geo)
+                _BWorkItem(qid, qtext, pid, pname, pprompt, pseg, surface, label, geo)
                 for (label, geo) in locations
-                for (qid, qtext) in queries
+                for (qid, qtext, (pid, pname, pprompt, pseg)) in web_cells
             ]
 
     base_env = _base_scrape_env(settings)

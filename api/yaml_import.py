@@ -40,10 +40,28 @@ class PersonaSpec(BaseModel):
     prompt: str
 
 
+class PersonaRunSpec(BaseModel):
+    segment: str
+    overlay: str = ""
+
+
 class QuerySpec(BaseModel):
     text: str
     corpus: str = "core"
     active: bool = True
+    # Personas to run on this query (selective matrix). Each item is either a
+    # bare segment string or {segment, overlay}. The baseline "generic" persona
+    # runs on every query implicitly and need not be listed.
+    personas: list[str | PersonaRunSpec] = Field(default_factory=list)
+
+    def persona_runs(self) -> list[dict]:
+        out: list[dict] = []
+        for item in self.personas:
+            if isinstance(item, str):
+                out.append({"segment": item, "overlay": ""})
+            else:
+                out.append({"segment": item.segment, "overlay": item.overlay})
+        return out
 
 
 class BrandFactSpec(BaseModel):
@@ -110,7 +128,15 @@ def import_config(session: Session, tenant: Tenant, spec: TenantConfigSpec) -> d
             Persona(tenant_id=tenant_id, name=p.name, prompt_text=p.prompt, segment_tag=p.segment)
         )
     for q in spec.queries:
-        session.add(Query(tenant_id=tenant_id, text=q.text, corpus_tag=q.corpus, active=q.active))
+        session.add(
+            Query(
+                tenant_id=tenant_id,
+                text=q.text,
+                corpus_tag=q.corpus,
+                active=q.active,
+                persona_runs=q.persona_runs(),
+            )
+        )
     for bf in spec.brand_facts:
         session.add(
             BrandFact(
