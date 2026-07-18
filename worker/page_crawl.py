@@ -11,6 +11,7 @@ import httpx
 import structlog
 from sqlmodel import Session, select
 
+from api.config import get_settings
 from api.dashboards_service import citations_intel
 from api.models import BrandProfile, Competitor, PagePresence, Tenant, utcnow
 from engine.audit.presence import crawl_page, detect_presence, extract_features
@@ -19,6 +20,15 @@ log = structlog.get_logger()
 
 MAX_PAGES = 20
 TIMEOUT_S = 10.0
+
+# Power pages are the cited sources — Reddit threads, affiliate/review pages —
+# and those routinely 403 a datacenter IP. Route the crawl through the same
+# residential proxy the scrapers use (when set) and present a browser UA so the
+# fetch looks like a real reader (§SCRAPING_V3). Empty proxy = direct, as before.
+_CRAWL_UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/125.0 Safari/537.36"
+)
 
 
 def crawl_power_pages(tenant_id: int) -> int:
@@ -51,8 +61,12 @@ def crawl_power_pages(tenant_id: int) -> int:
         return 0
 
     # Phase 2 — fetch + parse each page. NO DB CONNECTION HELD.
+    proxy = get_settings().scrape_proxy_url or None
     parsed: list[dict] = []
-    with httpx.Client(timeout=TIMEOUT_S, follow_redirects=True) as client:
+    with httpx.Client(
+        timeout=TIMEOUT_S, follow_redirects=True, proxy=proxy,
+        headers={"User-Agent": _CRAWL_UA},
+    ) as client:
         for page in pages:
             fetched = crawl_page(client, page["url"])
             row_data: dict = {
