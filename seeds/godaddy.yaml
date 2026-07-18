@@ -1,0 +1,123 @@
+# GoDaddy LLM-visibility demo — tenant config seed.
+#
+# Concierge/demo tenant seeded on the current architecture (build posture:
+# "seed of the rebuild"). Import is REPLACE-semantics — re-importing swaps
+# brand / competitors / personas / queries / brand_facts / surface enablement
+# wholesale, so this file is the source of truth.
+#
+# COLLECTION-START NOTE: this seeds the GENERIC BASELINE (all ten queries, no
+# persona) so trend lines begin accumulating immediately. The four demo
+# personas are frozen below in a commented block — their preambles are locked
+# in version control per the "freeze before collection" rule, but they are
+# activated in GoDaddy step 3 together with per-query persona targeting, so we
+# run the curated 15 combos rather than the full 5×10 cross-product (Copilot
+# browser runs are the expensive ones). Do NOT edit persona wording once a
+# persona goes live — changing it mid-series breaks the trend line.
+
+brand:
+  name: GoDaddy
+  aliases:
+    - GoDaddy.com
+    - GoDaddy Airo
+    - Airo
+  domains:
+    - godaddy.com
+
+competitors:
+  # Core set
+  - { name: Wix, aliases: [Wix.com], domains: [wix.com] }
+  - { name: Squarespace, aliases: [], domains: [squarespace.com] }
+  - { name: Shopify, aliases: [], domains: [shopify.com] }
+  - { name: Mailchimp, aliases: [], domains: [mailchimp.com] }
+  - { name: Canva, aliases: [], domains: [canva.com] }
+  - { name: Namecheap, aliases: [], domains: [namecheap.com] }
+  - { name: PayPal Business, aliases: [PayPal], domains: [paypal.com] }
+  - { name: Hostinger, aliases: [], domains: [hostinger.com] }
+  # Domains — price challenger
+  - { name: Porkbun, aliases: [], domains: [porkbun.com] }
+  # Hosting adds
+  - { name: Bluehost, aliases: [], domains: [bluehost.com] }
+  - { name: SiteGround, aliases: [], domains: [siteground.com] }
+  - { name: DreamHost, aliases: [], domains: [dreamhost.com] }
+  # AI builders — the set that matters most for the Airo segment
+  - { name: Lovable, aliases: [Lovable.dev], domains: [lovable.dev] }
+  # NOTE (Airo narrative): Base44 is owned by Wix, so its citations are partly
+  # Wix's citations — use in the AI-builder category story. wix.com is added as
+  # an alias-domain so Base44's Wix-hosted citations still attribute here.
+  - { name: Base44, aliases: [], domains: [base44.com] }
+  - { name: Hostinger Horizon, aliases: [Horizon], domains: [hostinger.com] }
+
+personas:
+  # Generic baseline — no persona preamble. Every query runs this first
+  # ("all ten queries run generic as the baseline"). Empty prompt => the raw
+  # query with no first-person framing on both API and web surfaces.
+  - name: Generic (baseline)
+    segment: generic
+    prompt: ""
+
+# ---------------------------------------------------------------------------
+# FROZEN DEMO PERSONAS — activated in GoDaddy step 3 with per-query targeting.
+# Preambles are verbatim from the client brief and MUST NOT be reworded once
+# live. Reproduced here so the wording is locked in version control now.
+#
+#  - name: Dreamer
+#    segment: dreamer
+#    prompt: >
+#      I've been thinking about starting a business someday. Nothing concrete
+#      yet, but I want to grab a domain name before someone else takes it.
+#  - name: New Entrepreneur
+#    segment: new_entrepreneur
+#    prompt: >
+#      I'm setting up my new business right now. I haven't launched yet, and
+#      I'm building the website and need to sell online and manage customers.
+#  - name: Side Hustler
+#    segment: side_hustler
+#    prompt: >
+#      I work full time and run a small side business on weekends.
+#  - name: Domain Investor
+#    segment: domain_investor
+#    prompt: >
+#      I buy and sell domain names as an investment and hold a portfolio of
+#      around 50.
+#
+# Vertical overlay (Q5/Q9): append one clause to the persona preamble, e.g.
+# "It's a small restaurant." / "It's an online store selling handmade goods."
+# ---------------------------------------------------------------------------
+
+queries:
+  - { text: "What's the best place to buy a domain name?", corpus: domains }
+  - { text: "GoDaddy vs. Namecheap — which is better for domains?", corpus: domains }
+  - { text: "Is domain privacy free with GoDaddy?", corpus: domains }   # Q3 — accuracy specimen
+  - { text: "What's the best AI website builder?", corpus: ai_builder }
+  - { text: "How can I build an app for my small business without coding?", corpus: ai_builder }
+  - { text: "What's the best website builder for a small business?", corpus: website_builder }
+  - { text: "Best web hosting for a small business website?", corpus: hosting }
+  - { text: "What's the cheapest way to get a domain and website for a new business?", corpus: cross_category }
+  - { text: "Best all-in-one platform to start an online business?", corpus: cross_category }
+  - { text: "How much does it cost to build a website or app with AI?", corpus: ai_builder }
+
+brand_facts:
+  # Q3 WORKED SPECIMEN — "Is domain privacy free with GoDaddy?"
+  # !!! PLACEHOLDER — VERIFY GODADDY'S ACTUAL CURRENT POLICY BEFORE THE DEMO !!!
+  # The accuracy detector flags answers that STATE the `expected` phrase
+  # (kind: disallowed). This is only correct if GoDaddy domain privacy is in
+  # fact NOT free/included; if the policy is the opposite, flip this to the
+  # true disallowed claim. Getting the ground truth wrong here would discredit
+  # the whole accuracy demo — confirm with GoDaddy / their published pricing.
+  - label: Domain privacy is a paid add-on (verify)
+    subject: domain privacy
+    kind: disallowed
+    category: pricing
+    expected: "domain privacy is free"
+    aliases: ["free domain privacy", "privacy protection is free", "includes free privacy"]
+    active: true
+
+surfaces:
+  - openai_api      # ChatGPT (API)
+  - perplexity_api  # Perplexity (API)
+  - claude_api      # Claude (API)
+  - gemini_api      # Gemini (API)
+  - chatgpt_web     # ChatGPT (web) — API-vs-web fidelity comparison
+  - perplexity_web  # Perplexity (web)
+  # copilot_web is enabled in GoDaddy step 2, once the adapter + SurfaceCode
+  # exist. Microsoft Copilot is Bing-index-driven and non-optional for the demo.

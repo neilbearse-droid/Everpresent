@@ -23,6 +23,7 @@ SEEDS_DIR = Path(__file__).resolve().parent.parent / "seeds"
 LAUNCH_TENANTS = {
     "smith": "Smith School of Business",
     "greenshield": "GreenShield",
+    "godaddy": "GoDaddy",
 }
 
 

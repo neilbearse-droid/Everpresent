@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 from sqlmodel import select
 
-from api.models import AuditLog, Persona, Query, Tenant, User
+from api.models import AuditLog, BrandFact, Competitor, Persona, Query, Tenant, User
 
 SEEDS = Path(__file__).resolve().parent.parent / "seeds"
 
@@ -62,6 +62,31 @@ def test_yaml_import_and_reimport_replaces(client, as_superadmin, db_session):
     detail = client.get("/api/admin/tenants/smith").json()
     assert detail["brand_profile"]["brand_name"] == "Smith School of Business"
     assert len(detail["surfaces"]) == 8  # full catalog, enabled flags per YAML
+
+
+def test_godaddy_seed_imports_facts_and_baseline(client, as_superadmin, db_session):
+    # The GoDaddy demo seed must import cleanly, seed the Q3 accuracy fact, and
+    # start with the generic baseline persona only (the four demo personas are
+    # frozen-but-deferred to step 3).
+    _create_tenant(client, slug="godaddy", name="GoDaddy")
+    yaml_text = (SEEDS / "godaddy.yaml").read_text()
+    resp = client.post("/api/admin/tenants/godaddy/import-yaml", content=yaml_text)
+    assert resp.status_code == 200, resp.text
+    counts = resp.json()["imported"]
+    assert counts["queries"] == 10
+    assert counts["brand_facts"] == 1
+
+    tenant = db_session.exec(select(Tenant).where(Tenant.slug == "godaddy")).one()
+    personas = db_session.exec(select(Persona).where(Persona.tenant_id == tenant.id)).all()
+    assert [p.segment_tag for p in personas] == ["generic"]  # baseline only, for now
+    competitors = db_session.exec(
+        select(Competitor).where(Competitor.tenant_id == tenant.id)
+    ).all()
+    names = {c.name for c in competitors}
+    assert {"Namecheap", "Porkbun", "Base44", "Hostinger"} <= names
+
+    fact = db_session.exec(select(BrandFact).where(BrandFact.tenant_id == tenant.id)).one()
+    assert fact.kind == "disallowed" and fact.subject == "domain privacy"
 
 
 def test_invalid_yaml_rejected(client, as_superadmin):

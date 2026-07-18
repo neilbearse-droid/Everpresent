@@ -10,7 +10,16 @@ import yaml
 from pydantic import BaseModel, Field, ValidationError
 from sqlmodel import Session, delete
 
-from api.models import BrandProfile, Competitor, Persona, Query, SurfaceCode, Tenant, TenantSurface
+from api.models import (
+    BrandFact,
+    BrandProfile,
+    Competitor,
+    Persona,
+    Query,
+    SurfaceCode,
+    Tenant,
+    TenantSurface,
+)
 
 
 class BrandSpec(BaseModel):
@@ -37,11 +46,26 @@ class QuerySpec(BaseModel):
     active: bool = True
 
 
+class BrandFactSpec(BaseModel):
+    """Ground-truth fact for the accuracy check (§AEO-plan M4). `kind` is
+    'disallowed' (a phrase that must never be stated) or 'numeric' (a tracked
+    subject whose same-unit number must match `expected`)."""
+
+    label: str
+    subject: str
+    expected: str
+    kind: str = "numeric"
+    category: str = "general"
+    aliases: list[str] = Field(default_factory=list)
+    active: bool = True
+
+
 class TenantConfigSpec(BaseModel):
     brand: BrandSpec
     competitors: list[CompetitorSpec] = Field(default_factory=list)
     personas: list[PersonaSpec] = Field(default_factory=list)
     queries: list[QuerySpec] = Field(default_factory=list)
+    brand_facts: list[BrandFactSpec] = Field(default_factory=list)
     surfaces: list[SurfaceCode] = Field(default_factory=list)
 
 
@@ -66,7 +90,7 @@ def import_config(session: Session, tenant: Tenant, spec: TenantConfigSpec) -> d
     """Caller owns the commit. Returns counts for the audit/UI summary."""
     tenant_id = tenant.id
     assert tenant_id is not None
-    for model in (BrandProfile, Competitor, Persona, Query, TenantSurface):
+    for model in (BrandProfile, Competitor, Persona, Query, BrandFact, TenantSurface):
         session.exec(delete(model).where(model.tenant_id == tenant_id))  # pyright: ignore[reportAttributeAccessIssue, reportCallIssue, reportArgumentType]
 
     session.add(
@@ -87,6 +111,19 @@ def import_config(session: Session, tenant: Tenant, spec: TenantConfigSpec) -> d
         )
     for q in spec.queries:
         session.add(Query(tenant_id=tenant_id, text=q.text, corpus_tag=q.corpus, active=q.active))
+    for bf in spec.brand_facts:
+        session.add(
+            BrandFact(
+                tenant_id=tenant_id,
+                category=bf.category,
+                label=bf.label,
+                subject=bf.subject,
+                aliases=bf.aliases,
+                kind=bf.kind,
+                expected=bf.expected,
+                active=bf.active,
+            )
+        )
     for code in SurfaceCode:
         session.add(TenantSurface(tenant_id=tenant_id, code=code, enabled=code in spec.surfaces))
 
@@ -94,5 +131,6 @@ def import_config(session: Session, tenant: Tenant, spec: TenantConfigSpec) -> d
         "competitors": len(spec.competitors),
         "personas": len(spec.personas),
         "queries": len(spec.queries),
+        "brand_facts": len(spec.brand_facts),
         "surfaces_enabled": len(spec.surfaces),
     }
