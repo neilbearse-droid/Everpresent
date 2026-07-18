@@ -31,6 +31,7 @@ class SurfaceCode(StrEnum):
     chatgpt_web = "chatgpt_web"
     perplexity_web = "perplexity_web"
     gemini_web = "gemini_web"
+    copilot_web = "copilot_web"
     google_aio = "google_aio"
 
 

@@ -43,6 +43,7 @@ from engine.costs import (
 from engine.retrievers import (
     chatgpt_web,
     claude_api,
+    copilot_web,
     gemini_api,
     google_aio,
     openai_api,
@@ -158,15 +159,22 @@ A_ADAPTERS: dict[str, _AAdapter] = {
 }
 
 
-# surface code -> (adapter module, model label, rate settings attribute).
+# surface code -> (adapter module, model label, rate attr, timeout attr).
 # The module's `retrieve` is resolved at call time. Adding a Mode B surface =
 # one line here plus its adapter module.
-B_ADAPTERS: dict[str, tuple[Any, str, str]] = {
-    "chatgpt_web": (chatgpt_web, "chatgpt-web", "chatgpt_web_rate_per_min"),
-    "perplexity_web": (perplexity_web, "perplexity-web", "perplexity_web_rate_per_min"),
+B_ADAPTERS: dict[str, tuple[Any, str, str, str]] = {
+    "chatgpt_web": (
+        chatgpt_web, "chatgpt-web", "chatgpt_web_rate_per_min", "chatgpt_web_timeout_s",
+    ),
+    "perplexity_web": (
+        perplexity_web, "perplexity-web", "perplexity_web_rate_per_min", "chatgpt_web_timeout_s",
+    ),
+    "copilot_web": (
+        copilot_web, "copilot-web", "copilot_web_rate_per_min", "copilot_web_timeout_s",
+    ),
     # google_aio has its own call shape (per-query SERP capture, no persona);
     # the dispatch loop branches on it but rate limiting comes from here.
-    "google_aio": (google_aio, "google-serp", "google_aio_rate_per_min"),
+    "google_aio": (google_aio, "google-serp", "google_aio_rate_per_min", "google_aio_timeout_s"),
 }
 
 
@@ -765,7 +773,7 @@ async def _run_mode_b(run_id: int) -> None:
             break
         mode_b_cost += call_cost
 
-        adapter_module, model_label, rate_attr = B_ADAPTERS[wi.surface]
+        adapter_module, model_label, rate_attr, timeout_attr = B_ADAPTERS[wi.surface]
         if index > 0:
             rate = max(float(getattr(settings, rate_attr)), 0.1)
             await asyncio.sleep(60.0 / rate)
@@ -805,7 +813,7 @@ async def _run_mode_b(run_id: int) -> None:
                     wi.persona_prompt,
                     wi.query_text,
                     headless=settings.chatgpt_web_headless,
-                    timeout_s=settings.chatgpt_web_timeout_s,
+                    timeout_s=float(getattr(settings, timeout_attr)),
                     executable_path=settings.playwright_chromium_path or None,
                     env=env,
                 )

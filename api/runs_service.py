@@ -24,7 +24,12 @@ MODE_A_SURFACES = {
     SurfaceCode.claude_api,
     SurfaceCode.gemini_api,
 }
-MODE_B_SURFACES = {SurfaceCode.chatgpt_web, SurfaceCode.perplexity_web, SurfaceCode.google_aio}
+MODE_B_SURFACES = {
+    SurfaceCode.chatgpt_web,
+    SurfaceCode.perplexity_web,
+    SurfaceCode.copilot_web,
+    SurfaceCode.google_aio,
+}
 DISPATCHABLE_SURFACES = MODE_A_SURFACES | MODE_B_SURFACES
 
 

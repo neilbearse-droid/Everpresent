@@ -119,5 +119,4 @@ surfaces:
   - gemini_api      # Gemini (API)
   - chatgpt_web     # ChatGPT (web) — API-vs-web fidelity comparison
   - perplexity_web  # Perplexity (web)
-  # copilot_web is enabled in GoDaddy step 2, once the adapter + SurfaceCode
-  # exist. Microsoft Copilot is Bing-index-driven and non-optional for the demo.
+  - copilot_web     # Microsoft Copilot — Bing-index-driven, browser-only, non-optional

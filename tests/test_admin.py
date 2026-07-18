@@ -61,7 +61,8 @@ def test_yaml_import_and_reimport_replaces(client, as_superadmin, db_session):
 
     detail = client.get("/api/admin/tenants/smith").json()
     assert detail["brand_profile"]["brand_name"] == "Smith School of Business"
-    assert len(detail["surfaces"]) == 8  # full catalog, enabled flags per YAML
+    from api.models import SurfaceCode
+    assert len(detail["surfaces"]) == len(SurfaceCode)  # full catalog, enabled flags per YAML
 
 
 def test_godaddy_seed_imports_facts_and_baseline(client, as_superadmin, db_session):

@@ -63,6 +63,9 @@ class Settings(BaseSettings):
     # bundled path.
     playwright_chromium_path: str = ""
     perplexity_web_rate_per_min: float = 4.0
+    # Microsoft Copilot consumer web (§6.2). Bing-index-driven, browser-only.
+    copilot_web_rate_per_min: float = 4.0
+    copilot_web_timeout_s: float = 240.0
 
     # Anti-blocking (§SCRAPING_V3). All vendor-neutral and off by default —
     # stealth hardening is free and always on; proxy and managed-browser

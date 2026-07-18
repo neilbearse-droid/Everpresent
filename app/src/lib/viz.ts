@@ -40,6 +40,7 @@ export const SURFACE_LABELS: Record<string, string> = {
   chatgpt_web: "ChatGPT (web)",
   perplexity_web: "Perplexity (web)",
   gemini_web: "Gemini (web)",
+  copilot_web: "Microsoft Copilot",
   google_aio: "Google AI Overviews",
 };
 
