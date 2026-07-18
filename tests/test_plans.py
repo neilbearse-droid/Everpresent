@@ -174,4 +174,4 @@ def test_every_dispatchable_surface_is_prioritised():
     from api.runs_service import DISPATCHABLE_SURFACES
 
     missing = {str(s) for s in DISPATCHABLE_SURFACES} - set(ENGINE_PRIORITY)
-    assert not missing, f"surfaces missing from ENGINE_PRIORITY, dropped first when capped: {missing}"
+    assert not missing, f"missing from ENGINE_PRIORITY (dropped first when capped): {missing}"
