@@ -5,8 +5,8 @@ import { AIOTile } from "@/components/aio-tile";
 import { surfaceLabel } from "@/lib/viz";
 
 const CATEGORY_STYLES: Record<string, string> = {
-  brand: "bg-emerald-700 text-white",
-  competitor: "bg-amber-700 text-white",
+  brand: "bg-[var(--accent)] text-[var(--accent-ink)]",
+  competitor: "bg-[var(--warn)] text-white",
   other: "bg-[var(--surface-2)] text-[var(--text)]",
 };
 

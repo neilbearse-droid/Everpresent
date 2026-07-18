@@ -13,8 +13,8 @@ const DIAGNOSIS_STYLE: Record<string, { chip: string; dot: string }> = {
 };
 
 const CELL_STYLE: Record<string, string> = {
-  brand: "bg-emerald-600 text-white",
-  competitor: "bg-amber-700/70 text-amber-100",
+  brand: "bg-[var(--accent)] text-[var(--accent-ink)]",
+  competitor: "bg-[var(--warn)] text-white",
   absent: "bg-[var(--surface-2)] text-[var(--text-3)]",
 };
 const CELL_LABEL: Record<string, string> = { brand: "You", competitor: "Rival", absent: "—" };
