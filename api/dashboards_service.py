@@ -22,6 +22,7 @@ from api.models import (
     Result,
     ResultVariant,
     Tenant,
+    UntrackedMention,
     VisibilityDaily,
 )
 from engine.processing.citations import classify_source_type, domain_is_owned
@@ -789,6 +790,60 @@ def accuracy_report(
         "measured": len(ids),
         "error_count": len(errors),
         "errors": errors,
+    }
+
+
+def whitespace_report(
+    session: Session, tenant_id: int, start: str | None = None, end: str | None = None
+) -> dict:
+    """Out-of-list competitors (§step 4 — the whitespace slide): products the AI
+    surfaces that the tenant doesn't track, ranked by how often they appear,
+    with the persona segments and engines that surfaced them. 'Here's who the AI
+    recommends, and none of them is on your list.' Reads the latest search
+    results in the window so it tracks current state, not all-time."""
+    lo, hi = _date_window(start, end)
+    latest = _latest_results_by_variant(session, tenant_id, ResultVariant.search, lo, hi)
+    result_meta = {
+        r.id: (r.persona_segment or "generic", str(r.surface))
+        for r in latest.values()
+        if r.id is not None
+    }
+    latest_ids = set(result_meta)
+
+    agg: dict[str, dict] = {}
+    if latest_ids:
+        for um in session.exec(
+            select(UntrackedMention).where(UntrackedMention.tenant_id == tenant_id)
+        ).all():
+            if um.result_id not in latest_ids:
+                continue
+            entry = agg.setdefault(
+                um.entity_name,
+                {"name": um.entity_name, "count": 0, "segments": set(), "surfaces": set()},
+            )
+            entry["count"] += 1
+            seg, surface = result_meta[um.result_id]
+            entry["segments"].add(seg)
+            entry["surfaces"].add(surface)
+
+    entities = sorted(
+        (
+            {
+                "name": e["name"],
+                "count": e["count"],
+                "segments": sorted(e["segments"]),
+                "engines": sorted(_surface_label(s) for s in e["surfaces"]),
+            }
+            for e in agg.values()
+        ),
+        key=lambda e: (-e["count"], e["name"]),
+    )
+    return {
+        "brand_name": _brand_name(session, tenant_id),
+        "measured": len(latest_ids),
+        "entity_count": len(entities),
+        "entities": entities,
+        "observed": bool(entities),
     }
 
 
@@ -1568,7 +1623,8 @@ def _surface_label(surface: str) -> str:
         "openai_api": "ChatGPT", "perplexity_api": "Perplexity", "claude_api": "Claude",
         "gemini_api": "Gemini", "chatgpt_web": "ChatGPT (web)",
         "perplexity_web": "Perplexity (web)",
-        "gemini_web": "Gemini (web)", "google_aio": "Google AI Overviews",
+        "gemini_web": "Gemini (web)", "copilot_web": "Microsoft Copilot",
+        "google_aio": "Google AI Overviews",
     }
     return labels.get(surface, surface)
 

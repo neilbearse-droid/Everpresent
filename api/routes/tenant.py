@@ -145,6 +145,13 @@ def routing(
     return dashboards_service.routing_report(session, ctx.tenant_id, start, end)
 
 
+@router.get("/whitespace")
+def whitespace(
+    ctx: Ctx, session: Db, start: str | None = None, end: str | None = None
+) -> dict:
+    return dashboards_service.whitespace_report(session, ctx.tenant_id, start, end)
+
+
 @router.get("/outcome")
 def outcome(ctx: Ctx, session: Db, start: str | None = None, end: str | None = None) -> dict:
     return dashboards_service.outcome(session, ctx.tenant_id, start, end)

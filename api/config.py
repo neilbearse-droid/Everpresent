@@ -51,6 +51,17 @@ class Settings(BaseSettings):
     claude_model: str = "claude-sonnet-4-6"
     claude_timeout_s: float = 90.0
 
+    # Governed utility-LLM models (engine/llm router). Must be in
+    # RUNTIME_LLM_ALLOWLIST and in the tenant's approved_utility_models before a
+    # call runs. Extraction uses the cheap bulk model; drafting uses the
+    # stronger one. Per-call cost accrues to the run and the monthly cap.
+    utility_model_extract: str = "claude-haiku-4-5-20251001"
+    utility_model_draft: str = "claude-sonnet-4-6"
+    utility_llm_timeout_s: float = 60.0
+    # Rough per-call cost estimate for utility-LLM spend accounting (extraction
+    # answers are short; kept conservative for the cap).
+    utility_extract_cost_usd: float = 0.002
+
     gemini_api_key: str = ""
     gemini_model: str = "gemini-2.5-flash"
     gemini_timeout_s: float = 90.0

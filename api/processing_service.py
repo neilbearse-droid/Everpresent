@@ -23,6 +23,7 @@ from api.models import (
     Run,
     SurfaceCode,
     Tenant,
+    UntrackedMention,
     VisibilityDaily,
     utcnow,
 )
@@ -37,6 +38,13 @@ from engine.processing.classify import (
     classify_web_search_likelihood,
     compute_divergence,
 )
+from engine.processing.entities import (
+    _EXTRACTION_SYSTEM,
+    EXTRACTION_VERSION,
+    build_extraction_prompt,
+    filter_untracked,
+    parse_entities,
+)
 from engine.processing.mentions import DETECTOR_VERSION, detect_mentions
 from engine.processing.scoring import SCORER_VERSION, ResultSignals, score_entity
 from engine.retrievers.google_aio import AIOCaptureSummary
@@ -47,6 +55,80 @@ def _response_text(result: Result, session: Session) -> str:
         return ""
     envelope = read_raw_envelope(result.raw_uri, session=session)
     return (envelope or {}).get("parsed_text", "")
+
+
+def _extract_untracked(
+    session: Session,
+    run: Run,
+    tenant: Tenant,
+    texts: dict[int, str],
+    tracked_aliases: list[str],
+) -> int:
+    """Governed open entity-extraction pass (§step 4). Runs only when the tenant
+    opted in AND is AI-approved AND the utility model is on its allowlist AND a
+    key is configured — otherwise a hard no-op (returns 0). Bounded by the
+    monthly spend cap; per-call cost accrues to the run. Extraction failures on
+    a single answer are swallowed (missing data, never a crashed run)."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    from api.config import get_settings
+    from api.runs_service import month_spend_usd
+    from engine.llm import router
+
+    if not (tenant.entity_extraction_enabled and tenant.ai_processing_approved):
+        return 0
+    settings = get_settings()
+    model = settings.utility_model_extract
+    if model not in tenant.approved_utility_models or not settings.anthropic_api_key:
+        return 0
+
+    items = [(rid, text) for rid, text in texts.items() if text]
+    if not items:
+        return 0
+
+    # Cap the number of calls to what the remaining monthly budget affords.
+    per_call = settings.utility_extract_cost_usd
+    if per_call > 0:
+        remaining = tenant.monthly_spend_cap_usd - month_spend_usd(session, tenant.id)
+        affordable = max(0, int(remaining / per_call))
+        items = items[:affordable]
+    if not items:
+        return 0
+
+    api_key = settings.anthropic_api_key
+    timeout_s = settings.utility_llm_timeout_s
+
+    def _one(item: tuple[int, str]) -> tuple[int, list[str]]:
+        rid, text = item
+        try:
+            raw = router.complete(
+                build_extraction_prompt(text),
+                model=model,
+                api_key=api_key,
+                system=_EXTRACTION_SYSTEM,
+                max_tokens=400,
+                timeout_s=timeout_s,
+            )
+        except Exception:  # noqa: BLE001 — a failed extraction is missing data
+            return rid, []
+        return rid, filter_untracked(parse_entities(raw), tracked_aliases)
+
+    count = 0
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        for rid, names in pool.map(_one, items):
+            for name in names:
+                session.add(
+                    UntrackedMention(
+                        result_id=rid,
+                        tenant_id=run.tenant_id,
+                        entity_name=name,
+                        detector_version=EXTRACTION_VERSION,
+                    )
+                )
+                count += 1
+
+    run.cost_usd = round((run.cost_usd or 0.0) + per_call * len(items), 6)
+    return count
 
 
 def process_run(session: Session, run: Run) -> dict[str, int]:
@@ -94,6 +176,7 @@ def process_run(session: Session, run: Run) -> dict[str, int]:
     if result_ids:
         session.exec(delete(Mention).where(Mention.result_id.in_(result_ids)))  # pyright: ignore[reportAttributeAccessIssue, reportCallIssue, reportArgumentType]
         session.exec(delete(AccuracyFinding).where(AccuracyFinding.result_id.in_(result_ids)))  # pyright: ignore[reportAttributeAccessIssue, reportCallIssue, reportArgumentType]
+        session.exec(delete(UntrackedMention).where(UntrackedMention.result_id.in_(result_ids)))  # pyright: ignore[reportAttributeAccessIssue, reportCallIssue, reportArgumentType]
 
     counts = {"mentions": 0, "classified_queries": 0, "citations_categorized": 0,
               "accuracy_findings": 0}
@@ -137,6 +220,17 @@ def process_run(session: Session, run: Run) -> dict[str, int]:
                     detector_version=ACCURACY_VERSION,
                 )
             )
+
+    # Open out-of-list entity extraction (§step 4 — the whitespace slide).
+    # Governed utility-LLM pass; opt-in, cost-bounded, and a hard no-op for
+    # tenants that haven't enabled it, so existing tenants are untouched.
+    tracked_aliases = [brand_name, *brand_aliases]
+    for _cid, cname, caliases in competitor_specs:
+        tracked_aliases.append(cname)
+        tracked_aliases.extend(caliases)
+    counts["untracked_mentions"] = _extract_untracked(
+        session, run, tenant, texts, tracked_aliases
+    )
 
     # Citation categorization (all variants — cheap and harmless). Bucket by
     # result_id in the same pass so the twin/AIO loops below can index in memory

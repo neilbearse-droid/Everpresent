@@ -417,6 +417,19 @@ export type AccuracyReport = {
   }[];
 };
 
+export type WhitespaceReport = {
+  brand_name: string;
+  measured: number;
+  entity_count: number;
+  observed: boolean;
+  entities: {
+    name: string;
+    count: number;
+    segments: string[];
+    engines: string[];
+  }[];
+};
+
 export type FanoutReport = {
   brand_name: string;
   observed: boolean;

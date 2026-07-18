@@ -52,6 +52,10 @@ class Tenant(SQLModel, table=True):
     ai_processing_approved: bool = Field(default=False)
     approved_surfaces: list[str] = Field(default_factory=list, sa_column=Column(JSON))
     approved_utility_models: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    # Opt-in to the open out-of-list entity-extraction pass (a governed utility
+    # LLM call per answer). Off by default so existing tenants incur no LLM
+    # cost; requires ai_processing_approved + an approved utility model.
+    entity_extraction_enabled: bool = Field(default=False)
     # §9: per-tenant monthly cap, enforced in the dispatch loop before each
     # provider call — never after.
     monthly_spend_cap_usd: float = Field(default=50.0)
@@ -363,6 +367,22 @@ class Mention(SQLModel, table=True):
     sentiment: str = "neutral"
     context_snippet: str = ""
     detector_version: str = ""
+
+
+class UntrackedMention(SQLModel, table=True):
+    """A product/company the AI answer named that ISN'T the tracked brand or a
+    tracked competitor (§step 4 — whitespace). One row per (result, entity);
+    the whitespace report aggregates by name and slices by persona segment via
+    the parent Result. Regenerated on reprocess like Mention."""
+
+    __tablename__ = "untracked_mentions"  # pyright: ignore[reportAssignmentType]
+
+    id: int | None = Field(default=None, primary_key=True)
+    result_id: int = Field(foreign_key="results.id", index=True)
+    tenant_id: int = Field(foreign_key="tenants.id", index=True)
+    entity_name: str = Field(index=True)
+    detector_version: str = ""
+    created_at: datetime = Field(default_factory=utcnow)
 
 
 class QueryClassification(SQLModel, table=True):

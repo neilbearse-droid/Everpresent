@@ -15,6 +15,7 @@ const I = {
   action: "M9 11l3 3 8-8M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9",
   recs: "M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.2 1 2.5h6c0-1.3.3-1.8 1-2.5A6 6 0 0 0 12 3Z",
   outcome: "M3 17l6-6 4 4 8-8M21 7v5M21 7h-5",
+  whitespace: "M4 4h16v16H4zM4 9h16M9 9v11",
   runs: "M22 12h-4l-3 9L9 3l-3 9H2",
 } as const;
 
@@ -43,6 +44,7 @@ const TABS: { href: string; label: string; icon: keyof typeof I }[] = [
   { href: "/dashboard/queries", label: "Queries", icon: "queries" },
   { href: "/dashboard/engines", label: "Engines", icon: "engines" },
   { href: "/dashboard/citations", label: "Citations", icon: "citations" },
+  { href: "/dashboard/whitespace", label: "Whitespace", icon: "whitespace" },
   { href: "/dashboard/action-plan", label: "Action Plan", icon: "action" },
   { href: "/dashboard/recommendations", label: "Recommendations", icon: "recs" },
   { href: "/dashboard/outcome", label: "Outcome", icon: "outcome" },
