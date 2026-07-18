@@ -164,3 +164,14 @@ def test_diagnose_enables_twin_and_two_personas(db_session, env):
     # Diagnosis twin on the 3 engines that support it (not Perplexity), 1 persona.
     assert {r.surface.value for r in nosearch} == {"openai_api", "claude_api", "gemini_api"}
     assert len(nosearch) == 9
+
+
+def test_every_dispatchable_surface_is_prioritised():
+    # cap_engines sorts unknown surfaces to the end, so a dispatchable surface
+    # missing from ENGINE_PRIORITY is silently dropped first on any capped plan
+    # (this is how copilot_web was getting cut). Guard against it.
+    from api.plans import ENGINE_PRIORITY
+    from api.runs_service import DISPATCHABLE_SURFACES
+
+    missing = {str(s) for s in DISPATCHABLE_SURFACES} - set(ENGINE_PRIORITY)
+    assert not missing, f"surfaces missing from ENGINE_PRIORITY (dropped first when capped): {missing}"
