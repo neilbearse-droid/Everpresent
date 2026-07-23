@@ -49,6 +49,9 @@ class QuerySpec(BaseModel):
     text: str
     corpus: str = "core"
     active: bool = True
+    # A branded query probes what the model says about the brand (excluded from
+    # the competitive-visibility metrics; shown in the Brand-knowledge view).
+    branded: bool = False
     # Personas to run on this query (selective matrix). Each item is either a
     # bare segment string or {segment, overlay}. The baseline "generic" persona
     # runs on every query implicitly and need not be listed.
@@ -134,6 +137,7 @@ def import_config(session: Session, tenant: Tenant, spec: TenantConfigSpec) -> d
                 text=q.text,
                 corpus_tag=q.corpus,
                 active=q.active,
+                branded=q.branded,
                 persona_runs=q.persona_runs(),
             )
         )

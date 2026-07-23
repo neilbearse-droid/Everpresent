@@ -7,6 +7,7 @@ import { ThemeToggle } from "./theme-toggle";
 /* Minimal 16px stroke icons (currentColor) — no external dependency. */
 const I = {
   overview: "M3 12l9-8 9 8M5 10v10h5v-6h4v6h5V10",
+  brand: "M12 3l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5z",
   scorecard: "M12 20a8 8 0 1 0-8-8M12 12l4-3",
   personas: "M16 20v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6M21 20v-1a4 4 0 0 0-3-3.8M16 5a3 3 0 0 1 0 6",
   queries: "M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14M20 20l-4-4",
@@ -39,6 +40,7 @@ function Icon({ d }: { d: string }) {
 
 const TABS: { href: string; label: string; icon: keyof typeof I }[] = [
   { href: "/dashboard", label: "Overview", icon: "overview" },
+  { href: "/dashboard/brand", label: "Brand", icon: "brand" },
   { href: "/dashboard/scorecard", label: "Scorecard", icon: "scorecard" },
   { href: "/dashboard/personas", label: "Personas", icon: "personas" },
   { href: "/dashboard/queries", label: "Queries", icon: "queries" },

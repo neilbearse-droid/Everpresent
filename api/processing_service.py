@@ -16,6 +16,7 @@ from api.models import (
     Citation,
     Competitor,
     Mention,
+    Query,
     QueryClassification,
     Result,
     ResultStatus,
@@ -420,12 +421,25 @@ def rollup_day(session: Session, tenant_id: int, day: str) -> int:
         session.commit()
         return 0
 
+    # visibility_daily is the competitive-visibility layer, so branded queries
+    # (the brand always appears) are excluded — they'd inflate the score and
+    # share of voice. They're measured in the Brand-knowledge layer instead.
+    branded = {
+        q.text
+        for q in session.exec(
+            select(Query).where(
+                Query.tenant_id == tenant_id, Query.branded == True  # noqa: E712
+            )
+        ).all()
+    }
     results = [
         r
         for r in session.exec(
             select(Result).where(Result.run_id.in_(run_ids))  # pyright: ignore[reportAttributeAccessIssue]
         ).all()
-        if r.variant == ResultVariant.search and r.status == ResultStatus.ok
+        if r.variant == ResultVariant.search
+        and r.status == ResultStatus.ok
+        and r.query_text not in branded
     ]
     competitors = list(
         session.exec(select(Competitor).where(Competitor.tenant_id == tenant_id)).all()

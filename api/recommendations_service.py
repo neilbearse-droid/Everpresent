@@ -57,8 +57,15 @@ def generate_recommendations(session: Session, tenant: Tenant) -> int:
     assert tenant.id is not None
     tenant_id = tenant.id
 
+    # Gaps are a competitive concept — a branded query where the brand always
+    # appears has no "visibility gap". Only non-branded queries generate
+    # recommendations (branded ones live in the Brand-knowledge layer).
     queries = session.exec(
-        select(Query).where(Query.tenant_id == tenant_id, Query.active == True)  # noqa: E712
+        select(Query).where(
+            Query.tenant_id == tenant_id,
+            Query.active == True,  # noqa: E712
+            Query.branded == False,  # noqa: E712
+        )
     ).all()
     # A query is classified per (query_text, surface); collapse to one row per
     # query DETERMINISTICALLY (lowest surface code wins) rather than last-wins

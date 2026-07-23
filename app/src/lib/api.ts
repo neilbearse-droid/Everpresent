@@ -429,6 +429,32 @@ export type AccuracyReport = {
   }[];
 };
 
+export type BrandReport = {
+  brand_name: string;
+  queries_tracked: number;
+  measured: number;
+  presence_rate: number;
+  sentiment: Record<string, number>;
+  accuracy_issues: number;
+  observed: boolean;
+  queries: {
+    query: string;
+    surfaces: {
+      surface: string;
+      present: boolean;
+      sentiment: string | null;
+      snippet: string;
+    }[];
+    accuracy: {
+      subject: string;
+      stated: string;
+      expected: string;
+      detail: string;
+      engine: string;
+    }[];
+  }[];
+};
+
 export type WhitespaceReport = {
   brand_name: string;
   measured: number;

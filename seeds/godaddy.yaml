@@ -89,6 +89,8 @@ queries:
     personas: [domain_investor]
   - text: "Is domain privacy free with GoDaddy?"   # Q3 — accuracy specimen, generic only
     corpus: domains
+    branded: true   # brand-knowledge query: the model always talks about GoDaddy here,
+                    # so it belongs in the Brand layer, not the competitive visibility score
   - text: "What's the best AI website builder?"
     corpus: ai_builder
     personas: [new_entrepreneur, side_hustler]

@@ -145,6 +145,11 @@ class Query(SQLModel, table=True):
     text: str
     corpus_tag: str = Field(default="core", index=True)
     active: bool = Field(default=True)
+    # A branded query names the brand and is designed to probe what the model
+    # knows/says about it (the brand nearly always appears). These are the
+    # brand-KNOWLEDGE layer and are EXCLUDED from the competitive-VISIBILITY
+    # metrics (score, share of voice, gaps) so they don't inflate them.
+    branded: bool = Field(default=False, index=True)
     # Per-query persona targeting (selective query×persona matrix). Each entry
     # is {"segment": str, "overlay": str}: run the persona with that segment on
     # this query, optionally appending a vertical-overlay clause to its

@@ -299,11 +299,15 @@ def overview(
         sov_lo, sov_hi = _date_window(start, end)
     else:
         sov_lo, sov_hi = datetime.now(UTC) - timedelta(days=SOV_DAYS), None
+    # Share of voice is a competitive metric — exclude branded queries (the
+    # brand always appears in them, which would inflate its share).
+    branded = _branded_query_texts(session, tenant_id)
     recent_result_ids = {
         r.id
         for r in session.exec(select(Result).where(Result.tenant_id == tenant_id)).all()
         if r.id is not None
         and r.variant == ResultVariant.search
+        and r.query_text not in branded
         and _in_window(r.created_at, sov_lo, sov_hi)
     }
     mention_counts: dict[str, int] = defaultdict(int)
@@ -435,15 +439,39 @@ def personas(
     return {"date": latest_date, "segments": segments, "trend": trend}
 
 
+def _branded_query_texts(session: Session, tenant_id: int) -> frozenset[str]:
+    """Query texts flagged branded — probes of what the model says about the
+    brand. Matched by value (results snapshot query_text), so a re-import that
+    changes the flag re-scopes cleanly on the next read."""
+    return frozenset(
+        q.text
+        for q in session.exec(
+            select(Query).where(
+                Query.tenant_id == tenant_id,
+                Query.branded == True,  # noqa: E712
+            )
+        ).all()
+    )
+
+
 def _latest_results_by_variant(
     session: Session,
     tenant_id: int,
     variant: ResultVariant,
     lo: datetime | None = None,
     hi: datetime | None = None,
+    scope: str = "all",
 ) -> dict[tuple[str, str], Result]:
     """Newest result per (query_text, surface) for one variant, restricted to
-    the [lo, hi) window when given — i.e. the state 'as of' the range's end."""
+    the [lo, hi) window when given — i.e. the state 'as of' the range's end.
+
+    scope splits the two analysis layers (branded-query feedback):
+      "all"          — every query (default; unchanged behaviour)
+      "competitive"  — exclude branded queries (the visibility layer)
+      "branded"      — only branded queries (the brand-knowledge layer)"""
+    branded = (
+        _branded_query_texts(session, tenant_id) if scope != "all" else frozenset()
+    )
     latest: dict[tuple[str, str], Result] = {}
     for result in session.exec(
         select(Result).where(
@@ -453,6 +481,10 @@ def _latest_results_by_variant(
         )
     ).all():
         if not _in_window(result.created_at, lo, hi):
+            continue
+        if scope == "competitive" and result.query_text in branded:
+            continue
+        if scope == "branded" and result.query_text not in branded:
             continue
         key = (result.query_text, str(result.surface))
         if key not in latest or (result.id or 0) > (latest[key].id or 0):
@@ -504,8 +536,12 @@ def engine_scorecard(
     queries = list(session.exec(select(Query).where(Query.tenant_id == tenant_id)).all())
 
     lo, hi = _date_window(start, end)
-    search = _latest_results_by_variant(session, tenant_id, ResultVariant.search, lo, hi)
-    nosearch = _latest_results_by_variant(session, tenant_id, ResultVariant.nosearch, lo, hi)
+    search = _latest_results_by_variant(
+        session, tenant_id, ResultVariant.search, lo, hi, scope="competitive"
+    )
+    nosearch = _latest_results_by_variant(
+        session, tenant_id, ResultVariant.nosearch, lo, hi, scope="competitive"
+    )
 
     # Mentions per result: brand present? which competitors?
     all_ids = [r.id for r in list(search.values()) + list(nosearch.values()) if r.id is not None]
@@ -794,6 +830,84 @@ def accuracy_report(
     }
 
 
+def brand_report(
+    session: Session, tenant_id: int, start: str | None = None, end: str | None = None
+) -> dict:
+    """Brand-knowledge layer (branded-query feedback): what the models say when
+    asked directly about the brand. Branded queries are excluded from the
+    competitive visibility metrics precisely because the brand nearly always
+    appears — so here we report presence (a red flag if it DROPS), the framing
+    (sentiment), the exact snippet the model returned, and the accuracy issues.
+    This is the source of truth for what the model knows about the brand."""
+    lo, hi = _date_window(start, end)
+    branded = _latest_results_by_variant(
+        session, tenant_id, ResultVariant.search, lo, hi, scope="branded"
+    )
+    result_meta = {r.id: (qtext, surface) for (qtext, surface), r in branded.items()
+                   if r.id is not None}
+    result_ids = list(result_meta)
+
+    brand_mention: dict[int, Mention] = {}
+    if result_ids:
+        for m in session.exec(
+            select(Mention).where(
+                Mention.result_id.in_(result_ids),  # pyright: ignore[reportAttributeAccessIssue]
+                Mention.entity_type == "brand",
+            )
+        ).all():
+            # keep the best-ranked brand mention per result
+            cur = brand_mention.get(m.result_id)
+            if cur is None or (m.rank or 999) < (cur.rank or 999):
+                brand_mention[m.result_id] = m
+
+    findings_by_result: dict[int, list[AccuracyFinding]] = defaultdict(list)
+    if result_ids:
+        for f in session.exec(
+            select(AccuracyFinding).where(
+                AccuracyFinding.tenant_id == tenant_id,
+                AccuracyFinding.result_id.in_(result_ids),  # pyright: ignore[reportAttributeAccessIssue]
+            )
+        ).all():
+            findings_by_result[f.result_id].append(f)
+
+    sentiment_mix: dict[str, int] = defaultdict(int)
+    present_cells = 0
+    per_query: dict[str, dict] = {}
+    for rid, (qtext, surface) in result_meta.items():
+        q = per_query.setdefault(qtext, {"query": qtext, "surfaces": [], "accuracy": []})
+        m = brand_mention.get(rid)
+        present = m is not None
+        if present:
+            present_cells += 1
+            sentiment_mix[m.sentiment or "neutral"] += 1
+        q["surfaces"].append({
+            "surface": _surface_label(surface),
+            "present": present,
+            "sentiment": m.sentiment if m else None,
+            "snippet": (m.context_snippet if m else "")[:240],
+        })
+        for f in findings_by_result.get(rid, []):
+            q["accuracy"].append({
+                "subject": f.subject, "stated": f.stated, "expected": f.expected,
+                "detail": f.detail, "engine": _surface_label(surface),
+            })
+
+    queries = sorted(per_query.values(), key=lambda x: x["query"])
+    for q in queries:
+        q["surfaces"].sort(key=lambda s: s["surface"])
+    total_cells = len(result_ids)
+    return {
+        "brand_name": _brand_name(session, tenant_id),
+        "queries_tracked": len(queries),
+        "measured": total_cells,
+        "presence_rate": _pct(present_cells, total_cells),
+        "sentiment": dict(sentiment_mix),
+        "accuracy_issues": sum(len(v) for v in findings_by_result.values()),
+        "queries": queries,
+        "observed": total_cells > 0,
+    }
+
+
 def whitespace_report(
     session: Session, tenant_id: int, start: str | None = None, end: str | None = None
 ) -> dict:
@@ -871,7 +985,11 @@ def kpi_scorecard(
     mention/rank/sentiment data already captured — no LLM, no run spend."""
     brand_name = _brand_name(session, tenant_id)
     lo, hi = _date_window(start, end)
-    search = _latest_results_by_variant(session, tenant_id, ResultVariant.search, lo, hi)
+    # Competitive scope: branded queries (the brand always appears) don't count
+    # toward the visibility KPIs — they're the Brand-knowledge layer.
+    search = _latest_results_by_variant(
+        session, tenant_id, ResultVariant.search, lo, hi, scope="competitive"
+    )
     results = list(search.values())
     result_ids = [r.id for r in results if r.id is not None]
 

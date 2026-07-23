@@ -62,17 +62,17 @@ personas:
 
 queries:
   - { text: "What is the best MBA program in Canada?", corpus: core }
-  - { text: "Smith School of Business MBA review", corpus: brand }
+  - { text: "Smith School of Business MBA review", corpus: brand, branded: true }
   - { text: "Rotman vs Ivey vs Smith MBA — which should I choose?", corpus: competitive }
   - { text: "Best one-year MBA programs in Canada", corpus: core }
   - { text: "Which Canadian MBA has the best career outcomes?", corpus: core }
   - { text: "Best master's in management analytics in Canada", corpus: analytics }
-  - { text: "Is a Queen's Smith MBA worth the money?", corpus: brand }
+  - { text: "Is a Queen's Smith MBA worth the money?", corpus: brand, branded: true }
   - { text: "Top executive education programs in Canada", corpus: exec_ed }
   - { text: "Best Canadian business school for international students", corpus: international }
   - { text: "MBA programs in Ontario ranked", corpus: core }
   - { text: "Which business school in Canada is best for finance careers?", corpus: core }
-  - { text: "Smith School of Business acceptance rate and requirements", corpus: brand }
+  - { text: "Smith School of Business acceptance rate and requirements", corpus: brand, branded: true }
 
 surfaces:
   - openai_api

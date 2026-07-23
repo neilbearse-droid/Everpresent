@@ -154,6 +154,13 @@ def whitespace(
     return dashboards_service.whitespace_report(session, ctx.tenant_id, start, end)
 
 
+@router.get("/brand")
+def brand(
+    ctx: Ctx, session: Db, start: str | None = None, end: str | None = None
+) -> dict:
+    return dashboards_service.brand_report(session, ctx.tenant_id, start, end)
+
+
 @router.get("/content/drafts")
 def content_drafts(ctx: Ctx, session: Db) -> list[ContentDraft]:
     from api.content_service import list_drafts
