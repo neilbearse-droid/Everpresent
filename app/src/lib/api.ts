@@ -235,6 +235,7 @@ export type QueriesIntelPayload = {
     text: string;
     corpus_tag: string;
     active: boolean;
+    branded: boolean;
     classification: {
       surface: string;
       web_search_likelihood: string;
@@ -519,7 +520,7 @@ export type TenantDetail = {
   brand_profile: { brand_name: string; aliases: string[]; domains: string[] } | null;
   competitors: { id: number; name: string; aliases: string[]; domains: string[] }[];
   personas: { id: number; name: string; prompt_text: string; segment_tag: string }[];
-  queries: { id: number; text: string; corpus_tag: string; active: boolean }[];
+  queries: { id: number; text: string; corpus_tag: string; active: boolean; branded: boolean }[];
   surfaces: { id: number; code: string; enabled: boolean }[];
   plans: Record<string, PlanLimits>;
 };

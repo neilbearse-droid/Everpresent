@@ -1839,6 +1839,7 @@ def queries_intel(
                 "text": query.text,
                 "corpus_tag": query.corpus_tag,
                 "active": query.active,
+                "branded": query.branded,
                 "classification": classification,
                 "latest_results": surfaces,
             }

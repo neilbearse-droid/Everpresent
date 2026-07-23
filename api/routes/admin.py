@@ -477,3 +477,31 @@ def toggle_surface(slug: str, payload: SurfaceToggle, session: Db, admin: Admin)
     session.commit()
     session.refresh(row)
     return row
+
+
+class QueryBrandedPatch(BaseModel):
+    branded: bool
+
+
+@router.patch("/tenants/{slug}/queries/{query_id}")
+def set_query_branded(
+    slug: str, query_id: int, payload: QueryBrandedPatch, session: Db, admin: Admin
+) -> Query:
+    """Flip a query between the competitive-visibility layer and the branded
+    brand-knowledge layer without a full config re-import. Takes effect on the
+    next processed run (visibility_daily) and immediately on the live reads."""
+    tenant = _tenant_or_404(session, slug)
+    query = session.get(Query, query_id)
+    if query is None or query.tenant_id != tenant.id:
+        raise HTTPException(status_code=404, detail="No such query for this tenant")
+    query.branded = payload.branded
+    session.add(query)
+    write_audit(
+        session,
+        tenant_id=tenant.id,
+        actor=admin.user.email,
+        action=f"query.branded {slug} q{query_id}={'on' if payload.branded else 'off'}",
+    )
+    session.commit()
+    session.refresh(query)
+    return query

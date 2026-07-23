@@ -123,3 +123,30 @@ def test_seed_marks_branded(db_session, client, login):
     tenant = db_session.exec(select(Tenant).where(Tenant.slug == "godaddy")).one()
     branded = _branded_query_texts(db_session, tenant.id)
     assert "Is domain privacy free with GoDaddy?" in branded
+
+
+def test_admin_toggle_branded(db_session, client, login):
+    from api.models import User
+
+    admin = User(email="neil@example.com", clerk_user_id="u_sa2", is_superadmin=True)
+    db_session.add(admin)
+    db_session.commit()
+    db_session.refresh(admin)
+    login(admin)
+    tid = _tenant(db_session)  # has "best crm" (competitive), "Acme review" (branded)
+    q = db_session.exec(
+        select(Query).where(Query.tenant_id == tid, Query.text == "best crm")
+    ).one()
+
+    resp = client.patch(f"/api/admin/tenants/acme/queries/{q.id}", json={"branded": True})
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["branded"] is True
+    assert _branded_query_texts(db_session, tid) == frozenset({"Acme review", "best crm"})
+
+    # Toggle back, and a foreign query id is 404.
+    client.patch(f"/api/admin/tenants/acme/queries/{q.id}", json={"branded": False})
+    db_session.expire_all()
+    assert _branded_query_texts(db_session, tid) == frozenset({"Acme review"})
+    assert client.patch(
+        "/api/admin/tenants/acme/queries/999999", json={"branded": True}
+    ).status_code == 404

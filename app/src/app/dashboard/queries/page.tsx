@@ -114,6 +114,14 @@ export default async function QueriesPage({
                     <tr key={query.id} className="border-t border-[var(--border)] align-top">
                       <td className="max-w-md py-3 pr-4">
                         {query.text}
+                        {query.branded && (
+                          <span
+                            className="ml-2 align-middle text-[10px] font-semibold uppercase tracking-wide text-[var(--accent)]"
+                            title="Branded query — measured in the Brand layer, excluded from the competitive visibility metrics"
+                          >
+                            branded
+                          </span>
+                        )}
                         {!query.active && (
                           <span className="ml-2 text-xs text-[var(--text-3)]">(inactive)</span>
                         )}

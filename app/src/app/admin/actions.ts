@@ -78,6 +78,23 @@ export async function deleteBrandFact(
   return { ok: true, message: "Removed." };
 }
 
+export async function setQueryBranded(
+  slug: string,
+  queryId: number,
+  branded: boolean,
+  _prev: ActionState,
+  _formData: FormData,
+): Promise<ActionState> {
+  const res = await apiFetch(`/api/admin/tenants/${slug}/queries/${queryId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ branded }),
+  });
+  if (!res.ok) return { ok: false, message: res.error ?? "Could not update query" };
+  revalidatePath(`/admin/${slug}`);
+  return { ok: true, message: branded ? "Marked branded." : "Marked competitive." };
+}
+
 export async function createTenant(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const name = String(formData.get("name") ?? "").trim();
   const slug = String(formData.get("slug") ?? "").trim();

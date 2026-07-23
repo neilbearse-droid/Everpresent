@@ -9,6 +9,7 @@ import { ClerkOrgForm } from "./clerk-org-form";
 import { CrawlPagesButton } from "./crawl-pages-button";
 import { Ga4Form } from "./ga4-form";
 import { ImportYamlForm } from "./import-yaml-form";
+import { QueriesPanel } from "./queries-panel";
 import { NotifyEmailsForm } from "./notify-emails-form";
 import { PlanForm } from "./plan-form";
 import { ScheduleForm } from "./schedule-form";
@@ -226,17 +227,7 @@ export default async function TenantAdminPage({
           </ul>
         </section>
 
-        <section className="card p-5">
-          <h2 className="mb-3 font-medium">Queries ({queries.length})</h2>
-          <ul className="space-y-2">
-            {queries.map((q) => (
-              <li key={q.id} className="text-sm">
-                {q.text}
-                <span className="ml-2 text-xs text-[var(--text-3)]">{q.corpus_tag}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
+        <QueriesPanel slug={tenant.slug} queries={queries} />
       </div>
     </main>
   );
