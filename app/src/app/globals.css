@@ -1,64 +1,114 @@
 @import "tailwindcss";
 
 /* ------------------------------------------------------------------ *
- * EverPresent design system — stark editorial.
- * Pure grounds, near-black ink at high contrast, a single restrained
- * spot of electric ultramarine, hairline rules instead of soft cards,
- * square-ish geometry, type pushed on scale and tracking. Light is the
- * default; dark is a toggle. Both drive the SAME semantic tokens.
+ * Typeface system — self-hosted, CSP-safe, offline-safe.
+ *
+ * Space Grotesk carries the voice on display (wordmark, headings, the big
+ * metric readouts); Inter does the reading on body and dense tables; JetBrains
+ * Mono handles URLs, codes, and ids. Fonts are bundled under /public/fonts and
+ * served same-origin — no external fetch, no build-time download. Latin subset,
+ * font-display: swap so the system stack paints instantly and swaps in.
+ * ------------------------------------------------------------------ */
+@font-face { font-family: "Space Grotesk"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/space-grotesk-400.woff2") format("woff2"); }
+@font-face { font-family: "Space Grotesk"; font-style: normal; font-weight: 500; font-display: swap; src: url("/fonts/space-grotesk-500.woff2") format("woff2"); }
+@font-face { font-family: "Space Grotesk"; font-style: normal; font-weight: 600; font-display: swap; src: url("/fonts/space-grotesk-600.woff2") format("woff2"); }
+@font-face { font-family: "Space Grotesk"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/space-grotesk-700.woff2") format("woff2"); }
+@font-face { font-family: "Inter"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/inter-400.woff2") format("woff2"); }
+@font-face { font-family: "Inter"; font-style: normal; font-weight: 500; font-display: swap; src: url("/fonts/inter-500.woff2") format("woff2"); }
+@font-face { font-family: "Inter"; font-style: normal; font-weight: 600; font-display: swap; src: url("/fonts/inter-600.woff2") format("woff2"); }
+@font-face { font-family: "Inter"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/inter-700.woff2") format("woff2"); }
+@font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/jetbrains-mono-400.woff2") format("woff2"); }
+@font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 500; font-display: swap; src: url("/fonts/jetbrains-mono-500.woff2") format("woff2"); }
+
+/* Register the families as Tailwind theme tokens so font-sans / font-mono /
+   font-display utilities resolve to them, and var(--font-*) is available too. */
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* ------------------------------------------------------------------ *
+ * EverPresent design system — "Aperture."
+ *
+ * A calm, dimensional interface in the spirit of Apple's HIG. Not flat:
+ * pure-white cards float on a cool near-white ground with layered, soft
+ * shadows; surfaces read as physical planes. Refined cool neutrals, one
+ * confident cobalt accent used with restraint, semantic colours kept
+ * separate. Generous radii, an 8pt rhythm, tabular metrics, SF Pro via the
+ * system stack. Dark is its own considered palette on true black — not an
+ * invert. Light is the default; both drive the SAME semantic tokens.
  * ------------------------------------------------------------------ */
 
 :root {
   color-scheme: light;
 
-  /* Shrink Tailwind's radius scale so every rounded-* utility reads editorial
-     (rounded-full is left alone for dots/avatars). Overriding the theme tokens
-     in :root wins the cascade over Tailwind's emitted defaults. */
-  --radius-md: 4px;
-  --radius-lg: 6px;
-  --radius-xl: 8px;
-  --radius-2xl: 10px;
+  /* ---- Radius scale — Apple leans generous. Every rounded-* utility and
+     primitive resolves from these, so the whole app softens at once. ---- */
+  --radius-sm: 8px;   /* chips, tags */
+  --radius-md: 10px;  /* controls: buttons, fields */
+  --radius-lg: 12px;  /* inset panels */
+  --radius-xl: 16px;  /* cards */
+  --radius-2xl: 20px; /* hero / feature surfaces */
+  --radius-3xl: 26px;
+  --radius: 16px;     /* .card default */
 
-  /* Planes & surfaces — a faint cool ground, crisp white panels */
-  --plane: #f6f6f7;
-  --plane-2: #efeff1;
-  --surface: #ffffff;
-  --surface-2: #f6f6f7;
-  --inset: #f6f6f7;
+  /* ---- Planes & surfaces — airy cool ground, crisp white panels ---- */
+  --plane: #f4f4f7;      /* app background */
+  --plane-2: #ececf1;    /* deeper recesses */
+  --surface: #ffffff;    /* elevated cards — pure white, floats on the ground */
+  --surface-2: #f5f5f8;  /* quiet fills, table stripes */
+  --inset: #f3f3f7;      /* recessed wells inside a card */
 
-  /* Hairlines — crisp, a touch stronger for the ruled look */
-  --border: rgba(12, 12, 13, 0.13);
-  --border-strong: rgba(12, 12, 13, 0.30);
+  /* ---- Hairlines — soft; we lean on shadow + tone, not hard rules ---- */
+  --border: rgba(17, 17, 26, 0.08);
+  --border-strong: rgba(17, 17, 26, 0.16);
 
-  /* Ink — maximum contrast */
-  --text: #0c0c0d;
-  --text-2: #55565b;
-  --text-3: #8a8b91;
+  /* ---- Ink — Apple's considered near-black, not pure #000 ---- */
+  --text: #16161a;
+  --text-2: #5f6068;
+  --text-3: #9698a1;
 
-  /* The one spot: electric ultramarine, used sparingly */
-  --accent: #1f2bff;
-  --accent-2: #1f2bff;
-  --accent-soft: rgba(31, 43, 255, 0.10);
-  --accent-ring: rgba(31, 43, 255, 0.34);
+  /* ---- The one accent: a confident cobalt. Everything else stays quiet.
+     Semantic status colours live separately, below. ---- */
+  --accent: #1f5be0;
+  --accent-2: #2f6bf0;
+  --accent-soft: rgba(31, 91, 224, 0.10);
+  --accent-ring: rgba(31, 91, 224, 0.32);
   --accent-ink: #ffffff;
 
-  /* Semantic status — separate from the brand accent */
-  --good: #157a46;
-  --warn: #9c6413;
-  --danger: #cc2f27;
-  --pos: #147a46;
-  --warn-t: #7a4f0f;
+  /* ---- Semantic status — deliberately distinct from the brand accent ---- */
+  --good: #147a4a;
+  --warn: #9a6410;
+  --danger: #c92f28;
+  --pos: #147a4a;
+  --warn-t: #855312;
   --neg: #c02a22;
 
-  /* No atmospheric glow — the ground is flat. */
+  /* No atmospheric glow — depth comes from shadow, not colour bloom. */
   --glow-1: transparent;
   --glow-2: transparent;
 
-  --radius: 5px;
-  --radius-sm: 4px;
-  /* Editorial = rules, not shadows. Kept as tokens so any consumer resolves. */
-  --shadow-1: none;
-  --shadow-2: 0 1px 0 rgba(12, 12, 13, 0.04);
+  /* ---- Elevation — layered, low-opacity, large-blur soft shadows so a
+     card reads as a physical plane hovering over the ground. ---- */
+  --shadow-1:
+    0 1px 2px rgba(17, 18, 33, 0.05),
+    0 1px 1px rgba(17, 18, 33, 0.03);
+  --shadow-2:
+    0 1px 1px rgba(17, 18, 33, 0.04),
+    0 4px 10px -3px rgba(17, 18, 33, 0.06),
+    0 14px 30px -12px rgba(17, 18, 33, 0.10);
+  --shadow-3:
+    0 2px 4px rgba(17, 18, 33, 0.05),
+    0 12px 24px -8px rgba(17, 18, 33, 0.10),
+    0 28px 56px -18px rgba(17, 18, 33, 0.14);
+
+  /* Frosted material for sticky chrome. */
+  --blur: saturate(180%) blur(20px);
+  --scrim: color-mix(in srgb, var(--plane) 72%, transparent);
+
+  /* Motion — a single tasteful ease-out curve. */
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
 
   --background: var(--plane);
   --foreground: var(--text);
@@ -67,37 +117,51 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  --plane: #0a0a0b;
-  --plane-2: #0f0f12;
-  --surface: #141417;
-  --surface-2: #1a1a1e;
-  --inset: #101012;
+  /* True near-black ground, surfaces gently lifted so cards separate by
+     luminance the way they separate by shadow in light. */
+  --plane: #08080a;
+  --plane-2: #050506;
+  --surface: #161619;
+  --surface-2: #1d1d21;
+  --inset: #101013;
 
-  --border: rgba(255, 255, 255, 0.12);
-  --border-strong: rgba(255, 255, 255, 0.26);
+  --border: rgba(255, 255, 255, 0.09);
+  --border-strong: rgba(255, 255, 255, 0.20);
 
-  --text: #f3f3f5;
-  --text-2: #a3a4a9;
-  --text-3: #6d6e74;
+  --text: #f4f4f6;
+  --text-2: #a1a2aa;
+  --text-3: #6b6c76;
 
-  --accent: #7d84ff;
-  --accent-2: #7d84ff;
-  --accent-soft: rgba(125, 132, 255, 0.16);
-  --accent-ring: rgba(125, 132, 255, 0.40);
-  --accent-ink: #0a0a0b;
+  /* Brighter cobalt for legibility on black. */
+  --accent: #549bff;
+  --accent-2: #6aa9ff;
+  --accent-soft: rgba(84, 155, 255, 0.16);
+  --accent-ring: rgba(84, 155, 255, 0.42);
+  --accent-ink: #06121f;
 
-  --good: #46b877;
-  --warn: #d99a3f;
-  --danger: #ef5a52;
-  --pos: #46b877;
-  --warn-t: #d99a3f;
-  --neg: #ef5a52;
+  --good: #34c07a;
+  --warn: #e0a44a;
+  --danger: #ff5f58;
+  --pos: #34c07a;
+  --warn-t: #e0a44a;
+  --neg: #ff5f58;
 
   --glow-1: transparent;
   --glow-2: transparent;
 
-  --shadow-1: none;
-  --shadow-2: 0 1px 0 rgba(0, 0, 0, 0.4);
+  /* On black, depth is carried more by a lifted surface + fine highlight than
+     by cast shadow; keep shadows deep but restrained. */
+  --shadow-1:
+    0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-2:
+    0 1px 1px rgba(0, 0, 0, 0.5),
+    0 6px 16px -6px rgba(0, 0, 0, 0.6);
+  --shadow-3:
+    0 2px 6px rgba(0, 0, 0, 0.55),
+    0 18px 44px -12px rgba(0, 0, 0, 0.7);
+
+  --blur: saturate(180%) blur(22px);
+  --scrim: color-mix(in srgb, var(--plane) 66%, transparent);
 }
 
 html {
@@ -107,76 +171,144 @@ html {
 body {
   background: var(--plane);
   color: var(--text);
-  font-family:
-    system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-  letter-spacing: -0.011em;
+  letter-spacing: -0.006em;
+  font-feature-settings: "cv01", "ss01";
 }
 
-/* Editorial type: tight tracking, confident weight on headings. */
-h1, h2, h3 {
-  letter-spacing: -0.028em;
-  font-weight: 700;
+/* Metrics and figures sit on a shared tabular baseline everywhere. */
+.tabular-nums,
+[class*="tabular-nums"],
+table {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Refined modular type: display sizes get tight negative tracking and
+   controlled leading; body stays legible. Weights favour 500/600, with 700
+   reserved for the largest display. */
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.12;
 }
 h1 {
-  letter-spacing: -0.034em;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+h2 { letter-spacing: -0.02em; }
+
+/* Space Grotesk carries the display voice: headings, eyebrows, and the large
+   metric readouts (text-2xl and up — only ever big numbers or display copy in
+   this app). Body/tables stay on Inter. Its glyphs run a touch wide, so display
+   sizes get tighter tracking. */
+.eyebrow,
+[class*="text-2xl"],
+[class*="text-3xl"],
+[class*="text-4xl"],
+[class*="text-5xl"],
+[class*="text-6xl"] {
+  font-family: var(--font-display);
+}
+[class*="text-3xl"],
+[class*="text-4xl"],
+[class*="text-5xl"],
+[class*="text-6xl"] {
+  letter-spacing: -0.035em;
 }
 
 ::selection {
   background: var(--accent-soft);
+  color: var(--text);
+}
+
+/* Restrained page-load fade for the main content column. */
+@keyframes ep-rise {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+main {
+  animation: ep-rise 0.5s var(--ease) both;
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--text) 22%, transparent) transparent;
+  scrollbar-color: color-mix(in srgb, var(--text) 18%, transparent) transparent;
 }
 *::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 11px;
+  height: 11px;
 }
 *::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--text) 18%, transparent);
+  background: color-mix(in srgb, var(--text) 16%, transparent);
   border-radius: 999px;
   border: 3px solid transparent;
   background-clip: content-box;
 }
 *::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in srgb, var(--text) 30%, transparent);
+  background: color-mix(in srgb, var(--text) 28%, transparent);
   background-clip: content-box;
 }
 
 /* --- Primitives --------------------------------------------------- */
 
+/* Cards are physical planes: white surface, whisper hairline, soft layered
+   shadow. A fine top highlight in dark gives the lifted-glass edge. */
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: none;
+  box-shadow: var(--shadow-2);
 }
+:root[data-theme="dark"] .card {
+  background:
+    linear-gradient(var(--surface), var(--surface)) padding-box,
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0) 40%) border-box;
+  border-color: transparent;
+}
+
 a.card,
 .card-hover {
-  transition: border-color 0.14s ease, background 0.14s ease;
+  transition:
+    transform 0.22s var(--ease),
+    box-shadow 0.22s var(--ease),
+    border-color 0.22s var(--ease);
+  will-change: transform;
 }
 a.card:hover,
 .card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-3);
   border-color: var(--border-strong);
 }
+a.card:active,
+.card-hover:active {
+  transform: translateY(-1px);
+}
 
+/* Recessed well inside a card — reads deeper, carries no shadow. */
 .card-inset {
   background: var(--inset);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-lg);
+  box-shadow: none;
 }
 
 .field,
 input.field,
-textarea.field {
+textarea.field,
+select.field {
   background: var(--inset);
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   color: var(--text);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    border-color 0.18s var(--ease),
+    box-shadow 0.18s var(--ease),
+    background 0.18s var(--ease);
 }
 .field::placeholder {
   color: var(--text-3);
@@ -184,68 +316,105 @@ textarea.field {
 .field:focus,
 .field:focus-visible {
   outline: none;
+  background: var(--surface);
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  box-shadow: 0 0 0 4px var(--accent-soft);
 }
 
-/* Status labels: squared, tight, letter-spaced — an editorial tag, not a pill. */
+/* Status tag — soft, rounded, tinted. A capsule, not a hard-edged label. */
 .chip {
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
-  padding: 0.15rem 0.5rem;
+  padding: 0.2rem 0.55rem;
   font-size: 0.6875rem;
   font-weight: 600;
-  letter-spacing: 0.01em;
+  letter-spacing: 0.002em;
   color: var(--text-2);
-  background: color-mix(in srgb, var(--text) 3.5%, transparent);
+  background: color-mix(in srgb, var(--text) 4%, transparent);
 }
 
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
-  border-radius: var(--radius-sm);
+  gap: 0.45rem;
+  border-radius: var(--radius-md);
   font-weight: 600;
   font-size: 0.875rem;
-  letter-spacing: -0.006em;
-  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease, filter 0.15s ease;
+  letter-spacing: -0.008em;
+  transition:
+    transform 0.16s var(--ease),
+    box-shadow 0.18s var(--ease),
+    background 0.18s var(--ease),
+    border-color 0.18s var(--ease),
+    filter 0.18s var(--ease);
+}
+.btn:active {
+  transform: scale(0.975);
 }
 .btn:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  box-shadow: 0 0 0 4px var(--accent-soft);
 }
-/* Flat ultramarine — no gradient. */
+
+/* Primary — dimensional cobalt: subtle vertical sheen + a soft accent-tinted
+   drop, so it reads raised rather than painted-on flat. */
 .btn-primary {
-  background: var(--accent);
+  background: linear-gradient(180deg, var(--accent-2), var(--accent));
   color: var(--accent-ink);
-  box-shadow: none;
+  border: 1px solid color-mix(in srgb, var(--accent) 60%, #000 8%);
+  box-shadow:
+    0 1px 1px rgba(17, 18, 33, 0.10),
+    0 6px 16px -6px color-mix(in srgb, var(--accent) 55%, transparent);
 }
 .btn-primary:hover {
-  filter: brightness(1.08);
+  filter: brightness(1.05) saturate(1.03);
+  box-shadow:
+    0 2px 3px rgba(17, 18, 33, 0.12),
+    0 10px 22px -6px color-mix(in srgb, var(--accent) 60%, transparent);
 }
+
 .btn-ghost {
   border: 1px solid var(--border);
   color: var(--text-2);
-  background: transparent;
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
 }
 .btn-ghost:hover {
   border-color: var(--border-strong);
   color: var(--text);
+  box-shadow: var(--shadow-2);
 }
 
 .focus-ring:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+  border-radius: var(--radius-md);
 }
 
+/* Eyebrow — quiet, spaced, uppercase label. */
 .eyebrow {
   font-size: 0.6875rem;
   font-weight: 600;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--text-3);
+}
+
+/* Respect users who prefer less motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  main { animation: none; }
+  a.card:hover,
+  .card-hover:hover { transform: none; }
 }

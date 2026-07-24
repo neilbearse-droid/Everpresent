@@ -10,7 +10,9 @@ import {
   YAxis,
 } from "recharts";
 
-const GRID = "var(--border)"; // themed hairline, recessive on either surface
+// Recessive gridlines: softer than the card hairline so the data reads first.
+const GRID = "color-mix(in srgb, var(--text) 8%, transparent)";
+const AXIS_LINE = "color-mix(in srgb, var(--text) 12%, transparent)";
 const AXIS_TEXT = "var(--text-3)";
 
 type TrendRow = Record<string, string | number>;
@@ -46,8 +48,9 @@ export function TrendChart({
           <XAxis
             dataKey="date"
             tick={{ fill: AXIS_TEXT, fontSize: 11 }}
-            axisLine={{ stroke: GRID }}
+            axisLine={{ stroke: AXIS_LINE }}
             tickLine={false}
+            dy={4}
           />
           <YAxis
             domain={[0, 100]}
@@ -57,16 +60,17 @@ export function TrendChart({
             tickLine={false}
           />
           <Tooltip
-            cursor={{ stroke: AXIS_TEXT, strokeWidth: 1 }}
+            cursor={{ stroke: AXIS_LINE, strokeWidth: 1 }}
             contentStyle={{
               background: "var(--surface)",
-              border: "1px solid var(--border-strong)",
-              borderRadius: 10,
+              border: "1px solid var(--border)",
+              borderRadius: 12,
               fontSize: 12,
-              boxShadow: "var(--shadow-2)",
+              boxShadow: "var(--shadow-3)",
               color: "var(--text)",
+              padding: "8px 12px",
             }}
-            labelStyle={{ color: "var(--text)" }}
+            labelStyle={{ color: "var(--text)", fontWeight: 600, marginBottom: 2 }}
             itemStyle={{ color: "var(--text-2)" }}
             formatter={(value: number | string, name: string) => [value, name]}
           />
@@ -76,9 +80,27 @@ export function TrendChart({
               type="monotone"
               dataKey={s.name}
               stroke={s.color}
-              strokeWidth={2}
-              dot={false}
-              activeDot={{ r: 4 }}
+              strokeWidth={2.25}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              // Emphasised endpoint: a filled dot ringed in the surface colour
+              // at the latest measurement, so the current value reads first.
+              dot={(props: { index?: number; cx?: number; cy?: number }) =>
+                props.index === last && props.cx != null && props.cy != null ? (
+                  <circle
+                    key={`${s.name}-end`}
+                    cx={props.cx}
+                    cy={props.cy}
+                    r={3.5}
+                    fill={s.color}
+                    stroke="var(--surface)"
+                    strokeWidth={2}
+                  />
+                ) : (
+                  <g key={`${s.name}-${props.index}`} />
+                )
+              }
+              activeDot={{ r: 4.5, strokeWidth: 2, stroke: "var(--surface)" }}
               isAnimationActive={false}
               // Selective direct label at the line end (secondary encoding on
               // top of the legend), staggered a little per series.

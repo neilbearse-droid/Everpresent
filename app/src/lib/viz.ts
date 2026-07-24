@@ -1,17 +1,18 @@
-// Categorical palette (dark-surface steps), validated with the dataviz
-// six-checks script against the slate-900 card surface. Slot order is the
-// CVD-safety mechanism — never reorder or cycle.
+// Categorical palette — harmonised with the "Aperture" cobalt system. Refined,
+// slightly desaturated hues that read cleanly on both the white (light) and
+// lifted-black (dark) card surfaces. Slot order is the CVD-safety mechanism —
+// never reorder or cycle.
 export const SERIES_COLORS = [
-  "#3987e5", // 1 blue — always the brand
-  "#199e70", // 2 aqua
-  "#c98500", // 3 yellow
-  "#008300", // 4 green
-  "#9085e9", // 5 violet
-  "#e66767", // 6 red
+  "#2f6bf0", // 1 cobalt — always the brand (matches --accent family)
+  "#12a594", // 2 teal
+  "#e0912f", // 3 amber
+  "#3aa655", // 4 green
+  "#8b7cf0", // 5 violet
+  "#e8646a", // 6 coral
 ] as const;
 
-export const DELTA_UP = "#199e70";
-export const DELTA_DOWN = "#e66767";
+export const DELTA_UP = "#16a34a";
+export const DELTA_DOWN = "#e8646a";
 
 /** Stable entity→color map: brand takes slot 1, competitors take the
  * remaining slots in alphabetical order — color follows the entity, never its
@@ -55,11 +56,11 @@ export const LIKELIHOOD_LABELS: Record<string, string> = {
   unlikely: "unlikely",
 };
 
-// Ordinal blue steps (dark-mode band) for the web-search-likelihood chips —
-// magnitude of one concept, so one hue stepped, not four hues.
+// Ordinal cobalt steps for the web-search-likelihood chips — magnitude of one
+// concept, so one hue stepped, not four hues. Harmonised with --accent.
 export const LIKELIHOOD_COLORS: Record<string, string> = {
-  very_likely: "#3987e5",
-  likely: "#256abf",
-  possible: "#1c5cab",
-  unlikely: "#184f95",
+  very_likely: "#2f6bf0",
+  likely: "#3f74d6",
+  possible: "#3f66ad",
+  unlikely: "#3a5788",
 };

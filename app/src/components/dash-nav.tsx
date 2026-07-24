@@ -56,11 +56,15 @@ const TABS: { href: string; label: string; icon: keyof typeof I }[] = [
 function BrandMark() {
   return (
     <span
-      className="grid h-7 w-7 place-items-center rounded-lg text-[var(--accent-ink)] shadow-[0_2px_8px_var(--accent-soft)]"
-      style={{ background: "linear-gradient(135deg, var(--accent), var(--accent-2))" }}
+      className="grid h-8 w-8 place-items-center rounded-[11px] text-[var(--accent-ink)]"
+      style={{
+        background: "linear-gradient(160deg, var(--accent-2), var(--accent))",
+        boxShadow:
+          "0 1px 1px rgba(17,18,33,0.12), 0 4px 12px -3px color-mix(in srgb, var(--accent) 55%, transparent), inset 0 1px 0 rgba(255,255,255,0.22)",
+      }}
       aria-hidden
     >
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
         <path d="M12 3v18M5 8l7-5 7 5M5 16l7 5 7-5" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     </span>
@@ -80,11 +84,11 @@ export function DashNav({
   withDateRange?: boolean;
 }): ReactNode {
   return (
-    <header className="sticky top-0 z-30 -mx-8 mb-8 border-b border-[var(--border)] bg-[color-mix(in_srgb,var(--plane)_82%,transparent)] px-8 backdrop-blur-xl">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between">
+    <header className="sticky top-0 z-30 -mx-8 mb-8 border-b border-[var(--border)] bg-[var(--scrim)] px-8 [backdrop-filter:var(--blur)] [-webkit-backdrop-filter:var(--blur)]">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between">
         <Link href="/dashboard" className="flex items-center gap-2.5">
           <BrandMark />
-          <span className="text-[15px] font-semibold tracking-tight text-[var(--text)]">
+          <span className="font-display text-[15px] font-semibold tracking-[-0.02em] text-[var(--text)]">
             EverPresent
           </span>
         </Link>
@@ -102,7 +106,7 @@ export function DashNav({
           <UserButton />
         </div>
       </div>
-      <nav className="mx-auto -mb-px flex max-w-6xl items-center gap-0.5 overflow-x-auto pb-0">
+      <nav className="mx-auto flex max-w-6xl items-center gap-1 overflow-x-auto pb-2.5">
         {TABS.map((tab) => {
           const on = active === tab.label;
           return (
@@ -110,13 +114,13 @@ export function DashNav({
               key={tab.href}
               href={tab.href}
               aria-current={on ? "page" : undefined}
-              className={`flex shrink-0 items-center gap-1.5 border-b-2 px-3 py-2.5 text-[13px] font-medium transition-colors ${
+              className={`flex shrink-0 items-center gap-1.5 rounded-[10px] px-3 py-1.5 text-[13px] font-medium transition-all duration-200 ${
                 on
-                  ? "border-[var(--accent)] text-[var(--text)]"
-                  : "border-transparent text-[var(--text-3)] hover:text-[var(--text-2)]"
+                  ? "bg-[var(--accent-soft)] text-[var(--accent)]"
+                  : "text-[var(--text-3)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:text-[var(--text)]"
               }`}
             >
-              <span className={on ? "text-[var(--accent)]" : ""}>
+              <span className={on ? "text-[var(--accent)]" : "text-[var(--text-3)]"}>
                 <Icon d={I[tab.icon]} />
               </span>
               {tab.label}
@@ -124,7 +128,7 @@ export function DashNav({
           );
         })}
         {withDateRange && (
-          <div className="ml-auto shrink-0 py-1 pl-4">
+          <div className="ml-auto shrink-0 pl-4">
             <Suspense>
               <DateRange />
             </Suspense>
