@@ -777,6 +777,202 @@ def routing_report(
     }
 
 
+# Retrieve-vs-recall banding by observed search propensity in the category.
+# Deliberately wide dead-band in the middle so a genuinely split engine reads
+# as "mixed" rather than being forced to one pole.
+_RETRIEVE_AT = 66.0
+_RECALL_AT = 33.0
+
+_MODE_PLAY = {
+    "retrieve": "Win the shards — publish structured, specific, citable pages "
+    "for the sub-queries these engines issue.",
+    "recall": "Shape the corpus — authoritative mentions in widely-crawled sources "
+    "(press, directories, reference-grade references) so training snapshots learn you.",
+    "mixed": "Both games: citable pages to win live answers, durable corpus presence "
+    "for the prompts answered from memory.",
+}
+
+
+def _brand_and_cited_ids(
+    session: Session, result_ids: list[int]
+) -> tuple[set[int], set[int]]:
+    """(brand-mentioned ids, brand-cited ids) over a set of results, in two
+    bounded queries rather than N per-result lookups."""
+    brand_ids: set[int] = set()
+    cited_ids: set[int] = set()
+    if not result_ids:
+        return brand_ids, cited_ids
+    for m in session.exec(
+        select(Mention).where(
+            Mention.result_id.in_(result_ids),  # pyright: ignore[reportAttributeAccessIssue]
+            Mention.entity_type == "brand",
+        )
+    ).all():
+        brand_ids.add(m.result_id)
+    for c in session.exec(
+        select(Citation).where(
+            Citation.result_id.in_(result_ids),  # pyright: ignore[reportAttributeAccessIssue]
+            Citation.source_category == "brand",
+        )
+    ).all():
+        cited_ids.add(c.result_id)
+    return brand_ids, cited_ids
+
+
+def engine_modes(
+    session: Session, tenant_id: int, start: str | None = None, end: str | None = None
+) -> dict:
+    """Reframed Overview (§AEO-plan M0): 'AI visibility' is not one number.
+    Per engine, how it reaches answers in THIS category — retrieve vs recall by
+    observed search propensity — and the brand's standing measured in the
+    currency that matters for that mode (cited-in-live-answers for retrieval,
+    named-from-memory for recall). Competitive scope only; branded probes live
+    in the Brand layer. Pure reads."""
+    lo, hi = _date_window(start, end)
+    search = _latest_results_by_variant(
+        session, tenant_id, ResultVariant.search, lo, hi, scope="competitive"
+    )
+    natural = _latest_results_by_variant(
+        session, tenant_id, ResultVariant.natural, lo, hi, scope="competitive"
+    )
+    nosearch = _latest_results_by_variant(
+        session, tenant_id, ResultVariant.nosearch, lo, hi, scope="competitive"
+    )
+
+    all_ids = [
+        r.id
+        for r in (*search.values(), *natural.values(), *nosearch.values())
+        if r.id is not None
+    ]
+    brand_ids, cited_ids = _brand_and_cited_ids(session, all_ids)
+
+    surfaces = sorted({s for (_q, s) in search} | {s for (_q, s) in natural})
+    engines = []
+    for surface in surfaces:
+        # A forced-search surface can't reveal natural routing from its search
+        # variant — read its propensity + user-visible answer from the natural
+        # probe. Every other surface's search variant is already un-forced.
+        forced = surface in _FORCED_SEARCH_SURFACES
+        signal = natural if forced else search
+        sig_rows = [r for (q, s), r in signal.items() if s == surface]
+        srch_rows = [r for (q, s), r in search.items() if s == surface]
+        measured = len(sig_rows)
+        if not measured:
+            continue
+        searched = sum(1 for r in sig_rows if (r.web_search_calls or 0) > 0)
+        named = sum(1 for r in sig_rows if r.id in brand_ids)
+        search_rate = _pct(searched, measured)
+
+        if search_rate >= _RETRIEVE_AT:
+            mode = "retrieve"
+        elif search_rate <= _RECALL_AT:
+            mode = "recall"
+        else:
+            mode = "mixed"
+
+        # Fan-out breadth (retrieval engines only expose it): mean sub-queries
+        # over prompts that actually searched.
+        fo_seen = [
+            len(r.fanout_queries)
+            for r in srch_rows
+            if (r.web_search_calls or 0) > 0 and r.fanout_queries
+        ]
+        avg_fanout = round(sum(fo_seen) / len(fo_seen), 1) if fo_seen else None
+
+        srch_measured = len(srch_rows)
+        cited = sum(1 for r in srch_rows if r.id in cited_ids)
+        named_rate = _pct(named, measured)
+        cited_rate = _pct(cited, srch_measured)
+
+        if mode == "retrieve":
+            standing_value, standing_unit = cited_rate, "cited"
+            standing_label = "cited in live answers"
+        elif mode == "recall":
+            standing_value, standing_unit = named_rate, "named"
+            standing_label = "named from memory"
+        else:
+            standing_value, standing_unit = named_rate, "named"
+            standing_label = "named in answers"
+
+        if mode == "retrieve":
+            blurb = f"Searches on {round(search_rate)}% of your category prompts"
+            blurb += f", fanning each into ~{avg_fanout} shards." if avg_fanout else "."
+        elif mode == "recall":
+            blurb = (
+                f"Answers {round(100 - search_rate)}% of your category prompts from "
+                "memory — no live search."
+            )
+        else:
+            blurb = (
+                f"Searches on {round(search_rate)}% — a mix of live retrieval and "
+                "answering from memory."
+            )
+
+        engines.append({
+            "surface": surface,
+            "label": _surface_label(surface),
+            "mode": mode,
+            "search_rate": search_rate,
+            "avg_fanout": avg_fanout,
+            "measured": measured,
+            "from_probe": forced,
+            "standing_value": standing_value,
+            "standing_unit": standing_unit,
+            "standing_label": standing_label,
+            "named_rate": named_rate,
+            "cited_rate": cited_rate,
+            "blurb": blurb,
+            "play": _MODE_PLAY[mode],
+        })
+
+    engines.sort(key=lambda e: (-e["measured"], e["surface"]))
+
+    # Two-mode split — the honest reframe. Recall visibility is measured over
+    # the training twins (what the model knows without searching); retrieval
+    # visibility over the answers where it actually searched.
+    twin_rows = [
+        r for r in (*nosearch.values(), *natural.values()) if r.id is not None
+    ]
+    twin_named = sum(1 for r in twin_rows if r.id in brand_ids)
+    searched_rows = [
+        r for r in search.values() if r.id is not None and (r.web_search_calls or 0) > 0
+    ]
+    searched_named = sum(1 for r in searched_rows if r.id in brand_ids)
+    modes = {
+        "recall": {
+            "visibility": _pct(twin_named, len(twin_rows)),
+            "answers": len(twin_rows),
+        },
+        "retrieval": {
+            "visibility": _pct(searched_named, len(searched_rows)),
+            "answers": len(searched_rows),
+        },
+    }
+
+    # Composite — demoted to a blended roll-up, not the headline. Latest daily
+    # brand score, the same figure the trend chart lands on.
+    latest_daily = None
+    daily = [
+        r for r in session.exec(
+            select(VisibilityDaily).where(VisibilityDaily.tenant_id == tenant_id)
+        ).all()
+        if _date_in_range(r.date, start, end)
+    ]
+    if daily:
+        last_date = max(r.date for r in daily)
+        scores = [r.brand_score for r in daily if r.date == last_date]
+        if scores:
+            latest_daily = {"score": round(_mean(scores), 1), "date": last_date}
+
+    return {
+        "brand_name": _brand_name(session, tenant_id),
+        "engines": engines,
+        "modes": modes,
+        "composite": latest_daily,
+        "observed": bool(engines),
+    }
+
+
 def accuracy_report(
     session: Session, tenant_id: int, start: str | None = None, end: str | None = None
 ) -> dict:

@@ -85,6 +85,13 @@
   --warn-t: #855312;
   --neg: #c02a22;
 
+  /* Retrieve-vs-recall mode accents (Overview). Retrieve borrows the cobalt
+     accent; recall is a distinct violet; mixed a quiet teal. */
+  --mode-recall: #6a4bd6;
+  --mode-recall-soft: rgba(120, 86, 255, 0.12);
+  --mode-mixed: #0f766e;
+  --mode-mixed-soft: rgba(15, 118, 110, 0.12);
+
   /* No atmospheric glow — depth comes from shadow, not colour bloom. */
   --glow-1: transparent;
   --glow-2: transparent;
@@ -145,6 +152,12 @@
   --pos: #34c07a;
   --warn-t: #e0a44a;
   --neg: #ff5f58;
+
+  /* Brighter on black for legibility. */
+  --mode-recall: #a99bff;
+  --mode-recall-soft: rgba(140, 124, 255, 0.18);
+  --mode-mixed: #4fd1c5;
+  --mode-mixed-soft: rgba(79, 209, 197, 0.16);
 
   --glow-1: transparent;
   --glow-2: transparent;

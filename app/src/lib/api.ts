@@ -189,6 +189,34 @@ export type OverviewPayload = {
   aio: AIOSummary;
 };
 
+export type EngineMode = {
+  surface: string;
+  label: string;
+  mode: "retrieve" | "recall" | "mixed";
+  search_rate: number;
+  avg_fanout: number | null;
+  measured: number;
+  from_probe: boolean;
+  standing_value: number;
+  standing_unit: "cited" | "named";
+  standing_label: string;
+  named_rate: number;
+  cited_rate: number;
+  blurb: string;
+  play: string;
+};
+
+export type EngineModesPayload = {
+  brand_name: string;
+  engines: EngineMode[];
+  modes: {
+    recall: { visibility: number; answers: number };
+    retrieval: { visibility: number; answers: number };
+  };
+  composite: { score: number; date: string } | null;
+  observed: boolean;
+};
+
 export type CitationsPayload = {
   domains: { domain: string; category: string; count: number; surfaces: string[] }[];
   power_pages: {

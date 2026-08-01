@@ -95,6 +95,13 @@ def overview(ctx: Ctx, session: Db, start: str | None = None, end: str | None = 
     return dashboards_service.overview(session, ctx.tenant_id, start, end)
 
 
+@router.get("/engine-modes")
+def engine_modes(
+    ctx: Ctx, session: Db, start: str | None = None, end: str | None = None
+) -> dict:
+    return dashboards_service.engine_modes(session, ctx.tenant_id, start, end)
+
+
 @router.get("/personas-intel")
 def personas_intel(
     ctx: Ctx, session: Db, start: str | None = None, end: str | None = None

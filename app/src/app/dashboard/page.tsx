@@ -2,12 +2,13 @@ import Link from "next/link";
 import {
   apiFetch,
   rangeQuery,
+  type EngineModesPayload,
   type Me,
   type OverviewPayload,
   type TenantSummary,
 } from "@/lib/api";
-import { AIOTile } from "@/components/aio-tile";
 import { DashNav } from "@/components/dash-nav";
+import { EngineModesHero } from "@/components/engine-modes";
 import { NoOrgNotice } from "@/components/no-org-notice";
 import { TrendChart, HBars } from "@/components/charts";
 import { DELTA_DOWN, DELTA_UP, entityColors } from "@/lib/viz";
@@ -18,10 +19,11 @@ export default async function OverviewPage({
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
   const { from, to } = await searchParams;
-  const [me, tenant, overview] = await Promise.all([
+  const [me, tenant, overview, engineModes] = await Promise.all([
     apiFetch<Me>("/api/me"),
     apiFetch<TenantSummary>("/api/tenant"),
     apiFetch<OverviewPayload>(`/api/tenant/overview${rangeQuery(from, to)}`),
+    apiFetch<EngineModesPayload>(`/api/tenant/engine-modes${rangeQuery(from, to)}`),
   ]);
 
   if (!tenant.data) {
@@ -78,12 +80,16 @@ export default async function OverviewPage({
     <main className="mx-auto max-w-6xl px-8 py-10">
       <DashNav active="Overview" isSuperadmin={me.data?.is_superadmin} withDateRange />
 
-      <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="eyebrow mb-1.5">Visibility overview</p>
+          <p className="eyebrow mb-1.5">How each engine answers your category</p>
           <h1 className="text-[26px] font-semibold tracking-tight">
             {data?.brand_name ?? tenant.data.name}
           </h1>
+          <p className="mt-1 max-w-xl text-[13px] text-[var(--text-2)]">
+            Visibility isn&apos;t one number. Each engine reaches its answer differently in your
+            category — so the tactic is different too. Here&apos;s how, and where you stand in each.
+          </p>
         </div>
         <div className="flex flex-wrap gap-2 text-[13px]">
           <a href="/dashboard/reports/summary.pdf" className="btn btn-ghost px-3 py-1.5">
@@ -98,8 +104,18 @@ export default async function OverviewPage({
         </div>
       </div>
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-3">
-        <div className="card card-hover p-5">
+      {engineModes.data?.observed ? (
+        <div className="mb-6">
+          <EngineModesHero
+            data={engineModes.data}
+            aio={data?.aio ?? {
+              queries_measured: 0, queries_with_aio: 0, aio_share_pct: 0,
+              brand_cited_in_aio: 0, source_types: {},
+            }}
+          />
+        </div>
+      ) : (
+        <div className="mb-6 card p-5">
           <p className="eyebrow mb-2.5">Brand visibility</p>
           <div className="flex items-baseline gap-1.5">
             <span className="text-4xl font-semibold leading-none tabular-nums">
@@ -108,23 +124,12 @@ export default async function OverviewPage({
             <span className="text-base text-[var(--text-3)]">/100</span>
           </div>
           <p className="mt-2.5 text-xs text-[var(--text-3)]">
-            {data?.latest ? `Latest measurement · ${data.latest.date}` : "Awaiting first run"}
+            {data?.latest
+              ? `Latest measurement · ${data.latest.date} · per-engine breakdown appears after the next run`
+              : "Awaiting first run"}
           </p>
         </div>
-        <div className="card card-hover p-5">
-          <p className="eyebrow mb-2.5">Share of voice</p>
-          <div className="text-4xl font-semibold leading-none tabular-nums">
-            {data && data.brand_name in data.share_of_voice
-              ? `${data.share_of_voice[data.brand_name]}%`
-              : "—"}
-          </div>
-          <p className="mt-2.5 text-xs text-[var(--text-3)]">Of AI mentions · {sovRangeLabel}</p>
-        </div>
-        <AIOTile aio={data?.aio ?? {
-          queries_measured: 0, queries_with_aio: 0, aio_share_pct: 0,
-          brand_cited_in_aio: 0, source_types: {},
-        }} />
-      </div>
+      )}
 
       {!hasData ? (
         <section className="card p-6">
