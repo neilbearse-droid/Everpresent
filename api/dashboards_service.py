@@ -13,6 +13,7 @@ from api.models import (
     BrandFact,
     BrandProfile,
     Citation,
+    Competitor,
     ConsultedSource,
     Intervention,
     Mention,
@@ -719,6 +720,110 @@ def fanout_report(session: Session, tenant_id: int) -> dict:
         "brand_name": _brand_name(session, tenant_id),
         "prompts": prompts,
         "observed": bool(prompts),
+    }
+
+
+def _names_present(text_low: str, tokens: set[str]) -> bool:
+    """Whitespace-delimited containment — a token counts only as a standalone
+    word (so 'wix' doesn't fire inside 'wixel'). Cheap and honest for the
+    indicative shard-text signal."""
+    padded = f" {text_low} "
+    return any(f" {t} " in padded for t in tokens if t)
+
+
+def fanout_scorecard(
+    session: Session, tenant_id: int, start: str | None = None, end: str | None = None
+) -> dict:
+    """Fan-out MAP (§AEO-plan M25a, free tier): per priority prompt, the shards
+    the engines actually issued, which engines issued each, and honest indicative
+    signals derived from the shard TEXT (does the shard name the brand / a
+    competitor). Prompt-level presence ('did you appear in the final answer') is
+    real, from mentions; per-shard *presence* is deliberately NOT claimed here —
+    that needs the re-probe phase (M25b). Competitive scope; branded probes live
+    in the Brand layer. Pure reads, no spend."""
+    lo, hi = _date_window(start, end)
+    search = _latest_results_by_variant(
+        session, tenant_id, ResultVariant.search, lo, hi, scope="competitive"
+    )
+
+    brand_name = _brand_name(session, tenant_id)
+    bp = session.exec(
+        select(BrandProfile).where(BrandProfile.tenant_id == tenant_id)
+    ).first()
+    brand_tokens = {t.lower() for t in ([brand_name] + (bp.aliases if bp else [])) if t}
+    comp_tokens = {
+        c.name: {c.name.lower(), *(a.lower() for a in c.aliases)}
+        for c in session.exec(
+            select(Competitor).where(Competitor.tenant_id == tenant_id)
+        ).all()
+    }
+
+    # Prompt-level brand presence, from mentions on the search results.
+    ids = [r.id for r in search.values() if r.id is not None]
+    brand_ids: set[int] = set()
+    if ids:
+        for m in session.exec(
+            select(Mention).where(
+                Mention.result_id.in_(ids),  # pyright: ignore[reportAttributeAccessIssue]
+                Mention.entity_type == "brand",
+            )
+        ).all():
+            brand_ids.add(m.result_id)
+
+    # Assemble per prompt: shard -> issuing engines; reach per engine; presence.
+    per_prompt: dict[str, dict] = {}
+    for (qtext, surface), r in search.items():
+        p = per_prompt.setdefault(
+            qtext,
+            {"shards": {}, "reach": defaultdict(int), "brand_in_answer": False},
+        )
+        if r.id in brand_ids:
+            p["brand_in_answer"] = True
+        label = _surface_label(surface)
+        for sub in r.fanout_queries or []:
+            s = str(sub).strip()
+            low = s.lower()
+            if not s or low == qtext.lower():
+                continue
+            entry = p["shards"].setdefault(low, {"text": s, "engines": set()})
+            if label not in entry["engines"]:
+                entry["engines"].add(label)
+                p["reach"][label] += 1
+
+    prompts = []
+    for qtext, p in per_prompt.items():
+        shards = []
+        contested = 0
+        for entry in p["shards"].values():
+            low = entry["text"].lower()
+            names_comp = sorted(
+                name for name, toks in comp_tokens.items() if _names_present(low, toks)
+            )
+            if names_comp:
+                contested += 1
+            shards.append({
+                "text": entry["text"],
+                "engines": sorted(entry["engines"]),
+                "names_brand": _names_present(low, brand_tokens),
+                "names_competitors": names_comp,
+            })
+        shards.sort(key=lambda s: (-len(s["engines"]), s["text"].lower()))
+        prompts.append({
+            "query": qtext,
+            "shards_total": len(shards),
+            "engines_count": len(p["reach"]),
+            "reach_by_engine": dict(sorted(p["reach"].items())),
+            "brand_in_answer": p["brand_in_answer"],
+            "contested": contested,
+            "shards": shards,
+        })
+    prompts.sort(key=lambda x: -x["shards_total"])
+
+    return {
+        "brand_name": brand_name,
+        "prompts": prompts,
+        "observed": bool(prompts),
+        "branded_excluded": True,
     }
 
 

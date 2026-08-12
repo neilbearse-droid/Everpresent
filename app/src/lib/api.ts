@@ -217,6 +217,28 @@ export type EngineModesPayload = {
   observed: boolean;
 };
 
+export type FanoutShard = {
+  text: string;
+  engines: string[];
+  names_brand: boolean;
+  names_competitors: string[];
+};
+
+export type FanoutScorecardPayload = {
+  brand_name: string;
+  observed: boolean;
+  branded_excluded: boolean;
+  prompts: {
+    query: string;
+    shards_total: number;
+    engines_count: number;
+    reach_by_engine: Record<string, number>;
+    brand_in_answer: boolean;
+    contested: number;
+    shards: FanoutShard[];
+  }[];
+};
+
 export type CitationsPayload = {
   domains: { domain: string; category: string; count: number; surfaces: string[] }[];
   power_pages: {

@@ -21,26 +21,34 @@ It's the strongest moat on the roadmap.
 
 ## 2. The hard part — per-shard presence
 
-Three options; we ship **C**.
+**Reality check (verified against the adapters).** We capture the shard *query
+strings* (`Result.fanout_queries`, from Gemini's `webSearchQueries` and OpenAI's
+fan-out) and the answer's citations/grounding — but grounding is attached at the
+**answer level, not per shard**. No engine returns a clean "shard → its own
+result/sources" mapping (`engine/retrievers/gemini_api.py`). So there is **no
+free path to honest per-shard presence**: knowing a brand is cited *somewhere in
+the answer* does not tell you it won *this shard*.
 
-- **A — Attribute from the parent answer (rejected).** Map the parent prompt's
-  citations/mentions onto shards heuristically. Cheap but the attribution is
-  fuzzy; we can't honestly claim "absent from *this* shard." This is exactly the
-  hand-wave the market critique is about.
+Consequence: the truthful per-shard scorecard is fundamentally a **re-probe**
+feature. The three options:
+
+- **A — Attribute answer-level citations onto shards (indicative only).** Map the
+  parent answer's citations/mentions onto shards by topical overlap. Free, but
+  fuzzy — must be labeled "indicative, not per-shard verified." Good enough to
+  render the *map*, not to claim presence.
 - **B — Re-probe every shard (rejected as default).** Run each shard as its own
   query, measure presence directly. True, but multiplies query volume by the
   fan-out factor (an 18-shard prompt = 18× the calls). Uncapped, that's a spend
   problem.
-- **C — Hybrid, cost-bounded (ship).**
-  1. **Harvest grounded presence** wherever the engine already exposes per-search
-     results/sources (Gemini frequently attaches grounding per search step; the
-     `google_aio` and `gemini_web` surfaces expose consulted sources). Free —
-     we're already parsing that surface.
-  2. **Re-probe only the top-K highest-value shards** for engines that don't
-     ground, where K is plan-gated. "Highest-value" = the same `reach × loss`
-     rank the UI shows: issued by ≥2 engines AND a competitor likely present AND
-     brand not already confirmed present. Spend goes exactly where a HIGH-priority
-     miss might live.
+- **C — Hybrid, cost-bounded (ship).** Render the shard map + indicative
+  attribution for free (option A), and **re-probe only the top-K highest-value
+  shards** to get honest presence where it matters. "Highest-value" = the same
+  `reach × loss` rank the UI shows: issued by ≥2 engines AND a competitor likely
+  present AND brand not already confirmed present. Spend goes exactly where a
+  HIGH-priority miss might live.
+
+This reshapes the rollout (§9): the free phase ships the **map**, not presence;
+honest presence arrives only with the re-probe phase.
 
 ## 3. Data model (migration M25)
 
@@ -149,11 +157,16 @@ Sort HIGH → MED → LOW, then by reach desc. HIGH misses are the content workl
 
 ## 9. Rollout (phased)
 
-- **M25a — grounded-only.** Schema + pipeline harvest of grounded presence +
-  read API + UI tab. Ships value with zero extra spend. Ranking + honesty rails.
-- **M25b — bounded re-probe.** `ResultVariant.shard`, plan-gated K, spend-cap
-  integration, `fanout_reprobe_enabled` admin toggle, coupling test that `shard`
-  never enters competitive aggregations.
+- **M25a — shard map (free, no spend).** Extend `fanout_report` into a scorecard
+  read (reach-by-engine, shard list, present/absent counts via *indicative*
+  answer-level attribution) + nav tab + page. Honest labeling: this ships the
+  **map**, not verified per-shard presence — every attributed cell is marked
+  indicative. No schema, no `FanoutShard`, no re-probe.
+- **M25b — bounded re-probe (honest presence).** Schema (`FanoutShard`, M25) +
+  `ResultVariant.shard`, pipeline harvest + plan-gated re-probe of top-K,
+  spend-cap integration, `fanout_reprobe_enabled` admin toggle, coupling test
+  that `shard` never enters competitive aggregations. This is where true
+  per-shard presence + `reach × loss` priority arrive.
 - **M25c — close the loop.** "Generate corrective brief" per HIGH miss (reuse
   `content_service`), and trend deltas on the scorecard.
 
