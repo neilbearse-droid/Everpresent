@@ -22,11 +22,11 @@ export default async function PersonasPage({
   const data = personas.data;
 
   return (
-    <main className="mx-auto max-w-6xl px-8 py-10">
+    <main className="mx-auto max-w-[1400px] px-6 pb-16">
       <DashNav active="Personas" isSuperadmin={me.data?.is_superadmin} withDateRange />
 
       {!data || data.segments.length === 0 ? (
-        <section className="card p-6">
+        <section className="card p-4">
           <h2 className="mb-2 text-lg font-medium">No persona data yet</h2>
           <p className="text-sm text-[var(--text-2)]">
             Per-segment visibility appears after the first completed run.
@@ -35,7 +35,7 @@ export default async function PersonasPage({
         </section>
       ) : (
         <>
-          <section className="mb-6 card p-6">
+          <section className="mb-6 card p-4">
             <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">
               Brand visibility by persona segment · {data.date}
             </h2>
@@ -49,7 +49,7 @@ export default async function PersonasPage({
             />
           </section>
 
-          <section className="card p-6">
+          <section className="card p-4">
             <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">
               Segment detail
             </h2>

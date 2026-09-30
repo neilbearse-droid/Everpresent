@@ -20,7 +20,7 @@ function ClassificationChip({
     >
       <span
         className="inline-block h-2.5 w-2.5 rounded-full"
-        style={{ background: LIKELIHOOD_COLORS[bucket] ?? "#a1a1aa" }}
+        style={{ background: LIKELIHOOD_COLORS[bucket] ?? "#9a9a92" }}
       />
       {LIKELIHOOD_LABELS[bucket] ?? bucket}
     </span>
@@ -74,10 +74,10 @@ export default async function QueriesPage({
   const queries = intel.data?.queries ?? [];
 
   return (
-    <main className="mx-auto max-w-6xl px-8 py-10">
+    <main className="mx-auto max-w-[1400px] px-6 pb-16">
       <DashNav active="Queries" isSuperadmin={me.data?.is_superadmin} withDateRange />
 
-      <section className="card p-6">
+      <section className="card p-4">
         <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
           Query corpus · web-search likelihood · latest answers per surface and mode
         </h2>

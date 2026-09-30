@@ -60,7 +60,7 @@ export function DateRange() {
           setDraftTo(to);
           setOpen(!open);
         }}
-        className="flex items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-xs font-medium text-[var(--text-2)] transition-colors hover:border-[var(--border-strong)] hover:text-[var(--text)]"
+        className="btn btn-ghost gap-2 px-2.5 py-1 text-[11px]"
         aria-expanded={open}
       >
         <svg
@@ -69,11 +69,11 @@ export function DateRange() {
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          strokeWidth="1.7"
-          strokeLinecap="round"
+          strokeWidth="2.5"
+          strokeLinecap="square"
           aria-hidden
         >
-          <rect x="3" y="5" width="18" height="16" rx="2" />
+          <rect x="3" y="5" width="18" height="16" />
           <path d="M8 3v4M16 3v4M3 10h18" />
         </svg>
         {label}
@@ -89,7 +89,7 @@ export function DateRange() {
             className="fixed inset-0 z-40 cursor-default"
             onClick={() => setOpen(false)}
           />
-          <div className="card absolute right-0 z-50 mt-2 w-64 p-3 shadow-lg">
+          <div className="card absolute right-0 z-50 mt-3 w-64 p-3">
             <div className="mb-2 flex flex-col gap-0.5">
               {PRESETS.map((p) => {
                 const r = presetRange(p.days);
@@ -98,10 +98,10 @@ export function DateRange() {
                   <button
                     key={p.label}
                     onClick={() => apply(r.from, r.to)}
-                    className={`rounded-md px-2 py-1.5 text-left text-xs transition-colors ${
+                    className={`border-2 border-transparent px-2 py-1.5 text-left font-mono text-[11px] font-bold uppercase ${
                       active
-                        ? "bg-[var(--accent-soft)] font-medium text-[var(--accent)]"
-                        : "text-[var(--text-2)] hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)]"
+                        ? "border-[var(--line)] bg-[var(--accent)] text-[var(--accent-ink)]"
+                        : "text-[var(--text)] hover:border-[var(--line)]"
                     }`}
                   >
                     {p.label}
@@ -110,10 +110,10 @@ export function DateRange() {
               })}
               <button
                 onClick={() => apply("", "")}
-                className={`rounded-md px-2 py-1.5 text-left text-xs transition-colors ${
+                className={`border-2 border-transparent px-2 py-1.5 text-left font-mono text-[11px] font-bold uppercase ${
                   !from && !to
-                    ? "bg-[var(--accent-soft)] font-medium text-[var(--accent)]"
-                    : "text-[var(--text-2)] hover:bg-[color-mix(in_srgb,var(--text)_6%,transparent)]"
+                    ? "border-[var(--line)] bg-[var(--accent)] text-[var(--accent-ink)]"
+                    : "text-[var(--text)] hover:border-[var(--line)]"
                 }`}
               >
                 All time

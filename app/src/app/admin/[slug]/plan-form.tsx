@@ -36,7 +36,7 @@ export function PlanForm({
               key={key}
               className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 text-sm transition-colors ${
                 on
-                  ? "border-[var(--accent)] bg-[var(--accent-soft)]"
+                  ? "border-[var(--line)] bg-[var(--accent)]"
                   : "border-[var(--border)] hover:border-[var(--border-strong)]"
               }`}
             >

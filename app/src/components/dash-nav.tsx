@@ -20,14 +20,15 @@ const TABS: { href: string; label: string }[] = [
   { href: "/dashboard/runs", label: "Runs" },
 ];
 
-export function Wordmark() {
+export function Wordmark({ inverted = false }: { inverted?: boolean }) {
   return (
-    <span className="flex items-center gap-2">
-      <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden>
-        <rect x="0" y="0" width="18" height="18" rx="3" fill="var(--ink)" />
-        <circle cx="9" cy="9" r="3.25" fill="var(--ink-text)" />
-      </svg>
-      <span className="text-[15px] font-semibold tracking-[-0.015em] text-[var(--text)]">
+    <span className="flex items-center gap-2.5">
+      <span className="block h-4 w-4 bg-[var(--accent)] outline-2 outline-offset-0 outline-[var(--line)]" aria-hidden />
+      <span
+        className={`font-mono text-[15px] font-extrabold uppercase tracking-[0.04em] ${
+          inverted ? "text-[var(--bar-text)]" : "text-[var(--text)]"
+        }`}
+      >
         EverPresent
       </span>
     </span>
@@ -47,18 +48,15 @@ export function DashNav({
   withDateRange?: boolean;
 }): ReactNode {
   return (
-    <header className="sticky top-0 z-30 -mx-8 mb-10 border-b border-[var(--border)] bg-[var(--plane)] px-8">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between">
+    <header className="bp-bleed sticky top-0 z-30 mb-6">
+      <div className="flex h-12 items-center justify-between bg-[var(--bar)] px-6">
         <Link href="/dashboard">
-          <Wordmark />
+          <Wordmark inverted />
         </Link>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 font-mono text-[12px] uppercase text-[var(--bar-text)]">
           {isSuperadmin && (
-            <Link
-              href="/admin"
-              className="text-[13px] text-[var(--text-2)] hover:text-[var(--text)]"
-            >
-              Admin
+            <Link href="/admin" className="hover:text-[var(--accent)]">
+              [Admin]
             </Link>
           )}
           <ThemeToggle />
@@ -66,7 +64,7 @@ export function DashNav({
           <UserButton />
         </div>
       </div>
-      <nav className="mx-auto -mb-px flex max-w-6xl items-end gap-6 overflow-x-auto">
+      <nav className="flex items-stretch overflow-x-auto border-b-2 border-[var(--line)] bg-[var(--surface)]">
         {TABS.map((tab) => {
           const on = active === tab.label;
           return (
@@ -74,10 +72,10 @@ export function DashNav({
               key={tab.href}
               href={tab.href}
               aria-current={on ? "page" : undefined}
-              className={`shrink-0 border-b-2 pb-2.5 pt-1 text-[13px] transition-colors ${
+              className={`shrink-0 border-r-2 border-[var(--line)] px-3.5 py-2.5 font-mono text-[11.5px] font-bold uppercase tracking-[0.03em] ${
                 on
-                  ? "border-[var(--ink)] font-medium text-[var(--text)]"
-                  : "border-transparent text-[var(--text-2)] hover:text-[var(--text)]"
+                  ? "bg-[var(--accent)] text-[var(--accent-ink)]"
+                  : "text-[var(--text)] hover:bg-[var(--line)] hover:text-[var(--surface)]"
               }`}
             >
               {tab.label}
@@ -85,7 +83,7 @@ export function DashNav({
           );
         })}
         {withDateRange && (
-          <div className="ml-auto shrink-0 pb-2 pl-4">
+          <div className="ml-auto flex shrink-0 items-center border-l-2 border-[var(--line)] px-3">
             <Suspense>
               <DateRange />
             </Suspense>

@@ -35,7 +35,7 @@ export default async function FanoutPage({
   const data = report.data;
 
   return (
-    <main className="mx-auto max-w-6xl px-8 py-10">
+    <main className="mx-auto max-w-[1400px] px-6 pb-16">
       <DashNav active="Fan-out" isSuperadmin={me.data?.is_superadmin} withDateRange />
 
       <div className="mb-5">
@@ -74,7 +74,7 @@ export default async function FanoutPage({
       </div>
 
       {!data?.observed ? (
-        <section className="card p-6">
+        <section className="card p-4">
           <h2 className="mb-2 text-lg font-medium">No fan-out captured yet</h2>
           <p className="text-sm text-[var(--text-2)]">
             Fan-out shows up where an engine exposes the sub-queries it issued (Gemini always;
@@ -85,7 +85,7 @@ export default async function FanoutPage({
       ) : (
         <div className="space-y-4">
           {data.prompts.map((p) => (
-            <section key={p.query} className="card p-5">
+            <section key={p.query} className="card p-4">
               <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <h2 className="text-[15px] font-medium text-[var(--text)]">{p.query}</h2>
@@ -129,8 +129,8 @@ export default async function FanoutPage({
                     className="mt-1.5 inline-flex items-center gap-1 rounded-[4px] px-2 py-0.5 text-[10.5px] font-semibold"
                     style={
                       p.brand_in_answer
-                        ? { background: "rgba(20,122,74,.12)", color: "var(--pos)" }
-                        : { background: "rgba(192,42,34,.1)", color: "var(--neg)" }
+                        ? { background: "var(--surface)", color: "var(--text)", border: "1.5px solid var(--line)" }
+                        : { background: "var(--accent)", color: "var(--accent-ink)", border: "1.5px solid var(--line)" }
                     }
                   >
                     {p.brand_in_answer ? "✓ in final answer" : "✗ not in final answer"}
@@ -157,7 +157,7 @@ export default async function FanoutPage({
                         className="border-t border-[var(--border)] align-top"
                         style={
                           s.priority === "high"
-                            ? { background: "color-mix(in srgb, var(--neg) 3%, transparent)" }
+                            ? { background: "var(--hatch)" }
                             : undefined
                         }
                       >
@@ -187,7 +187,7 @@ export default async function FanoutPage({
                             {s.names_brand && (
                               <span
                                 className="rounded-[4px] px-2 py-0.5 text-[10.5px] font-semibold"
-                                style={{ background: "var(--accent-soft)", color: "var(--accent)" }}
+                                style={{ background: "var(--accent)", color: "var(--accent-ink)", border: "1.5px solid var(--line)" }}
                               >
                                 you
                               </span>
@@ -236,8 +236,8 @@ export default async function FanoutPage({
                               className="rounded-[4px] px-2 py-0.5 text-[10.5px] font-semibold"
                               style={
                                 s.priority === "high"
-                                  ? { background: "rgba(192,42,34,.1)", color: "var(--neg)" }
-                                  : { background: "var(--surface-2)", color: "var(--text-2)" }
+                                  ? { background: "var(--accent)", color: "var(--accent-ink)", border: "1.5px solid var(--line)" }
+                                  : { background: "var(--surface)", color: "var(--text)", border: "1.5px solid var(--line)" }
                               }
                             >
                               {s.priority}

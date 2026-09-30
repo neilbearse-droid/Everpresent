@@ -6,7 +6,7 @@ import { surfaceLabel } from "@/lib/viz";
 
 const CATEGORY_STYLES: Record<string, string> = {
   brand: "bg-[var(--accent)] text-[var(--accent-ink)]",
-  competitor: "bg-[var(--warn)] text-white",
+  competitor: "bg-[var(--line)] text-[var(--surface)]",
   other: "bg-[var(--surface-2)] text-[var(--text)]",
 };
 
@@ -28,7 +28,7 @@ export default async function CitationsPage({
   const data = payload.data;
 
   return (
-    <main className="mx-auto max-w-6xl px-8 py-10">
+    <main className="mx-auto max-w-[1400px] px-6 pb-16">
       <DashNav active="Citations" isSuperadmin={me.data?.is_superadmin} withDateRange />
 
       {!data ? (
@@ -36,8 +36,8 @@ export default async function CitationsPage({
       ) : (
         <>
           <div className="mb-6 grid gap-4 sm:grid-cols-2">
-            <AIOTile aio={data.aio} />
-            <div className="card p-5">
+            <AIOTile aio={data.aio} bare={false} />
+            <div className="card p-4">
               <div className="text-3xl font-semibold tabular-nums">
                 {data.domains.filter((d) => d.category === "brand").length > 0 ? "Yes" : "No"}
               </div>
@@ -48,7 +48,7 @@ export default async function CitationsPage({
           </div>
 
           {(data.power_pages ?? []).length > 0 && (
-            <section className="card mb-6 p-6">
+            <section className="card mb-6 p-4">
               <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
                 Most-cited pages in your category
               </h2>
@@ -140,7 +140,7 @@ export default async function CitationsPage({
           )}
 
           {Object.keys(data.source_types_by_engine ?? {}).length > 0 && (
-            <section className="card mb-6 p-6">
+            <section className="card mb-6 p-4">
               <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
                 Source types cited, by engine
               </h2>
@@ -173,7 +173,7 @@ export default async function CitationsPage({
           )}
 
           {(data.consulted_domains ?? []).length > 0 && (
-            <section className="card mb-6 p-6">
+            <section className="card mb-6 p-4">
               <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
                 Consulted but not cited
               </h2>
@@ -193,7 +193,7 @@ export default async function CitationsPage({
             </section>
           )}
 
-          <section className="card p-6">
+          <section className="card p-4">
             <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
               Domains AI answers cite in this vertical
             </h2>

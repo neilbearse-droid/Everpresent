@@ -8,10 +8,10 @@ import {
   type TenantSummary,
 } from "@/lib/api";
 import { DashNav } from "@/components/dash-nav";
-import { EngineModesHero } from "@/components/engine-modes";
+import { EngineStrip, ModeStack } from "@/components/engine-modes";
 import { NoOrgNotice } from "@/components/no-org-notice";
 import { TrendChart, HBars } from "@/components/charts";
-import { DELTA_DOWN, DELTA_UP, entityColors } from "@/lib/viz";
+import { entityColors } from "@/lib/viz";
 
 export default async function OverviewPage({
   searchParams,
@@ -58,7 +58,7 @@ export default async function OverviewPage({
         .map(([label, value]) => ({
           label,
           value,
-          color: colors.get(label) ?? "#a1a1aa",
+          color: colors.get(label) ?? "#9a9a92",
         }))
     : [];
 
@@ -76,120 +76,160 @@ export default async function OverviewPage({
           ? `through ${to}`
           : "last 30 days";
 
+  const modes = engineModes.data;
+  const aio = data?.aio ?? {
+    queries_measured: 0, queries_with_aio: 0, aio_share_pct: 0,
+    brand_cited_in_aio: 0, source_types: {},
+  };
+  const composite = modes?.composite ?? null;
+
   return (
-    <main className="mx-auto max-w-6xl px-8 py-10">
+    <main className="mx-auto max-w-[1400px] px-6 pb-16">
       <DashNav active="Overview" isSuperadmin={me.data?.is_superadmin} withDateRange />
 
-      <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="eyebrow mb-1.5">How each engine answers your category</p>
-          <h1 className="text-[26px] font-semibold tracking-tight">
-            {data?.brand_name ?? tenant.data.name}
-          </h1>
-          <p className="mt-1 max-w-xl text-[13px] text-[var(--text-2)]">
+      {/* Header block: title cell + export cells. */}
+      <section className="blueprint mb-6 grid-cols-1 md:grid-cols-[1fr_auto]">
+        <div className="p-5">
+          <div className="bp-label mb-2">Overview / engine behaviour in your category</div>
+          <h1 className="bp-display">{data?.brand_name ?? tenant.data.name}</h1>
+          <p className="mt-3 max-w-2xl text-[13px] leading-relaxed text-[var(--text-2)]">
             Each engine builds its answers differently, so each needs a different approach. This
             shows how each one works in your category and where you stand.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2 text-[13px]">
-          <a href="/dashboard/reports/summary.pdf" className="btn btn-ghost px-3 py-1.5">
-            Summary PDF
-          </a>
-          <a href="/dashboard/reports/results.csv" className="btn btn-ghost px-3 py-1.5">
-            Results CSV
-          </a>
-          <a href="/dashboard/reports/visibility.csv" className="btn btn-ghost px-3 py-1.5">
-            Visibility CSV
-          </a>
+        <div className="bp-stack grid-rows-3">
+          {[
+            ["Summary", "PDF", "/dashboard/reports/summary.pdf"],
+            ["Results", "CSV", "/dashboard/reports/results.csv"],
+            ["Visibility", "CSV", "/dashboard/reports/visibility.csv"],
+          ].map(([label, fmt, href]) => (
+            <a
+              key={href}
+              href={href}
+              className="bp-cell-link flex items-center justify-between gap-6 px-4"
+            >
+              <span className="bp-label text-[var(--text)]">{label}</span>
+              <span className="bp-label">{fmt} ↓</span>
+            </a>
+          ))}
         </div>
-      </div>
+      </section>
 
-      {engineModes.data?.observed ? (
-        <div className="mb-6">
-          <EngineModesHero
-            data={engineModes.data}
-            aio={data?.aio ?? {
-              queries_measured: 0, queries_with_aio: 0, aio_share_pct: 0,
-              brand_cited_in_aio: 0, source_types: {},
-            }}
-          />
-        </div>
-      ) : (
-        <div className="mb-6 card p-5">
-          <p className="eyebrow mb-2.5">Brand visibility</p>
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-4xl font-semibold leading-none tabular-nums">
-              {data?.latest ? data.latest.brand_score : "—"}
-            </span>
-            <span className="text-base text-[var(--text-3)]">/100</span>
+      {/* Status bar: the numbers you read first. */}
+      <section className="blueprint mb-6 grid-cols-2 md:grid-cols-4">
+        <div className="p-3">
+          <div className="bp-label">Composite visibility</div>
+          <div className="bp-metric bp-critical mt-1 text-[40px]">
+            {composite?.score ?? data?.latest?.brand_score ?? "N/A"}
           </div>
-          <p className="mt-2.5 text-xs text-[var(--text-3)]">
-            {data?.latest
-              ? `Latest measurement · ${data.latest.date} · per-engine breakdown appears after the next run`
-              : "Awaiting first run"}
-          </p>
         </div>
+        <div className="p-3">
+          <div className="bp-label">Last measured</div>
+          <div className="bp-metric mt-1 text-[22px]">
+            {composite?.date ?? data?.latest?.date ?? "Awaiting first run"}
+          </div>
+        </div>
+        <div className="p-3">
+          <div className="bp-label">Engines measured</div>
+          <div className="bp-metric mt-1 text-[22px]">{modes?.engines.length ?? 0}</div>
+        </div>
+        <div className="p-3">
+          <div className="bp-label">Share-of-voice window</div>
+          <div className="bp-metric mt-1 text-[22px]">{sovRangeLabel}</div>
+        </div>
+      </section>
+
+      {modes?.observed && (
+        <section className="mb-6">
+          <EngineStrip data={modes} />
+        </section>
       )}
 
       {!hasData ? (
-        <section className="card p-6">
-          <h2 className="mb-2 text-lg font-medium">No measurement data yet</h2>
-          <p className="text-sm text-[var(--text-2)]">
-            Visibility appears here after the first completed run.{" "}
-            <Link href="/dashboard/runs" className="text-[var(--accent)] hover:underline">
-              See runs →
-            </Link>
-          </p>
+        <section className="blueprint">
+          <div className="p-5">
+            <h2 className="bp-head mb-2 text-[16px]">No measurement data yet</h2>
+            <p className="text-sm text-[var(--text-2)]">
+              Visibility appears here after the first completed run.{" "}
+              <Link href="/dashboard/runs" className="bp-link">
+                See runs →
+              </Link>
+            </p>
+          </div>
         </section>
       ) : (
         <>
-          <section className="mb-6 card p-6">
-            <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">
-              Visibility trend
-            </h2>
-            <TrendChart data={trendRows} series={trendSeries} />
+          {/* Asymmetric row: trend (8) + mode stack (4). */}
+          <section className="blueprint mb-6 grid-cols-1 lg:grid-cols-12">
+            <div className="lg:col-span-8">
+              <div className="bp-bar">
+                <span>Visibility trend</span>
+                <span>Score 0–100</span>
+              </div>
+              <div className="p-4">
+                <TrendChart data={trendRows} series={trendSeries} />
+              </div>
+            </div>
+            <div className="bp-stack lg:col-span-4">
+              {modes?.observed ? (
+                <ModeStack data={modes} aio={aio} />
+              ) : (
+                <div className="p-3 text-sm text-[var(--text-2)]">
+                  Per-engine breakdown appears after the next run.
+                </div>
+              )}
+            </div>
           </section>
 
-          <div className="grid gap-6 lg:grid-cols-2">
-            <section className="card p-6">
-              <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">
-                Share of voice ({sovRangeLabel})
-              </h2>
-              <HBars items={sovItems} max={Math.max(...sovItems.map((s) => s.value), 1)} unit="%" />
-            </section>
-
-            <section className="card p-6">
-              <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">
-                Biggest movers since previous measurement day
-              </h2>
+          {/* Asymmetric row: share of voice (7) + movers table (5). */}
+          <section className="blueprint grid-cols-1 lg:grid-cols-12">
+            <div className="lg:col-span-7">
+              <div className="bp-bar">
+                <span>Share of voice</span>
+                <span>{sovRangeLabel}</span>
+              </div>
+              <div className="p-4">
+                <HBars items={sovItems} max={Math.max(...sovItems.map((s) => s.value), 1)} unit="%" />
+              </div>
+            </div>
+            <div className="lg:col-span-5">
+              <div className="bp-bar">
+                <span>Biggest movers</span>
+                <span>vs previous day</span>
+              </div>
               {data!.movers.length === 0 ? (
-                <p className="text-sm text-[var(--text-3)]">
+                <p className="p-4 text-sm text-[var(--text-2)]">
                   Available after a second day of measurement.
                 </p>
               ) : (
-                <ul className="space-y-2">
-                  {data!.movers.map((mover) => (
-                    <li
-                      key={mover.label}
-                      className="flex items-center justify-between text-sm"
-                    >
-                      <span className="text-[var(--text-2)]">{mover.label}</span>
-                      <span
-                        className="tabular-nums"
-                        style={{ color: mover.delta >= 0 ? DELTA_UP : DELTA_DOWN }}
-                      >
-                        {mover.delta >= 0 ? "▲" : "▼"} {mover.delta >= 0 ? "+" : ""}
-                        {mover.delta}
-                        <span className="ml-2 text-xs text-[var(--text-3)]">
-                          {mover.before} → {mover.after}
-                        </span>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+                <table className="bp-table w-full">
+                  <thead>
+                    <tr>
+                      <th>Entity</th>
+                      <th className="text-right">Δ</th>
+                      <th className="text-right">Before</th>
+                      <th className="text-right">After</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data!.movers.map((mover) => (
+                      <tr key={mover.label}>
+                        <td>{mover.label}</td>
+                        <td
+                          className={`text-right font-mono font-bold ${mover.delta < 0 ? "bp-alert" : ""}`}
+                        >
+                          {mover.delta >= 0 ? "▲ +" : "▼ "}
+                          {mover.delta}
+                        </td>
+                        <td className="text-right font-mono">{mover.before}</td>
+                        <td className="text-right font-mono">{mover.after}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               )}
-            </section>
-          </div>
+            </div>
+          </section>
         </>
       )}
     </main>

@@ -1,17 +1,20 @@
-// Categorical palette — deep, low-chroma hues that read as print-quality on
-// white. The brand always takes the blue; competitors take the rest in
-// alphabetical order. Slot order is fixed — never reorder or cycle.
+// Series palette — Blueprint. The brand is the ONE accent; competitors are
+// black and greys, separated by dash pattern (SERIES_DASHES) rather than hue.
+// Slot order is fixed — never reorder or cycle.
 export const SERIES_COLORS = [
-  "#1d4ed8", // 1 blue — always the brand (matches --accent)
-  "#0f766e", // 2 teal
-  "#b45309", // 3 ochre
-  "#6d28d9", // 4 violet
-  "#be123c", // 5 crimson
-  "#475569", // 6 slate
+  "#ff5a1f", // 1 accent — always the brand
+  "#0d0d0d", // 2
+  "#0d0d0d", // 3
+  "#5c5c56", // 4
+  "#5c5c56", // 5
+  "#9a9a92", // 6
 ] as const;
 
-export const DELTA_UP = "#0f7a45";
-export const DELTA_DOWN = "#c62a22";
+// strokeDasharray per slot, aligned with SERIES_COLORS.
+export const SERIES_DASHES = ["", "", "6 3", "", "2 3", "8 3 2 3"] as const;
+
+export const DELTA_UP = "#0d0d0d";
+export const DELTA_DOWN = "#b93800";
 
 /** Stable entity→color map: brand takes slot 1, competitors take the
  * remaining slots in alphabetical order — color follows the entity, never its
@@ -55,11 +58,11 @@ export const LIKELIHOOD_LABELS: Record<string, string> = {
   unlikely: "unlikely",
 };
 
-// Ordinal blue steps for the web-search-likelihood chips — magnitude of one
+// Ordinal grey steps for the web-search-likelihood chips — magnitude of one
 // concept, so one hue stepped, not four hues. Harmonised with --accent.
 export const LIKELIHOOD_COLORS: Record<string, string> = {
-  very_likely: "#1d4ed8",
-  likely: "#3b63c9",
-  possible: "#6b7fb3",
-  unlikely: "#94a0bd",
+  very_likely: "#0d0d0d",
+  likely: "#3b3b37",
+  possible: "#6b6b64",
+  unlikely: "#9a9a92",
 };

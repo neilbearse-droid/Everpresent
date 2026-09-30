@@ -14,7 +14,7 @@ const STABILITY_STYLE: Record<string, string> = {
 
 function Tile({ value, label, sub }: { value: string; label: string; sub?: string }) {
   return (
-    <div className="card p-5">
+    <div className="card p-4">
       <div className="text-3xl font-semibold tabular-nums">{value}</div>
       <div className="mt-1 text-sm text-[var(--text-2)]">{label}</div>
       {sub && <div className="text-xs text-[var(--text-3)]">{sub}</div>}
@@ -39,9 +39,9 @@ export default async function ScorecardPage({
   const d = sc.data;
   if (!d || d.prominence.measured === 0) {
     return (
-      <main className="mx-auto max-w-6xl px-8 py-10">
+      <main className="mx-auto max-w-[1400px] px-6 pb-16">
         <DashNav active="Scorecard" isSuperadmin={me.data?.is_superadmin} withDateRange />
-        <section className="card p-6">
+        <section className="card p-4">
           <h2 className="mb-2 text-lg font-medium">No scorecard yet</h2>
           <p className="text-sm text-[var(--text-2)]">
             The KPI scorecard appears after a completed run.
@@ -55,18 +55,18 @@ export default async function ScorecardPage({
   const shareItems = d.share_breakdown.map((s) => ({
     label: s.name,
     value: s.share,
-    color: colors.get(s.name) ?? "#a1a1aa",
+    color: colors.get(s.name) ?? "#9a9a92",
   }));
   const pd = d.prominence.position_distribution;
   const maxRate = Math.max(...d.stability.series.map((s) => s.presence_rate), 1);
 
   return (
-    <main className="mx-auto max-w-6xl px-8 py-10">
+    <main className="mx-auto max-w-[1400px] px-6 pb-16">
       <DashNav active="Scorecard" isSuperadmin={me.data?.is_superadmin} withDateRange />
 
       {/* North-star */}
-      <section className="card mb-6 p-6">
-        <div className="flex flex-wrap items-end justify-between gap-10">
+      <section className="card mb-6 p-4">
+        <div className="flex flex-wrap items-start justify-between gap-10">
           <div>
             <p className="eyebrow mb-2">Answer share · {d.brand_name}</p>
             <div className="flex items-baseline gap-2">
@@ -101,7 +101,7 @@ export default async function ScorecardPage({
           value={d.prominence.avg_rank === null ? "—" : `#${d.prominence.avg_rank}`}
           label="Average position when named"
         />
-        <div className="card p-5">
+        <div className="card p-4">
           <div className={`text-3xl font-semibold ${STABILITY_STYLE[d.stability.label] ?? ""}`}>
             {d.stability.label}
           </div>
@@ -113,7 +113,7 @@ export default async function ScorecardPage({
       </div>
 
       {acc.data && acc.data.facts_on_file > 0 && (
-        <section className="card mb-6 p-6">
+        <section className="card mb-6 p-4">
           <div className="mb-1 flex items-center justify-between gap-3">
             <h2 className="text-sm font-medium text-[var(--text-2)]">
               Factual accuracy
@@ -164,15 +164,15 @@ export default async function ScorecardPage({
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Prominence distribution */}
-        <section className="card p-6">
+        <section className="card p-4">
           <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">
             Position when named
           </h2>
           <HBars
             items={[
-              { label: "Leads the answer (1st)", value: pd.leads, color: "#0f7a45" },
-              { label: "Second", value: pd.second, color: "#1d4ed8" },
-              { label: "Third or later", value: pd.third_plus, color: "#a1a1aa" },
+              { label: "Leads the answer (1st)", value: pd.leads, color: "#ff5a1f" },
+              { label: "Second", value: pd.second, color: "#0d0d0d" },
+              { label: "Third or later", value: pd.third_plus, color: "#9a9a92" },
             ]}
             max={Math.max(pd.leads, pd.second, pd.third_plus, 1)}
           />
@@ -183,7 +183,7 @@ export default async function ScorecardPage({
         </section>
 
         {/* Sentiment / framing */}
-        <section className="card p-6">
+        <section className="card p-4">
           <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">
             How you&apos;re described
           </h2>
@@ -209,7 +209,7 @@ export default async function ScorecardPage({
       </div>
 
       {/* Head-to-head */}
-      <section className="mt-6 card p-6">
+      <section className="mt-6 card p-4">
         <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
           Head-to-head
         </h2>
@@ -247,7 +247,7 @@ export default async function ScorecardPage({
       </section>
 
       {d.stability.series.length >= 2 && (
-        <section className="mt-6 card p-6">
+        <section className="mt-6 card p-4">
           <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">
             Presence rate over recent runs (durability)
           </h2>

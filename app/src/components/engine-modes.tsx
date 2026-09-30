@@ -1,41 +1,55 @@
 import { AIOTile } from "@/components/aio-tile";
 import type { AIOSummary, EngineMode, EngineModesPayload } from "@/lib/api";
 
-// Each mode reads in its own colour: retrieve borrows the cobalt accent, recall
-// a distinct violet, mixed a quiet teal. Standing is shown in the currency that
-// fits the mode, so the two are never averaged into a false single number.
-const MODE: Record<EngineMode["mode"], { color: string; soft: string; label: string }> = {
-  retrieve: { color: "var(--accent)", soft: "var(--accent-soft)", label: "Retrieves" },
-  recall: { color: "var(--mode-recall)", soft: "var(--mode-recall-soft)", label: "Recalls" },
-  mixed: { color: "var(--mode-mixed)", soft: "var(--mode-mixed-soft)", label: "Mixed" },
+// Mode codes read like machine states. Colour is not used to tell modes apart:
+// the single accent is reserved for the critical number, so modes are named.
+const MODE_CODE: Record<EngineMode["mode"], string> = {
+  retrieve: "MODE/RETRIEVE",
+  recall: "MODE/RECALL",
+  mixed: "MODE/MIXED",
 };
 
-function EngineCard({ e }: { e: EngineMode }) {
-  const m = MODE[e.mode];
+function EngineCell({ e, index }: { e: EngineMode; index: number }) {
   const whole = Math.round(e.standing_value);
   return (
-    <div className="card p-5">
-      <span className="inline-flex items-center gap-1.5 text-[12px] text-[var(--text-2)]">
-        <span className="h-1.5 w-1.5 rounded-full" style={{ background: m.color }} aria-hidden />
-        {m.label}
-      </span>
-      <h3 className="mt-3 text-[16px]">{e.label}</h3>
-      <p className="mt-1 min-h-[52px] text-xs leading-[1.45] text-[var(--text-2)]">{e.blurb}</p>
-      <div className="mt-4 flex items-baseline justify-between border-t border-[var(--border)] pt-3">
-        <span className="text-[28px] font-semibold tracking-[-0.025em] tabular-nums">
-          {whole}
-          <span className="text-[13px] text-[var(--text-3)]">%</span>
-        </span>
-        <span className="text-[11px] text-[var(--text-3)]">{e.standing_label}</span>
+    <div className="flex flex-col">
+      <div className="bp-label flex justify-between border-b-2 border-[var(--line)] px-3 py-1.5">
+        <span>E{String(index + 1).padStart(2, "0")}</span>
+        <span>{MODE_CODE[e.mode]}</span>
       </div>
-      <p className="mt-2 text-[11.5px] leading-[1.4] text-[var(--text-2)]">
-        <span className="font-semibold text-[var(--text)]">Play:</span> {e.play}
+      <div className="flex flex-1 flex-col p-3">
+        <h3 className="bp-head text-[18px]">{e.label}</h3>
+        <p className="mt-1 text-[12px] leading-snug text-[var(--text-2)]">{e.blurb}</p>
+        <div className="mt-auto flex items-end justify-between gap-2 pt-4">
+          <span className="bp-metric text-[44px]">
+            {whole}
+            <span className="text-[18px]">%</span>
+          </span>
+          <span className="bp-label pb-1.5 text-right">{e.standing_label}</span>
+        </div>
+      </div>
+      <p className="border-t-2 border-[var(--line)] px-3 py-2 text-[11.5px] leading-snug">
+        <span className="bp-label mr-1.5">Play</span>
+        {e.play}
       </p>
     </div>
   );
 }
 
-function ModeColumn({
+/** One row of engine cells sharing blueprint grid lines. */
+export function EngineStrip({ data }: { data: EngineModesPayload }) {
+  const n = Math.min(Math.max(data.engines.length, 1), 4);
+  const cols = { 1: "md:grid-cols-1", 2: "md:grid-cols-2", 3: "md:grid-cols-3", 4: "md:grid-cols-4" }[n];
+  return (
+    <div className={`blueprint grid-cols-1 ${cols}`}>
+      {data.engines.map((e, i) => (
+        <EngineCell key={e.surface} e={e} index={i} />
+      ))}
+    </div>
+  );
+}
+
+function ModeCell({
   kind,
   visibility,
   answers,
@@ -47,86 +61,43 @@ function ModeColumn({
   brand: string;
 }) {
   const recall = kind === "recall";
-  const m = recall ? MODE.recall : MODE.retrieve;
   return (
-    <div className="card p-5">
-      <div className="mb-1 flex flex-col items-start gap-2">
-        <span className="inline-flex items-center gap-1.5 text-[12px] text-[var(--text-2)]">
-          <span className="h-1.5 w-1.5 rounded-full" style={{ background: m.color }} aria-hidden />
-          {recall ? "Recall" : "Retrieval"}
+    <div className="p-3">
+      <div className="bp-label mb-1">{recall ? "Recall / from memory" : "Retrieval / live search"}</div>
+      <h3 className="bp-head text-[14px]">
+        {recall ? "Does the model already know you?" : "Do you appear when it searches?"}
+      </h3>
+      <div className="mt-2 flex items-baseline gap-2">
+        <span className="bp-metric text-[34px]">
+          {answers > 0 ? `${Math.round(visibility)}%` : "N/A"}
         </span>
-        <h3 className="text-[15px] font-semibold">
-          {recall ? "Does the model already know you?" : "Do you appear when it searches?"}
-        </h3>
-      </div>
-      <p className="mt-1.5 mb-3 text-xs leading-[1.5] text-[var(--text-2)]">
-        {recall
-          ? "Prompts the engine answers from what it already knows, without searching. This changes slowly and depends on how widely your brand is covered across the web."
-          : "Prompts the engine answers by searching. It splits each prompt into sub-queries and picks sources for each. This changes quickly and responds to well-structured, citable pages."}
-      </p>
-      <div className="flex items-baseline gap-2">
-        <span className="text-[30px] font-semibold tracking-[-0.025em] tabular-nums">
-          {answers > 0 ? `${Math.round(visibility)}%` : "—"}
-        </span>
-        <span className="text-xs text-[var(--text-3)]">
-          {recall
-            ? `of memory answers name ${brand}`
-            : `of live answers name ${brand}`}
-          {answers > 0 ? ` · ${answers} measured` : ""}
+        <span className="text-[11.5px] leading-tight text-[var(--text-2)]">
+          of {recall ? "memory" : "live"} answers name {brand}
+          {answers > 0 ? ` · n=${answers}` : ""}
         </span>
       </div>
     </div>
   );
 }
 
-export function EngineModesHero({
-  data,
-  aio,
-}: {
-  data: EngineModesPayload;
-  aio: AIOSummary;
-}) {
-  const cols =
-    data.engines.length >= 4
-      ? "sm:grid-cols-2 lg:grid-cols-4"
-      : data.engines.length === 3
-        ? "sm:grid-cols-3"
-        : "sm:grid-cols-2";
+/** The right-hand column beside the trend: recall, retrieval and Google AIO
+ * stacked as cells. */
+export function ModeStack({ data, aio }: { data: EngineModesPayload; aio: AIOSummary }) {
   return (
     <>
-      <div className={`grid gap-3.5 ${cols}`}>
-        {data.engines.map((e) => (
-          <EngineCard key={e.surface} e={e} />
-        ))}
-      </div>
-
-      {data.composite && (
-        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-[var(--radius-lg)] border border-[var(--border)] px-5 py-4">
-          <span className="text-[26px] font-semibold leading-none tracking-[-0.025em] tabular-nums">
-            {data.composite.score}
-          </span>
-          <span className="text-xs text-[var(--text-2)]">
-            Combined visibility across engines. The per-engine figures above are more useful for
-            deciding what to do. Measured {data.composite.date}.
-          </span>
-        </div>
-      )}
-
-      <div className="mt-4 grid gap-3.5 lg:grid-cols-3">
-        <ModeColumn
-          kind="recall"
-          visibility={data.modes.recall.visibility}
-          answers={data.modes.recall.answers}
-          brand={data.brand_name}
-        />
-        <ModeColumn
-          kind="retrieval"
-          visibility={data.modes.retrieval.visibility}
-          answers={data.modes.retrieval.answers}
-          brand={data.brand_name}
-        />
-        <AIOTile aio={aio} />
-      </div>
+      <ModeCell
+        kind="recall"
+        visibility={data.modes.recall.visibility}
+        answers={data.modes.recall.answers}
+        brand={data.brand_name}
+      />
+      <ModeCell
+        kind="retrieval"
+        visibility={data.modes.retrieval.visibility}
+        answers={data.modes.retrieval.answers}
+        brand={data.brand_name}
+      />
+      <AIOTile aio={aio} />
     </>
   );
 }

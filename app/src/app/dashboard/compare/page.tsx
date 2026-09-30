@@ -5,7 +5,7 @@ import { surfaceLabel } from "@/lib/viz";
 
 function AnswerColumn({ title, envelope }: { title: string; envelope: RawEnvelope }) {
   return (
-    <section className="min-w-0 card p-5">
+    <section className="min-w-0 card p-4">
       <h2 className="mb-1 text-sm font-medium text-[var(--text)]">{title}</h2>
       <p className="mb-4 text-xs text-[var(--text-3)]">
         {surfaceLabel(envelope.surface)} · {envelope.model} · persona: {envelope.persona}
@@ -31,7 +31,7 @@ export default async function ComparePage({
   if (!modeA.data || !modeB.data) notFound();
 
   return (
-    <main className="mx-auto max-w-6xl px-8 py-10">
+    <main className="mx-auto max-w-[1400px] px-6 pb-16">
       <Link href="/dashboard/queries" className="text-sm text-[var(--accent)] hover:underline">
         ← Queries
       </Link>

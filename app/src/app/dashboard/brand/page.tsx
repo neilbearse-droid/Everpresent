@@ -24,7 +24,7 @@ export default async function BrandPage({
   const d = report.data;
 
   return (
-    <main className="mx-auto max-w-6xl px-8 py-10">
+    <main className="mx-auto max-w-[1400px] px-6 pb-16">
       <DashNav active="Brand" isSuperadmin={me.data?.is_superadmin} withDateRange />
 
       <div className="mb-6">
@@ -42,7 +42,7 @@ export default async function BrandPage({
       </div>
 
       {!d?.observed ? (
-        <section className="card p-6">
+        <section className="card p-4">
           <h2 className="mb-2 text-lg font-medium">No branded queries measured yet</h2>
           <p className="text-sm text-[var(--text-2)]">
             Flag queries as <code>branded</code> in the tenant config to populate this
@@ -52,7 +52,7 @@ export default async function BrandPage({
       ) : (
         <>
           <div className="mb-6 grid gap-4 sm:grid-cols-3">
-            <div className="card p-5">
+            <div className="card p-4">
               <p className="eyebrow mb-2.5">Brand presence</p>
               <div className="text-4xl font-semibold leading-none tabular-nums">
                 {d.presence_rate}%
@@ -61,7 +61,7 @@ export default async function BrandPage({
                 of {d.measured} branded answers name you
               </p>
             </div>
-            <div className="card p-5">
+            <div className="card p-4">
               <p className="eyebrow mb-2.5">Framing</p>
               <div className="mt-1 flex flex-wrap gap-3 text-sm">
                 {Object.entries(d.sentiment).length === 0 ? (
@@ -76,7 +76,7 @@ export default async function BrandPage({
               </div>
               <p className="mt-2.5 text-xs text-[var(--text-3)]">sentiment of how you&apos;re described</p>
             </div>
-            <div className="card p-5">
+            <div className="card p-4">
               <p className="eyebrow mb-2.5">Accuracy issues</p>
               <div className="text-4xl font-semibold leading-none tabular-nums"
                    style={{ color: d.accuracy_issues > 0 ? "var(--neg)" : "var(--pos)" }}>
@@ -88,7 +88,7 @@ export default async function BrandPage({
 
           <div className="flex flex-col gap-4">
             {d.queries.map((q) => (
-              <section key={q.query} className="card p-5">
+              <section key={q.query} className="card p-4">
                 <h2 className="text-sm font-semibold text-[var(--text)]">{q.query}</h2>
                 <div className="mt-3 overflow-x-auto">
                   <table className="w-full text-sm">

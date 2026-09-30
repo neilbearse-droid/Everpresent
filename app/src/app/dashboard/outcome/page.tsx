@@ -19,9 +19,9 @@ export default async function OutcomePage({
   const d = out.data;
 
   const notReady = (title: string, body: string) => (
-    <main className="mx-auto max-w-6xl px-8 py-10">
+    <main className="mx-auto max-w-[1400px] px-6 pb-16">
       <DashNav active="Outcome" isSuperadmin={me.data?.is_superadmin} withDateRange />
-      <section className="card p-6">
+      <section className="card p-4">
         <h2 className="mb-2 text-lg font-medium">{title}</h2>
         <p className="max-w-xl text-sm text-[var(--text-2)]">{body}</p>
       </section>
@@ -45,25 +45,25 @@ export default async function OutcomePage({
   const scored = d.series.filter((s) => s.brand_score !== null);
 
   return (
-    <main className="mx-auto max-w-6xl px-8 py-10">
+    <main className="mx-auto max-w-[1400px] px-6 pb-16">
       <DashNav active="Outcome" isSuperadmin={me.data?.is_superadmin} withDateRange />
 
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
-        <div className="card p-5">
+        <div className="card p-4">
           <div className="text-3xl font-semibold tabular-nums">{d.totals.sessions.toLocaleString()}</div>
           <div className="mt-1 text-sm text-[var(--text-2)]">AI-referred sessions</div>
         </div>
-        <div className="card p-5">
+        <div className="card p-4">
           <div className="text-3xl font-semibold tabular-nums">{d.totals.conversions.toLocaleString()}</div>
           <div className="mt-1 text-sm text-[var(--text-2)]">Key events from AI referrals</div>
         </div>
-        <div className="card p-5">
+        <div className="card p-4">
           <div className="text-3xl font-semibold tabular-nums">{d.engine_totals.length}</div>
           <div className="mt-1 text-sm text-[var(--text-2)]">Answer engines sending traffic</div>
         </div>
       </div>
 
-      <section className="mb-6 card p-6">
+      <section className="mb-6 card p-4">
         <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">
           AI-referred sessions by engine
         </h2>
@@ -77,7 +77,7 @@ export default async function OutcomePage({
         />
       </section>
 
-      <section className="card p-6">
+      <section className="card p-4">
         <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
           AI referrals vs. visibility
         </h2>

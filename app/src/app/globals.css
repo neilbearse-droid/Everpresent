@@ -1,99 +1,104 @@
 @import "tailwindcss";
 
 /* ------------------------------------------------------------------ *
- * Typefaces — self-hosted, same-origin, no external fetch. Inter carries
- * everything (headings, body, metrics); JetBrains Mono handles URLs, codes
- * and ids. Latin subset, font-display: swap.
+ * Typefaces — self-hosted, same-origin, no external fetch.
+ * JetBrains Mono (700/800) is the structural voice: headers, labels,
+ * metrics, tabs, buttons. IBM Plex Sans carries body copy. Both OFL.
  * ------------------------------------------------------------------ */
-@font-face { font-family: "Inter"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/inter-400.woff2") format("woff2"); }
-@font-face { font-family: "Inter"; font-style: normal; font-weight: 500; font-display: swap; src: url("/fonts/inter-500.woff2") format("woff2"); }
-@font-face { font-family: "Inter"; font-style: normal; font-weight: 600; font-display: swap; src: url("/fonts/inter-600.woff2") format("woff2"); }
-@font-face { font-family: "Inter"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/inter-700.woff2") format("woff2"); }
 @font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/jetbrains-mono-400.woff2") format("woff2"); }
 @font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 500; font-display: swap; src: url("/fonts/jetbrains-mono-500.woff2") format("woff2"); }
+@font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/jetbrains-mono-700.woff2") format("woff2"); }
+@font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 800; font-display: swap; src: url("/fonts/jetbrains-mono-800.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/ibm-plex-sans-400.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 500; font-display: swap; src: url("/fonts/ibm-plex-sans-500.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 600; font-display: swap; src: url("/fonts/ibm-plex-sans-600.woff2") format("woff2"); }
 
-/* font-display is kept as a token so existing utilities resolve, but it is
-   Inter too: one family across the product. */
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --font-display: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "JetBrains Mono", ui-monospace, monospace;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 /* ------------------------------------------------------------------ *
- * EverPresent design system — "Ledger."
+ * EverPresent design system — "Blueprint."
  *
- * White and flat. The page is pure white; structure comes from 1px hairlines
- * and spacing, not from shadows or tinted grounds. Ink-black primary actions,
- * one blue for links and the brand's own data series, semantic colours only
- * where they carry meaning. Tight radii, tabular figures, one typeface.
- * Dark mode is kept as a neutral counterpart; light is the default.
+ * Neo-brutalist. Raw off-white ground, white cells, obsidian structure.
+ * Every division is a visible line; every raised element casts a hard
+ * offset block, never a blur. Zero radius. ONE accent — industrial
+ * orange — reserved for primary actions and critical numbers (the
+ * brand's own series, misses, losses). Everything else is black on white.
  * ------------------------------------------------------------------ */
 
 :root {
   color-scheme: light;
 
-  --radius-sm: 4px;   /* chips, tags */
-  --radius-md: 6px;   /* controls */
-  --radius-lg: 8px;   /* inset panels */
-  --radius-xl: 8px;   /* cards */
-  --radius-2xl: 10px;
-  --radius-3xl: 12px;
-  --radius: 8px;      /* .card default */
+  --radius-xs: 0px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+  --radius-3xl: 0px;
+  --radius: 0px;
 
-  /* Planes & surfaces — white everywhere; the only fills are faint greys
-     for table headers, wells and hover. */
-  --plane: #ffffff;
-  --plane-2: #fafafa;
-  --surface: #ffffff;
-  --surface-2: #f6f6f7;
-  --inset: #fafafa;
+  --plane: #f4f4f0;       /* raw ground */
+  --plane-2: #ebebe5;
+  --surface: #ffffff;     /* cells */
+  --surface-2: #ebebe5;   /* header rows, tracks */
+  --inset: #f4f4f0;
 
-  --border: #e7e7ea;
-  --border-strong: #d2d2d7;
+  --line: #0d0d0d;        /* all structure */
+  --border: #0d0d0d;
+  --border-strong: #0d0d0d;
+  --bar: #0d0d0d;         /* utility bars */
+  --bar-text: #f4f4f0;
 
-  --text: #0a0a0c;
-  --text-2: #55555d;
-  --text-3: #8b8b93;
+  --text: #0d0d0d;
+  --text-2: #3b3b37;
+  --text-3: #6b6b64;
 
-  /* Blue for links, focus and the brand's own series. Buttons are ink. */
-  --accent: #1d4ed8;
-  --accent-2: #1e40af;
-  --accent-soft: #eef2fd;
-  --accent-ring: rgba(29, 78, 216, 0.28);
-  --accent-ink: #ffffff;
+  /* The one accent. --accent-deep is the same hue darkened for small text
+     on white, where the bright orange would fail contrast. */
+  --accent: #ff5a1f;
+  --accent-2: #ff5a1f;
+  --accent-deep: #b93800;
+  --accent-soft: #ebebe5; /* no pastel accent: neutral fill */
+  /* Diagonal hatch for flagged rows: a texture, not a tint. */
+  --hatch: repeating-linear-gradient(-45deg, transparent 0 7px, rgba(13, 13, 13, 0.09) 7px 8.5px);
+  --accent-ring: #ff5a1f;
+  --accent-ink: #0d0d0d;
 
-  --ink: #0a0a0c;
-  --ink-hover: #26262b;
-  --ink-text: #ffffff;
+  --ink: #0d0d0d;
+  --ink-hover: #0d0d0d;
+  --ink-text: #f4f4f0;
 
-  --good: #0f7a45;
-  --warn: #9a6410;
-  --danger: #c62a22;
-  --pos: #0f7a45;
-  --warn-t: #8a5a0c;
-  --neg: #c62a22;
+  /* Semantics collapse onto black / accent: good is plain ink, bad is the
+     accent. No second hue. */
+  --good: #0d0d0d;
+  --pos: #0d0d0d;
+  --warn: #3b3b37;
+  --warn-t: #3b3b37;
+  --danger: #b93800;
+  --neg: #b93800;
 
-  --mode-recall: #6d28d9;
-  --mode-recall-soft: #f3effc;
-  --mode-mixed: #0f766e;
-  --mode-mixed-soft: #ecf6f5;
+  --mode-recall: #0d0d0d;
+  --mode-recall-soft: #ebebe5;
+  --mode-mixed: #0d0d0d;
+  --mode-mixed-soft: #ebebe5;
 
   --glow-1: transparent;
   --glow-2: transparent;
 
-  /* Elevation is reserved for things that genuinely float (menus,
-     popovers). Cards and panels are flat. */
+  /* Hard offset blocks only. */
+  --hard: 4px 4px 0 0 var(--line);
+  --hard-lg: 6px 6px 0 0 var(--line);
   --shadow-1: none;
-  --shadow-2: none;
-  --shadow-3:
-    0 1px 2px rgba(10, 10, 12, 0.06),
-    0 8px 24px -8px rgba(10, 10, 12, 0.14);
+  --shadow-2: var(--hard);
+  --shadow-3: var(--hard);
 
   --blur: none;
-  --scrim: #ffffff;
-
-  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --scrim: var(--plane);
+  --ease: steps(2, end);
 
   --background: var(--plane);
   --foreground: var(--text);
@@ -102,45 +107,39 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  --plane: #0b0b0d;
-  --plane-2: #080809;
-  --surface: #0b0b0d;
-  --surface-2: #151518;
-  --inset: #111114;
+  --plane: #0d0d0d;
+  --plane-2: #151515;
+  --surface: #141414;
+  --surface-2: #222220;
+  --inset: #0d0d0d;
 
-  --border: #242428;
-  --border-strong: #35353b;
+  --line: #f4f4f0;
+  --border: #f4f4f0;
+  --border-strong: #f4f4f0;
+  --bar: #f4f4f0;
+  --bar-text: #0d0d0d;
 
-  --text: #f2f2f4;
-  --text-2: #a3a3ab;
-  --text-3: #6e6e77;
+  --text: #f4f4f0;
+  --text-2: #c9c9c1;
+  --text-3: #8f8f87;
 
-  --accent: #6e9bff;
-  --accent-2: #8aafff;
-  --accent-soft: rgba(110, 155, 255, 0.14);
-  --accent-ring: rgba(110, 155, 255, 0.4);
-  --accent-ink: #0b0b0d;
+  --accent-deep: #ff7a47;
+  --accent-soft: #222220;
+  --hatch: repeating-linear-gradient(-45deg, transparent 0 7px, rgba(244, 244, 240, 0.12) 7px 8.5px);
 
-  --ink: #f2f2f4;
-  --ink-hover: #dcdce0;
-  --ink-text: #0b0b0d;
+  --ink: #f4f4f0;
+  --ink-hover: #f4f4f0;
+  --ink-text: #0d0d0d;
 
-  --good: #3fbf7f;
-  --warn: #e0a44a;
-  --danger: #ff6b63;
-  --pos: #3fbf7f;
-  --warn-t: #e0a44a;
-  --neg: #ff6b63;
+  --good: #f4f4f0;
+  --pos: #f4f4f0;
+  --warn: #c9c9c1;
+  --warn-t: #c9c9c1;
+  --danger: #ff7a47;
+  --neg: #ff7a47;
 
-  --mode-recall: #b39dff;
-  --mode-recall-soft: rgba(179, 157, 255, 0.14);
-  --mode-mixed: #4fd1c5;
-  --mode-mixed-soft: rgba(79, 209, 197, 0.14);
-
-  --shadow-3:
-    0 1px 2px rgba(0, 0, 0, 0.5),
-    0 12px 32px -10px rgba(0, 0, 0, 0.7);
-  --scrim: #0b0b0d;
+  --mode-recall: #f4f4f0;
+  --mode-mixed: #f4f4f0;
 }
 
 html {
@@ -152,9 +151,7 @@ body {
   color: var(--text);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-  font-feature-settings: "cv11", "ss01", "tnum" 0;
 }
 
 .tabular-nums,
@@ -164,56 +161,211 @@ table {
 }
 
 h1, h2, h3, h4 {
-  font-family: var(--font-sans);
-  font-weight: 600;
-  letter-spacing: -0.011em;
-  line-height: 1.2;
+  font-family: var(--font-mono);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
 }
-h1 {
-  letter-spacing: -0.02em;
-}
+h1 { letter-spacing: -0.03em; }
 
+/* Large figures anywhere render as machine readouts. */
+[class*="text-2xl"],
 [class*="text-3xl"],
 [class*="text-4xl"],
 [class*="text-5xl"],
 [class*="text-6xl"] {
-  letter-spacing: -0.025em;
+  font-family: var(--font-mono);
+  font-weight: 800;
+  letter-spacing: -0.045em;
+}
+
+/* Zero radius is structural, not a preference: override every rounded-*
+   utility, including the circles. (Unlayered, so it beats utilities.) */
+[class*="rounded"] {
+  border-radius: 0 !important;
 }
 
 ::selection {
-  background: #dbe5fd;
-  color: var(--text);
+  background: var(--accent);
+  color: var(--accent-ink);
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--border-strong) transparent;
+  scrollbar-color: var(--line) transparent;
 }
 
-/* --- Primitives --------------------------------------------------- */
+/* --- Blueprint grid ------------------------------------------------- *
+ * A container whose 2px gaps show the black ground through: every cell
+ * boundary is an exact, visible line. Cells are white. */
+.blueprint {
+  display: grid;
+  gap: 2px;
+  background: var(--line);
+  border: 2px solid var(--line);
+  box-shadow: var(--hard-lg);
+}
+.blueprint > * {
+  background: var(--surface);
+  min-width: 0;
+}
+/* A nested stack of cells inside a blueprint cell: its gaps are lines too. */
+.blueprint > .bp-stack,
+.bp-stack {
+  display: grid;
+  gap: 2px;
+  background: var(--line);
+}
+.bp-stack > * {
+  background: var(--surface);
+  min-width: 0;
+}
 
-/* Cards are flat white panels with a hairline. */
+/* Full-width bleed for bars inside a centred column. */
+.bp-bleed {
+  width: 100vw;
+  margin-left: calc(50% - 50vw);
+}
+
+/* Black header bar on top of a cell. */
+.bp-bar {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  background: var(--bar);
+  color: var(--bar-text);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 6px 12px;
+}
+
+.bp-label,
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+.bp-head {
+  font-family: var(--font-mono);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+
+.bp-display {
+  font-family: var(--font-mono);
+  font-weight: 800;
+  text-transform: uppercase;
+  font-size: clamp(40px, 6.5vw, 88px);
+  line-height: 1;
+  letter-spacing: -0.05em;
+}
+
+.bp-metric {
+  font-family: var(--font-mono);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.05em;
+  line-height: 1;
+}
+
+/* Critical number: the accent, at display size only. */
+.bp-critical {
+  color: var(--accent);
+  -webkit-text-stroke: 1px var(--line);
+}
+
+/* Critical inline flag: black on accent. */
+.bp-alert {
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 700;
+  padding: 0 0.3em;
+}
+
+.bp-link {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+.bp-link:hover {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+.bp-cell-link {
+  background: var(--surface);
+  min-height: 44px;
+}
+.bp-cell-link:hover {
+  background: var(--accent);
+}
+.bp-cell-link:hover .bp-label {
+  color: var(--accent-ink);
+}
+
+/* --- Tables: explicit headers, visible cell lines ------------------- */
+table thead th {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+.bp-table {
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.bp-table th {
+  background: var(--surface-2);
+  border-bottom: 2px solid var(--line);
+  padding: 7px 12px;
+  text-align: left;
+}
+.bp-table td {
+  border-top: 1px solid var(--line);
+  padding: 7px 12px;
+}
+.bp-table th + th,
+.bp-table td + td {
+  border-left: 1px solid var(--line);
+}
+
+/* --- Primitives ----------------------------------------------------- */
+
 .card {
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: none;
+  border: 2px solid var(--line);
+  border-radius: 0;
+  box-shadow: var(--hard);
 }
 
 a.card,
 .card-hover {
-  transition: border-color 0.15s var(--ease), background 0.15s var(--ease);
+  transition: transform 80ms linear, box-shadow 80ms linear;
 }
 a.card:hover,
 .card-hover:hover {
-  border-color: var(--border-strong);
+  transform: translate(4px, 4px);
+  box-shadow: none;
 }
 
-/* Recessed well inside a card. */
 .card-inset {
   background: var(--inset);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border: 2px solid var(--line);
+  border-radius: 0;
 }
 
 .field,
@@ -221,10 +373,10 @@ input.field,
 textarea.field,
 select.field {
   background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-md);
+  border: 2px solid var(--line);
+  border-radius: 0;
   color: var(--text);
-  transition: border-color 0.15s var(--ease), box-shadow 0.15s var(--ease);
+  font-family: var(--font-mono);
 }
 .field::placeholder {
   color: var(--text-3);
@@ -232,74 +384,69 @@ select.field {
 .field:focus,
 .field:focus-visible {
   outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-ring);
+  box-shadow: 4px 4px 0 0 var(--accent);
 }
 
-/* Tag — squared, outlined, sentence case. */
 .chip {
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
-  padding: 0.125rem 0.45rem;
-  font-size: 0.6875rem;
-  font-weight: 500;
-  color: var(--text-2);
+  border: 1.5px solid var(--line);
+  border-radius: 0;
+  padding: 0.05rem 0.4rem;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text);
   background: var(--surface);
 }
 
+/* Buttons are physical: a hard block under them, and on hover they press
+   down into it. */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.4rem;
-  border-radius: var(--radius-md);
-  font-weight: 500;
-  font-size: 0.8125rem;
-  transition: background 0.15s var(--ease), border-color 0.15s var(--ease),
-    color 0.15s var(--ease);
+  gap: 0.5rem;
+  border: 2px solid var(--line);
+  border-radius: 0;
+  box-shadow: var(--hard);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  transition: transform 80ms linear, box-shadow 80ms linear;
+}
+.btn:hover,
+.btn:active {
+  transform: translate(4px, 4px);
+  box-shadow: none;
 }
 .btn:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px var(--accent-ring);
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+.btn:disabled {
+  transform: none;
+  box-shadow: var(--hard);
 }
 
 .btn-primary {
-  background: var(--ink);
-  color: var(--ink-text);
-  border: 1px solid var(--ink);
-}
-.btn-primary:hover {
-  background: var(--ink-hover);
+  background: var(--accent);
+  color: var(--accent-ink);
 }
 
 .btn-ghost {
-  border: 1px solid var(--border-strong);
-  color: var(--text);
   background: var(--surface);
-}
-.btn-ghost:hover {
-  background: var(--surface-2);
+  color: var(--text);
 }
 
 .focus-ring:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 3px var(--accent-ring);
-  border-radius: var(--radius-md);
-}
-
-/* Section label — small and quiet, sentence case. */
-.eyebrow {
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: var(--text-3);
-}
-
-/* Data tables: hairline rows, quiet header. */
-table th {
-  font-weight: 500;
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -307,6 +454,5 @@ table th {
   *::before,
   *::after {
     transition-duration: 0.001ms !important;
-    scroll-behavior: auto !important;
   }
 }

@@ -49,11 +49,11 @@ export default async function ActionPlanPage() {
   const briefs = data?.briefs ?? [];
 
   return (
-    <main className="mx-auto max-w-6xl px-8 py-10">
+    <main className="mx-auto max-w-[1400px] px-6 pb-16">
       <DashNav active="Action Plan" isSuperadmin={me.data?.is_superadmin} />
 
       {targets.length === 0 && briefs.length === 0 ? (
-        <section className="card p-6">
+        <section className="card p-4">
           <h2 className="mb-2 text-lg font-medium">Nothing to action yet</h2>
           <p className="text-sm text-[var(--text-2)]">
             Once a run finds visibility gaps, this tab turns each one into a source target
@@ -63,7 +63,7 @@ export default async function ActionPlanPage() {
       ) : (
         <div className="space-y-8">
           {/* #4 — Citation-gap target list */}
-          <section className="card p-6">
+          <section className="card p-4">
             <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
               Source targets
             </h2>
@@ -121,7 +121,7 @@ export default async function ActionPlanPage() {
 
           {/* Lost-Citation Radar — protect what you've already won */}
           {data!.protect?.ready && (
-            <section className="card p-6">
+            <section className="card p-4">
               <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
                 Pages losing citations
               </h2>
@@ -423,7 +423,7 @@ export default async function ActionPlanPage() {
 
           {/* Proof — the fix→proof loop */}
           {(proof.data?.interventions.length ?? 0) > 0 && (
-            <section className="card p-6">
+            <section className="card p-4">
               <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
                 Results of shipped fixes
               </h2>

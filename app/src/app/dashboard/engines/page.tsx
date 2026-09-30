@@ -14,7 +14,7 @@ const DIAGNOSIS_STYLE: Record<string, { chip: string; dot: string }> = {
 
 const CELL_STYLE: Record<string, string> = {
   brand: "bg-[var(--accent)] text-[var(--accent-ink)]",
-  competitor: "bg-[var(--warn)] text-white",
+  competitor: "bg-[var(--line)] text-[var(--surface)]",
   absent: "bg-[var(--surface-2)] text-[var(--text-3)]",
 };
 const CELL_LABEL: Record<string, string> = { brand: "You", competitor: "Rival", absent: "—" };
@@ -40,11 +40,11 @@ export default async function EnginesPage({
   const summary = data?.diagnosis_summary ?? {};
 
   return (
-    <main className="mx-auto max-w-6xl px-8 py-10">
+    <main className="mx-auto max-w-[1400px] px-6 pb-16">
       <DashNav active="Engines" isSuperadmin={me.data?.is_superadmin} withDateRange />
 
       {routing.data?.observed && (
-        <section className="mb-6 card p-6">
+        <section className="mb-6 card p-4">
           <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
             Do your prompts trigger a search?
           </h2>
@@ -71,7 +71,7 @@ export default async function EnginesPage({
       )}
 
       {engines.length === 0 ? (
-        <section className="card p-6">
+        <section className="card p-4">
           <h2 className="mb-2 text-lg font-medium">No engine data yet</h2>
           <p className="text-sm text-[var(--text-2)]">
             Cross-engine analysis appears after a completed run. Enable more than one engine
@@ -81,7 +81,7 @@ export default async function EnginesPage({
       ) : (
         <>
           {/* Per-engine visibility */}
-          <section className="mb-6 card p-6">
+          <section className="mb-6 card p-4">
             <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
               Where {data!.brand_name} shows up, by engine
             </h2>
@@ -92,7 +92,7 @@ export default async function EnginesPage({
               items={engines.map((e) => ({
                 label: `${surfaceLabel(e.surface)} · ${e.brand_present}/${e.queries_measured}`,
                 value: e.brand_rate,
-                color: "#1d4ed8",
+                color: "#0d0d0d",
               }))}
               max={100}
               unit="%"
@@ -125,7 +125,7 @@ export default async function EnginesPage({
           </section>
 
           {/* Diagnosis summary */}
-          <section className="mb-6 card p-6">
+          <section className="mb-6 card p-4">
             <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">Why you're missing</h2>
             <p className="mb-4 text-xs text-[var(--text-3)]">
               For each query where you&apos;re absent, comparing the search and no-search answers
@@ -148,7 +148,7 @@ export default async function EnginesPage({
           </section>
 
           {/* Query × engine matrix with diagnosis */}
-          <section className="card p-6">
+          <section className="card p-4">
             <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">
               Who appears in each answer
             </h2>

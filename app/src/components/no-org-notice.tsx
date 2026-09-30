@@ -14,7 +14,7 @@ export function NoOrgNotice({
   detail?: string | null;
 }) {
   return (
-    <main className="mx-auto max-w-6xl px-8 py-10">
+    <main className="mx-auto max-w-[1400px] px-6 pb-16">
       <DashNav active={active} isSuperadmin={isSuperadmin} />
       <section className="card p-6">
         <h2 className="mb-2 text-lg font-medium">No organization selected</h2>

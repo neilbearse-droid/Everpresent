@@ -62,7 +62,7 @@ export default async function RecommendationsPage() {
       </p>
 
       {items.length === 0 && (
-        <section className="card p-6">
+        <section className="card p-4">
           <p className="text-sm text-[var(--text-2)]">
             No recommendations yet. They appear once a run finds gaps.
           </p>
@@ -81,7 +81,7 @@ export default async function RecommendationsPage() {
                 {(group as Recommendation[]).map((rec) => (
                   <li
                     key={rec.id}
-                    className="card p-5"
+                    className="card p-4"
                   >
                     <div className="mb-2 flex flex-wrap items-center gap-3">
                       <span

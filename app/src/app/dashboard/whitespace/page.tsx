@@ -20,7 +20,7 @@ export default async function WhitespacePage({
   const data = report.data;
 
   return (
-    <main className="mx-auto max-w-6xl px-8 py-10">
+    <main className="mx-auto max-w-[1400px] px-6 pb-16">
       <DashNav active="Whitespace" isSuperadmin={me.data?.is_superadmin} withDateRange />
 
       <div className="mb-6">
@@ -34,7 +34,7 @@ export default async function WhitespacePage({
       </div>
 
       {!data?.observed ? (
-        <section className="card p-6">
+        <section className="card p-4">
           <h2 className="mb-2 text-lg font-medium">No out-of-list mentions yet</h2>
           <p className="text-sm text-[var(--text-2)]">
             {data && data.measured > 0
@@ -43,7 +43,7 @@ export default async function WhitespacePage({
           </p>
         </section>
       ) : (
-        <section className="card p-6">
+        <section className="card p-4">
           <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">
             Untracked names across {data.measured} answers · {data.entity_count} distinct
           </h2>
