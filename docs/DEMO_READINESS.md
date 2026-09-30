@@ -1,75 +1,80 @@
-# EverPresent — Demo Readiness Checklist
+# EverPresent — GoDaddy Demo Readiness
 
-Everything that has to be true for a live GoDaddy demo, in the order you'd do
-it. `[ ]` items are yours to confirm. Env var names map to `.env.example`.
+Every engine wired, verified, and collecting before the demo. Work top to
+bottom. The admin page's **Engine readiness** panel (`/admin/godaddy`) is the
+proof: when every engine says **READY**, you're done.
+
+Start collection as early as possible: trend lines can't be backfilled, and
+fan-out trends need about a week of runs.
 
 ---
 
-## A. Provision accounts & secrets
+## 1. Get the keys (about an hour, mostly signup screens)
 
-The four measurement keys + the proxy are the demo-critical ones; the rest boot
-the app or enable optional features. Full list and notes in `.env.example`.
-
-- [ ] **OpenAI** API key → `OPENAI_API_KEY` — ChatGPT (API)
-- [ ] **Anthropic** API key → `ANTHROPIC_API_KEY` — Claude (API) **and** steps 4 & 5 (the one key does both)
-- [ ] **Google Gemini** API key → `GEMINI_API_KEY`
-- [ ] **Perplexity** API key → `PERPLEXITY_API_KEY`
-- [ ] **Residential proxy / scraping browser** (Bright Data or similar) → `SCRAPE_PROXY_URL` (or `SCRAPE_PROXY_MAP` / `SCRAPE_CDP_ENDPOINT`).
-      Powers **Copilot + ChatGPT-web + Perplexity-web + the power-page crawler**. Without it those come back `blocked` from a datacenter IP.
-- [ ] **Clerk** keys (3) → `CLERK_*` (+ `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` on the web service), and `SUPERADMIN_EMAIL`
-- [ ] **Postgres** + **Redis** → `DATABASE_URL`, `REDIS_URL` (Render provisions both), `STORAGE_BACKEND=db`
-- [ ] *(optional)* **SerpApi** → `SERPAPI_KEY` + `GOOGLE_AIO_PROVIDER=serpapi` — only if you want Google AI Overviews as a 6th surface
-- [ ] *(optional)* **SMTP** → run-completion emails · **GCP service account** → BigQuery mirror + GA4 outcome (skip GA4 for the demo — you won't have GoDaddy's property)
-
-## B. Deploy & migrate
-
-- [ ] Deploy branch `claude/everpresent-v3-rebuild-wy4ybi`
-- [ ] Run migrations: `alembic upgrade head` → head is **`e7f8a9b0c1d2` (M23)**. Without this the `copilot_web` enum value and the steps-4/5 tables don't exist.
-- [ ] Seed: `python -m api.seed` → creates the **GoDaddy tenant** from `seeds/godaddy.yaml` (idempotent; skips if it already exists)
-- [ ] Confirm three services are up: **api** (web), **web** (Next.js), **worker** (Playwright image, runs `worker.combined` = both queues + the scheduler)
-
-## C. Per-tenant admin config (GoDaddy)
-
-The YAML seed sets brand/competitors/personas/queries/surfaces + the Q3 fact.
-These are the governance/plan toggles the seed deliberately does **not** set —
-do them in the admin panel:
-
-- [ ] **Plan = Command or Custom** (uncapped engines). Lower plans cap engines (Monitor 3 / Diagnose 4) and will drop surfaces — you have 7.
-- [ ] **`approved_surfaces`** includes all seven, **including `copilot_web`** (a run only dispatches surfaces that are enabled **and** approved **and** within the engine cap)
-- [ ] **`ai_processing_approved` = true** (required for runs, and for steps 4 & 5)
-- [ ] **`entity_extraction_enabled` = true** + **`approved_utility_models`** = `["claude-haiku-4-5-20251001","claude-sonnet-4-6"]` (lights up the Whitespace slide and the corrective-content button)
-- [ ] **`monthly_spend_cap_usd`** set high enough for a full daily matrix across 7 surfaces (the cap is enforced pre-dispatch — too low and calls get withheld)
-- [ ] **Verify the Q3 fact** (`seeds/godaddy.yaml` → `brand_facts`). It's a **placeholder** — confirm GoDaddy's real domain-privacy policy before relying on the accuracy demo.
-- [ ] *(optional)* **Locations** for the location fan-out (needs `SCRAPE_PROXY_MAP`); **`notify_emails`** for run reports
-- [ ] **Set the daily collection schedule**: `PUT /api/admin/tenants/godaddy/schedule` with a `cron_expr` (e.g. `0 7 * * *`). Collection can't be backfilled — start it as early as possible.
-
-## D. Subsystem readiness
-
-| Subsystem | Needs | Verify |
+| Engine(s) | Where | What you copy |
 |---|---|---|
-| **Mode A** (ChatGPT/Claude/Gemini/Perplexity API) | the 4 keys | trigger a run; results are `ok` with citations |
-| **Mode B** (Copilot, ChatGPT-web, Perplexity-web) | Playwright worker + **proxy** | run the Copilot smoke test (§E); results `ok` not `blocked` |
-| **Google AIO** *(optional)* | `SERPAPI_KEY` + provider=serpapi | AIO tile populated on Overview |
-| **Steps 4 & 5** (Whitespace + content-gen) | `ANTHROPIC_API_KEY` + governance flags (§C) | Whitespace page lists untracked names; "Generate corrective content" returns a draft |
-| **Power-page crawling** | citations to exist + **proxy** (now routed through `SCRAPE_PROXY_URL`) | after a run, trigger a crawl; pages come back `ok`, not all `error/403` |
-| **Nightly jobs** | scheduler running (`worker.combined`) | fire after `MIRROR_HOUR_UTC`: power-page crawl runs for any tenant with citations (auto); mirror/GA4 only if configured |
-| **Emails** *(optional)* | `SMTP_*` | run-completion email arrives |
+| ChatGPT (API) | platform.openai.com → Billing (add credit) → API keys | `sk-...` → `OPENAI_API_KEY` |
+| Claude (API) + Claude features | console.anthropic.com → Billing (add credit) → API keys | `sk-ant-...` → `ANTHROPIC_API_KEY` |
+| Gemini (API) | aistudio.google.com → Get API key → Create key (turn on billing for its Cloud project; free-tier search grounding is rate-limited) | `AIza...` → `GEMINI_API_KEY` |
+| Perplexity (API) | perplexity.ai → Settings → API → add credit → Generate key | `pplx-...` → `PERPLEXITY_API_KEY` |
+| Google AI Overviews | serpapi.com → Register → Dashboard → Private API Key. Plan: ~10 searches per run, so ~300/month for daily runs plus testing | key → `SERPAPI_KEY` |
+| Copilot, ChatGPT (web), Perplexity (web) | A residential proxy (Bright Data, Oxylabs, Decodo/Smartproxy…) → create a residential zone, country **US** | `http://USER:PASS@HOST:PORT` → `SCRAPE_PROXY_URL` |
 
-## E. Pre-demo smoke tests
+## 2. Put them in Render (15 minutes)
 
-- [ ] **Backend green** (dev box): `python -m pytest -q` · `ruff check api/ worker/ engine/ tests/` · `cd app && npx tsc --noEmit`
-- [ ] **Copilot selectors** (the one thing I couldn't validate for you): from the worker or a machine with real egress —
-      ```
-      python scripts/smoke_copilot.py --query "What's the best AI website builder?"
-      ```
-      Exit `0` = good (prints citations + a Reddit/YouTube yes-no). `3` = blocked → proxy. `4/5` = selectors need updating (screenshots show the live DOM; edit `copilot_web_selectors.py`).
-- [ ] **One real run**, then on the run detail confirm: each surface present, `web_search_calls > 0` on the search variant, and **Reddit/YouTube appear in citations on the web/Copilot/Perplexity surfaces** (they won't dominate the API surfaces — that's expected).
-- [ ] **Power-page crawl** produces `ok` rows (not all 403) — proves the proxy is wired for the crawler too.
-- [ ] **Closed loop**: on the Scorecard accuracy card, click **Generate corrective content** for Q3 → a draft renders. This is the demo's money shot.
+Engine calls run on the **worker**, so that's where the engine keys go.
 
-## F. Known caveats — go in with eyes open
+- [ ] **everpresent-worker** → Environment: `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GEMINI_API_KEY`, `PERPLEXITY_API_KEY`, `SERPAPI_KEY`, `SCRAPE_PROXY_URL`. Confirm `GOOGLE_AIO_PROVIDER` = `serpapi`. **Save** (it redeploys).
+- [ ] **everpresent-api** → Environment: `ANTHROPIC_API_KEY` (the corrective-content button runs here). **Save**.
+- [ ] Each service's **Events** shows the latest commit **Live**. The API deploy runs the database migration itself.
 
-1. **Q3 fact is a placeholder** — verify GoDaddy's real domain-privacy policy or the accuracy demo undercuts itself.
-2. **Copilot selectors are best-effort** against a volatile DOM — the smoke test is the gate; keep the one-file fix (`copilot_web_selectors.py`) handy.
-3. **The proxy is load-bearing** — Copilot, the two web surfaces, and the Reddit/YouTube-source story all depend on it. API keys alone give you four surfaces, not the differentiated ones.
-4. **GA4/Outcome** needs GoDaddy's GA4 property access you won't have for a demo — leave it off; every other screen stands on its own.
+## 3. Configure GoDaddy in the admin panel (10 minutes)
+
+At `/admin/godaddy`:
+
+- [ ] **Plan**: Command or Custom (lower plans drop engines).
+- [ ] **Governance → Approve AI processing**.
+- [ ] **Governance → Search country: United States (US)**. The GoDaddy tenant was created with the Canada default.
+- [ ] **Engine readiness → switch On** all eight: ChatGPT (API), Claude (API), Gemini (API), Perplexity (API), ChatGPT (web), Perplexity (web), Microsoft Copilot, Google AI Overviews. (Gemini web shows n/a: not built.)
+- [ ] **Governance → Turn on Claude features** (Whitespace page + corrective-content and brief buttons).
+- [ ] **Governance → Monthly spend cap**: at least **$300** for demo week. Too low and calls come back WITHHELD.
+- [ ] **Governance → Fan-out re-probe: on**.
+- [ ] **Run schedule**: `0 12 * * *` (daily, 12:00 UTC ≈ 8am ET), enabled.
+- [ ] **Brand fact sheet**: confirm the domain-privacy fact matches GoDaddy's real policy (it's a placeholder).
+
+## 4. First verification run (20 minutes)
+
+- [ ] **Runs → Trigger run**. Wait for it to finish (browser engines take the longest).
+- [ ] Back on `/admin/godaddy`, **Engine readiness**: every switched-on engine should say **READY**. If not:
+
+| Status | Meaning | Fix |
+|---|---|---|
+| MISSING KEY | The worker has no key for that engine | Add it on **everpresent-worker**, save, re-run |
+| BLOCKED | Anti-bot wall | Check `SCRAPE_PROXY_URL` format and that the zone is **residential**, country US |
+| ERROR | Calls failed | Click the run number; the result error names the cause (bad key, no billing) |
+| WITHHELD | Spend cap hit | Raise the cap, re-run |
+| OUTSIDE PLAN | Plan's engine limit | Plan → Command or Custom |
+| NOT RUN YET | Switched on after the last run | Trigger a run |
+
+- [ ] **Copilot check** (its page changes often): Render → everpresent-worker → **Shell**:
+  `python scripts/smoke_copilot.py --query "What's the best AI website builder?"`
+  Exit `0` = good · `3` = blocked (proxy) · `4`/`5` = page changed (screenshots show it; fix in `engine/retrievers/copilot_web_selectors.py`).
+- [ ] The four readiness checks at the top of the panel all say **Done**.
+
+## 5. Every day until the demo (2 minutes)
+
+- [ ] Open `/admin/godaddy` → Engine readiness still all **READY** after the overnight run.
+- [ ] Anything else: use the table above the same day. A missed day is a gap in the trend.
+
+## 6. Day before the demo
+
+- [ ] Click through: Overview → Engines → Fan-out → Citations → Scorecard → Whitespace → Action Plan.
+- [ ] Scorecard → **Generate corrective content** on the accuracy card returns a draft.
+- [ ] Fan-out → **Generate corrective brief** on a HIGH row returns a draft.
+- [ ] Hard refresh (Cmd/Ctrl+Shift+R) on the demo machine.
+
+## What's covered, and what isn't
+
+Measured: ChatGPT (API and web), Claude, Gemini (API), Perplexity (API and web),
+Microsoft Copilot, Google AI Overviews. **Not built:** Gemini web app, Google AI
+Mode, Grok, Meta AI. Each is a new adapter, not a setting.

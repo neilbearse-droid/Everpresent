@@ -584,9 +584,19 @@ async def _run_mode_a(run_id: int) -> None:
         with Session(get_engine()) as session:
             run = session.get(Run, run_id)
             assert run is not None
-            run.status = RunStatus.failed
             run.error = f"No Mode A surface is configured on this deployment. Set: {needed}"
-            run.counts = {"planned": 0, "completed": 0, "failed": 0, "withheld_by_cap": 0}
+            run.counts = {
+                "planned": 0, "completed": 0, "failed": 0, "withheld_by_cap": 0,
+                **{f"unconfigured:{s}": 1 for s in unconfigured},
+            }
+            if _b_surfaces(run):
+                # The browser/SERP surfaces don't need these keys — still run
+                # them rather than losing the whole run to one missing key.
+                session.add(run)
+                session.commit()
+                enqueue_run_mode_b(run_id)
+                return
+            run.status = RunStatus.failed
             run.finished_at = utcnow()
             session.add(run)
             session.commit()
@@ -633,6 +643,10 @@ async def _run_mode_a(run_id: int) -> None:
     counts = {"planned": len(work), "completed": 0, "failed": 0, "withheld_by_cap": 0}
     if unconfigured:
         counts["skipped_unconfigured"] = len(unconfigured)
+        # Per-surface flags so the admin readiness panel can name the engine
+        # whose key is missing.
+        for s in unconfigured:
+            counts[f"unconfigured:{s}"] = 1
     with Session(get_engine()) as session:
         run = session.get(Run, run_id)
         assert run is not None

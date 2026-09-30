@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { apiFetch, type Me, type TenantDetail } from "@/lib/api";
-import { surfaceLabel } from "@/lib/viz";
-import { setFanoutReprobe, setGovernance, toggleSurface } from "../actions";
+import { apiFetch, type Me, type ReadinessPayload, type TenantDetail } from "@/lib/api";
+import { setAIFeatures, setFanoutReprobe, setGovernance, setSearchCountry, toggleSurface } from "../actions";
 import { AccessAuditPanel } from "./access-audit-panel";
 import { BrandFactsPanel, type BrandFact } from "./brand-facts-panel";
 import { ClerkOrgForm } from "./clerk-org-form";
@@ -30,15 +29,20 @@ export default async function TenantAdminPage({
     );
   }
 
-  const [detail, schedule, facts] = await Promise.all([
+  const [detail, schedule, facts, readiness] = await Promise.all([
     apiFetch<TenantDetail>(`/api/admin/tenants/${slug}`),
     apiFetch<{ cron_expr: string; enabled: boolean; next_run_at: string | null } | null>(
       `/api/admin/tenants/${slug}/schedule`,
     ),
     apiFetch<BrandFact[]>(`/api/admin/tenants/${slug}/brand-facts`),
+    apiFetch<ReadinessPayload>(`/api/admin/tenants/${slug}/readiness`),
   ]);
   if (detail.status === 404 || !detail.data) notFound();
-  const { tenant, brand_profile, competitors, personas, queries, surfaces, plans } = detail.data;
+  const { tenant, brand_profile, competitors, personas, queries, plans } = detail.data;
+  const ready = readiness.data;
+  const aiFeaturesOn =
+    tenant.entity_extraction_enabled &&
+    ready?.checks.find((c) => c.label.startsWith("Claude features"))?.ok === true;
 
   return (
     <main className="mx-auto max-w-5xl px-8 py-10">
@@ -63,6 +67,100 @@ export default async function TenantAdminPage({
           Runs →
         </Link>
       </header>
+
+      {/* Engine readiness: config + what the last run actually returned. */}
+      {ready && (
+        <section className="mb-6">
+          <div className="blueprint grid-cols-1">
+            <div>
+              <div className="bp-bar">
+                <span>Engine readiness</span>
+                <span>
+                  {ready.engines.filter((e) => e.verdict === "ready").length} /{" "}
+                  {ready.engines.filter((e) => e.available).length} verified
+                </span>
+              </div>
+              <div className="grid gap-[2px] bg-[var(--line)] sm:grid-cols-2 lg:grid-cols-4">
+                {ready.checks.map((c) => (
+                  <div key={c.label} className="bg-[var(--surface)] p-3">
+                    <div className="bp-label">{c.ok ? "✓ Done" : "✗ To do"}</div>
+                    <div className={`mt-1 text-[13px] font-semibold ${c.ok ? "" : "bp-neg"}`}>
+                      {c.label}
+                    </div>
+                    {!c.ok && <p className="mt-1 text-[11.5px] text-[var(--text-2)]">{c.hint}</p>}
+                  </div>
+                ))}
+              </div>
+              <table className="bp-table w-full">
+                <thead>
+                  <tr>
+                    <th>Engine</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>What to do</th>
+                    <th>Needs on the deployment</th>
+                    <th>Last run</th>
+                    <th className="text-right">Switch</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ready.engines.map((e) => (
+                    <tr key={e.code}>
+                      <td>
+                        <div className="font-semibold">{e.label}</div>
+                        <div className="font-mono text-[10.5px] text-[var(--text-3)]">{e.code}</div>
+                      </td>
+                      <td className="bp-label">{e.mode}</td>
+                      <td>
+                        <span
+                          className={`font-mono text-[11px] font-bold uppercase ${
+                            e.verdict === "ready"
+                              ? "bp-mark"
+                              : ["missing_key", "blocked", "error", "withheld", "outside_plan"].includes(e.verdict)
+                                ? "bp-neg"
+                                : ""
+                          }`}
+                        >
+                          {e.verdict.replace("_", " ")}
+                        </span>
+                      </td>
+                      <td className="text-[12px]">{e.hint}</td>
+                      <td className="text-[11.5px] text-[var(--text-2)]">
+                        {e.needs.length ? e.needs.map((n) => <div key={n}>{n}</div>) : "—"}
+                      </td>
+                      <td className="font-mono text-[11px]">
+                        {e.last_run.run_id ? (
+                          <Link href={`/admin/${tenant.slug}/runs/${e.last_run.run_id}`} className="bp-link">
+                            #{e.last_run.run_id}
+                          </Link>
+                        ) : (
+                          "—"
+                        )}
+                        {e.last_run.run_id && (
+                          <div className="text-[var(--text-2)]">
+                            ok {e.last_run.ok} · blk {e.last_run.blocked} · err {e.last_run.error}
+                          </div>
+                        )}
+                      </td>
+                      <td className="text-right">
+                        {e.available ? (
+                          <form action={toggleSurface.bind(null, tenant.slug, e.code, !e.on)}>
+                            <button className={`btn px-2.5 py-1 text-[11px] ${e.on ? "btn-primary" : "btn-ghost"}`}>
+                              {e.on ? "On" : "Off"}
+                            </button>
+                          </form>
+                        ) : (
+                          <span className="bp-label">n/a</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="card mb-6 p-5">
         <h2 className="mb-1 font-medium">Plan</h2>
@@ -111,6 +209,48 @@ export default async function TenantAdminPage({
           </p>
           <SpendCapForm slug={tenant.slug} cap={tenant.monthly_spend_cap_usd} />
           <div className="mt-5 border-t border-[var(--border)] pt-4">
+            <p className="mb-2 text-sm">Search country</p>
+            <form action={setSearchCountry.bind(null, tenant.slug)} className="flex gap-2">
+              <select
+                name="country"
+                defaultValue={tenant.aio_geo?.gl ?? "ca"}
+                className="field px-2 py-1.5 text-[12px]"
+              >
+                {[
+                  ["us", "United States"],
+                  ["ca", "Canada"],
+                  ["gb", "United Kingdom"],
+                  ["au", "Australia"],
+                ].map(([code, name]) => (
+                  <option key={code} value={code}>
+                    {name} ({code.toUpperCase()})
+                  </option>
+                ))}
+              </select>
+              <button className="btn btn-ghost px-3 py-1.5 text-[12px]">Save</button>
+            </form>
+            <p className="mt-2 text-xs text-[var(--text-3)]">
+              Where Google AI Overviews and the browser engines search from. Match the client&apos;s
+              market.
+            </p>
+          </div>
+          <div className="mt-5 border-t border-[var(--border)] pt-4">
+            <p className="mb-3 text-sm">
+              Claude features:{" "}
+              <span className="font-semibold">{aiFeaturesOn ? "on" : "off"}</span>
+            </p>
+            <form action={setAIFeatures.bind(null, tenant.slug, !aiFeaturesOn)}>
+              <button className="btn btn-ghost px-3 py-2 text-[12px]">
+                {aiFeaturesOn ? "Turn off Claude features" : "Turn on Claude features"}
+              </button>
+            </form>
+            <p className="mt-3 text-xs text-[var(--text-3)]">
+              Powers the Whitespace page (names the AI recommends that you don&apos;t track) and the
+              corrective-content and brief buttons. Uses ANTHROPIC_API_KEY; costs count toward the
+              monthly cap.
+            </p>
+          </div>
+          <div className="mt-5 border-t border-[var(--border)] pt-4">
             <p className="mb-3 text-sm">
               Fan-out re-probe:{" "}
               <span className={tenant.fanout_reprobe_enabled ? "text-[var(--pos)]" : "text-[var(--text-2)]"}>
@@ -134,34 +274,6 @@ export default async function TenantAdminPage({
               Spend counts toward the monthly cap.
             </p>
           </div>
-        </section>
-
-        <section className="card p-5">
-          <h2 className="mb-3 font-medium">Surfaces</h2>
-          <ul className="space-y-2">
-            {surfaces.map((s) => (
-              <li key={s.code} className="flex items-center justify-between text-sm">
-                <span>
-                  {surfaceLabel(s.code)}
-                  <span className="ml-2 font-mono text-xs text-[var(--text-3)]">{s.code}</span>
-                </span>
-                <form action={toggleSurface.bind(null, tenant.slug, s.code, !s.enabled)}>
-                  <button
-                    className={`rounded-md px-3 py-1 text-xs font-medium ${
-                      s.enabled
-                        ? "bg-[var(--ink)] text-[var(--ink-text)] hover:bg-[var(--ink-hover)]"
-                        : "border border-[var(--border)] text-[var(--text-2)] hover:bg-[var(--surface-2)]"
-                    }`}
-                  >
-                    {s.enabled ? "enabled" : "disabled"}
-                  </button>
-                </form>
-              </li>
-            ))}
-            {surfaces.length === 0 && (
-              <li className="text-sm text-[var(--text-3)]">No surfaces yet — import a config.</li>
-            )}
-          </ul>
         </section>
 
         <section className="card p-5">

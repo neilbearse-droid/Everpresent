@@ -81,8 +81,16 @@ class BrandFactSpec(BaseModel):
     active: bool = True
 
 
+class GeoSpec(BaseModel):
+    """Where Google AI Overviews and the browser engines search from."""
+
+    country: str = Field(pattern=r"^[a-z]{2}$")  # Google gl, e.g. "us"
+    language: str = Field(default="en", pattern=r"^[a-z]{2}$")  # Google hl
+
+
 class TenantConfigSpec(BaseModel):
     brand: BrandSpec
+    geo: GeoSpec | None = None
     competitors: list[CompetitorSpec] = Field(default_factory=list)
     personas: list[PersonaSpec] = Field(default_factory=list)
     queries: list[QuerySpec] = Field(default_factory=list)
@@ -156,6 +164,14 @@ def import_config(session: Session, tenant: Tenant, spec: TenantConfigSpec) -> d
         )
     for code in SurfaceCode:
         session.add(TenantSurface(tenant_id=tenant_id, code=code, enabled=code in spec.surfaces))
+    # Importing is a superadmin action, so the surfaces it enables are also
+    # governance-approved — the same lockstep the admin surface toggle keeps.
+    # Without this an imported tenant shows surfaces "enabled" that no run
+    # would ever dispatch (a run needs enabled AND approved).
+    tenant.approved_surfaces = sorted({s.value for s in spec.surfaces})
+    if spec.geo is not None:
+        tenant.aio_geo = {"gl": spec.geo.country, "hl": spec.geo.language}
+    session.add(tenant)
 
     return {
         "competitors": len(spec.competitors),

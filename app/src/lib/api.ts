@@ -81,6 +81,8 @@ export type Tenant = {
   ga4_property_id: string | null;
   plan: string;
   fanout_reprobe_enabled: boolean;
+  entity_extraction_enabled: boolean;
+  aio_geo: { gl?: string; hl?: string } | null;
   created_at: string;
 };
 
@@ -586,6 +588,25 @@ export type AccessAuditDomain = {
   };
   grade: "pass" | "warn" | "fail";
   issues: string[];
+};
+
+export type EngineReadiness = {
+  code: string;
+  label: string;
+  mode: "API" | "Browser" | "SERP";
+  available: boolean;
+  on: boolean;
+  needs: string[];
+  verdict:
+    | "ready" | "unavailable" | "off" | "outside_plan" | "not_run_yet"
+    | "missing_key" | "blocked" | "error" | "withheld";
+  hint: string;
+  last_run: { run_id: number | null; at: string | null; ok: number; blocked: number; error: number };
+};
+
+export type ReadinessPayload = {
+  engines: EngineReadiness[];
+  checks: { label: string; ok: boolean; hint: string }[];
 };
 
 export type TenantDetail = {

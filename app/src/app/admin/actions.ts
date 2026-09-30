@@ -157,6 +157,20 @@ export async function setGovernance(slug: string, approved: boolean): Promise<vo
   await patchTenant(slug, { ai_processing_approved: approved });
 }
 
+export async function setSearchCountry(slug: string, formData: FormData): Promise<void> {
+  await patchTenant(slug, { search_country: String(formData.get("country") ?? "") });
+}
+
+export async function setAIFeatures(slug: string, enabled: boolean): Promise<void> {
+  const res = await apiFetch(`/api/admin/tenants/${slug}/ai-features`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ enabled }),
+  });
+  if (!res.ok) throw new Error(res.error ?? "Update failed");
+  revalidatePath(`/admin/${slug}`);
+}
+
 export async function setFanoutReprobe(slug: string, enabled: boolean): Promise<void> {
   await patchTenant(slug, { fanout_reprobe_enabled: enabled });
 }

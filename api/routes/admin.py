@@ -121,6 +121,10 @@ class TenantPatch(BaseModel):
     ga4_property_id: str | None = None
     plan: str | None = None
     fanout_reprobe_enabled: bool | None = None
+    # Search country for Google AI Overviews and the browser engines (gl, 2
+    # lowercase letters); language stays as set unless given.
+    search_country: str | None = None
+    search_language: str | None = None
 
 
 @router.patch("/tenants/{slug}")
@@ -153,6 +157,17 @@ def patch_tenant(slug: str, payload: TenantPatch, session: Db, admin: Admin) -> 
     if payload.ai_processing_approved is not None:
         tenant.ai_processing_approved = payload.ai_processing_approved
         changed.append("ai_processing_approved")
+    if payload.search_country is not None or payload.search_language is not None:
+        geo = dict(tenant.aio_geo or {"gl": "ca", "hl": "en"})
+        for key, value in (("gl", payload.search_country), ("hl", payload.search_language)):
+            if value is None:
+                continue
+            v = value.strip().lower()
+            if len(v) != 2 or not v.isalpha():
+                raise HTTPException(status_code=422, detail=f"{key} must be a 2-letter code")
+            geo[key] = v
+        tenant.aio_geo = geo
+        changed.append("aio_geo")
     if payload.fanout_reprobe_enabled is not None:
         tenant.fanout_reprobe_enabled = payload.fanout_reprobe_enabled
         changed.append("fanout_reprobe_enabled")
@@ -440,6 +455,51 @@ def put_schedule(slug: str, payload: SchedulePut, session: Db, admin: Admin) -> 
     session.commit()
     session.refresh(schedule)
     return schedule
+
+
+@router.get("/tenants/{slug}/readiness")
+def tenant_readiness(slug: str, session: Db) -> dict:
+    """Per-engine readiness: switched on, what the deployment needs, and what
+    the last run that included it returned."""
+    from api.readiness_service import engine_readiness
+
+    return engine_readiness(session, _tenant_or_404(session, slug))
+
+
+class AIFeaturesToggle(BaseModel):
+    enabled: bool
+
+
+@router.post("/tenants/{slug}/ai-features")
+def set_ai_features(slug: str, payload: AIFeaturesToggle, session: Db, admin: Admin) -> Tenant:
+    """One switch for the Claude-powered features: open entity extraction
+    (Whitespace) and corrective-content drafts. Turning it on sets the opt-in
+    and approves exactly the two configured utility models; turning it off
+    clears both. AI processing approval is a separate gate."""
+    from api.config import get_settings
+
+    tenant = _tenant_or_404(session, slug)
+    settings = get_settings()
+    models = {settings.utility_model_extract, settings.utility_model_draft}
+    illegal = models - set(RUNTIME_LLM_ALLOWLIST)
+    if illegal:
+        raise HTTPException(
+            status_code=422, detail=f"Not in the runtime model allowlist: {sorted(illegal)}"
+        )
+    current = set(tenant.approved_utility_models or [])
+    tenant.entity_extraction_enabled = payload.enabled
+    updated = current | models if payload.enabled else current - models
+    tenant.approved_utility_models = sorted(updated)
+    session.add(tenant)
+    write_audit(
+        session,
+        tenant_id=tenant.id,
+        actor=admin.user.email,
+        action=f"tenant.ai_features {slug}={'on' if payload.enabled else 'off'}",
+    )
+    session.commit()
+    session.refresh(tenant)
+    return tenant
 
 
 class SurfaceToggle(BaseModel):

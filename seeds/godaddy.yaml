@@ -14,6 +14,12 @@
 # browser runs are the expensive ones). Do NOT edit persona wording once a
 # persona goes live — changing it mid-series breaks the trend line.
 
+# Search from the US: Google AI Overviews and the browser engines localize
+# to this country (GoDaddy is a US brand).
+geo:
+  country: us
+  language: en
+
 brand:
   name: GoDaddy
   aliases:
@@ -141,3 +147,4 @@ surfaces:
   - chatgpt_web     # ChatGPT (web) — API-vs-web fidelity comparison
   - perplexity_web  # Perplexity (web)
   - copilot_web     # Microsoft Copilot — Bing-index-driven, browser-only, non-optional
+  - google_aio      # Google AI Overviews — via SerpApi (SERPAPI_KEY on the worker)
