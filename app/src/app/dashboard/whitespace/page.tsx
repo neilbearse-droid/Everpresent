@@ -27,9 +27,9 @@ export default async function WhitespacePage({
         <p className="eyebrow mb-1.5">Category opportunity</p>
         <h1 className="text-[26px] font-semibold tracking-tight">Who else the AI recommends</h1>
         <p className="mt-2 max-w-3xl text-sm text-[var(--text-2)]">
-          Products and companies the AI names as options that aren&apos;t on your tracked list —
-          the whitespace. When the assistant answers a persona and none of the names it returns is
-          yours or a tracked rival, that&apos;s a category you&apos;re invisible in.
+          Products and companies the AI recommends that aren&apos;t on your tracked list. When an
+          answer names none of your brand or tracked competitors, it points to a category where
+          you aren&apos;t visible.
         </p>
       </div>
 
@@ -39,7 +39,7 @@ export default async function WhitespacePage({
           <p className="text-sm text-[var(--text-2)]">
             {data && data.measured > 0
               ? "The tracked brand and competitors account for every name the answers surfaced in this range."
-              : "Enable entity extraction for this tenant and run a collection — untracked names appear here after processing."}
+              : "No data yet. Untracked names appear here once entity extraction is enabled for this account."}
           </p>
         </section>
       ) : (

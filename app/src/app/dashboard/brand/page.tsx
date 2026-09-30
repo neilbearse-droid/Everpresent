@@ -33,7 +33,7 @@ export default async function BrandPage({
           What the models say about {d?.brand_name ?? "your brand"}
         </h1>
         <p className="mt-2 max-w-3xl text-sm text-[var(--text-2)]">
-          Branded queries ask the models directly about you — so they&apos;re kept
+          Branded queries ask the models directly about you, so they&apos;re kept
           out of the competitive visibility score (the brand almost always
           appears) and measured here instead. This is the source of truth for
           what the model knows: whether it still surfaces you, how it frames you,
@@ -46,8 +46,7 @@ export default async function BrandPage({
           <h2 className="mb-2 text-lg font-medium">No branded queries measured yet</h2>
           <p className="text-sm text-[var(--text-2)]">
             Flag queries as <code>branded</code> in the tenant config to populate this
-            view — they&apos;re the ones designed to probe what the model knows about
-            the brand.
+            view. These are the queries that ask what the model knows about the brand.
           </p>
         </section>
       ) : (
@@ -59,7 +58,7 @@ export default async function BrandPage({
                 {d.presence_rate}%
               </div>
               <p className="mt-2.5 text-xs text-[var(--text-3)]">
-                of {d.measured} branded answers name you — a drop here is an early warning
+                of {d.measured} branded answers name you
               </p>
             </div>
             <div className="card p-5">
@@ -133,7 +132,7 @@ export default async function BrandPage({
                   <div className="mt-3 border-t border-[var(--border)] pt-3">
                     {q.accuracy.map((a, i) => (
                       <p key={i} className="text-xs text-[var(--neg)]">
-                        ⚠ {a.engine} states {a.subject} as “{a.stated}” — correct is “{a.expected}”.
+                        {a.engine} states {a.subject} as “{a.stated}”. Correct: “{a.expected}”.
                       </p>
                     ))}
                   </div>

@@ -25,7 +25,7 @@ function BrandedToggle({ slug, query }: { slug: string; query: AdminQuery }) {
             ? "Branded — measured in the Brand layer, out of the visibility score. Click to make competitive."
             : "Competitive — counts toward the visibility score. Click to mark branded."
         }
-        className={`rounded-[var(--radius-sm)] border px-2 py-1 text-[11px] font-semibold uppercase tracking-wide disabled:opacity-50 ${
+        className={`rounded-[var(--radius-sm)] border px-2 py-1 text-[11px] font-semibold disabled:opacity-50 ${
           query.branded
             ? "border-[var(--accent)] text-[var(--accent)]"
             : "border-[var(--border)] text-[var(--text-3)] hover:text-[var(--text-2)]"

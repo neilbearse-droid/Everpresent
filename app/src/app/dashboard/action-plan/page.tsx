@@ -18,8 +18,8 @@ function fmtDay(iso: string): string {
 }
 
 const DIAG_STYLE: Record<string, string> = {
-  content_gap: "border-amber-500/40 bg-amber-500/5",
-  knowledge_gap: "border-red-500/40 bg-red-500/5",
+  content_gap: "border-[var(--border)]",
+  knowledge_gap: "border-[var(--border)]",
   undetermined: "border-[var(--border)] bg-[var(--surface-2)]",
 };
 const DIAG_CHIP: Record<string, string> = {
@@ -65,12 +65,12 @@ export default async function ActionPlanPage() {
           {/* #4 — Citation-gap target list */}
           <section className="card p-6">
             <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
-              Source targets — where the AIs get their answers in your vertical
+              Source targets
             </h2>
             <p className="mb-4 text-xs text-[var(--text-3)]">
-              Third-party domains that AI answers cite alongside your competitors — but not
-              you. Getting {data!.brand_name} covered on these is the highest-leverage way to
-              enter the answers. Rivals' own sites and your own domains are excluded.
+              Third-party sites that AI answers cite alongside your competitors but not you.
+              Getting {data!.brand_name} covered on these is the most direct way into those
+              answers. Competitor sites and your own domains are excluded.
             </p>
             {targets.length === 0 ? (
               <p className="text-sm text-[var(--text-3)]">No third-party source gaps found.</p>
@@ -123,12 +123,12 @@ export default async function ActionPlanPage() {
           {data!.protect?.ready && (
             <section className="card p-6">
               <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
-                Protect — your pages losing citations
+                Pages losing citations
               </h2>
               <p className="mb-3 text-xs text-[var(--text-3)]">
-                Run-over-run diff of your own cited pages. Losing a citation is the earliest
-                decay signal — the proven fix is a cheap refresh: update the page's dates,
-                stats, and examples.
+                Changes in citations of your own pages since the previous run. A lost citation
+                is usually the first sign a page is going stale. Updating its dates, figures and
+                examples is typically enough.
               </p>
               <div className="mb-5 grid gap-3 sm:grid-cols-3">
                 <div className="card-inset p-4">
@@ -180,13 +180,13 @@ export default async function ActionPlanPage() {
                   </div>
                   <div className="mt-1 text-sm text-[var(--text-2)]">Losing ground</div>
                   <div className="text-xs text-[var(--text-3)]">
-                    pages that dropped a citation — refresh these
+                    pages that lost a citation
                   </div>
                 </div>
               </div>
               {data!.protect.lost.length === 0 ? (
                 <p className="text-sm text-[var(--pos)]">
-                  No lost citations since the previous run — your cited pages are holding.
+                  No lost citations since the previous run.
                 </p>
               ) : (
                 <div className="overflow-x-auto">
@@ -219,7 +219,7 @@ export default async function ActionPlanPage() {
                             {entry.still_cited_on > 0 ? (
                               `${entry.still_cited_on} ${entry.still_cited_on === 1 ? "query" : "queries"}`
                             ) : (
-                              <span className="text-[var(--neg)]">nothing — fully dropped</span>
+                              <span className="text-[var(--neg)]">none</span>
                             )}
                           </td>
                         </tr>
@@ -234,13 +234,12 @@ export default async function ActionPlanPage() {
           {/* #1 — Content briefs */}
           <section>
             <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
-              Content briefs — one per gap, ready to hand to a writer
+              Content briefs
             </h2>
             <p className="mb-3 text-xs text-[var(--text-3)]">
-              Each gap query, turned into a brief: what to write, who's beating you, which
-              sources to earn, and the questions to cover so AI answer engines can cite it.
-              Ordered by contestability — answer churn × search-dependence — so effort goes
-              where the answer is still in play.
+              One brief per gap query: what to write, who currently appears, which sources to
+              target, and the questions to cover. Ordered by how often the answer changes and
+              how much it depends on search, so the most winnable queries come first.
             </p>
             {data!.strike_zone && (
               <div className="mb-4 flex flex-wrap gap-2 text-xs">
@@ -249,7 +248,7 @@ export default async function ActionPlanPage() {
                   .map((k) => (
                     <span
                       key={k}
-                      className={`rounded-full border border-[var(--border)] px-2.5 py-1 font-medium ${CONTEST_CHIP[k] ?? ""}`}
+                      className={`rounded-[4px] border border-[var(--border)] px-2.5 py-1 font-medium ${CONTEST_CHIP[k] ?? ""}`}
                     >
                       {data!.strike_zone[k]} {k}
                     </span>
@@ -356,7 +355,7 @@ export default async function ActionPlanPage() {
                         ))}
                       </div>
                       <p className="mt-1.5 text-[10px] text-[var(--text-3)]">
-                        You compete shard by shard — win each of these, not just the headline prompt.
+                        Each sub-query is answered separately, so each one is worth covering.
                       </p>
                     </div>
                   )}
@@ -364,7 +363,7 @@ export default async function ActionPlanPage() {
                   {b.citability?.ready && (
                     <div className="mt-4 border-t border-[var(--border)] pt-3">
                       <div className="mb-1.5 text-xs font-medium text-[var(--text-2)]">
-                        Citability diff — copy the winning fingerprint
+                        How the cited pages differ from yours
                       </div>
                       <div className="mb-2 flex flex-wrap gap-1.5 text-[11px]">
                         {b.citability.spec?.has_answer_capsule && (
@@ -426,11 +425,11 @@ export default async function ActionPlanPage() {
           {(proof.data?.interventions.length ?? 0) > 0 && (
             <section className="card p-6">
               <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
-                Proof — did the shipped fixes move the needle?
+                Results of shipped fixes
               </h2>
               <p className="mb-4 text-xs text-[var(--text-3)]">
-                Brand presence on each fixed query, before vs after its ship date — with the
-                same-window change on untouched queries as the control, so lift beats tide.
+                Brand presence on each fixed query before and after its ship date. Queries that
+                weren&apos;t changed over the same period serve as the comparison.
               </p>
               {proof.data!.aggregate && (
                 <div className="mb-4 flex flex-wrap gap-2 text-xs">
@@ -484,7 +483,7 @@ export default async function ActionPlanPage() {
                         </td>
                         {iv.awaiting ? (
                           <td colSpan={3} className="text-xs text-[var(--text-3)]">
-                            Awaiting post-ship runs — measurement starts with the next run.
+                            Measurement starts with the next run.
                           </td>
                         ) : (
                           <>

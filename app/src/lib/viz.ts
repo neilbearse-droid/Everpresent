@@ -1,18 +1,17 @@
-// Categorical palette — harmonised with the "Aperture" cobalt system. Refined,
-// slightly desaturated hues that read cleanly on both the white (light) and
-// lifted-black (dark) card surfaces. Slot order is the CVD-safety mechanism —
-// never reorder or cycle.
+// Categorical palette — deep, low-chroma hues that read as print-quality on
+// white. The brand always takes the blue; competitors take the rest in
+// alphabetical order. Slot order is fixed — never reorder or cycle.
 export const SERIES_COLORS = [
-  "#2f6bf0", // 1 cobalt — always the brand (matches --accent family)
-  "#12a594", // 2 teal
-  "#e0912f", // 3 amber
-  "#3aa655", // 4 green
-  "#8b7cf0", // 5 violet
-  "#e8646a", // 6 coral
+  "#1d4ed8", // 1 blue — always the brand (matches --accent)
+  "#0f766e", // 2 teal
+  "#b45309", // 3 ochre
+  "#6d28d9", // 4 violet
+  "#be123c", // 5 crimson
+  "#475569", // 6 slate
 ] as const;
 
-export const DELTA_UP = "#16a34a";
-export const DELTA_DOWN = "#e8646a";
+export const DELTA_UP = "#0f7a45";
+export const DELTA_DOWN = "#c62a22";
 
 /** Stable entity→color map: brand takes slot 1, competitors take the
  * remaining slots in alphabetical order — color follows the entity, never its
@@ -56,11 +55,11 @@ export const LIKELIHOOD_LABELS: Record<string, string> = {
   unlikely: "unlikely",
 };
 
-// Ordinal cobalt steps for the web-search-likelihood chips — magnitude of one
+// Ordinal blue steps for the web-search-likelihood chips — magnitude of one
 // concept, so one hue stepped, not four hues. Harmonised with --accent.
 export const LIKELIHOOD_COLORS: Record<string, string> = {
-  very_likely: "#2f6bf0",
-  likely: "#3f74d6",
-  possible: "#3f66ad",
-  unlikely: "#3a5788",
+  very_likely: "#1d4ed8",
+  likely: "#3b63c9",
+  possible: "#6b7fb3",
+  unlikely: "#94a0bd",
 };

@@ -20,7 +20,7 @@ function ClassificationChip({
     >
       <span
         className="inline-block h-2.5 w-2.5 rounded-full"
-        style={{ background: LIKELIHOOD_COLORS[bucket] ?? "#64748b" }}
+        style={{ background: LIKELIHOOD_COLORS[bucket] ?? "#a1a1aa" }}
       />
       {LIKELIHOOD_LABELS[bucket] ?? bucket}
     </span>
@@ -116,8 +116,8 @@ export default async function QueriesPage({
                         {query.text}
                         {query.branded && (
                           <span
-                            className="ml-2 align-middle text-[10px] font-semibold uppercase tracking-wide text-[var(--accent)]"
-                            title="Branded query — measured in the Brand layer, excluded from the competitive visibility metrics"
+                            className="chip ml-2 align-middle"
+                            title="Branded query. Measured on the Brand tab and excluded from competitive visibility."
                           >
                             branded
                           </span>

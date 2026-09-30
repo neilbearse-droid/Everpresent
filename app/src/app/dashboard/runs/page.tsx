@@ -14,8 +14,7 @@ export default async function TenantRunsPage() {
         <RunsTable runs={runs.data} hrefBase="/dashboard/runs" />
       ) : runs.status === 403 ? (
         <p className="text-sm text-[var(--text-2)]">
-          No organization selected — pick one in the switcher on the Overview tab to see its
-          runs.
+          No organization selected. Choose one from the switcher at the top right.
         </p>
       ) : (
         <p className="text-sm text-[var(--text-2)]">{runs.error}</p>

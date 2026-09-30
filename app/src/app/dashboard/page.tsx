@@ -58,7 +58,7 @@ export default async function OverviewPage({
         .map(([label, value]) => ({
           label,
           value,
-          color: colors.get(label) ?? "#64748b",
+          color: colors.get(label) ?? "#a1a1aa",
         }))
     : [];
 
@@ -87,8 +87,8 @@ export default async function OverviewPage({
             {data?.brand_name ?? tenant.data.name}
           </h1>
           <p className="mt-1 max-w-xl text-[13px] text-[var(--text-2)]">
-            Visibility isn&apos;t one number. Each engine reaches its answer differently in your
-            category — so the tactic is different too. Here&apos;s how, and where you stand in each.
+            Each engine builds its answers differently, so each needs a different approach. This
+            shows how each one works in your category and where you stand.
           </p>
         </div>
         <div className="flex flex-wrap gap-2 text-[13px]">
@@ -145,7 +145,7 @@ export default async function OverviewPage({
         <>
           <section className="mb-6 card p-6">
             <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">
-              Visibility trend — {data!.brand_name} vs competitors
+              Visibility trend
             </h2>
             <TrendChart data={trendRows} series={trendSeries} />
           </section>
@@ -153,7 +153,7 @@ export default async function OverviewPage({
           <div className="grid gap-6 lg:grid-cols-2">
             <section className="card p-6">
               <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">
-                Share of voice — mentions across AI answers ({sovRangeLabel})
+                Share of voice ({sovRangeLabel})
               </h2>
               <HBars items={sovItems} max={Math.max(...sovItems.map((s) => s.value), 1)} unit="%" />
             </section>
@@ -164,7 +164,7 @@ export default async function OverviewPage({
               </h2>
               {data!.movers.length === 0 ? (
                 <p className="text-sm text-[var(--text-3)]">
-                  Needs two measurement days — trigger another run tomorrow.
+                  Available after a second day of measurement.
                 </p>
               ) : (
                 <ul className="space-y-2">

@@ -6,15 +6,14 @@ export function AIOTile({ aio }: { aio: AIOSummary }) {
   if (aio.queries_measured === 0) {
     return (
       <div className="card p-5">
-        <div className="text-3xl font-semibold text-[var(--text-3)]">—</div>
-        <div className="mt-1 text-sm text-[var(--text-2)]">
-          Google AIO share (enable the google_aio surface and run)
-        </div>
+        <div className="text-[12px] text-[var(--text-2)]">Google AI Overviews</div>
+        <div className="mt-3 text-sm text-[var(--text-3)]">Not measured for this account.</div>
       </div>
     );
   }
   return (
     <div className="card p-5">
+      <div className="mb-3 text-[12px] text-[var(--text-2)]">Google AI Overviews</div>
       <div className="text-3xl font-semibold tabular-nums">{aio.aio_share_pct}%</div>
       <div className="mt-1 text-sm text-[var(--text-2)]">
         of {aio.queries_measured} measured queries trigger Google's AI Overview

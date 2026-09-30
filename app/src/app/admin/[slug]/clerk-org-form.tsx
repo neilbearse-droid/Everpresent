@@ -19,7 +19,7 @@ export function ClerkOrgForm({ slug, orgId }: { slug: string; orgId: string }) {
         />
         <button
           disabled={pending}
-          className="rounded-md bg-[var(--accent)] px-3 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+          className="rounded-md bg-[var(--ink)] px-3 py-2 text-sm font-medium text-[var(--ink-text)] hover:bg-[var(--ink-hover)] disabled:opacity-50"
         >
           {pending ? "Saving…" : "Save"}
         </button>

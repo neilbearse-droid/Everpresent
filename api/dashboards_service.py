@@ -983,12 +983,12 @@ _RETRIEVE_AT = 66.0
 _RECALL_AT = 33.0
 
 _MODE_PLAY = {
-    "retrieve": "Win the shards — publish structured, specific, citable pages "
-    "for the sub-queries these engines issue.",
-    "recall": "Shape the corpus — authoritative mentions in widely-crawled sources "
-    "(press, directories, reference-grade references) so training snapshots learn you.",
-    "mixed": "Both games: citable pages to win live answers, durable corpus presence "
-    "for the prompts answered from memory.",
+    "retrieve": "Publish specific, well-structured pages that answer the sub-queries "
+    "these engines search.",
+    "recall": "Build mentions in widely read sources (press, directories, reference "
+    "sites) so future model versions learn about you.",
+    "mixed": "Combine both: citable pages for searched prompts, and broad coverage "
+    "for prompts answered from memory.",
 }
 
 
@@ -1095,16 +1095,16 @@ def engine_modes(
 
         if mode == "retrieve":
             blurb = f"Searches on {round(search_rate)}% of your category prompts"
-            blurb += f", fanning each into ~{avg_fanout} shards." if avg_fanout else "."
+            blurb += f", splitting each into about {avg_fanout} sub-queries." if avg_fanout else "."
         elif mode == "recall":
             blurb = (
                 f"Answers {round(100 - search_rate)}% of your category prompts from "
-                "memory — no live search."
+                "memory, without searching."
             )
         else:
             blurb = (
-                f"Searches on {round(search_rate)}% — a mix of live retrieval and "
-                "answering from memory."
+                f"Searches on {round(search_rate)}% of your category prompts and answers "
+                "the rest from memory."
             )
 
         engines.append({

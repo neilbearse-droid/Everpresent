@@ -9,9 +9,9 @@ const BRANCH_LABELS: Record<Recommendation["branch"], string> = {
   aio: "AI Overview gap",
 };
 const BRANCH_STYLES: Record<Recommendation["branch"], string> = {
-  web_search: "bg-sky-800 text-sky-100",
-  training: "bg-violet-800 text-violet-100",
-  aio: "bg-emerald-800 text-emerald-100",
+  web_search: "border border-[var(--border)] bg-[var(--surface)] text-[var(--accent)]",
+  training: "border border-[var(--border)] bg-[var(--surface)] text-[var(--mode-recall)]",
+  aio: "border border-[var(--border)] bg-[var(--surface)] text-[var(--pos)]",
 };
 const STATUS_STYLES: Record<Recommendation["status"], string> = {
   open: "text-[var(--warn-t)]",
@@ -64,7 +64,7 @@ export default async function RecommendationsPage() {
       {items.length === 0 && (
         <section className="card p-6">
           <p className="text-sm text-[var(--text-2)]">
-            No recommendations yet — they appear after a processed run finds gaps.
+            No recommendations yet. They appear once a run finds gaps.
           </p>
         </section>
       )}

@@ -51,7 +51,7 @@ export default async function PersonasPage({
 
           <section className="card p-6">
             <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">
-              Segment detail — where the gaps are
+              Segment detail
             </h2>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">

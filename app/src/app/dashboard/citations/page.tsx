@@ -50,12 +50,11 @@ export default async function CitationsPage({
           {(data.power_pages ?? []).length > 0 && (
             <section className="card mb-6 p-6">
               <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
-                Power Pages — the specific pages that feed your category's answers
+                Most-cited pages in your category
               </h2>
               <p className="mb-4 text-xs text-[var(--text-3)]">
-                Domains are trivia; pages are the battlefield. These URLs power the most
-                answers across engines — getting onto (or beating) one high-influence page
-                moves every answer it feeds.
+                The individual pages cited most often across engines. Being mentioned on one of
+                these, or outranking it, affects every answer that cites it.
               </p>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
@@ -119,7 +118,7 @@ export default async function CitationsPage({
                               className="font-medium text-[var(--neg)]"
                               title={
                                 p.competitors_on_page.length
-                                  ? `Names ${p.competitors_on_page.join(", ")} — not you. Pitch this page.`
+                                  ? `Names ${p.competitors_on_page.join(", ")} but not you. Worth pitching.`
                                   : "Neither you nor tracked rivals are named"
                               }
                             >
@@ -143,7 +142,7 @@ export default async function CitationsPage({
           {Object.keys(data.source_types_by_engine ?? {}).length > 0 && (
             <section className="card mb-6 p-6">
               <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
-                What each engine cites — source-type mix
+                Source types cited, by engine
               </h2>
               <p className="mb-4 text-xs text-[var(--text-3)]">
                 Engines draw from different kinds of sources: ChatGPT leans encyclopedia and
@@ -176,12 +175,12 @@ export default async function CitationsPage({
           {(data.consulted_domains ?? []).length > 0 && (
             <section className="card mb-6 p-6">
               <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
-                Consulted but not cited — warm targets
+                Consulted but not cited
               </h2>
               <p className="mb-4 text-xs text-[var(--text-3)]">
                 The engines read these sources on the way to their answers but didn&apos;t
-                cite them. They&apos;re already in the consideration set — earning a citation
-                here is a shorter path than starting cold.
+                cite them. Since they&apos;re already being read, they are good outreach
+                targets.
               </p>
               <div className="flex flex-wrap gap-2">
                 {data.consulted_domains.slice(0, 20).map((d) => (

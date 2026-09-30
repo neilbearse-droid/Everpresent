@@ -36,7 +36,7 @@ export default async function OutcomePage({
   }
   if (!d.has_data) {
     return notReady(
-      "Connected — waiting for the first pull",
+      "Connected. Waiting for the first data pull",
       "GA4 is linked. AI-referral traffic appears after the nightly refresh runs (or on the next scheduled pull). Traffic is matched by utm_source and referrer across the major answer engines.",
     );
   }
@@ -65,7 +65,7 @@ export default async function OutcomePage({
 
       <section className="mb-6 card p-6">
         <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">
-          AI-referred sessions by engine — where the visits come from
+          AI-referred sessions by engine
         </h2>
         <HBars
           items={d.engine_totals.map((e) => ({
@@ -79,7 +79,7 @@ export default async function OutcomePage({
 
       <section className="card p-6">
         <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
-          AI referrals vs visibility — does being cited move the business?
+          AI referrals vs. visibility
         </h2>
         <p className="mb-4 text-xs text-[var(--text-3)]">
           Daily AI-referred sessions (bars) alongside your brand-visibility score (line) for

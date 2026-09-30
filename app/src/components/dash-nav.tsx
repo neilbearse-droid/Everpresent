@@ -4,71 +4,32 @@ import { Suspense, type ReactNode } from "react";
 import { DateRange } from "./date-range";
 import { ThemeToggle } from "./theme-toggle";
 
-/* Minimal 16px stroke icons (currentColor) — no external dependency. */
-const I = {
-  overview: "M3 12l9-8 9 8M5 10v10h5v-6h4v6h5V10",
-  brand: "M12 3l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5z",
-  scorecard: "M12 20a8 8 0 1 0-8-8M12 12l4-3",
-  personas: "M16 20v-1a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v1M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6M21 20v-1a4 4 0 0 0-3-3.8M16 5a3 3 0 0 1 0 6",
-  queries: "M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14M20 20l-4-4",
-  engines: "M4 6h16M4 12h16M4 18h16",
-  fanout: "M5 12h3M8 12l8-6M8 12h8M8 12l8 6",
-  citations: "M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1",
-  action: "M9 11l3 3 8-8M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9",
-  recs: "M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10.5c.7.7 1 1.2 1 2.5h6c0-1.3.3-1.8 1-2.5A6 6 0 0 0 12 3Z",
-  outcome: "M3 17l6-6 4 4 8-8M21 7v5M21 7h-5",
-  whitespace: "M4 4h16v16H4zM4 9h16M9 9v11",
-  runs: "M22 12h-4l-3 9L9 3l-3 9H2",
-} as const;
-
-function Icon({ d }: { d: string }) {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.7"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <path d={d} />
-    </svg>
-  );
-}
-
-const TABS: { href: string; label: string; icon: keyof typeof I }[] = [
-  { href: "/dashboard", label: "Overview", icon: "overview" },
-  { href: "/dashboard/brand", label: "Brand", icon: "brand" },
-  { href: "/dashboard/scorecard", label: "Scorecard", icon: "scorecard" },
-  { href: "/dashboard/personas", label: "Personas", icon: "personas" },
-  { href: "/dashboard/queries", label: "Queries", icon: "queries" },
-  { href: "/dashboard/engines", label: "Engines", icon: "engines" },
-  { href: "/dashboard/fanout", label: "Fan-out", icon: "fanout" },
-  { href: "/dashboard/citations", label: "Citations", icon: "citations" },
-  { href: "/dashboard/whitespace", label: "Whitespace", icon: "whitespace" },
-  { href: "/dashboard/action-plan", label: "Action Plan", icon: "action" },
-  { href: "/dashboard/recommendations", label: "Recommendations", icon: "recs" },
-  { href: "/dashboard/outcome", label: "Outcome", icon: "outcome" },
-  { href: "/dashboard/runs", label: "Runs", icon: "runs" },
+const TABS: { href: string; label: string }[] = [
+  { href: "/dashboard", label: "Overview" },
+  { href: "/dashboard/brand", label: "Brand" },
+  { href: "/dashboard/scorecard", label: "Scorecard" },
+  { href: "/dashboard/personas", label: "Personas" },
+  { href: "/dashboard/queries", label: "Queries" },
+  { href: "/dashboard/engines", label: "Engines" },
+  { href: "/dashboard/fanout", label: "Fan-out" },
+  { href: "/dashboard/citations", label: "Citations" },
+  { href: "/dashboard/whitespace", label: "Whitespace" },
+  { href: "/dashboard/action-plan", label: "Action Plan" },
+  { href: "/dashboard/recommendations", label: "Recommendations" },
+  { href: "/dashboard/outcome", label: "Outcome" },
+  { href: "/dashboard/runs", label: "Runs" },
 ];
 
-function BrandMark() {
+export function Wordmark() {
   return (
-    <span
-      className="grid h-8 w-8 place-items-center rounded-[11px] text-[var(--accent-ink)]"
-      style={{
-        background: "linear-gradient(160deg, var(--accent-2), var(--accent))",
-        boxShadow:
-          "0 1px 1px rgba(17,18,33,0.12), 0 4px 12px -3px color-mix(in srgb, var(--accent) 55%, transparent), inset 0 1px 0 rgba(255,255,255,0.22)",
-      }}
-      aria-hidden
-    >
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M12 3v18M5 8l7-5 7 5M5 16l7 5 7-5" strokeLinecap="round" strokeLinejoin="round" />
+    <span className="flex items-center gap-2">
+      <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden>
+        <rect x="0" y="0" width="18" height="18" rx="3" fill="var(--ink)" />
+        <circle cx="9" cy="9" r="3.25" fill="var(--ink-text)" />
       </svg>
+      <span className="text-[15px] font-semibold tracking-[-0.015em] text-[var(--text)]">
+        EverPresent
+      </span>
     </span>
   );
 }
@@ -86,19 +47,16 @@ export function DashNav({
   withDateRange?: boolean;
 }): ReactNode {
   return (
-    <header className="sticky top-0 z-30 -mx-8 mb-8 border-b border-[var(--border)] bg-[var(--scrim)] px-8 [backdrop-filter:var(--blur)] [-webkit-backdrop-filter:var(--blur)]">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between">
-        <Link href="/dashboard" className="flex items-center gap-2.5">
-          <BrandMark />
-          <span className="font-display text-[15px] font-semibold tracking-[-0.02em] text-[var(--text)]">
-            EverPresent
-          </span>
+    <header className="sticky top-0 z-30 -mx-8 mb-10 border-b border-[var(--border)] bg-[var(--plane)] px-8">
+      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between">
+        <Link href="/dashboard">
+          <Wordmark />
         </Link>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           {isSuperadmin && (
             <Link
               href="/admin"
-              className="rounded-md px-2.5 py-1.5 text-sm text-[var(--text-2)] transition-colors hover:bg-[color-mix(in_srgb,var(--text)_7%,transparent)] hover:text-[var(--text)]"
+              className="text-[13px] text-[var(--text-2)] hover:text-[var(--text)]"
             >
               Admin
             </Link>
@@ -108,7 +66,7 @@ export function DashNav({
           <UserButton />
         </div>
       </div>
-      <nav className="mx-auto flex max-w-6xl items-center gap-1 overflow-x-auto pb-2.5">
+      <nav className="mx-auto -mb-px flex max-w-6xl items-end gap-6 overflow-x-auto">
         {TABS.map((tab) => {
           const on = active === tab.label;
           return (
@@ -116,21 +74,18 @@ export function DashNav({
               key={tab.href}
               href={tab.href}
               aria-current={on ? "page" : undefined}
-              className={`flex shrink-0 items-center gap-1.5 rounded-[10px] px-3 py-1.5 text-[13px] font-medium transition-all duration-200 ${
+              className={`shrink-0 border-b-2 pb-2.5 pt-1 text-[13px] transition-colors ${
                 on
-                  ? "bg-[var(--accent-soft)] text-[var(--accent)]"
-                  : "text-[var(--text-3)] hover:bg-[color-mix(in_srgb,var(--text)_5%,transparent)] hover:text-[var(--text)]"
+                  ? "border-[var(--ink)] font-medium text-[var(--text)]"
+                  : "border-transparent text-[var(--text-2)] hover:text-[var(--text)]"
               }`}
             >
-              <span className={on ? "text-[var(--accent)]" : "text-[var(--text-3)]"}>
-                <Icon d={I[tab.icon]} />
-              </span>
               {tab.label}
             </Link>
           );
         })}
         {withDateRange && (
-          <div className="ml-auto shrink-0 pl-4">
+          <div className="ml-auto shrink-0 pb-2 pl-4">
             <Suspense>
               <DateRange />
             </Suspense>

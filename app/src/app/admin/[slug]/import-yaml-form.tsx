@@ -20,7 +20,7 @@ export function ImportYamlForm({ slug }: { slug: string }) {
       <button
         type="submit"
         disabled={pending}
-        className="self-start rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+        className="self-start rounded-md bg-[var(--ink)] px-4 py-2 text-sm font-medium text-[var(--ink-text)] hover:bg-[var(--ink-hover)] disabled:opacity-50"
       >
         {pending ? "Importing…" : "Import"}
       </button>

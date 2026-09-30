@@ -4,32 +4,25 @@ import type { AIOSummary, EngineMode, EngineModesPayload } from "@/lib/api";
 // Each mode reads in its own colour: retrieve borrows the cobalt accent, recall
 // a distinct violet, mixed a quiet teal. Standing is shown in the currency that
 // fits the mode, so the two are never averaged into a false single number.
-const MODE: Record<EngineMode["mode"], { color: string; soft: string; label: string; glyph: string }> = {
-  retrieve: { color: "var(--accent)", soft: "var(--accent-soft)", label: "Retrieves", glyph: "▲" },
-  recall: { color: "var(--mode-recall)", soft: "var(--mode-recall-soft)", label: "Recalls", glyph: "●" },
-  mixed: { color: "var(--mode-mixed)", soft: "var(--mode-mixed-soft)", label: "Mixed", glyph: "◆" },
+const MODE: Record<EngineMode["mode"], { color: string; soft: string; label: string }> = {
+  retrieve: { color: "var(--accent)", soft: "var(--accent-soft)", label: "Retrieves" },
+  recall: { color: "var(--mode-recall)", soft: "var(--mode-recall-soft)", label: "Recalls" },
+  mixed: { color: "var(--mode-mixed)", soft: "var(--mode-mixed-soft)", label: "Mixed" },
 };
 
 function EngineCard({ e }: { e: EngineMode }) {
   const m = MODE[e.mode];
   const whole = Math.round(e.standing_value);
   return (
-    <div className="card card-hover relative overflow-hidden p-4">
-      <span
-        className="absolute inset-y-0 left-0 w-[3px]"
-        style={{ background: m.color }}
-        aria-hidden
-      />
-      <span
-        className="font-display inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[10.5px] font-semibold uppercase tracking-[0.1em]"
-        style={{ background: m.soft, color: m.color }}
-      >
-        <span aria-hidden>{m.glyph}</span> {m.label}
+    <div className="card p-5">
+      <span className="inline-flex items-center gap-1.5 text-[12px] text-[var(--text-2)]">
+        <span className="h-1.5 w-1.5 rounded-full" style={{ background: m.color }} aria-hidden />
+        {m.label}
       </span>
-      <h3 className="mt-2.5 text-[17px]">{e.label}</h3>
+      <h3 className="mt-3 text-[16px]">{e.label}</h3>
       <p className="mt-1 min-h-[52px] text-xs leading-[1.45] text-[var(--text-2)]">{e.blurb}</p>
-      <div className="mt-2.5 flex items-baseline justify-between border-t border-[var(--border)] pt-2.5">
-        <span className="font-display text-[22px] tracking-[-0.03em] tabular-nums">
+      <div className="mt-4 flex items-baseline justify-between border-t border-[var(--border)] pt-3">
+        <span className="text-[28px] font-semibold tracking-[-0.025em] tabular-nums">
           {whole}
           <span className="text-[13px] text-[var(--text-3)]">%</span>
         </span>
@@ -57,24 +50,22 @@ function ModeColumn({
   const m = recall ? MODE.recall : MODE.retrieve;
   return (
     <div className="card p-5">
-      <div className="mb-1 flex items-center gap-2">
-        <span
-          className="font-display inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-[0.1em]"
-          style={{ background: m.soft, color: m.color }}
-        >
-          <span aria-hidden>{m.glyph}</span> {recall ? "Recall" : "Retrieval"}
+      <div className="mb-1 flex flex-col items-start gap-2">
+        <span className="inline-flex items-center gap-1.5 text-[12px] text-[var(--text-2)]">
+          <span className="h-1.5 w-1.5 rounded-full" style={{ background: m.color }} aria-hidden />
+          {recall ? "Recall" : "Retrieval"}
         </span>
-        <h3 className="text-sm font-medium">
-          {recall ? "Are you in the model's memory?" : "Do you win the live shards?"}
+        <h3 className="text-[15px] font-semibold">
+          {recall ? "Does the model already know you?" : "Do you appear when it searches?"}
         </h3>
       </div>
       <p className="mt-1.5 mb-3 text-xs leading-[1.5] text-[var(--text-2)]">
         {recall
-          ? "For prompts engines answer without searching, you're not ranking — you're already known or you're not. Moves slowly; shaped by durable corpus presence."
-          : "For prompts engines search, the fan-out is the real contest surface. You compete page-by-page for each sub-query. Moves fast; shaped by citable, structured content."}
+          ? "Prompts the engine answers from what it already knows, without searching. This changes slowly and depends on how widely your brand is covered across the web."
+          : "Prompts the engine answers by searching. It splits each prompt into sub-queries and picks sources for each. This changes quickly and responds to well-structured, citable pages."}
       </p>
       <div className="flex items-baseline gap-2">
-        <span className="font-display text-[30px] tracking-[-0.035em] tabular-nums">
+        <span className="text-[30px] font-semibold tracking-[-0.025em] tabular-nums">
           {answers > 0 ? `${Math.round(visibility)}%` : "—"}
         </span>
         <span className="text-xs text-[var(--text-3)]">
@@ -110,13 +101,13 @@ export function EngineModesHero({
       </div>
 
       {data.composite && (
-        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--inset)] px-4 py-3">
-          <span className="font-display text-[26px] leading-none tracking-[-0.03em] tabular-nums">
+        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-[var(--radius-lg)] border border-[var(--border)] px-5 py-4">
+          <span className="text-[26px] font-semibold leading-none tracking-[-0.025em] tabular-nums">
             {data.composite.score}
           </span>
           <span className="text-xs text-[var(--text-2)]">
-            Blended visibility across engines — a convenience roll-up, not the story.
-            Latest measurement · {data.composite.date}.
+            Combined visibility across engines. The per-engine figures above are more useful for
+            deciding what to do. Measured {data.composite.date}.
           </span>
         </div>
       )}

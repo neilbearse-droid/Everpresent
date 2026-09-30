@@ -4,7 +4,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "EverPresent",
-  description: "Generative Engine Optimization — brand visibility in AI answers",
+  description: "Brand visibility in AI-generated answers",
 };
 
 // Render everything dynamically so the Clerk publishable key is read from the
@@ -21,7 +21,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const publishableKey =
     process.env.CLERK_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
   return (
-    <ClerkProvider publishableKey={publishableKey}>
+    <ClerkProvider
+      publishableKey={publishableKey}
+      appearance={{
+        variables: {
+          colorPrimary: "#0a0a0c",
+          colorText: "#0a0a0c",
+          borderRadius: "6px",
+          fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif",
+        },
+      }}
+    >
       <html lang="en" suppressHydrationWarning>
         <head>
           {/* Set the theme before first paint to avoid a flash. Light is the

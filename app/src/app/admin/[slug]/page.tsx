@@ -58,7 +58,7 @@ export default async function TenantAdminPage({
         </div>
         <Link
           href={`/admin/${tenant.slug}/runs`}
-          className="rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white hover:opacity-90"
+          className="rounded-md bg-[var(--ink)] px-4 py-2 text-sm font-medium text-[var(--ink-text)] hover:bg-[var(--ink-hover)]"
         >
           Runs →
         </Link>
@@ -149,7 +149,7 @@ export default async function TenantAdminPage({
                   <button
                     className={`rounded-md px-3 py-1 text-xs font-medium ${
                       s.enabled
-                        ? "bg-emerald-600 text-white hover:bg-emerald-500"
+                        ? "bg-[var(--ink)] text-[var(--ink-text)] hover:bg-[var(--ink-hover)]"
                         : "border border-[var(--border)] text-[var(--text-2)] hover:bg-[var(--surface-2)]"
                     }`}
                   >

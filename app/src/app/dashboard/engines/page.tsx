@@ -6,10 +6,10 @@ import { surfaceLabel } from "@/lib/viz";
 
 const DIAGNOSIS_ORDER = ["knowledge_gap", "content_gap", "undetermined", "visible"];
 const DIAGNOSIS_STYLE: Record<string, { chip: string; dot: string }> = {
-  visible: { chip: "text-[var(--pos)]", dot: "bg-emerald-400" },
-  content_gap: { chip: "text-[var(--warn-t)]", dot: "bg-amber-400" },
-  knowledge_gap: { chip: "text-[var(--neg)]", dot: "bg-red-400" },
-  undetermined: { chip: "text-[var(--text-2)]", dot: "bg-slate-500" },
+  visible: { chip: "text-[var(--pos)]", dot: "bg-[var(--pos)]" },
+  content_gap: { chip: "text-[var(--warn-t)]", dot: "bg-[var(--warn)]" },
+  knowledge_gap: { chip: "text-[var(--neg)]", dot: "bg-[var(--neg)]" },
+  undetermined: { chip: "text-[var(--text-2)]", dot: "bg-[var(--text-3)]" },
 };
 
 const CELL_STYLE: Record<string, string> = {
@@ -46,12 +46,12 @@ export default async function EnginesPage({
       {routing.data?.observed && (
         <section className="mb-6 card p-6">
           <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
-            Do your prompts even trigger search?
+            Do your prompts trigger a search?
           </h2>
           <p className="mb-4 text-xs text-[var(--text-3)]">
-            Retrieval optimization only pays off for prompts the engine actually searches —
-            the rest are answered from training, where only broad brand presence moves the
-            needle. Share of priority prompts that triggered live search, per engine.
+            Share of your priority prompts that triggered a live search, by engine. Content
+            changes only help on prompts the engine searches; the rest are answered from its
+            training data.
           </p>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {routing.data.engines.map((e) => (
@@ -86,14 +86,13 @@ export default async function EnginesPage({
               Where {data!.brand_name} shows up, by engine
             </h2>
             <p className="mb-4 text-xs text-[var(--text-3)]">
-              Share of measured queries where your brand appears in the answer — per answer
-              engine. A low bar on one engine is where to focus.
+              Share of measured queries where your brand appears in the answer, by engine.
             </p>
             <HBars
               items={engines.map((e) => ({
                 label: `${surfaceLabel(e.surface)} · ${e.brand_present}/${e.queries_measured}`,
                 value: e.brand_rate,
-                color: "#34d399",
+                color: "#1d4ed8",
               }))}
               max={100}
               unit="%"
@@ -112,7 +111,7 @@ export default async function EnginesPage({
                   </div>
                   {e.mention_citation_gap >= 10 && (
                     <div className="mt-1 text-xs text-[var(--warn-t)]">
-                      named but not linked — {e.mention_citation_gap}pt gap
+                      Named but not linked ({e.mention_citation_gap} pt gap)
                     </div>
                   )}
                   <div className="mt-1 text-xs text-[var(--text-3)]">
@@ -129,8 +128,8 @@ export default async function EnginesPage({
           <section className="mb-6 card p-6">
             <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">Why you're missing</h2>
             <p className="mb-4 text-xs text-[var(--text-3)]">
-              For every query where you're absent, the search-vs-training diff tells us the
-              cause — and the cause dictates the fix.
+              For each query where you&apos;re absent, comparing the search and no-search answers
+              shows the likely cause, which determines the fix.
             </p>
             <div className="flex flex-wrap gap-3">
               {DIAGNOSIS_ORDER.filter((t) => summary[t]).map((t) => (
@@ -151,7 +150,7 @@ export default async function EnginesPage({
           {/* Query × engine matrix with diagnosis */}
           <section className="card p-6">
             <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">
-              Query × engine — who appears in each answer
+              Who appears in each answer
             </h2>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
@@ -202,8 +201,8 @@ export default async function EnginesPage({
             <p className="mt-4 text-xs text-[var(--text-3)]">
               <span className="text-[var(--pos)]">You</span> = your brand named ·{" "}
               <span className="text-[var(--warn-t)]">Rival</span> = a competitor named, you absent
-              (hover for names) · — = neither. Diagnosis uses the training-only baseline where
-              available.
+              (hover for names) · a dash means neither. The diagnosis uses the no-search answer
+              where available.
             </p>
           </section>
         </>

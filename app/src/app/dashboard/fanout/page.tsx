@@ -44,22 +44,20 @@ export default async function FanoutPage({
           The sub-queries engines run before answering
         </h1>
         <p className="mt-2 max-w-3xl text-sm text-[var(--text-2)]">
-          A retrieval engine doesn&apos;t search your prompt — it fans it out into several
-          sub-queries (&quot;shards&quot;) and competes each one separately. This is the map of that
-          real contest surface: the shards each engine issued, and which of them explicitly name you
-          or a competitor.
+          Search-based engines don&apos;t search your prompt as written. They split it into several
+          sub-queries and pick sources for each one. This page lists the sub-queries each engine
+          ran, whether you appear in the results, and who does.
         </p>
       </div>
 
       <div className="card-inset mb-6 flex gap-3 p-4 text-xs text-[var(--text-2)]">
-        <span aria-hidden className="mt-0.5 text-[var(--accent)]">ⓘ</span>
-        <p className="leading-[1.55]">
+                <p className="leading-[1.55]">
           <span className="font-semibold text-[var(--text)]">What&apos;s measured here.</span>{" "}
           The shard list and &quot;names you / a competitor&quot; flags come straight from the shard
           text the engines exposed. Whether you appeared in the <em>final answer</em> is real,
           from mentions. <span className="font-medium">Per-shard presence</span> is shown only for
           shards we re-ran as their own query on an engine that issued them (&quot;re-probed&quot;);
-          every other shard is marked unresolved — we never guess it from the parent answer.
+          every other shard is marked unresolved rather than estimated from the full answer.
           Branded prompts are excluded (they live in the Brand layer).
           {data?.observed && (
             <>
@@ -95,7 +93,7 @@ export default async function FanoutPage({
                     {Object.entries(p.reach_by_engine).map(([label, n]) => (
                       <span
                         key={label}
-                        className="rounded-full border border-[var(--border)] bg-[var(--surface-2)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-2)]"
+                        className="rounded-[4px] border border-[var(--border)] bg-[var(--surface-2)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-2)]"
                       >
                         {label} · {n}
                       </span>
@@ -128,7 +126,7 @@ export default async function FanoutPage({
                     shards · {p.engines_count} {p.engines_count === 1 ? "engine" : "engines"}
                   </div>
                   <span
-                    className="mt-1.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10.5px] font-semibold"
+                    className="mt-1.5 inline-flex items-center gap-1 rounded-[4px] px-2 py-0.5 text-[10.5px] font-semibold"
                     style={
                       p.brand_in_answer
                         ? { background: "rgba(20,122,74,.12)", color: "var(--pos)" }
@@ -159,7 +157,7 @@ export default async function FanoutPage({
                         className="border-t border-[var(--border)] align-top"
                         style={
                           s.priority === "high"
-                            ? { background: "color-mix(in srgb, var(--neg) 6%, transparent)" }
+                            ? { background: "color-mix(in srgb, var(--neg) 3%, transparent)" }
                             : undefined
                         }
                       >
@@ -177,7 +175,7 @@ export default async function FanoutPage({
                             {s.engines.map((e) => (
                               <span
                                 key={e}
-                                className="rounded-full border border-[var(--border)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-2)]"
+                                className="rounded-[4px] border border-[var(--border)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-2)]"
                               >
                                 {e}
                               </span>
@@ -188,7 +186,7 @@ export default async function FanoutPage({
                           <div className="flex flex-wrap gap-1">
                             {s.names_brand && (
                               <span
-                                className="rounded-full px-2 py-0.5 text-[10.5px] font-semibold"
+                                className="rounded-[4px] px-2 py-0.5 text-[10.5px] font-semibold"
                                 style={{ background: "var(--accent-soft)", color: "var(--accent)" }}
                               >
                                 you
@@ -197,7 +195,7 @@ export default async function FanoutPage({
                             {s.names_competitors.map((c) => (
                               <span
                                 key={c}
-                                className="rounded-full px-2 py-0.5 text-[10.5px] font-medium"
+                                className="rounded-[4px] px-2 py-0.5 text-[10.5px] font-medium"
                                 style={{ background: "var(--surface-2)", color: "var(--text-2)" }}
                               >
                                 {c}
@@ -235,7 +233,7 @@ export default async function FanoutPage({
                         <td className="py-2.5">
                           {s.priority && (
                             <span
-                              className="rounded-full px-2 py-0.5 text-[10.5px] font-semibold uppercase"
+                              className="rounded-[4px] px-2 py-0.5 text-[10.5px] font-semibold"
                               style={
                                 s.priority === "high"
                                   ? { background: "rgba(192,42,34,.1)", color: "var(--neg)" }

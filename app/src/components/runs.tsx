@@ -4,11 +4,11 @@ import { surfaceLabel } from "@/lib/viz";
 
 const STATUS_STYLES: Record<Run["status"], string> = {
   pending: "bg-[var(--surface-2)] text-[var(--text)]",
-  running: "bg-sky-700 text-white",
-  complete: "bg-emerald-700 text-white",
-  failed: "bg-red-800 text-white",
-  gated: "bg-amber-700 text-white",
-  capped: "bg-orange-700 text-white",
+  running: "border border-[var(--border)] bg-[var(--surface)] text-[var(--accent)]",
+  complete: "border border-[var(--border)] bg-[var(--surface)] text-[var(--pos)]",
+  failed: "border border-[var(--border)] bg-[var(--surface)] text-[var(--neg)]",
+  gated: "border border-[var(--border)] bg-[var(--surface)] text-[var(--warn-t)]",
+  capped: "border border-[var(--border)] bg-[var(--surface)] text-[var(--warn-t)]",
 };
 
 export function StatusBadge({ status }: { status: Run["status"] }) {

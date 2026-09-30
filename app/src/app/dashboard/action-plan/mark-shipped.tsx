@@ -63,7 +63,7 @@ export function MarkShipped({
       />
       <button
         disabled={shipping}
-        className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-white hover:opacity-90 disabled:opacity-50"
+        className="rounded-md bg-[var(--ink)] px-3 py-1.5 text-xs font-medium text-[var(--ink-text)] hover:bg-[var(--ink-hover)] disabled:opacity-50"
       >
         {shipping ? "Recording…" : "Mark shipped"}
       </button>

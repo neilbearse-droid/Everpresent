@@ -69,7 +69,7 @@ export function BrandFactsPanel({ slug, facts }: { slug: string; facts: BrandFac
         <div className="sm:col-span-2">
           <button
             disabled={pending}
-            className="rounded-md bg-[var(--accent)] px-3 py-1.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50"
+            className="rounded-md bg-[var(--ink)] px-3 py-1.5 text-sm font-medium text-[var(--ink-text)] hover:bg-[var(--ink-hover)] disabled:opacity-50"
           >
             {pending ? "Adding…" : "Add fact"}
           </button>

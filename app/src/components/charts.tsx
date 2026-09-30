@@ -11,8 +11,8 @@ import {
 } from "recharts";
 
 // Recessive gridlines: softer than the card hairline so the data reads first.
-const GRID = "color-mix(in srgb, var(--text) 8%, transparent)";
-const AXIS_LINE = "color-mix(in srgb, var(--text) 12%, transparent)";
+const GRID = "var(--border)";
+const AXIS_LINE = "var(--border-strong)";
 const AXIS_TEXT = "var(--text-3)";
 
 type TrendRow = Record<string, string | number>;
@@ -34,7 +34,7 @@ export function TrendChart({
           {series.map((s) => (
             <span key={s.name} className="flex items-center gap-1.5 text-xs text-[var(--text-2)]">
               <span
-                className="inline-block h-2.5 w-2.5 rounded-full"
+                className="inline-block h-[2px] w-3"
                 style={{ background: s.color }}
               />
               {s.name}
@@ -43,7 +43,7 @@ export function TrendChart({
         </div>
       )}
       <ResponsiveContainer width="100%" height={280}>
-        <LineChart data={data} margin={{ top: 8, right: 110, bottom: 0, left: 0 }}>
+        <LineChart data={data} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
           <CartesianGrid stroke={GRID} strokeDasharray="0" vertical={false} />
           <XAxis
             dataKey="date"
@@ -64,7 +64,7 @@ export function TrendChart({
             contentStyle={{
               background: "var(--surface)",
               border: "1px solid var(--border)",
-              borderRadius: 12,
+              borderRadius: 6,
               fontSize: 12,
               boxShadow: "var(--shadow-3)",
               color: "var(--text)",
@@ -77,47 +77,29 @@ export function TrendChart({
           {series.map((s, seriesIndex) => (
             <Line
               key={s.name}
-              type="monotone"
+              type="linear"
               dataKey={s.name}
               stroke={s.color}
-              strokeWidth={2.25}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              // Emphasised endpoint: a filled dot ringed in the surface colour
-              // at the latest measurement, so the current value reads first.
+              // The brand (first series) reads first; competitors sit back.
+              strokeWidth={seriesIndex === 0 ? 2.25 : 1.5}
+              strokeOpacity={seriesIndex === 0 ? 1 : 0.85}
               dot={(props: { index?: number; cx?: number; cy?: number }) =>
                 props.index === last && props.cx != null && props.cy != null ? (
                   <circle
                     key={`${s.name}-end`}
                     cx={props.cx}
                     cy={props.cy}
-                    r={3.5}
+                    r={3}
                     fill={s.color}
                     stroke="var(--surface)"
-                    strokeWidth={2}
+                    strokeWidth={1.5}
                   />
                 ) : (
                   <g key={`${s.name}-${props.index}`} />
                 )
               }
-              activeDot={{ r: 4.5, strokeWidth: 2, stroke: "var(--surface)" }}
+              activeDot={{ r: 3.5, strokeWidth: 1.5, stroke: "var(--surface)" }}
               isAnimationActive={false}
-              // Selective direct label at the line end (secondary encoding on
-              // top of the legend), staggered a little per series.
-              label={(props: { index?: number; x?: number; y?: number; value?: number }) =>
-                props.index === last && props.x != null && props.y != null ? (
-                  <text
-                    x={props.x + 8}
-                    y={props.y + (seriesIndex % 3) * 4 - 4}
-                    fill={AXIS_TEXT}
-                    fontSize={11}
-                  >
-                    {shortName(s.name)}
-                  </text>
-                ) : (
-                  <g />
-                )
-              }
             />
           ))}
         </LineChart>
@@ -126,11 +108,7 @@ export function TrendChart({
   );
 }
 
-function shortName(name: string): string {
-  return name.length > 16 ? name.slice(0, 15) + "…" : name;
-}
-
-/** Horizontal labeled bars in plain HTML: thin marks, rounded data end,
+/** Horizontal labeled bars in plain HTML: thin square-ended marks,
  * per-row hover, values in text tokens. Max is 100 for scores, or the data
  * max for shares. */
 export function HBars({
@@ -152,7 +130,7 @@ export function HBars({
           <div className="mb-1 flex items-baseline justify-between gap-3 text-xs">
             <span className="flex min-w-0 items-center gap-1.5 text-[var(--text-2)]">
               <span
-                className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+                className="inline-block h-2 w-2 shrink-0 rounded-[2px]"
                 style={{ background: item.color }}
               />
               <span className="truncate">{item.label}</span>
@@ -162,9 +140,9 @@ export function HBars({
               {unit}
             </span>
           </div>
-          <div className="h-2 w-full rounded-full bg-[color-mix(in_srgb,var(--text)_9%,transparent)]">
+          <div className="h-1.5 w-full bg-[var(--surface-2)]">
             <div
-              className="h-2 rounded-full transition-opacity group-hover:opacity-80"
+              className="h-1.5 transition-opacity group-hover:opacity-80"
               style={{
                 width: `${Math.min(100, (item.value / max) * 100)}%`,
                 background: item.color,
