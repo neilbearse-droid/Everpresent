@@ -3,6 +3,26 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M25c — fan-out close the loop (2026-09-30)
+
+1. **Brief only for a measured miss.** The service refuses any shard that
+   wasn't re-probed or where the brand was present — no brief is ever built on
+   an unresolved guess. The button shows on HIGH rows (the spec's worklist);
+   the service would also accept a MED miss if a caller asks.
+2. **Same governance as the accuracy drafts:** ai_processing_approved + the
+   draft model on the tenant allowlist + a key, else 409 with the reason. The
+   shared call-and-upsert step moved into one helper (`content_service._draft`).
+3. **Context comes from the re-probe answer itself**: the winners, how the
+   answer framed them (mention-detector snippets) and the domains it cited.
+   The prompt asks for [placeholders] instead of invented facts or prices.
+4. **One draft per shard text, not per row** (`source_ref = shard:<shard_norm>`,
+   `source_kind = fanout`): the same shard recurs every run under a new row
+   id, and regenerating replaces rather than piles up.
+5. **Trend = latest distinct re-probe vs the one before it.** Only original
+   measurements (`probe_status=ok`) are data points; carried copies aren't, so
+   a shard can't "trend" against itself. With the 7-day TTL a shard gets a new
+   data point about weekly. A first measurement has no trend (null).
+
 ## M25b — fan-out re-probe (2026-09-30)
 
 1. **K settled from a cost model, lower than the spec's 5 / 12.** Per-probe

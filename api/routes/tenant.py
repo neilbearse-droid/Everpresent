@@ -197,6 +197,22 @@ def generate_accuracy_draft(fact_id: int, ctx: Ctx, session: Db) -> ContentDraft
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
+@router.post("/content/fanout/{shard_id}/draft")
+def generate_shard_draft(shard_id: int, ctx: Ctx, session: Db) -> ContentDraft:
+    """Close the loop on a lost fan-out shard (M25c): a brief that answers the
+    sub-query the engine searched. Governed — 409 with a clear reason when the
+    tenant/config can't, or when the shard isn't a measured miss."""
+    from api.content_service import ContentGenUnavailable
+    from api.content_service import generate_shard_draft as _gen
+
+    if ctx.tenant is None or not ctx.tenant.ai_processing_approved:
+        raise HTTPException(status_code=403, detail="AI processing not approved for this tenant")
+    try:
+        return _gen(session, ctx.tenant, shard_id)
+    except ContentGenUnavailable as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
 class ContentDraftStatusPatch(BaseModel):
     status: ContentDraftStatus
 

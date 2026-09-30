@@ -77,3 +77,44 @@ def parse_draft(raw: str) -> tuple[str, str]:
         except (ValueError, json.JSONDecodeError):
             pass
     return "", raw.strip()
+
+
+@dataclass
+class ShardGapContext:
+    """A fan-out shard the brand lost (§FANOUT_SCORECARD M25c): the engine
+    re-ran the sub-query on its own and a competitor showed up, the brand
+    didn't."""
+
+    brand_name: str
+    parent_query: str  # the tracked prompt the engine fanned out from
+    shard_text: str  # the sub-query it actually searched
+    winners: list[str] = field(default_factory=list)  # competitors in the answer
+    engine: str = ""  # engine the shard was re-probed on
+    snippets: list[str] = field(default_factory=list)  # how the answer framed winners
+    source_domains: list[str] = field(default_factory=list)  # what that answer cited
+
+
+def build_shard_draft_prompt(ctx: ShardGapContext) -> str:
+    lines = [
+        f"Brand: {ctx.brand_name}",
+        f"Buyer prompt: {ctx.parent_query}",
+        f"Sub-query the AI engine searched while answering it: {ctx.shard_text}",
+        "The brand does NOT appear in the answer to that sub-query"
+        + (f" on {ctx.engine}." if ctx.engine else "."),
+    ]
+    if ctx.winners:
+        lines.append(f"Competitors that do appear: {', '.join(ctx.winners)}")
+    if ctx.source_domains:
+        lines.append(f"Sources that answer cites: {', '.join(ctx.source_domains)}")
+    if ctx.snippets:
+        lines.append("How the answer currently frames it:")
+        lines.extend(f"- {s}" for s in ctx.snippets[:3])
+    lines.append(
+        "\nWrite a content brief plus a short draft for the brand's own site that "
+        "directly answers the sub-query, so AI engines searching it find and cite "
+        "the brand. Open with a one-sentence direct answer, then the H2 sections the "
+        "page needs, then the draft copy. State only what the brand can verify — "
+        "leave clearly marked [placeholders] for facts, prices or figures you don't "
+        "have. Don't disparage competitors."
+    )
+    return "\n".join(lines)

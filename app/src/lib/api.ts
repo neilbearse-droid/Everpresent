@@ -221,6 +221,9 @@ export type EngineModesPayload = {
 };
 
 export type FanoutShard = {
+  id: number | null;
+  // Vs this shard's previous re-probe (M25c); null on its first measurement.
+  trend: "won_back" | "lost" | "steady" | null;
   text: string;
   engines: string[];
   names_brand: boolean;
@@ -250,9 +253,12 @@ export type FanoutScorecardPayload = {
     shards_absent: number;
     shards_unresolved: number;
     high_misses: number;
+    won_back: number;
+    lost: number;
     shards: FanoutShard[];
   }[];
   coverage: { reprobed: number; unresolved: number };
+  trend: { won_back: number; lost: number };
   reprobe_enabled: boolean;
 };
 

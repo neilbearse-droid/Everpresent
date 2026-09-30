@@ -1,6 +1,7 @@
 import { apiFetch, rangeQuery, type FanoutScorecardPayload, type Me } from "@/lib/api";
 import { DashNav } from "@/components/dash-nav";
 import { NoOrgNotice } from "@/components/no-org-notice";
+import { GenerateBrief } from "./generate-brief";
 
 // Why a shard has no measured presence — shown on hover so no cap is silent.
 function unresolvedReason(status: string): string {
@@ -66,6 +67,8 @@ export default async function FanoutPage({
               <span className="font-medium text-[var(--text)]">
                 Coverage: {data.coverage.reprobed} re-probed · {data.coverage.unresolved} unresolved.
               </span>
+              {(data.trend.won_back > 0 || data.trend.lost > 0) &&
+                ` Since each shard's previous re-probe: ${data.trend.won_back} won back, ${data.trend.lost} newly lost.`}
               {!data.reprobe_enabled && " Re-probing is off for this account, so presence is not measured yet."}
             </>
           )}
@@ -109,6 +112,10 @@ export default async function FanoutPage({
                         {p.high_misses > 0 && (
                           <span className="text-[var(--neg)]"> · {p.high_misses} high-priority miss{p.high_misses === 1 ? "" : "es"}</span>
                         )}
+                        {p.won_back > 0 && (
+                          <span className="text-[var(--pos)]"> · ▲ {p.won_back} won back</span>
+                        )}
+                        {p.lost > 0 && <span className="text-[var(--neg)]"> · ▼ {p.lost} newly lost</span>}
                       </span>
                     )}
                   </div>
@@ -156,7 +163,15 @@ export default async function FanoutPage({
                             : undefined
                         }
                       >
-                        <td className="py-2.5 pr-4 text-[var(--text)]">{s.text}</td>
+                        <td className="py-2.5 pr-4 text-[var(--text)]">
+                          {s.text}
+                          {/* Close the loop (M25c): a brief that answers the lost shard. */}
+                          {s.priority === "high" && s.id !== null && (
+                            <div className="mt-2">
+                              <GenerateBrief shardId={s.id} />
+                            </div>
+                          )}
+                        </td>
                         <td className="py-2.5 pr-4">
                           <div className="flex flex-wrap gap-1">
                             {s.engines.map((e) => (
@@ -206,6 +221,12 @@ export default async function FanoutPage({
                             <span className="text-[11px] text-[var(--text-3)]" title={unresolvedReason(s.probe_status)}>
                               unresolved
                             </span>
+                          )}
+                          {s.trend === "won_back" && (
+                            <div className="mt-0.5 text-[10.5px] font-semibold text-[var(--pos)]">▲ won back</div>
+                          )}
+                          {s.trend === "lost" && (
+                            <div className="mt-0.5 text-[10.5px] font-semibold text-[var(--neg)]">▼ newly lost</div>
                           )}
                         </td>
                         <td className="py-2.5 pr-4 text-[12px] text-[var(--text-2)]">

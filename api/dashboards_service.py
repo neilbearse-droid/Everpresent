@@ -804,13 +804,51 @@ def fanout_scorecard(
             if key not in measured or (row.id or 0) > (measured[key].id or 0):
                 measured[key] = row
 
+    # Trend (M25c): every distinct re-probe of a shard up to the window's end,
+    # oldest first. Carried rows are copies of an earlier probe, so only the
+    # original measurement (probe_status 'ok') counts as a data point.
+    history: dict[tuple[str, str], list[tuple[datetime, bool, int | None]]] = defaultdict(list)
+    if measured:
+        for row in session.exec(
+            select(FanoutShard).where(
+                FanoutShard.tenant_id == tenant_id,
+                FanoutShard.probe_status == "ok",
+                FanoutShard.parent_query_text.in_(list(per_prompt)),  # pyright: ignore[reportAttributeAccessIssue]
+            )
+        ).all():
+            if row.probed_at is None or row.brand_present is None:
+                continue
+            if not _in_window(row.probed_at, None, hi):
+                continue
+            history[(row.parent_query_text, row.shard_norm)].append(
+                (row.probed_at, row.brand_present, row.probe_result_id)
+            )
+        for points in history.values():
+            points.sort(key=lambda pt: pt[0])
+
+    def shard_trend(key: tuple[str, str], row: FanoutShard) -> str | None:
+        """won_back | lost | steady vs the previous distinct re-probe of this
+        shard; None when this is its first measurement."""
+        points = history.get(key, [])
+        idx = next(
+            (i for i, pt in enumerate(points) if pt[2] == row.probe_result_id),
+            len(points) - 1,
+        )
+        if idx < 1:
+            return None
+        before, now = points[idx - 1][1], row.brand_present
+        if before == now:
+            return "steady"
+        return "won_back" if now else "lost"
+
     tenant = session.get(Tenant, tenant_id)
     coverage = {"reprobed": 0, "unresolved": 0}
+    trend_totals = {"won_back": 0, "lost": 0}
     prompts = []
     for qtext, p in per_prompt.items():
         shards = []
         contested = 0
-        present = absent = 0
+        present = absent = won_back = lost = 0
         for norm, entry in p["shards"].items():
             low = entry["text"].lower()
             names_comp = sorted(
@@ -820,6 +858,11 @@ def fanout_scorecard(
                 contested += 1
             row = measured.get((qtext, norm))
             resolved = row if row is not None and row.source == "reprobed" else None
+            trend = shard_trend((qtext, norm), resolved) if resolved else None
+            if trend == "won_back":
+                won_back += 1
+            elif trend == "lost":
+                lost += 1
             if resolved is not None:
                 coverage["reprobed"] += 1
                 if resolved.brand_present:
@@ -829,6 +872,8 @@ def fanout_scorecard(
             else:
                 coverage["unresolved"] += 1
             shards.append({
+                "id": row.id if row is not None else None,
+                "trend": trend,
                 "text": entry["text"],
                 "engines": sorted(entry["engines"]),
                 "names_brand": _names_present(low, brand_tokens),
@@ -853,12 +898,16 @@ def fanout_scorecard(
             "shards_absent": absent,
             "shards_unresolved": len(shards) - present - absent,
             "high_misses": sum(1 for s in shards if s["priority"] == "high"),
+            "won_back": won_back,
+            "lost": lost,
             "engines_count": len(p["reach"]),
             "reach_by_engine": dict(sorted(p["reach"].items())),
             "brand_in_answer": p["brand_in_answer"],
             "contested": contested,
             "shards": shards,
         })
+        trend_totals["won_back"] += won_back
+        trend_totals["lost"] += lost
     prompts.sort(key=lambda x: (-x["high_misses"], -x["shards_total"]))
 
     return {
@@ -867,6 +916,7 @@ def fanout_scorecard(
         "observed": bool(prompts),
         "branded_excluded": True,
         "coverage": coverage,
+        "trend": trend_totals,
         "reprobe_enabled": bool(tenant and tenant.fanout_reprobe_enabled),
     }
 

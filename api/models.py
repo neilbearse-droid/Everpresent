@@ -623,8 +623,9 @@ class ContentDraft(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     tenant_id: int = Field(foreign_key="tenants.id", index=True)
-    source_kind: str = Field(index=True)  # accuracy | recommendation
-    source_ref: str = Field(index=True)  # e.g. "fact:12" or a recommendation gap_ref
+    source_kind: str = Field(index=True)  # accuracy | recommendation | fanout
+    # e.g. "fact:12", a recommendation gap_ref, or "shard:<shard_norm>"
+    source_ref: str = Field(index=True)
     title: str = ""
     body: str = ""
     model: str = ""

@@ -1,7 +1,8 @@
 # Fan-out Scorecard — Milestone Spec (build 2)
 
-Status: **M25a + M25b shipped; M25c open.** Companion to the shipped reframed
-Overview (`engine_modes`). Build decisions and the K cost model: DECISIONS.md M25b.
+Status: **M25a, M25b and M25c shipped.** Companion to the shipped reframed
+Overview (`engine_modes`). Build decisions and the K cost model: DECISIONS.md
+M25b / M25c. Still open: the audience-weighted composite (§10 Q3).
 This turns fan-out from a *map* into a *prioritized, longitudinal worklist*.
 
 ## 1. Why
@@ -176,7 +177,9 @@ Sort HIGH → MED → LOW, then by reach desc. HIGH misses are the content workl
   that `shard` never enters competitive aggregations. This is where true
   per-shard presence + `reach × loss` priority arrive.
 - **M25c — close the loop.** "Generate corrective brief" per HIGH miss (reuse
-  `content_service`), and trend deltas on the scorecard.
+  `content_service`), and trend deltas on the scorecard. *Shipped:*
+  `POST /api/tenant/content/fanout/{shard_id}/draft`; per-shard `trend`
+  (won_back / lost / steady) vs the shard's previous distinct re-probe.
 
 ## 10. Estimate & risks
 
