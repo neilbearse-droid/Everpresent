@@ -15,14 +15,20 @@ export type ApiResult<T> = {
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<ApiResult<T>> {
   const { getToken } = await auth();
   const token = await getToken();
-  const res = await fetch(`${API_ORIGIN}${path}`, {
-    ...init,
-    headers: {
-      ...(init.headers ?? {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    cache: "no-store",
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_ORIGIN}${path}`, {
+      ...init,
+      headers: {
+        ...(init.headers ?? {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      cache: "no-store",
+    });
+  } catch (e) {
+    // API down / DNS / reset: a failed result, never an uncaught page crash.
+    return { ok: false, status: 0, data: null, error: `API unreachable (${String(e)})` };
+  }
   let data: T | null = null;
   let error: string | null = null;
   const body = await res.text();
@@ -31,13 +37,25 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
     if (res.ok) {
       data = parsed as T;
     } else {
-      error =
-        typeof parsed?.detail === "string" ? parsed.detail : (body ?? `HTTP ${res.status}`);
+      error = describeError(parsed?.detail) ?? (body || `HTTP ${res.status}`);
     }
   } catch {
     error = res.ok ? null : body || `HTTP ${res.status}`;
   }
   return { ok: res.ok, status: res.status, data, error };
+}
+
+/** FastAPI error detail → readable text: a string as-is, a 422 validation
+ * list as its joined messages. */
+function describeError(detail: unknown): string | null {
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    const msgs = detail
+      .map((d) => (d && typeof d === "object" && "msg" in d ? String(d.msg) : null))
+      .filter(Boolean);
+    return msgs.length ? msgs.join("; ") : null;
+  }
+  return null;
 }
 
 /** Build the ?start=&end= suffix for time-scoped intel endpoints from the

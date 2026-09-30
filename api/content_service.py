@@ -152,6 +152,12 @@ def _draft(
     """One governed draft call, upserted per (tenant, source_kind, source_ref)
     so regenerating replaces rather than piles up duplicates."""
     assert tenant.id is not None
+    from api.runs_service import month_spend_usd
+
+    # Drafting is a paid LLM call: respect the tenant's monthly cap like every
+    # other spend path.
+    if month_spend_usd(session, tenant.id) >= tenant.monthly_spend_cap_usd:
+        raise ContentGenUnavailable("the monthly spend cap is reached; raise it to draft more")
     raw = router.complete(
         prompt,
         model=model,
@@ -161,11 +167,16 @@ def _draft(
         timeout_s=get_settings().utility_llm_timeout_s,
     )
     title, body = parse_draft(raw)
+    # Regenerating replaces the working draft, but never a draft a person has
+    # approved or published: that one is kept and a new draft is created.
     draft = session.exec(
         select(ContentDraft).where(
             ContentDraft.tenant_id == tenant.id,
             ContentDraft.source_kind == source_kind,
             ContentDraft.source_ref == source_ref,
+            ContentDraft.status.in_(  # pyright: ignore[reportAttributeAccessIssue]
+                [ContentDraftStatus.draft, ContentDraftStatus.dismissed]
+            ),
         )
     ).first()
     if draft is None:

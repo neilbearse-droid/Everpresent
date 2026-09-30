@@ -54,6 +54,8 @@ class AIOOutcome:
     page_html: str = ""
     citations: list[ParsedCitation] = field(default_factory=list)
     latency_ms: int = 0
+    # Billed SerpApi searches beyond the first (the AIO page_token fetch).
+    extra_searches: int = 0
 
 
 def parse_aio_fragment(html: str) -> tuple[str, list[ParsedCitation]]:
@@ -110,7 +112,30 @@ async def _capture_serpapi(
             params={"engine": "google", "q": query_text, "gl": gl, "hl": hl, "api_key": api_key},
         )
         resp.raise_for_status()
-        outcome = parse_serpapi_payload(resp.json())
+        payload = resp.json()
+        extra = 0
+        aio = payload.get("ai_overview") or {}
+        # Google often renders the AI Overview lazily: SerpApi then returns only
+        # a page_token, and the blocks + references need a second request
+        # (engine=google_ai_overview; the token expires within minutes, so
+        # fetch it now). Without this the AIO reads as present but empty and
+        # the brand looks absent from it.
+        if aio.get("page_token") and not aio.get("text_blocks"):
+            follow = await client.get(
+                SERPAPI_URL,
+                params={
+                    "engine": "google_ai_overview",
+                    "page_token": aio["page_token"],
+                    "api_key": api_key,
+                },
+            )
+            extra = 1  # billed as a search whether or not it succeeds
+            if follow.status_code == 200:
+                expanded = (follow.json() or {}).get("ai_overview") or {}
+                if expanded:
+                    payload = {**payload, "ai_overview": expanded}
+        outcome = parse_serpapi_payload(payload)
+        outcome.extra_searches = extra
         outcome.page_html = ""  # JSON path has no rendered page
         outcome.latency_ms = int((time.monotonic() - started) * 1000)
         return outcome

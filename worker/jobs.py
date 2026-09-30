@@ -190,6 +190,10 @@ B_ADAPTERS: dict[str, tuple[Any, str, str, str]] = {
 }
 
 
+# Extra seconds a Mode B call gets beyond its configured timeout (browser
+# launch and teardown) before the dispatch loop gives up on it.
+_B_TIMEOUT_GRACE_S = 60
+
 # Conservative per-call upper bounds for the cap reservation (§audit H6). A
 # real call rarely exceeds these; over-reserving errs toward withholding early.
 _EST_INPUT_TOKENS = 3000
@@ -237,12 +241,25 @@ def _finalize_run(session: Session, run: Run, tenant: Tenant) -> None:
             processing_counts = process_run(session, run)
             run.counts = {**run.counts, **processing_counts}
         except Exception as exc:  # noqa: BLE001
+            # Discard the half-applied derived rows (and any failed DB
+            # transaction) before recording the error on a fresh read.
+            session.rollback()
+            session.refresh(run)
             run.error = f"processing failed: {type(exc).__name__}: {exc}"[:500]
         session.add(run)
         session.commit()
 
-    # Fan-out re-probe (§FANOUT_SCORECARD M25b) runs as its own job after the
-    # run is final: opt-in, plan-gated, and never fails the run it follows.
+    # M5 notifications: report lands in the inbox; failure never fails a run.
+    from api.notifications import notify_run_complete
+
+    if notify_run_complete(session, run, tenant):
+        run.counts = {**run.counts, "notified": len(tenant.notify_emails)}
+        session.add(run)
+        session.commit()
+
+    # Fan-out re-probe (§FANOUT_SCORECARD M25b) runs as its own job, queued
+    # last so nothing here writes run.counts after it starts. Opt-in,
+    # plan-gated, and it never fails the run it follows.
     if (
         tenant.fanout_reprobe_enabled
         and limits_for(tenant.plan).shard_probes_per_run > 0
@@ -259,13 +276,28 @@ def _finalize_run(session: Session, run: Run, tenant: Tenant) -> None:
         session.add(run)
         session.commit()
 
-    # M5 notifications: report lands in the inbox; failure never fails a run.
-    from api.notifications import notify_run_complete
 
-    if notify_run_complete(session, run, tenant):
-        run.counts = {**run.counts, "notified": len(tenant.notify_emails)}
+def tenant_for_handoff(session: Session, run: Run) -> Tenant:
+    tenant = session.get(Tenant, run.tenant_id)
+    assert tenant is not None
+    return tenant
+
+
+def _handoff_to_mode_b(session: Session, run: Run, tenant: Tenant) -> bool:
+    """Queue this run's Mode B half. If queueing fails (a Redis blip), finalize
+    now with what Mode A collected instead of stranding committed results
+    unprocessed. Returns True when Mode B was queued (it will finalize)."""
+    assert run.id is not None
+    try:
+        enqueue_run_mode_b(run.id)
+        return True
+    except Exception as exc:  # noqa: BLE001
+        note = f"could not queue the browser engines: {type(exc).__name__}"
+        run.error = (run.error or note)[:500]
         session.add(run)
         session.commit()
+        _finalize_run(session, run, tenant)
+        return False
 
 
 @dataclass
@@ -594,7 +626,7 @@ async def _run_mode_a(run_id: int) -> None:
                 # them rather than losing the whole run to one missing key.
                 session.add(run)
                 session.commit()
-                enqueue_run_mode_b(run_id)
+                _handoff_to_mode_b(session, run, tenant_for_handoff(session, run))
                 return
             run.status = RunStatus.failed
             run.finished_at = utcnow()
@@ -795,10 +827,9 @@ async def _run_mode_a(run_id: int) -> None:
         session.add(run)
         session.commit()
 
-        if _b_surfaces(run):
+        if _b_surfaces(run) and _handoff_to_mode_b(session, run, tenant):
             # Mode B runs on the Playwright container and finalizes the run
             # (single finalize + processing pass, no cross-worker races).
-            enqueue_run_mode_b(run_id)
             return
         _finalize_run(session, run, tenant)
 
@@ -836,16 +867,26 @@ async def _run_mode_b(run_id: int) -> None:
             run.started_at = utcnow()
             session.add(run)
             session.commit()
+        # Same set, order and plan limits as Mode A, so both halves of a run
+        # measure the same prompts and personas (and B can't exceed the plan).
         queries = [
             (q.id, q.text, list(q.persona_runs or []))
             for q in session.exec(
-                select(Query).where(Query.tenant_id == tenant.id, Query.active == True)  # noqa: E712
+                select(Query)
+                .where(Query.tenant_id == tenant.id, Query.active == True)  # noqa: E712
+                .order_by(Query.id)  # pyright: ignore[reportArgumentType]
             ).all()
         ]
         personas = [
             (p.id, p.name, p.prompt_text, p.segment_tag)
-            for p in session.exec(select(Persona).where(Persona.tenant_id == tenant.id)).all()
+            for p in session.exec(
+                select(Persona).where(Persona.tenant_id == tenant.id).order_by(Persona.id)  # pyright: ignore[reportArgumentType]
+            ).all()
         ]
+        if limits.max_prompts is not None:
+            queries = queries[: limits.max_prompts]
+        if limits.max_personas is not None:
+            personas = personas[: limits.max_personas]
         base_counts = dict(run.counts) if run.counts else {}
 
     # Work fans out over locations × queries × surfaces (§SCRAPING_V3 Part 2).
@@ -874,6 +915,7 @@ async def _run_mode_b(run_id: int) -> None:
     counts = dict(base_counts)
     counts["planned"] = counts.get("planned", 0) + len(work)
     mode_b_cost = 0.0
+    booked_b_cost = 0.0  # portion of mode_b_cost already added to run.cost_usd
     capped = False
 
     for index, wi in enumerate(work):
@@ -889,7 +931,15 @@ async def _run_mode_b(run_id: int) -> None:
         # a Mode B call's cost is known upfront, so we can refuse to START a
         # call that would cross the cap — the run never exceeds it. month spend
         # already includes this run's Mode A cost.
-        if month_spent_before + mode_b_cost + call_cost > cap_usd:
+        # A SerpApi AIO capture may need a second (page_token) search; leave
+        # room for it so the cap is never crossed.
+        headroom = (
+            settings.serpapi_cost_per_search
+            if wi.surface == str(SurfaceCode.google_aio)
+            and settings.google_aio_provider == "serpapi"
+            else 0.0
+        )
+        if month_spent_before + mode_b_cost + call_cost + headroom > cap_usd:
             capped = True
             counts["withheld_by_cap"] = counts.get("withheld_by_cap", 0) + (len(work) - index)
             break
@@ -913,17 +963,26 @@ async def _run_mode_b(run_id: int) -> None:
         response_payload: dict[str, Any] = {}
         try:
             if is_aio:
-                outcome = await google_aio.capture(
-                    wi.query_text,
-                    geo=wi.geo or aio_geo,
-                    provider=settings.google_aio_provider,
-                    serpapi_key=settings.serpapi_key,
-                    headless=settings.chatgpt_web_headless,
-                    timeout_s=settings.google_aio_timeout_s,
-                    executable_path=settings.playwright_chromium_path or None,
-                    env=env,
+                # Hard ceiling over the adapter's own step timeouts, so one hung
+                # page can't consume the whole job's time budget.
+                outcome = await asyncio.wait_for(
+                    google_aio.capture(
+                        wi.query_text,
+                        geo=wi.geo or aio_geo,
+                        provider=settings.google_aio_provider,
+                        serpapi_key=settings.serpapi_key,
+                        headless=settings.chatgpt_web_headless,
+                        timeout_s=settings.google_aio_timeout_s,
+                        executable_path=settings.playwright_chromium_path or None,
+                        env=env,
+                    ),
+                    timeout=settings.google_aio_timeout_s + _B_TIMEOUT_GRACE_S,
                 )
                 parsed_text = outcome.aio_text
+                if outcome.extra_searches:
+                    extra_cost = outcome.extra_searches * settings.serpapi_cost_per_search
+                    call_cost += extra_cost
+                    mode_b_cost += extra_cost
                 response_payload = {
                     "aio_summary": asdict(outcome.summary),
                     "aio_html": outcome.aio_html,
@@ -931,13 +990,17 @@ async def _run_mode_b(run_id: int) -> None:
                     "page_html": outcome.page_html,
                 }
             else:
-                outcome = await adapter_module.retrieve(
-                    wi.persona_prompt,
-                    wi.query_text,
-                    headless=settings.chatgpt_web_headless,
-                    timeout_s=float(getattr(settings, timeout_attr)),
-                    executable_path=settings.playwright_chromium_path or None,
-                    env=env,
+                timeout_s = float(getattr(settings, timeout_attr))
+                outcome = await asyncio.wait_for(
+                    adapter_module.retrieve(
+                        wi.persona_prompt,
+                        wi.query_text,
+                        headless=settings.chatgpt_web_headless,
+                        timeout_s=timeout_s,
+                        executable_path=settings.playwright_chromium_path or None,
+                        env=env,
+                    ),
+                    timeout=timeout_s + _B_TIMEOUT_GRACE_S,
                 )
                 parsed_text = outcome.text
                 response_payload = {"html": outcome.html_fragment}
@@ -1012,6 +1075,11 @@ async def _run_mode_b(run_id: int) -> None:
             run = session.get(Run, run_id)
             if run is not None:
                 run.counts = counts  # live progress each iteration
+                # Book this call's spend now, not only at the end: a crash or
+                # job timeout mid-run must not hide spend from the monthly cap.
+                run.cost_usd = round((run.cost_usd or 0.0) + (mode_b_cost - booked_b_cost), 6)
+                booked_b_cost = mode_b_cost
+                counts["mode_b_cost_usd"] = round(mode_b_cost, 6)
                 session.add(run)
             session.commit()
 
@@ -1024,8 +1092,8 @@ async def _run_mode_b(run_id: int) -> None:
             counts["capped"] = True
         counts["mode_b_cost_usd"] = round(mode_b_cost, 6)
         run.counts = counts
-        # Add Mode B spend to the run total (Mode A already committed it).
-        run.cost_usd = round((run.cost_usd or 0.0) + mode_b_cost, 6)
+        # Book any Mode B spend not yet added per call (Mode A's is already in).
+        run.cost_usd = round((run.cost_usd or 0.0) + (mode_b_cost - booked_b_cost), 6)
         session.add(run)
         session.commit()
         _finalize_run(session, run, tenant)

@@ -91,3 +91,30 @@ def test_generate_accuracy_draft_is_idempotent(db_session, monkeypatch):
         select(ContentDraft).where(ContentDraft.tenant_id == tenant.id)
     ).all()
     assert len(drafts) == 1
+
+
+def test_regenerating_keeps_an_approved_draft(db_session, monkeypatch):
+    from sqlmodel import select
+
+    from api.config import get_settings
+    from api.content_service import generate_accuracy_draft
+    from api.models import ContentDraft, ContentDraftStatus
+
+    tenant, fact = _seed_tenant(
+        db_session, ai_processing_approved=True, approved_utility_models=["claude-sonnet-4-6"],
+    )
+    monkeypatch.setattr(get_settings(), "anthropic_api_key", "sk-test")
+    monkeypatch.setattr("engine.llm.router.complete",
+                        lambda *a, **k: '{"title": "T", "body": "v1"}')
+    first = generate_accuracy_draft(db_session, tenant, fact.id)
+    first.status = ContentDraftStatus.approved
+    db_session.add(first)
+    db_session.commit()
+
+    monkeypatch.setattr("engine.llm.router.complete",
+                        lambda *a, **k: '{"title": "T", "body": "v2"}')
+    second = generate_accuracy_draft(db_session, tenant, fact.id)
+    assert second.id != first.id
+    db_session.refresh(first)
+    assert first.body == "v1" and first.status == ContentDraftStatus.approved
+    assert len(db_session.exec(select(ContentDraft)).all()) == 2

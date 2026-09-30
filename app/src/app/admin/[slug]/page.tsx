@@ -40,9 +40,20 @@ export default async function TenantAdminPage({
   if (detail.status === 404 || !detail.data) notFound();
   const { tenant, brand_profile, competitors, personas, queries, plans } = detail.data;
   const ready = readiness.data;
+  // Fall back to the tenant's own approvals when the readiness call fails, so
+  // the toggle never shows "off" (and flips the wrong way) on a transient error.
+  const aiCheck = ready?.checks.find((c) => c.label.startsWith("Claude features"));
   const aiFeaturesOn =
     tenant.entity_extraction_enabled &&
-    ready?.checks.find((c) => c.label.startsWith("Claude features"))?.ok === true;
+    (aiCheck ? aiCheck.ok === true : (tenant.approved_utility_models ?? []).length > 0);
+  const country = (tenant.aio_geo?.gl ?? "ca").toLowerCase();
+  const countries: [string, string][] = [
+    ["us", "United States"],
+    ["ca", "Canada"],
+    ["gb", "United Kingdom"],
+    ["au", "Australia"],
+  ];
+  if (!countries.some(([code]) => code === country)) countries.push([country, "Current"]);
 
   return (
     <main className="mx-auto max-w-5xl px-8 py-10">
@@ -67,6 +78,13 @@ export default async function TenantAdminPage({
           Runs →
         </Link>
       </header>
+
+      {!ready && (
+        <section className="card mb-6 p-4 text-sm text-[var(--text-2)]">
+          Engine readiness couldn&apos;t load ({readiness.error ?? "unknown error"}). Reload
+          to try again.
+        </section>
+      )}
 
       {/* Engine readiness: config + what the last run actually returned. */}
       {ready && (
@@ -121,7 +139,7 @@ export default async function TenantAdminPage({
                                 : ""
                           }`}
                         >
-                          {e.verdict.replace("_", " ")}
+                          {e.verdict.replaceAll("_", " ")}
                         </span>
                       </td>
                       <td className="text-[12px]">{e.hint}</td>
@@ -213,15 +231,10 @@ export default async function TenantAdminPage({
             <form action={setSearchCountry.bind(null, tenant.slug)} className="flex gap-2">
               <select
                 name="country"
-                defaultValue={tenant.aio_geo?.gl ?? "ca"}
+                defaultValue={country}
                 className="field px-2 py-1.5 text-[12px]"
               >
-                {[
-                  ["us", "United States"],
-                  ["ca", "Canada"],
-                  ["gb", "United Kingdom"],
-                  ["au", "Australia"],
-                ].map(([code, name]) => (
+                {countries.map(([code, name]) => (
                   <option key={code} value={code}>
                     {name} ({code.toUpperCase()})
                   </option>

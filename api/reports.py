@@ -21,6 +21,30 @@ from api.models import (
     VisibilityDaily,
 )
 
+# The built-in PDF fonts only cover Latin-1. Map the common typographic
+# characters that appear in names ("Macy’s", "X — Y") to plain equivalents,
+# and replace anything else, so a report never fails on a name.
+_TYPOGRAPHIC = str.maketrans({
+    "\u2014": "-", "\u2013": "-", "\u2012": "-", "\u2212": "-",
+    "\u2018": "'", "\u2019": "'", "\u201a": "'", "\u2032": "'",
+    "\u201c": '"', "\u201d": '"', "\u201e": '"',
+    "\u2026": "...", "\u00a0": " ", "\u2022": "-", "\u2192": "->", "\u00b7": "-",
+})
+
+
+def _latin1(text: str) -> str:
+    return str(text).translate(_TYPOGRAPHIC).encode("latin-1", "replace").decode("latin-1")
+
+
+class _LatinPDF(FPDF):
+    """FPDF whose text calls are made Latin-1 safe."""
+
+    def cell(self, w=None, h=None, text="", *args, **kwargs):  # type: ignore[override]
+        return super().cell(w, h, _latin1(text), *args, **kwargs)
+
+    def multi_cell(self, w, h=None, text="", *args, **kwargs):  # type: ignore[override]
+        return super().multi_cell(w, h, _latin1(text), *args, **kwargs)
+
 
 def build_results_csv(session: Session, tenant_id: int, run_id: int | None = None) -> str:
     """Per-result rows; scoped to one run when run_id is given."""
@@ -110,7 +134,7 @@ def build_summary_pdf(session: Session, tenant: Tenant, run: Run | None = None) 
     for c in classifications:
         buckets[c.web_search_likelihood] = buckets.get(c.web_search_likelihood, 0) + 1
 
-    pdf = FPDF()
+    pdf = _LatinPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
     pdf.set_font("helvetica", "B", 18)

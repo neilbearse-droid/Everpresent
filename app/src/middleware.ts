@@ -18,5 +18,7 @@ export default clerkMiddleware(
 );
 
 export const config = {
-  matcher: ["/((?!_next|.*\\..*).*)", "/(api|trpc)(.*)"],
+  // Report downloads (summary.pdf, *.csv) contain a dot, which the first
+  // pattern skips — without middleware, auth() in that route throws a 500.
+  matcher: ["/((?!_next|.*\\..*).*)", "/(api|trpc)(.*)", "/dashboard/reports/(.*)"],
 };

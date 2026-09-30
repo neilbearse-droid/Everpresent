@@ -70,7 +70,8 @@ def estimate_perplexity_cost_usd(
     cost = _token_cost(
         PERPLEXITY_TOKEN_PRICES, _PERPLEXITY_FALLBACK, model, input_tokens, output_tokens
     )
-    cost += web_search_calls * PERPLEXITY_SEARCH_PER_1K / 1_000
+    # Sonar's request fee is charged once per request, not per search query.
+    cost += min(web_search_calls, 1) * PERPLEXITY_SEARCH_PER_1K / 1_000
     return round(cost, 6)
 
 
@@ -96,6 +97,7 @@ def estimate_anthropic_cost_usd(
 
 # Google Gemini (§6.1). Token prices per 1M; grounding billed per 1k requests.
 GEMINI_TOKEN_PRICES: dict[str, tuple[float, float]] = {
+    "gemini-2.5-flash-lite": (0.10, 0.40),
     "gemini-2.5-pro": (1.25, 10.00),
     "gemini-2.5-flash": (0.30, 2.50),
     "gemini-2.0-flash": (0.10, 0.40),
@@ -110,7 +112,10 @@ def estimate_gemini_cost_usd(
     cost = _token_cost(
         GEMINI_TOKEN_PRICES, _GEMINI_FALLBACK, model, input_tokens, output_tokens
     )
-    cost += web_search_calls * GEMINI_GROUNDING_PER_1K / 1_000
+    # Gemini 2.x bills grounding once per grounded PROMPT, however many search
+    # queries it fans out into; Gemini 3 bills per search query.
+    grounded = web_search_calls if model.startswith("gemini-3") else min(web_search_calls, 1)
+    cost += grounded * GEMINI_GROUNDING_PER_1K / 1_000
     return round(cost, 6)
 
 

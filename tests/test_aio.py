@@ -92,3 +92,53 @@ def test_serpapi_without_aio():
     assert outcome.summary.aio_present is False
     assert outcome.summary.aio_position_index == -1
     assert outcome.summary.organic_count == 3
+
+
+def test_serpapi_expands_a_lazy_ai_overview(monkeypatch):
+    """When SerpApi returns only a page_token, the adapter fetches the full
+    Overview (second, billed search) instead of recording it as empty."""
+    import asyncio
+
+    from engine.retrievers import google_aio
+
+    calls: list[dict] = []
+
+    class _Resp:
+        def __init__(self, body):
+            self._body, self.status_code = body, 200
+
+        def json(self):
+            return self._body
+
+        def raise_for_status(self):
+            return None
+
+    class _Client:
+        def __init__(self, *a, **k):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
+        async def get(self, url, params):
+            calls.append(params)
+            if params["engine"] == "google":
+                return _Resp({"ai_overview": {"page_token": "tok"}, "organic_results": [{}, {}]})
+            return _Resp({"ai_overview": {
+                "text_blocks": [{"snippet": "GoDaddy and Namecheap are popular registrars."}],
+                "references": [{"link": "https://www.godaddy.com/domains", "title": "GoDaddy"}],
+            }})
+
+    monkeypatch.setattr(google_aio.httpx, "AsyncClient", _Client)
+    out = asyncio.run(google_aio._capture_serpapi(
+        "best domain registrar", gl="us", hl="en", api_key="k", timeout_s=5,
+    ))
+    assert [c["engine"] for c in calls] == ["google", "google_ai_overview"]
+    assert calls[1]["page_token"] == "tok"
+    assert "GoDaddy" in out.aio_text
+    assert out.citations[0].domain == "godaddy.com"
+    assert out.summary.aio_present and out.summary.organic_count == 2
+    assert out.extra_searches == 1

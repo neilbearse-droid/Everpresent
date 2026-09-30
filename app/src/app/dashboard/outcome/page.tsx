@@ -86,19 +86,22 @@ export default async function OutcomePage({
           days a run measured it. When visibility rises and referrals follow, that's the story
           for the boardroom.
         </p>
-        <div className="flex items-end gap-1" style={{ height: 140 }}>
+        <div className="flex gap-1" style={{ height: 140 }}>
           {d.series.map((s) => (
-            <div key={s.date} className="flex flex-1 flex-col items-center justify-end gap-1">
+            <div key={s.date} className="flex h-full flex-1 flex-col items-center gap-1">
               {s.brand_score !== null && (
                 <span className="text-[9px] text-[var(--pos)]">{s.brand_score}</span>
               )}
-              <div
-                className="w-full rounded-t bg-[var(--accent)]"
-                style={{ height: `${(s.sessions / maxSessions) * 100}%`, minHeight: s.sessions ? 2 : 0 }}
-                title={`${s.date}: ${s.sessions} sessions, ${s.conversions} key events${
-                  s.brand_score !== null ? `, visibility ${s.brand_score}` : ""
-                }`}
-              />
+              {/* The bar's % height needs a definite-height parent. */}
+              <div className="flex w-full flex-1 items-end">
+                <div
+                  className="w-full bg-[var(--accent)]"
+                  style={{ height: `${(s.sessions / maxSessions) * 100}%`, minHeight: s.sessions ? 2 : 0 }}
+                  title={`${s.date}: ${s.sessions} sessions, ${s.conversions} key events${
+                    s.brand_score !== null ? `, visibility ${s.brand_score}` : ""
+                  }`}
+                />
+              </div>
             </div>
           ))}
         </div>

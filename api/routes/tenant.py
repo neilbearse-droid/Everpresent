@@ -259,7 +259,9 @@ def create_intervention(payload: InterventionCreate, ctx: Ctx, session: Db) -> I
     shipped = utcnow()
     if payload.shipped_at:
         try:
-            shipped = datetime.fromisoformat(payload.shipped_at).replace(tzinfo=UTC)
+            parsed = datetime.fromisoformat(payload.shipped_at)
+            # Convert an offset-aware time to UTC; treat a bare date as UTC.
+            shipped = parsed.astimezone(UTC) if parsed.tzinfo else parsed.replace(tzinfo=UTC)
         except ValueError as exc:
             raise HTTPException(
                 status_code=422, detail="shipped_at must be an ISO date (YYYY-MM-DD)"

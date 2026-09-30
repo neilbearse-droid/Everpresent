@@ -33,10 +33,17 @@ def cron_within_cap(cron_expr: str, max_runs_per_day: int | None) -> bool:
 
 
 def runs_in_last_day(session: Session, tenant_id: int) -> int:
-    since = datetime.now(UTC) - timedelta(hours=24)
+    """Scheduled runs fired in the last ~day, for the frequency backstop.
+
+    23h, not 24h: a daily cron fires at the first 30s tick after its time, so
+    yesterday's fire can land a few seconds LATER in the day than today's —
+    a 24h window would still contain it and skip today (every other day).
+    Manual test runs don't count against the schedule."""
+    since = datetime.now(UTC) - timedelta(hours=23)
     return session.exec(
         select(func.count()).select_from(Run).where(
             Run.tenant_id == tenant_id,
+            Run.trigger == "schedule",
             Run.created_at >= since,  # pyright: ignore[reportArgumentType]
         )
     ).one()

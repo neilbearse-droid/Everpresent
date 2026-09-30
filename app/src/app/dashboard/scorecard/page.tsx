@@ -255,14 +255,17 @@ export default async function ScorecardPage({
           <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">
             Presence rate over recent runs (durability)
           </h2>
-          <div className="flex items-end gap-2" style={{ height: 120 }}>
+          <div className="flex gap-2" style={{ height: 120 }}>
             {d.stability.series.map((s) => (
-              <div key={s.run_id} className="flex flex-1 flex-col items-center gap-1">
-                <div
-                  className="w-full rounded-t bg-[var(--accent)]"
-                  style={{ height: `${(s.presence_rate / maxRate) * 100}%`, minHeight: 2 }}
-                  title={`Run #${s.run_id}: ${s.presence_rate}%`}
-                />
+              <div key={s.run_id} className="flex h-full flex-1 flex-col items-center gap-1">
+                {/* The bar's % height needs a definite-height parent. */}
+                <div className="flex w-full flex-1 items-end">
+                  <div
+                    className="w-full bg-[var(--accent)]"
+                    style={{ height: `${(s.presence_rate / maxRate) * 100}%`, minHeight: 2 }}
+                    title={`Run #${s.run_id}: ${s.presence_rate}%`}
+                  />
+                </div>
                 <span className="text-[10px] text-[var(--text-3)]">#{s.run_id}</span>
               </div>
             ))}

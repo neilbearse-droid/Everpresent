@@ -29,44 +29,58 @@ def tick(session: Session, now: datetime | None = None) -> list[int]:
     now = now or datetime.now(UTC)
     triggered: list[int] = []
     for schedule in session.exec(select(RunSchedule).where(RunSchedule.enabled == True)).all():  # noqa: E712
-        if schedule.next_run_at is None:
-            # Newly created or re-enabled: arm without firing retroactively.
-            schedule.next_run_at = next_fire(schedule.cron_expr, now)
-            session.add(schedule)
-            session.commit()
+        try:
+            run_id = _tick_one(session, schedule, now)
+        except Exception:  # noqa: BLE001 — one bad schedule must not block the rest
+            session.rollback()
+            log.exception("schedule.tick_failed", schedule_id=schedule.id)
             continue
-        next_at = schedule.next_run_at
-        if next_at.tzinfo is None:
-            next_at = next_at.replace(tzinfo=UTC)
-        if next_at > now:
-            continue
-        tenant = session.get(Tenant, schedule.tenant_id)
-        if tenant is not None:
-            from api.plans import limits_for
-            from api.scheduling import runs_in_last_day
-
-            cap = limits_for(tenant.plan).max_runs_per_day
-            # Backstop the schedule-save gate: a plan downgrade or a schedule
-            # created before the gate could still over-fire. Skip this fire if
-            # the daily cap is already spent.
-            if cap is not None and runs_in_last_day(session, tenant.id) >= cap:
-                log.info("schedule.skipped_frequency_cap", tenant=tenant.slug, cap=cap)
-            else:
-                run = trigger_run(session, tenant, trigger="schedule")
-                log.info("schedule.fired", tenant=tenant.slug, run_id=run.id, status=run.status)
-                if run.id is not None:
-                    triggered.append(run.id)
-                # Only stamp last_triggered_at when a run actually fired — a
-                # cap-skipped tick never triggered anything (§audit low).
-                schedule.last_triggered_at = now
-        # Always advance next_run_at (even on skip/no-tenant) so a due schedule
-        # doesn't re-evaluate every tick.
-        schedule.next_run_at = next_fire(schedule.cron_expr, now)
-        session.add(schedule)
-        session.commit()
+        if run_id is not None:
+            triggered.append(run_id)
 
     _maybe_enqueue_nightly(session, now)
     return triggered
+
+
+def _tick_one(session: Session, schedule: RunSchedule, now: datetime) -> int | None:
+    """Evaluate one schedule; returns the triggered run id, if any."""
+    if schedule.next_run_at is None:
+        # Newly created or re-enabled: arm without firing retroactively.
+        schedule.next_run_at = next_fire(schedule.cron_expr, now)
+        session.add(schedule)
+        session.commit()
+        return None
+    next_at = schedule.next_run_at
+    if next_at.tzinfo is None:
+        next_at = next_at.replace(tzinfo=UTC)
+    if next_at > now:
+        return None
+    # Advance and COMMIT next_run_at before firing, so a failure while firing
+    # can't re-fire this schedule on every tick. Advanced even on skip or a
+    # missing tenant, so a due schedule doesn't re-evaluate every tick.
+    schedule.next_run_at = next_fire(schedule.cron_expr, now)
+    session.add(schedule)
+    session.commit()
+
+    tenant = session.get(Tenant, schedule.tenant_id)
+    if tenant is None:
+        return None
+    from api.plans import limits_for
+    from api.scheduling import runs_in_last_day
+
+    cap = limits_for(tenant.plan).max_runs_per_day
+    # Backstop the schedule-save gate: a plan downgrade or a schedule created
+    # before the gate could still over-fire. Skip if the daily cap is spent.
+    if cap is not None and runs_in_last_day(session, tenant.id) >= cap:  # pyright: ignore[reportArgumentType]
+        log.info("schedule.skipped_frequency_cap", tenant=tenant.slug, cap=cap)
+        return None
+    run = trigger_run(session, tenant, trigger="schedule")
+    log.info("schedule.fired", tenant=tenant.slug, run_id=run.id, status=run.status)
+    # Only stamp last_triggered_at when a run actually fired (§audit low).
+    schedule.last_triggered_at = now
+    session.add(schedule)
+    session.commit()
+    return run.id
 
 
 def _maybe_enqueue_nightly(session: Session, now: datetime) -> None:

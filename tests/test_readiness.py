@@ -156,3 +156,16 @@ def test_ai_features_switch(client, db_session, login):
     assert body["aio_geo"]["gl"] == "us"
     assert client.patch("/api/admin/tenants/g", json={"search_country": "usa"}).status_code == 422
     assert db_session.exec(select(TenantSurface)).all() == []  # no surfaces imported for "g"
+
+
+def test_import_without_surfaces_keeps_engines(db_session):
+    t = _tenant(db_session)
+    before = set(t.approved_surfaces)
+    import_config(db_session, t, parse_config_yaml(
+        "brand: {name: GoDaddy}\nqueries: [{text: new query}]\n"
+    ))
+    db_session.commit()
+    db_session.refresh(t)
+    assert set(t.approved_surfaces) == before
+    on = {str(s.code) for s in db_session.exec(select(TenantSurface)).all() if s.enabled}
+    assert on == before

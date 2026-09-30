@@ -71,16 +71,21 @@ def generate_recommendations(session: Session, tenant: Tenant) -> int:
     # query DETERMINISTICALLY (lowest surface code wins) rather than last-wins
     # over an unordered result set, so the web_search-vs-training branch a query
     # takes doesn't flip between runs (§audit low).
+    # Prefer a row that actually has a web-search classification (the AIO
+    # pass can create placeholder rows with an empty one), then the lowest
+    # surface code as TEXT — Postgres orders a native enum by declaration
+    # order, which would pick a different row than SQLite.
     classifications: dict[str, QueryClassification] = {}
-    for c in session.exec(
-        select(QueryClassification)
-        .where(QueryClassification.tenant_id == tenant_id)
-        .order_by(QueryClassification.surface)  # pyright: ignore[reportArgumentType]
-    ).all():
+    rows = session.exec(
+        select(QueryClassification).where(QueryClassification.tenant_id == tenant_id)
+    ).all()
+    for c in sorted(rows, key=lambda r: (not r.web_search_likelihood, str(r.surface))):
         classifications.setdefault(c.query_text, c)
 
-    # Latest ok search-variant result per (query_text, surface) + brand hits.
-    latest: dict[tuple[str, str], Result] = {}
+    # Every ok search answer from the LATEST run that measured each
+    # (query_text, surface) — all personas and locations of that run, not one
+    # arbitrary row — so "the brand never shows up" means none of them named it.
+    by_key: dict[tuple[str, str], list[Result]] = {}
     for result in session.exec(
         select(Result).where(
             Result.tenant_id == tenant_id,
@@ -89,10 +94,12 @@ def generate_recommendations(session: Session, tenant: Tenant) -> int:
     ).all():
         if result.status != ResultStatus.ok:
             continue
-        key = (result.query_text, str(result.surface))
-        if key not in latest or (result.id or 0) > (latest[key].id or 0):
-            latest[key] = result
-    latest_ids = [r.id for r in latest.values() if r.id is not None]
+        by_key.setdefault((result.query_text, str(result.surface)), []).append(result)
+    latest: dict[tuple[str, str], list[Result]] = {}
+    for key, rows_for_key in by_key.items():
+        newest_run = max(r.run_id for r in rows_for_key)
+        latest[key] = [r for r in rows_for_key if r.run_id == newest_run]
+    latest_ids = [r.id for rs in latest.values() for r in rs if r.id is not None]
     brand_mentioned_ids: set[int] = set()
     if latest_ids:
         for mention in session.exec(
@@ -115,7 +122,7 @@ def generate_recommendations(session: Session, tenant: Tenant) -> int:
     active_gaps: set[tuple[str, str]] = set()
     for query in queries:
         results_for_query = [
-            r for (q_text, _s), r in latest.items() if q_text == query.text
+            r for (q_text, _s), rs in latest.items() if q_text == query.text for r in rs
         ]
         # Answer-surface gap: measured, and the brand never shows up.
         answer_results = [

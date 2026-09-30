@@ -71,15 +71,34 @@ def _snippet(text: str, position: int, length: int) -> str:
     return prefix + text[start:end].strip() + suffix
 
 
+def _alias_matches(text: str, text_lower: str, alias: str) -> list[tuple[int, int]]:
+    """All word-boundary (start, end) spans of `alias`. A single-word alias
+    written as a proper noun ("Horizon", "Lovable") only matches where the text
+    also capitalizes it, so ordinary words ("on the horizon", "a lovable UI")
+    don't count as a brand. Multi-word and mixed-case aliases ("GoDaddy",
+    "Hostinger Horizon") match case-insensitively, as before."""
+    pattern = r"(?<![\w])" + re.escape(alias.lower()) + r"(?![\w])"
+    proper_word = " " not in alias and alias[:1].isupper() and alias[1:] == alias[1:].lower()
+    spans = []
+    for m in re.finditer(pattern, text_lower):
+        if proper_word and not text[m.start()].isupper():
+            continue
+        spans.append((m.start(), m.end()))
+    return spans
+
+
 def detect_mentions(
     text: str,
     brand_name: str,
     brand_aliases: list[str],
     competitors: list[tuple[int | None, str, list[str]]],
 ) -> list[DetectedMention]:
-    """Finds the first occurrence of each entity (canonical name or any
-    alias — longest alias wins position ties) and returns mentions ordered by
-    position, rank assigned 1..n."""
+    """Finds the first occurrence of each entity (canonical name or any alias)
+    and returns mentions ordered by position, rank assigned 1..n.
+
+    Overlaps resolve longest-first across ALL entities: in "Hostinger Horizon"
+    the longer competitor claims the span, so the shorter "Hostinger" isn't
+    also counted there (it still counts where it appears on its own)."""
     text_lower = text.lower()
     entities: list[tuple[str, str, int | None, list[str]]] = [
         ("brand", brand_name, None, [brand_name, *brand_aliases])
@@ -87,29 +106,40 @@ def detect_mentions(
     for competitor_id, name, aliases in competitors:
         entities.append(("competitor", name, competitor_id, [name, *aliases]))
 
-    found: list[DetectedMention] = []
-    for entity_type, name, competitor_id, aliases in entities:
-        best_pos, best_alias = -1, ""
-        for alias in sorted(set(a for a in aliases if a), key=len, reverse=True):
-            pos = _first_match(text_lower, alias)
-            if pos >= 0 and (best_pos < 0 or pos < best_pos):
-                best_pos, best_alias = pos, alias
-        if best_pos < 0:
+    candidates: list[tuple[int, int, int, str]] = []  # (start, end, entity index, alias)
+    for index, (_etype, _name, _cid, aliases) in enumerate(entities):
+        for alias in set(a for a in aliases if a):
+            for start, end in _alias_matches(text, text_lower, alias):
+                candidates.append((start, end, index, alias))
+
+    # Longest span first; an accepted span blocks any overlapping shorter one.
+    candidates.sort(key=lambda c: (-(c[1] - c[0]), c[0]))
+    claimed: list[tuple[int, int]] = []
+    first: dict[int, tuple[int, str]] = {}
+    for start, end, index, alias in candidates:
+        if any(start < c_end and c_start < end for c_start, c_end in claimed):
             continue
+        claimed.append((start, end))
+        if index not in first or start < first[index][0]:
+            first[index] = (start, alias)
+
+    found: list[DetectedMention] = []
+    for index, (position, alias) in first.items():
+        entity_type, name, competitor_id, _aliases = entities[index]
         found.append(
             DetectedMention(
                 entity_type=entity_type,
                 entity_name=name,
                 competitor_id=competitor_id,
-                matched_alias=best_alias,
-                position=best_pos,
+                matched_alias=alias,
+                position=position,
                 rank=0,  # assigned below
-                sentiment=_window_sentiment(text, best_pos, len(best_alias)),
-                context_snippet=_snippet(text, best_pos, len(best_alias)),
+                sentiment=_window_sentiment(text, position, len(alias)),
+                context_snippet=_snippet(text, position, len(alias)),
             )
         )
 
     found.sort(key=lambda m: m.position)
-    for index, mention in enumerate(found, start=1):
-        mention.rank = index
+    for rank, mention in enumerate(found, start=1):
+        mention.rank = rank
     return found

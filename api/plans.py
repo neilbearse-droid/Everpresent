@@ -105,7 +105,7 @@ MODEL_TIERS: dict[str, dict[str, str]] = {
         "standard": "claude-sonnet-4-6",
         "premium": "claude-sonnet-4-6",
     },
-    "gemini_api": {"economy": "gemini-2.0-flash", "standard": "gemini-2.5-flash",
+    "gemini_api": {"economy": "gemini-2.5-flash-lite", "standard": "gemini-2.5-flash",
                    "premium": "gemini-2.5-pro"},
 }
 

@@ -193,3 +193,11 @@ def test_whitespace_report_ranks_untracked_by_frequency(db_session):
     assert top["name"] == "Square" and top["count"] == 2  # ranked by frequency
     assert set(top["segments"]) == {"new_entrepreneur", "side_hustler"}
     assert "Microsoft Copilot" in top["engines"]
+
+
+def test_untracked_filter_matches_whole_words_only():
+    from engine.processing.entities import filter_untracked
+
+    tracked = ["GoDaddy", "Squarespace", "Canva", "Hostinger Horizon"]
+    names = ["GoDaddy.com", "GoDaddy Airo", "Square", "Canvas LMS", "Horizon", "Framer"]
+    assert filter_untracked(names, tracked) == ["Square", "Canvas LMS", "Framer"]

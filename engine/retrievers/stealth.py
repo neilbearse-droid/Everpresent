@@ -14,7 +14,7 @@ importable in browser-free test/CI environments."""
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 # A current, common desktop Chrome UA. Kept realistic (not a headless string)
 # so naive UA sniffing doesn't flag us. Bump alongside the bundled Chromium.
@@ -95,8 +95,10 @@ _BLOCKED_RESOURCE_TYPES = frozenset({"image", "media", "font"})
 def resolve_proxy(env: ScrapeEnv) -> str:
     """Country-specific proxy → default proxy → none. Public for testing."""
     country = (env.country or "").lower()
-    if country and env.proxy_map.get(country):
-        return env.proxy_map[country]
+    # Map keys are matched case-insensitively ("US" and "us" both work).
+    by_country = {str(k).lower(): v for k, v in (env.proxy_map or {}).items()}
+    if country and by_country.get(country):
+        return by_country[country]
     return env.proxy_url or ""
 
 
@@ -109,10 +111,12 @@ def _proxy_setting(proxy_url: str) -> dict[str, Any] | None:
     if parsed.port:
         server += f":{parsed.port}"
     setting: dict[str, Any] = {"server": server}
+    # Credentials arrive percent-encoded in the URL (residential proxy
+    # passwords often contain @ : / etc.); Playwright needs them decoded.
     if parsed.username:
-        setting["username"] = parsed.username
+        setting["username"] = unquote(parsed.username)
     if parsed.password:
-        setting["password"] = parsed.password
+        setting["password"] = unquote(parsed.password)
     return setting
 
 

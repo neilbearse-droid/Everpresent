@@ -60,7 +60,18 @@ export function DashNav({
             </Link>
           )}
           <ThemeToggle />
-          <OrganizationSwitcher hidePersonal />
+          <OrganizationSwitcher
+            hidePersonal
+            // The trigger inherits Clerk's dark text: invisible on the black bar.
+            appearance={{
+              elements: {
+                organizationSwitcherTrigger:
+                  "text-[var(--bar-text)] hover:text-[var(--accent)] focus:shadow-none",
+                organizationPreviewMainIdentifier: "text-[var(--bar-text)]",
+                organizationSwitcherTriggerIcon: "text-[var(--bar-text)]",
+              },
+            }}
+          />
           <UserButton />
         </div>
       </div>

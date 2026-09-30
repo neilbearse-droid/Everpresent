@@ -61,22 +61,38 @@ def parse_entities(raw: str) -> list[str]:
     return out
 
 
-def _norm(s: str) -> str:
-    return re.sub(r"[^a-z0-9]+", " ", s.lower()).strip()
-
-
 def filter_untracked(names: list[str], tracked_aliases: list[str]) -> list[str]:
     """Drop names that are the tracked brand or a tracked competitor (by
-    normalized exact OR containment match, so 'GoDaddy.com' and 'GoDaddy' both
+    whole-word containment either way, so 'GoDaddy.com' and 'GoDaddy' both
     filter against tracked 'GoDaddy'). What remains is the whitespace: names the
     AI surfaces that the tenant isn't tracking."""
-    tracked = [t for t in (_norm(a) for a in tracked_aliases) if t]
+    tracked = [t for t in (_tokens(a) for a in tracked_aliases) if t]
     out: list[str] = []
     for name in names:
-        n = _norm(name)
+        n = _tokens(name)
         if not n:
             continue
-        if any(n == t or t in n or n in t for t in tracked):
+        # Whole-word containment, either way: "GoDaddy.com" and "GoDaddy
+        # Airo" filter against "GoDaddy", but "Square" is NOT "Squarespace"
+        # and "Canvas LMS" is NOT "Canva".
+        if any(_contains(n, t) or _contains(t, n) for t in tracked):
             continue
         out.append(name)
     return out
+
+
+_TOKEN_RE = re.compile(r"[a-z0-9]+")
+# Web suffixes that shouldn't stop "GoDaddy.com" matching "GoDaddy".
+_WEB_SUFFIXES = {"com", "net", "org", "io", "co", "ai", "dev", "app", "www"}
+
+
+def _tokens(s: str) -> tuple[str, ...]:
+    return tuple(t for t in _TOKEN_RE.findall(s.lower()) if t not in _WEB_SUFFIXES)
+
+
+def _contains(haystack: tuple[str, ...], needle: tuple[str, ...]) -> bool:
+    """needle appears in haystack as a contiguous run of whole tokens."""
+    if not needle or len(needle) > len(haystack):
+        return False
+    width = len(needle)
+    return any(haystack[i : i + width] == needle for i in range(len(haystack) - width + 1))

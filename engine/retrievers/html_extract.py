@@ -3,6 +3,7 @@ only, so every adapter's parsing is unit-testable against recorded fixtures
 without a browser."""
 
 from html.parser import HTMLParser
+from urllib.parse import urlparse
 
 from engine.retrievers.openai_api import ParsedCitation
 
@@ -29,8 +30,12 @@ class _ExtractingParser(HTMLParser):
             self._anchor_depth += 1
             if self._anchor_depth == 1:
                 href = dict(attrs).get("href") or ""
+                host = (urlparse(href).hostname or "").lower() if href else ""
+                # Match the link's HOST, not the whole URL: ChatGPT appends
+                # ?utm_source=chatgpt.com to every outbound citation, and a
+                # substring test on the full href dropped them all.
                 if href.startswith("http") and not any(
-                    fragment in href for fragment in self.skip_host_fragments
+                    host == f or host.endswith("." + f) for f in self.skip_host_fragments
                 ):
                     self._href = href
                     self._link_text = []

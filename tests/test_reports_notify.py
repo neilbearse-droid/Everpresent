@@ -135,3 +135,13 @@ def test_notify_emails_validated_in_admin(client, login, db_session):
     tenant = db_session.exec(select(Tenant).where(Tenant.slug == "smith")).one()
     db_session.refresh(tenant)
     assert tenant.notify_emails == ["neil@example.com"]
+
+
+def test_summary_pdf_survives_non_latin1_names(db_session):
+    from api.models import Tenant
+    from api.reports import build_summary_pdf
+
+    tenant = Tenant(name="Macy’s — “Stores”", slug="macys")
+    db_session.add(tenant)
+    db_session.commit()
+    assert build_summary_pdf(db_session, tenant).startswith(b"%PDF")

@@ -53,3 +53,17 @@ def test_selectors_live_in_the_selectors_file():
     for name in ("PROMPT_INPUT", "SEND_BUTTON", "STOP_BUTTON", "ASSISTANT_MESSAGE"):
         assert getattr(sel, name)  # defined and non-empty
         assert getattr(sel, name) not in adapter_source  # not duplicated inline
+
+
+def test_citations_with_utm_source_chatgpt_are_kept():
+    """ChatGPT tags every outbound citation ?utm_source=chatgpt.com; only
+    links whose HOST is ChatGPT's own should be skipped."""
+    from engine.retrievers.chatgpt_web import parse_assistant_html as parse_answer_html
+
+    html = (
+        '<p>See <a href="https://www.godaddy.com/domains?utm_source=chatgpt.com">GoDaddy</a>'
+        ' and <a href="https://chatgpt.com/share/abc">share</a>'
+        ' and <a href="https://help.openai.com/x">help</a></p>'
+    )
+    _text, links = parse_answer_html(html)
+    assert [c.domain for c in links] == ["godaddy.com"]

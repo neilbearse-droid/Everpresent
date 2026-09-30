@@ -98,9 +98,12 @@ def build_request_body(
     body: dict[str, Any] = {
         "model": model,
         "max_tokens": 1024,
-        "system": persona_prompt.strip(),
         "messages": [{"role": "user", "content": query_text.strip()}],
     }
+    # The generic baseline persona has no prompt; send no system field rather
+    # than an empty one.
+    if persona_prompt.strip():
+        body["system"] = persona_prompt.strip()
     if web_search:
         # The search-DISABLED twin is the other half of the dual-query diff.
         body["tools"] = [WEB_SEARCH_TOOL]
@@ -127,7 +130,14 @@ async def retrieve(
     started = time.monotonic()
     async with httpx.AsyncClient(timeout=timeout_s) as client:
         for attempt in range(1, max_attempts + 1):
-            resp = await client.post(ANTHROPIC_URL, json=body, headers=headers)
+            try:
+                resp = await client.post(ANTHROPIC_URL, json=body, headers=headers)
+            except httpx.TransportError:
+                # Dropped connection / timeout: retry like a 5xx.
+                if attempt < max_attempts:
+                    await asyncio.sleep(2**attempt)
+                    continue
+                raise
             if resp.status_code in RETRYABLE_STATUS and attempt < max_attempts:
                 await asyncio.sleep(2**attempt)
                 continue

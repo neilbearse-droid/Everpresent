@@ -22,6 +22,7 @@ from api.models import (
     ResultStatus,
     ResultVariant,
     Run,
+    RunStatus,
     SurfaceCode,
     Tenant,
     UntrackedMention,
@@ -384,7 +385,7 @@ def process_run(session: Session, run: Run) -> dict[str, int]:
         counts["fanout_shards"] = shard_count
 
     session.commit()
-    rollup_day(session, run.tenant_id, _run_day(run))
+    rollup_day(session, run.tenant_id, _run_day(run), include_run_id=run.id)
 
     # §6.4 recommendation matrix, regenerated from the fresh state.
     from api.recommendations_service import generate_recommendations
@@ -400,7 +401,9 @@ def _run_day(run: Run) -> str:
     return stamp.date().isoformat()
 
 
-def rollup_day(session: Session, tenant_id: int, day: str) -> int:
+def rollup_day(
+    session: Session, tenant_id: int, day: str, include_run_id: int | None = None
+) -> int:
     """Recompute visibility_daily for every (surface, segment) group of the
     tenant's search-variant results finished on `day` — across all of that
     day's runs, so repeated runs don't double-count."""
@@ -420,7 +423,23 @@ def rollup_day(session: Session, tenant_id: int, day: str) -> int:
             ),
         )
     ).all()
-    runs_of_day = [r for r in candidate_runs if _run_day(r) == day and r.id is not None]
+    # Only runs whose processing has produced mentions: finished runs, minus
+    # any whose processing failed. A run still in Mode B (or stranded
+    # "running") has results but no mentions yet, and would read as "brand not
+    # mentioned". `include_run_id` is the run being processed right now.
+    runs_of_day = [
+        r
+        for r in candidate_runs
+        if _run_day(r) == day
+        and r.id is not None
+        and (
+            r.id == include_run_id
+            or (
+                r.status in (RunStatus.complete, RunStatus.capped)
+                and not (r.error or "").startswith("processing failed")
+            )
+        )
+    ]
     run_ids = [r.id for r in runs_of_day]
     session.exec(
         delete(VisibilityDaily).where(  # pyright: ignore[reportCallIssue]
@@ -485,19 +504,24 @@ def rollup_day(session: Session, tenant_id: int, day: str) -> int:
     brand_domains = brand_profile.domains if brand_profile else []
 
     def entity_signals(
-        group: list[Result], name: str, owned_domains: list[str], *, is_brand: bool
+        group: list[Result],
+        name: str,
+        owned_domains: list[str],
+        *,
+        is_brand: bool,
     ) -> list[ResultSignals]:
+        def matches(m: Mention) -> bool:
+            # There is exactly one brand, so match it by type: a renamed brand
+            # must not zero out mentions stored under the old name. Competitors
+            # match by name (their ids change on every config re-import).
+            if is_brand:
+                return m.entity_type == "brand"
+            return m.entity_type != "brand" and m.entity_name == name
+
         signals = []
         for r in group:
             assert r.id is not None
-            mention = next(
-                (
-                    m
-                    for m in mentions_by_result[r.id]
-                    if (m.entity_type == "brand") == is_brand and m.entity_name == name
-                ),
-                None,
-            )
+            mention = next((m for m in mentions_by_result[r.id] if matches(m)), None)
             cited = any(
                 domain_is_owned(c.domain, owned_domains) for c in citations_by_result[r.id]
             )

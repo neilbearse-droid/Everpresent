@@ -5,6 +5,7 @@ mentions, citations) arrive with M2+."""
 
 from datetime import UTC, datetime
 from enum import StrEnum
+from typing import Any
 
 from sqlalchemy import JSON, Column, Index, UniqueConstraint
 from sqlmodel import Field, SQLModel
@@ -221,7 +222,8 @@ class Run(SQLModel, table=True):
     started_at: datetime | None = None
     finished_at: datetime | None = None
     cost_usd: float = Field(default=0.0)
-    counts: dict[str, int] = Field(default_factory=dict, sa_column=Column(JSON))
+    # Mostly integer counters, plus a few cost totals (floats) and flags.
+    counts: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
     error: str | None = None
     created_at: datetime = Field(default_factory=utcnow)
 
@@ -245,7 +247,8 @@ class ResultVariant(StrEnum):
     # so whether the model searches reveals natural routing (~31% of prompts
     # are answered from training). Measurement only — excluded from scoring.
     natural = "natural"
-    # Fan-out re-probe (§FANOUT_SCORECARD M25b): one shard run as its own query
+    # Fan-out re-probe (§FANOUT_SCORECARD M25b; enum value added in m26): one
+    # shard run as its own query
     # to measure per-shard presence. Measurement only — never scored; every
     # competitive aggregation requests search/natural/nosearch explicitly.
     shard = "shard"

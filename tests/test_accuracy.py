@@ -154,3 +154,24 @@ def test_brand_fact_crud(client, login, db_session):
 
     assert client.delete(f"/api/admin/tenants/smith/brand-facts/{fid}").status_code == 204
     assert client.get("/api/admin/tenants/smith/brand-facts").json() == []
+
+
+def test_disallowed_claim_matches_its_alternate_phrasings():
+    """The GoDaddy demo fact: expected "domain privacy is free" with aliases.
+    An answer using an alias phrasing must still be flagged."""
+    fact = FactSpec(id=3, category="pricing", label="Domain privacy is a paid add-on",
+                    subject="domain privacy", kind="disallowed",
+                    expected="domain privacy is free",
+                    aliases=["free domain privacy", "includes free privacy"])
+    hits = check_text("GoDaddy includes free domain privacy with every domain.", [fact])
+    assert len(hits) == 1 and hits[0].stated == "free domain privacy"
+    assert check_text("Privacy is a paid add-on at GoDaddy.", [fact]) == []
+
+
+def test_magnitude_suffixes_are_not_false_contradictions():
+    fact = FactSpec(id=4, category="pricing", label="Tuition", subject="tuition",
+                    kind="numeric", expected="$120,000", aliases=[])
+    assert check_text("Tuition is about $120K for the full program.", [fact]) == []
+    assert check_text("Tuition runs $0.12 million in total.", [fact]) == []
+    # A genuinely wrong value is still caught.
+    assert len(check_text("Tuition is $95K.", [fact])) == 1

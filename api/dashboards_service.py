@@ -24,6 +24,7 @@ from api.models import (
     Query,
     QueryClassification,
     Result,
+    ResultStatus,
     ResultVariant,
     Tenant,
     UntrackedMention,
@@ -70,7 +71,12 @@ def _date_window(
 
     lo = parse(start)
     hi = parse(end)
-    return lo, (hi + timedelta(days=1)) if hi else None
+    if hi is not None:
+        try:
+            hi = hi + timedelta(days=1)
+        except OverflowError:  # e.g. end=9999-12-31: no upper bound
+            hi = None
+    return lo, hi
 
 
 def _in_window(dt: datetime, lo: datetime | None, hi: datetime | None) -> bool:
@@ -103,13 +109,15 @@ def aio_summary(session: Session, tenant_id: int) -> dict:
         select(BrandProfile).where(BrandProfile.tenant_id == tenant_id)
     ).first()
     brand_domains = brand.domains if brand else []
-    rows = [
-        c
-        for c in session.exec(
-            select(QueryClassification).where(QueryClassification.tenant_id == tenant_id)
-        ).all()
-        if c.google_aio_signals  # AIO capture actually ran for this query
-    ]
+    # The AIO signal is written onto every (query, surface) classification row
+    # for a query, so count each query once, not once per engine.
+    by_query: dict[str, QueryClassification] = {}
+    for c in session.exec(
+        select(QueryClassification).where(QueryClassification.tenant_id == tenant_id)
+    ).all():
+        if c.google_aio_signals:  # AIO capture actually ran for this query
+            by_query.setdefault(c.query_text, c)
+    rows = list(by_query.values())
     measured = len(rows)
     triggered = [c for c in rows if c.google_aio_triggered]
     brand_cited = sum(
@@ -154,7 +162,7 @@ def citations_intel(
     results_by_id = {
         r.id: r
         for r in _latest_results_by_variant(
-            session, tenant_id, ResultVariant.search, lo, hi
+            session, tenant_id, ResultVariant.search, lo, hi, scope="competitive"
         ).values()
         if r.id is not None
     }
@@ -347,8 +355,10 @@ def overview(
             return {n: _mean(v) for n, v in per_name.items()}
 
         prev_seg, last_seg = segment_scores(prev_date), segment_scores(last_date)
-        for segment in sorted(set(prev_seg) | set(last_seg)):
-            before, after = prev_seg.get(segment, 0.0), last_seg.get(segment, 0.0)
+        # Only entities measured on BOTH days: one that's missing on a day
+        # isn't a 0 score, and treating it as one fakes a huge swing.
+        for segment in sorted(set(prev_seg) & set(last_seg)):
+            before, after = prev_seg[segment], last_seg[segment]
             movers.append(
                 {
                     "label": f"Brand · {segment}",
@@ -359,8 +369,8 @@ def overview(
                 }
             )
         prev_comp, last_comp = competitor_scores(prev_date), competitor_scores(last_date)
-        for name in sorted(set(prev_comp) | set(last_comp)):
-            before, after = prev_comp.get(name, 0.0), last_comp.get(name, 0.0)
+        for name in sorted(set(prev_comp) & set(last_comp)):
+            before, after = prev_comp[name], last_comp[name]
             movers.append(
                 {
                     "label": name,
@@ -537,7 +547,12 @@ def engine_scorecard(
     appears (you / competitor / absent), and a per-query 'why you're missing'
     diagnosis from the search-vs-training diff. Pure reads — no LLM, no spend."""
     brand_name = _brand_name(session, tenant_id)
-    queries = list(session.exec(select(Query).where(Query.tenant_id == tenant_id)).all())
+    # The competitive matrix: branded queries live on the Brand tab.
+    queries = [
+        q
+        for q in session.exec(select(Query).where(Query.tenant_id == tenant_id)).all()
+        if not q.branded
+    ]
 
     lo, hi = _date_window(start, end)
     search = _latest_results_by_variant(
@@ -618,6 +633,12 @@ def engine_scorecard(
     matrix = []
     summary: dict[str, int] = defaultdict(int)
     for query in sorted(queries, key=lambda q: (q.corpus_tag, q.text)):
+        # A retired (inactive) query with nothing measured in this window
+        # isn't part of the current picture.
+        if not query.active and not any(
+            (query.text, sf) in search or (query.text, sf) in nosearch for sf in surfaces
+        ):
+            continue
         cells: dict[str, dict] = {}
         brand_in_search = brand_in_nosearch = has_nosearch = False
         for surface in surfaces:
@@ -830,9 +851,15 @@ def fanout_scorecard(
         """won_back | lost | steady vs the previous distinct re-probe of this
         shard; None when this is its first measurement."""
         points = history.get(key, [])
+        # This row's own measurement; if it isn't in the history (probed after
+        # the window's end), every point in the history is "before" it.
         idx = next(
-            (i for i, pt in enumerate(points) if pt[2] == row.probe_result_id),
-            len(points) - 1,
+            (
+                i
+                for i, pt in enumerate(points)
+                if row.probe_result_id is not None and pt[2] == row.probe_result_id
+            ),
+            len(points),
         )
         if idx < 1:
             return None
@@ -937,8 +964,12 @@ def routing_report(
     un-forced natural probe; for the rest, from their (already un-forced)
     search variant's observed search count."""
     lo, hi = _date_window(start, end)
-    search = _latest_results_by_variant(session, tenant_id, ResultVariant.search, lo, hi)
-    natural = _latest_results_by_variant(session, tenant_id, ResultVariant.natural, lo, hi)
+    search = _latest_results_by_variant(
+        session, tenant_id, ResultVariant.search, lo, hi, scope="competitive"
+    )
+    natural = _latest_results_by_variant(
+        session, tenant_id, ResultVariant.natural, lo, hi, scope="competitive"
+    )
 
     per_surface: dict[str, dict] = defaultdict(lambda: {"measured": 0, "searched": 0})
     prompts: dict[str, dict[str, bool]] = defaultdict(dict)
@@ -1129,8 +1160,14 @@ def engine_modes(
     # Two-mode split — the honest reframe. Recall visibility is measured over
     # the training twins (what the model knows without searching); retrieval
     # visibility over the answers where it actually searched.
-    twin_rows = [
-        r for r in (*nosearch.values(), *natural.values()) if r.id is not None
+    # Recall = answers given WITHOUT searching: the training twins, plus
+    # natural probes that chose not to search, counted once per
+    # (query, surface) (a probe that searched is retrieval, not memory).
+    twin_rows = [r for r in nosearch.values() if r.id is not None]
+    twin_rows += [
+        r
+        for key, r in natural.items()
+        if r.id is not None and (r.web_search_calls or 0) == 0 and key not in nosearch
     ]
     twin_named = sum(1 for r in twin_rows if r.id in brand_ids)
     searched_rows = [
@@ -1150,6 +1187,7 @@ def engine_modes(
 
     # Composite — demoted to a blended roll-up, not the headline. Latest daily
     # brand score, the same figure the trend chart lands on.
+    start, end = _clean_date(start), _clean_date(end)
     latest_daily = None
     daily = [
         r for r in session.exec(
@@ -1312,7 +1350,9 @@ def whitespace_report(
     recommends, and none of them is on your list.' Reads the latest search
     results in the window so it tracks current state, not all-time."""
     lo, hi = _date_window(start, end)
-    latest = _latest_results_by_variant(session, tenant_id, ResultVariant.search, lo, hi)
+    latest = _latest_results_by_variant(
+        session, tenant_id, ResultVariant.search, lo, hi, scope="competitive"
+    )
     result_meta = {
         r.id: (r.persona_segment or "generic", str(r.surface))
         for r in latest.values()
@@ -1461,6 +1501,9 @@ def kpi_scorecard(
     )
 
     # Stability: brand presence rate across the last few runs (in-window).
+    # Competitive queries only, matching presence_rate on the same screen
+    # (branded queries name the brand almost always and would inflate it).
+    branded_texts = _branded_query_texts(session, tenant_id)
     by_run: dict[int, list[Result]] = defaultdict(list)
     for r in session.exec(
         select(Result).where(
@@ -1468,7 +1511,7 @@ def kpi_scorecard(
             Result.status == "ok",
         )
     ).all():
-        if not _in_window(r.created_at, lo, hi):
+        if not _in_window(r.created_at, lo, hi) or r.query_text in branded_texts:
             continue
         by_run[r.run_id].append(r)
     recent_runs = sorted(by_run)[-STABILITY_RUNS:]
@@ -1661,7 +1704,11 @@ def interventions_report(session: Session, tenant_id: int) -> dict:
     out = []
     deltas: list[float] = []
     control_deltas: list[float] = []
-    control_queries = {q for (q, _s, _c, _r) in rows} - treated_queries
+    # Branded queries name the brand almost always; as controls they'd damp
+    # the untouched-query baseline toward zero and flatter the lift.
+    control_queries = (
+        {q for (q, _s, _c, _r) in rows} - treated_queries - _branded_query_texts(session, tenant_id)
+    )
     for item in ledger:
         shipped = _as_utc(item.shipped_at)
         b_present, b_total = rate({item.query_text}, before=shipped)
@@ -1784,17 +1831,23 @@ def _lost_citations(session: Session, tenant_id: int) -> dict:
     OWN cited pages. Losing a citation is the earliest actionable decay signal,
     and the proven fix is cheap — refresh the page's dates, stats, and examples.
     Compares the last two runs that produced brand-page citations."""
-    result_ctx = {
-        r.id: (r.run_id, r.query_text)
-        for r in session.exec(
-            select(Result).where(
-                Result.tenant_id == tenant_id,
-                Result.variant == ResultVariant.search,
-                Result.status == "ok",
-            )
-        ).all()
-        if r.id is not None
-    }
+    # The last two runs that measured anything (competitive queries), whether
+    # or not they produced brand citations: a run that lost EVERY brand
+    # citation is exactly the one this radar exists to catch.
+    branded = _branded_query_texts(session, tenant_id)
+    result_ctx: dict[int, tuple[int, str]] = {}
+    measured: dict[int, set[str]] = defaultdict(set)
+    for r in session.exec(
+        select(Result).where(
+            Result.tenant_id == tenant_id,
+            Result.variant == ResultVariant.search,
+            Result.status == "ok",
+        )
+    ).all():
+        if r.id is None or r.query_text in branded:
+            continue
+        result_ctx[r.id] = (r.run_id, r.query_text)
+        measured[r.run_id].add(r.query_text)
     by_run: dict[int, set[tuple[str, str]]] = defaultdict(set)
     domain_of: dict[str, str] = {}
     for c in session.exec(
@@ -1809,11 +1862,16 @@ def _lost_citations(session: Session, tenant_id: int) -> dict:
         by_run[run_id].add((c.url, query_text))
         domain_of[c.url] = c.domain
 
-    run_ids = sorted(by_run)
+    run_ids = sorted(measured)
     if len(run_ids) < 2:
-        return {"ready": False, "lost": [], "held": len(by_run[run_ids[0]]) if run_ids else 0,
-                "gained": 0}
-    prev_set, latest_set = by_run[run_ids[-2]], by_run[run_ids[-1]]
+        latest = by_run[run_ids[-1]] if run_ids else set()
+        return {"ready": False, "lost": [], "held": len(latest), "gained": 0}
+    prev_id, latest_id = run_ids[-2], run_ids[-1]
+    # Compare only queries BOTH runs measured, so a partial run doesn't
+    # report everything it skipped as "lost".
+    shared = measured[prev_id] & measured[latest_id]
+    prev_set = {pair for pair in by_run[prev_id] if pair[1] in shared}
+    latest_set = {pair for pair in by_run[latest_id] if pair[1] in shared}
     lost_pairs = prev_set - latest_set
     latest_urls: dict[str, int] = defaultdict(int)
     for url, _q in latest_set:
@@ -1948,7 +2006,11 @@ def action_plan(session: Session, tenant_id: int) -> dict:
     owned = _owned_domains(session, tenant_id)
 
     # Latest search result per (query, surface) and its mention context.
-    search = _latest_results_by_variant(session, tenant_id, ResultVariant.search)
+    # Competitive only: branded answers cite the brand's own site and would
+    # make targets look "already citing you".
+    search = _latest_results_by_variant(
+        session, tenant_id, ResultVariant.search, scope="competitive"
+    )
     fanout_by_query = _fanout_by_query(search)
     results_by_id = {r.id: r for r in search.values() if r.id is not None}
     ids = list(results_by_id)
@@ -2084,10 +2146,13 @@ def action_plan(session: Session, tenant_id: int) -> dict:
         b["citability"] = _citability_diff(winners, your_page)
 
     # Shipped-state per brief (intervention ledger).
+    # Newest ship per query wins (a query can have several interventions).
     shipped_by_query = {
         i.query_text: i
         for i in session.exec(
-            select(Intervention).where(Intervention.tenant_id == tenant_id)
+            select(Intervention)
+            .where(Intervention.tenant_id == tenant_id)
+            .order_by(Intervention.shipped_at)  # pyright: ignore[reportArgumentType]
         ).all()
     }
     for b in briefs:
@@ -2185,7 +2250,17 @@ def queries_intel(
         if not _in_window(result.created_at, lo, hi):
             continue
         key = (result.query_text, str(result.surface))
-        if key not in latest_results or (result.id or 0) > (latest_results[key].id or 0):
+        current = latest_results.get(key)
+        # Prefer the newest SUCCESSFUL answer: a failed or blocked retry must
+        # not hide the last good one (it would read as "brand not mentioned").
+        # Fall back to the newest attempt of any status when none succeeded.
+        ok_new = result.status == ResultStatus.ok
+        ok_cur = current is not None and current.status == ResultStatus.ok
+        if (
+            current is None
+            or (ok_new and not ok_cur)
+            or (ok_new == ok_cur and (result.id or 0) > (current.id or 0))
+        ):
             latest_results[key] = result
 
     result_ids = [r.id for r in latest_results.values() if r.id is not None]

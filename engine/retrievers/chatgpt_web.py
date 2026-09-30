@@ -38,7 +38,7 @@ def parse_assistant_html(html: str) -> tuple[str, list[ParsedCitation]]:
 
 def build_opening_message(persona_prompt: str, query_text: str) -> str:
     """Persona framing + query as one opening message (DECISIONS.md M4)."""
-    return f"{persona_prompt.strip()}\n\n{query_text.strip()}"
+    return "\n\n".join(p for p in (persona_prompt.strip(), query_text.strip()) if p)
 
 
 async def retrieve(

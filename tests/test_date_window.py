@@ -85,9 +85,11 @@ def test_overview_trend_respects_range(db_session):
     assert brand_movers[0]["before"] == 40.0
     assert brand_movers[0]["after"] == 50.0
 
-    # Bad date input degrades to unfiltered, never errors.
+    # Bad date input degrades to the default view (as if no range was given),
+    # never errors. Compared against the default rather than a fixed count so
+    # the test doesn't depend on today's date and the trailing trend window.
     junk = overview(db_session, tid, start="not-a-date", end="also-junk")
-    assert len(junk["trend"]) == 3
+    assert junk["trend"] == overview(db_session, tid)["trend"]
 
 
 def test_outcome_range_keeps_connection_state(db_session):

@@ -1,6 +1,7 @@
 """Superadmin-only tenant administration (§7.2). Every mutation writes an
 audit_log row in the same transaction."""
 
+import math
 from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException
@@ -146,13 +147,25 @@ def patch_tenant(slug: str, payload: TenantPatch, session: Db, admin: Admin) -> 
         changed.append("approved_utility_models")
 
     if payload.name is not None:
+        if not payload.name.strip():
+            raise HTTPException(status_code=422, detail="Name can't be empty")
         tenant.name = payload.name.strip()
         changed.append("name")
     if payload.status is not None:
         tenant.status = payload.status
         changed.append("status")
     if payload.clerk_org_id is not None:
-        tenant.clerk_org_id = payload.clerk_org_id.strip() or None
+        org_id = payload.clerk_org_id.strip() or None
+        if org_id is not None:
+            other = session.exec(
+                select(Tenant).where(Tenant.clerk_org_id == org_id, Tenant.id != tenant.id)
+            ).first()
+            if other is not None:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"That Clerk org is already linked to tenant '{other.slug}'",
+                )
+        tenant.clerk_org_id = org_id
         changed.append("clerk_org_id")
     if payload.ai_processing_approved is not None:
         tenant.ai_processing_approved = payload.ai_processing_approved
@@ -175,8 +188,8 @@ def patch_tenant(slug: str, payload: TenantPatch, session: Db, admin: Admin) -> 
         tenant.approved_surfaces = [s.value for s in payload.approved_surfaces]
         changed.append("approved_surfaces")
     if payload.monthly_spend_cap_usd is not None:
-        if payload.monthly_spend_cap_usd < 0:
-            raise HTTPException(status_code=422, detail="Spend cap must be >= 0")
+        if not math.isfinite(payload.monthly_spend_cap_usd) or payload.monthly_spend_cap_usd < 0:
+            raise HTTPException(status_code=422, detail="Spend cap must be a number >= 0")
         tenant.monthly_spend_cap_usd = payload.monthly_spend_cap_usd
         changed.append("monthly_spend_cap_usd")
     if payload.notify_emails is not None:

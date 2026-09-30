@@ -30,10 +30,16 @@ class ParsedCitation:
     # The exact snippet the engine quoted from this source (§AEO-plan M6).
     # Claude exposes it (≤150 chars); other surfaces usually leave it empty.
     cited_text: str = ""
+    # The real source domain when `url` is a redirect that hides it (Gemini
+    # grounding links point at vertexaisearch.cloud.google.com).
+    source_domain: str = ""
 
     @property
     def domain(self) -> str:
-        return urlparse(self.url).netloc.removeprefix("www.")
+        if self.source_domain:
+            return self.source_domain.lower().removeprefix("www.")
+        # hostname (not netloc): lowercase, no port, no user:pass@.
+        return (urlparse(self.url).hostname or "").lower().removeprefix("www.")
 
 
 @dataclass
@@ -134,10 +140,11 @@ def build_request_body(
 ) -> dict[str, Any]:
     body: dict[str, Any] = {
         "model": model,
-        "instructions": persona_prompt.strip(),
         "input": query_text,
         "max_output_tokens": ANSWER_MAX_TOKENS,
     }
+    if persona_prompt.strip():  # the generic baseline sends no instructions
+        body["instructions"] = persona_prompt.strip()
     if model.startswith("gpt-5"):
         body["reasoning"] = {"effort": "low"}
     if web_search:
@@ -176,12 +183,24 @@ async def retrieve(
     started = time.monotonic()
     async with httpx.AsyncClient(timeout=timeout_s) as client:
         for attempt in range(1, max_attempts + 1):
-            resp = await client.post(OPENAI_RESPONSES_URL, json=body, headers=headers)
+            try:
+                resp = await client.post(OPENAI_RESPONSES_URL, json=body, headers=headers)
+            except httpx.TransportError:
+                # Dropped connection / timeout: retry like a 5xx.
+                if attempt < max_attempts:
+                    await asyncio.sleep(2**attempt)
+                    continue
+                raise
             if resp.status_code in RETRYABLE_STATUS and attempt < max_attempts:
                 await asyncio.sleep(2**attempt)
                 continue
             resp.raise_for_status()
             payload = resp.json()
+            if payload.get("status") == "incomplete" and not parse_responses_payload(payload).text:
+                # Ran out of output budget before any answer text: an error,
+                # not an answer that "doesn't mention the brand".
+                reason = (payload.get("incomplete_details") or {}).get("reason", "unknown")
+                raise RuntimeError(f"OpenAI response incomplete with no text ({reason})")
             return RetrievalOutcome(
                 payload=payload,
                 parsed=parse_responses_payload(payload),

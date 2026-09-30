@@ -257,3 +257,13 @@ def test_blocked_scrape_records_blocked_status(
     # An all-blocked run fails loudly with the residential-proxy hint.
     assert run.status == RunStatus.failed
     assert "residential proxy" in (run.error or "")
+
+
+def test_proxy_credentials_are_decoded_and_map_keys_case_insensitive():
+    from engine.retrievers.stealth import ScrapeEnv, _proxy_setting, resolve_proxy
+
+    s = _proxy_setting("http://user-zone%3Aus:p%40ss%2Fw0rd@proxy.example.com:22225")
+    assert s == {"server": "http://proxy.example.com:22225",
+                 "username": "user-zone:us", "password": "p@ss/w0rd"}
+    env = ScrapeEnv(country="us", proxy_url="http://default:1", proxy_map={"US": "http://us:1"})
+    assert resolve_proxy(env) == "http://us:1"

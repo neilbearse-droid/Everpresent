@@ -11,7 +11,16 @@ from collections import Counter
 from sqlmodel import Session, select
 
 from api.config import get_settings
-from api.models import Result, ResultVariant, Run, RunSchedule, SurfaceCode, Tenant, TenantSurface
+from api.models import (
+    Result,
+    ResultVariant,
+    Run,
+    RunSchedule,
+    RunStatus,
+    SurfaceCode,
+    Tenant,
+    TenantSurface,
+)
 from api.plans import limits_for
 from api.runs_service import DISPATCHABLE_SURFACES, MODE_A_SURFACES, eligible_surfaces
 
@@ -78,10 +87,16 @@ def engine_readiness(session: Session, tenant: Tenant) -> dict:
     will_dispatch = set(eligible_surfaces(session, tenant))
     dispatchable = {str(s) for s in DISPATCHABLE_SURFACES}
 
-    # Latest non-gated run per surface, looked up from newest runs down.
+    # Latest FINISHED run per surface, newest first. Gated, pending and
+    # still-running runs carry no evidence yet and would hide the last real one.
     runs = session.exec(
         select(Run)
-        .where(Run.tenant_id == tenant.id)
+        .where(
+            Run.tenant_id == tenant.id,
+            Run.status.in_(  # pyright: ignore[reportAttributeAccessIssue]
+                [RunStatus.complete, RunStatus.capped, RunStatus.failed]
+            ),
+        )
         .order_by(Run.id.desc())  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
         .limit(30)
     ).all()

@@ -76,3 +76,22 @@ def test_snippet_is_bounded_and_contains_mention():
 
 def test_absent_entities_produce_no_mentions():
     assert detect_mentions("Nothing relevant here.", "Smith", ["SSB"], COMPETITORS) == []
+
+
+def test_longest_competitor_name_wins_an_overlap():
+    comps = [(1, "Hostinger", []), (2, "Hostinger Horizon", ["Horizon"])]
+    found = detect_mentions("Try Hostinger Horizon for AI sites.", "GoDaddy", [], comps)
+    assert [m.entity_name for m in found] == ["Hostinger Horizon"]
+    found = detect_mentions("Hostinger Horizon or plain Hostinger hosting.", "GoDaddy", [], comps)
+    assert {m.entity_name for m in found} == {"Hostinger", "Hostinger Horizon"}
+
+
+def test_ordinary_words_are_not_brand_mentions():
+    comps = [(1, "Lovable", []), (2, "Hostinger Horizon", ["Horizon"])]
+    text = "Growth is on the horizon with a lovable interface from GoDaddy."
+    assert [m.entity_name for m in detect_mentions(text, "GoDaddy", [], comps)] == ["GoDaddy"]
+    text = "Lovable builds apps; Horizon does too."
+    assert {m.entity_name for m in detect_mentions(text, "GoDaddy", [], comps)} == {
+        "Lovable", "Hostinger Horizon"}
+    # Mixed-case names stay case-insensitive.
+    assert detect_mentions("try godaddy today", "GoDaddy", [], [])[0].entity_name == "GoDaddy"

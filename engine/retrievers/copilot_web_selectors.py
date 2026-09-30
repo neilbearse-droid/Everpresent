@@ -35,7 +35,11 @@ ANSWER_CONTAINER_CANDIDATES = [
     '[data-testid="ai-message"]',
     '[data-content="ai-message"]',
     '[data-author="bot"]',
-    'div[class*="response"]',
+    # No loose class-substring fallback (e.g. div[class*="response"]): it
+    # matched layout divs like "responsive-*" before any answer rendered, so a
+    # changed page recorded chrome as the answer (a silent "brand absent").
+    # A miss now surfaces as an error, which the smoke test and the admin
+    # readiness panel both show.
 ]
 
 # Present while the answer streams; its disappearance (plus a stable DOM) is the

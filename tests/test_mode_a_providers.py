@@ -48,9 +48,11 @@ def test_perplexity_body_maps_persona_to_system():
 
 
 def test_perplexity_cost_uses_sonar_prices():
-    # sonar: $1/1M in, $1/1M out; + 2 searches * $5/1k.
+    # sonar: $1/1M in, $1/1M out; + ONE request fee ($5/1k) however many
+    # searches the request ran.
     cost = estimate_perplexity_cost_usd("sonar", 1_000_000, 1_000_000, 2)
-    assert cost == round(1.0 + 1.0 + 2 * 5.0 / 1000, 6)
+    assert cost == round(1.0 + 1.0 + 5.0 / 1000, 6)
+    assert estimate_perplexity_cost_usd("sonar", 0, 0, 0) == 0.0
 
 
 # --- Anthropic Claude -------------------------------------------------------
@@ -127,10 +129,61 @@ def test_gemini_body_caps_output_and_disables_flash_thinking():
     flash = gemini_body("p", "q", model="gemini-2.5-flash")
     assert flash["generationConfig"]["maxOutputTokens"] == 1200
     assert flash["generationConfig"]["thinkingConfig"] == {"thinkingBudget": 0}
-    # Pro models can't disable thinking — cap output only.
+    # Pro can't disable thinking: minimum budget plus headroom so thinking
+    # doesn't eat the answer.
     pro = gemini_body("p", "q", model="gemini-2.5-pro")
-    assert pro["generationConfig"]["maxOutputTokens"] == 1200
-    assert "thinkingConfig" not in pro["generationConfig"]
+    assert pro["generationConfig"]["thinkingConfig"] == {"thinkingBudget": 128}
+    assert pro["generationConfig"]["maxOutputTokens"] > 1200
+    # 2.0 models have no thinkingConfig and would reject one.
+    old = gemini_body("p", "q", model="gemini-2.0-flash")
+    assert "thinkingConfig" not in old["generationConfig"]
+
+
+def test_empty_persona_prompt_is_omitted_everywhere():
+    """The generic baseline persona has no prompt; no provider gets an empty
+    system field (Gemini rejects an empty text part)."""
+    from engine.retrievers.chatgpt_web import build_opening_message
+    from engine.retrievers.claude_api import build_request_body as claude_body
+    from engine.retrievers.openai_api import build_request_body as openai_body
+
+    assert "system_instruction" not in gemini_body("", "q", model="gemini-2.5-flash")
+    assert "system" not in claude_body("", "q", model="claude-sonnet-4-6")
+    assert [m["role"] for m in pplx_body("  ", "q", model="sonar")["messages"]] == ["user"]
+    assert "instructions" not in openai_body("", "q", model="gpt-5-mini")
+    assert build_opening_message("", "best registrar?") == "best registrar?"
+    # A real persona is still sent.
+    assert gemini_body("You are X.", "q", model="gemini-2.5-flash")["system_instruction"]
+    assert claude_body("You are X.", "q", model="claude-sonnet-4-6")["system"] == "You are X."
+
+
+def test_gemini_citations_use_the_real_source_domain():
+    from engine.retrievers.gemini_api import parse_gemini_payload
+
+    parsed = parse_gemini_payload({"candidates": [{
+        "content": {"parts": [{"text": "a"}]},
+        "groundingMetadata": {"groundingChunks": [
+            {"web": {"uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AbC",
+                     "title": "godaddy.com"}},
+            {"web": {"uri": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/XyZ",
+                     "title": "Some Site Name"}},
+        ], "webSearchQueries": ["q1", "q2", "q3"]},
+    }]})
+    assert parsed.citations[0].domain == "godaddy.com"
+    # A title that isn't a domain falls back to the URL host.
+    assert parsed.citations[1].domain == "vertexaisearch.cloud.google.com"
+
+
+def test_citation_domain_is_the_normalized_host():
+    from engine.retrievers.openai_api import ParsedCitation
+
+    assert ParsedCitation(url="https://WWW.GoDaddy.com:443/x").domain == "godaddy.com"
+    assert ParsedCitation(url="https://user:pw@wix.com/a").domain == "wix.com"
+
+
+def test_gemini_grounding_billed_once_per_prompt():
+    one = estimate_gemini_cost_usd("gemini-2.5-flash", 0, 0, 1)
+    assert estimate_gemini_cost_usd("gemini-2.5-flash", 0, 0, 5) == one == 0.035
+    assert estimate_gemini_cost_usd("gemini-2.5-flash", 0, 0, 0) == 0.0
 
 
 def test_claude_web_search_capped_and_perplexity_output_capped():

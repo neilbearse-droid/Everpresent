@@ -95,7 +95,9 @@ class TenantConfigSpec(BaseModel):
     personas: list[PersonaSpec] = Field(default_factory=list)
     queries: list[QuerySpec] = Field(default_factory=list)
     brand_facts: list[BrandFactSpec] = Field(default_factory=list)
-    surfaces: list[SurfaceCode] = Field(default_factory=list)
+    # None = the file doesn't mention surfaces: leave the tenant's engines and
+    # approvals exactly as they are (an empty list switches them all off).
+    surfaces: list[SurfaceCode] | None = None
 
 
 class ConfigImportError(ValueError):
@@ -119,7 +121,10 @@ def import_config(session: Session, tenant: Tenant, spec: TenantConfigSpec) -> d
     """Caller owns the commit. Returns counts for the audit/UI summary."""
     tenant_id = tenant.id
     assert tenant_id is not None
-    for model in (BrandProfile, Competitor, Persona, Query, BrandFact, TenantSurface):
+    replaced = [BrandProfile, Competitor, Persona, Query, BrandFact]
+    if spec.surfaces is not None:
+        replaced.append(TenantSurface)
+    for model in replaced:
         session.exec(delete(model).where(model.tenant_id == tenant_id))  # pyright: ignore[reportAttributeAccessIssue, reportCallIssue, reportArgumentType]
 
     session.add(
@@ -162,21 +167,26 @@ def import_config(session: Session, tenant: Tenant, spec: TenantConfigSpec) -> d
                 active=bf.active,
             )
         )
-    for code in SurfaceCode:
-        session.add(TenantSurface(tenant_id=tenant_id, code=code, enabled=code in spec.surfaces))
-    # Importing is a superadmin action, so the surfaces it enables are also
-    # governance-approved — the same lockstep the admin surface toggle keeps.
-    # Without this an imported tenant shows surfaces "enabled" that no run
-    # would ever dispatch (a run needs enabled AND approved).
-    tenant.approved_surfaces = sorted({s.value for s in spec.surfaces})
+    if spec.surfaces is not None:
+        for code in SurfaceCode:
+            session.add(
+                TenantSurface(tenant_id=tenant_id, code=code, enabled=code in spec.surfaces)
+            )
+        # Importing is a superadmin action, so the surfaces it enables are also
+        # governance-approved — the same lockstep the admin surface toggle
+        # keeps. Without this an imported tenant shows surfaces "enabled" that
+        # no run would ever dispatch (a run needs enabled AND approved).
+        tenant.approved_surfaces = sorted({s.value for s in spec.surfaces})
     if spec.geo is not None:
         tenant.aio_geo = {"gl": spec.geo.country, "hl": spec.geo.language}
     session.add(tenant)
 
-    return {
+    summary = {
         "competitors": len(spec.competitors),
         "personas": len(spec.personas),
         "queries": len(spec.queries),
         "brand_facts": len(spec.brand_facts),
-        "surfaces_enabled": len(spec.surfaces),
     }
+    if spec.surfaces is not None:
+        summary["surfaces_enabled"] = len(spec.surfaces)
+    return summary

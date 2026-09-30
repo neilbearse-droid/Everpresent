@@ -175,6 +175,8 @@ def test_lost_citation_radar_diffs_brand_pages_across_runs(db_session):
     cite(run1.id, "q2", "https://acme.com/guide")
     cite(run1.id, "q1", "https://acme.com/pricing")
     cite(run2.id, "q1", "https://acme.com/guide")
+    # Run 2 measured q2 too, but nothing cited Acme there.
+    _result(db_session, run2.id, tid, "q2", "openai_api", "search")
 
     protect = action_plan(db_session, tid)["protect"]
     assert protect["ready"] is True
@@ -291,3 +293,26 @@ def test_citability_handles_no_owned_page_and_uncrawled_winners(db_session):
     assert briefs["q a"]["citability"]["your_page"] is None
     assert any("build one" in g for g in briefs["q a"]["citability"]["gaps"])
     assert briefs["q b"]["citability"]["ready"] is False  # winners not crawled yet
+
+
+def test_lost_citation_radar_catches_a_run_that_lost_everything(db_session):
+    """The latest run measured the queries but cited Acme nowhere: every
+    previously cited page is lost (the old code skipped such a run)."""
+    tenant = Tenant(name="Acme", slug="acme")
+    db_session.add(tenant)
+    db_session.commit()
+    tid = tenant.id
+    db_session.add(BrandProfile(tenant_id=tid, brand_name="Acme", domains=["acme.com"]))
+    db_session.add(Query(tenant_id=tid, text="q1", corpus_tag="c"))
+    run1 = Run(tenant_id=tid, trigger="manual", status=RunStatus.complete)
+    run2 = Run(tenant_id=tid, trigger="manual", status=RunStatus.complete)
+    db_session.add_all([run1, run2])
+    db_session.commit()
+    r = _result(db_session, run1.id, tid, "q1", "openai_api", "search")
+    db_session.add(Citation(result_id=r.id, tenant_id=tid, url="https://acme.com/guide",
+                            domain="acme.com", source_category="brand"))
+    db_session.commit()
+    _result(db_session, run2.id, tid, "q1", "openai_api", "search")
+
+    protect = action_plan(db_session, tid)["protect"]
+    assert [e["url"] for e in protect["lost"]] == ["https://acme.com/guide"]

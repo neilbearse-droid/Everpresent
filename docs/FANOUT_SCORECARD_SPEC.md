@@ -81,9 +81,9 @@ never duplicates (mirror the `UntrackedMention` / rollup upsert pattern).
 
 ### 3.2 Re-probe results reuse the Result table
 
-Add `ResultVariant.shard = "shard"`. **No DDL** — `results.variant` is a string
-column (StrEnum), not a native PG enum, so this is a code-only enum addition
-(unlike the copilot_web M20 case).
+Add `ResultVariant.shard = "shard"`. `results.variant` is a native Postgres
+enum, so the value is added with `ALTER TYPE ... ADD VALUE` (migration m26),
+the same way `natural` was in m16.
 
 A re-probe writes a `Result(variant="shard", query_text=shard_text, ...)`, run
 through the **existing** mention/citation extraction — so presence + winners come

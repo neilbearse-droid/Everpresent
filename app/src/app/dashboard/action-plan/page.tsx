@@ -491,17 +491,21 @@ export default async function ActionPlanPage() {
                               {iv.before_rate ?? "—"}% → {iv.after_rate ?? "—"}%
                             </td>
                             <td className="pr-4 text-xs tabular-nums">
-                              <span
-                                className={
-                                  (iv.delta ?? 0) > 0
-                                    ? "font-medium text-[var(--pos)]"
-                                    : "text-[var(--text-2)]"
-                                }
-                              >
-                                {(iv.delta ?? 0) >= 0 ? "+" : ""}
-                                {iv.delta} pts
-                              </span>
-                              {iv.control_delta !== null && (
+                              {iv.delta === null ? (
+                                <span className="text-[var(--text-3)]">no pre-ship baseline</span>
+                              ) : (
+                                <span
+                                  className={
+                                    iv.delta > 0
+                                      ? "font-medium text-[var(--pos)]"
+                                      : "text-[var(--text-2)]"
+                                  }
+                                >
+                                  {iv.delta >= 0 ? "+" : ""}
+                                  {iv.delta} pts
+                                </span>
+                              )}
+                              {iv.delta !== null && iv.control_delta !== null && (
                                 <span className="ml-1.5 text-[var(--text-3)]">
                                   (control {iv.control_delta >= 0 ? "+" : ""}
                                   {iv.control_delta})

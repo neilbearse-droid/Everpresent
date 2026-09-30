@@ -14,6 +14,7 @@ from api.models import (
     SurfaceCode,
     Tenant,
     TenantSurface,
+    utcnow,
 )
 
 # Surfaces with a working adapter, by mode. Mode A is the reliable API path
@@ -82,10 +83,18 @@ def trigger_run(session: Session, tenant: Tenant, *, trigger: str = "manual") ->
     session.refresh(run)
     if run.status == RunStatus.pending:
         assert run.id is not None
-        if RunMode.A in run.mode_set:
-            enqueue_run(run.id)
-        else:
-            enqueue_run_mode_b(run.id)
+        try:
+            if RunMode.A in run.mode_set:
+                enqueue_run(run.id)
+            else:
+                enqueue_run_mode_b(run.id)
+        except Exception as exc:  # noqa: BLE001 — record it; never strand a pending run
+            run.status = RunStatus.failed
+            run.error = f"could not queue the run (is Redis up?): {type(exc).__name__}"[:500]
+            run.finished_at = utcnow()
+            session.add(run)
+            session.commit()
+            session.refresh(run)
     return run
 
 

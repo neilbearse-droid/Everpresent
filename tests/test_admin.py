@@ -166,3 +166,25 @@ def test_admin_mutations_are_audited(client, as_superadmin, db_session):
     actions = [a.action for a in db_session.exec(select(AuditLog)).all()]
     assert any(a.startswith("tenant.create") for a in actions)
     assert any("ai_processing_approved" in a for a in actions)
+
+
+def test_linking_an_org_already_in_use_is_a_clear_409(client, as_superadmin, db_session):
+    from api.models import Tenant
+
+    db_session.add(Tenant(name="A", slug="a", clerk_org_id="org_1"))
+    db_session.add(Tenant(name="B", slug="b"))
+    db_session.commit()
+    res = client.patch("/api/admin/tenants/b", json={"clerk_org_id": "org_1"})
+    assert res.status_code == 409 and "'a'" in res.json()["detail"]
+
+
+def test_spend_cap_rejects_non_finite_values(client, as_superadmin, db_session):
+    from api.models import Tenant
+
+    db_session.add(Tenant(name="A", slug="a"))
+    db_session.commit()
+    res = client.patch(
+        "/api/admin/tenants/a", content='{"monthly_spend_cap_usd": Infinity}',
+        headers={"Content-Type": "application/json"},
+    )
+    assert res.status_code == 422

@@ -3,7 +3,7 @@
 Adds the fanout_shards table (per-run fan-out sub-queries with per-shard
 presence once re-probed) and tenants.fanout_reprobe_enabled (opt-in to the
 bounded re-probe, off by default so existing tenants incur no new spend).
-ResultVariant.shard is code-only: results.variant is a plain string column.
+The 'shard' value of the results.variant Postgres enum is added in m26.
 
 Revision ID: a9b0c1d2e3f4
 Revises: f8a9b0c1d2e3

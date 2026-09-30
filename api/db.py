@@ -1,3 +1,4 @@
+import os
 from collections.abc import Iterator
 
 from sqlmodel import Session, create_engine
@@ -5,6 +6,7 @@ from sqlmodel import Session, create_engine
 from api.config import get_settings
 
 _engine = None
+_engine_pid: int | None = None
 
 
 def normalize_db_url(url: str) -> str:
@@ -19,8 +21,17 @@ def normalize_db_url(url: str) -> str:
 
 
 def get_engine():
-    global _engine
+    global _engine, _engine_pid
+    if _engine is not None and _engine_pid != os.getpid():
+        # RQ forks a work-horse per job; the child inherits the parent's pool,
+        # whose sockets the parent's scheduler thread is still using. Two
+        # processes on one Postgres connection garble the protocol. Drop the
+        # inherited pool without closing the parent's sockets, and build a
+        # fresh engine for this process.
+        _engine.dispose(close=False)
+        _engine = None
     if _engine is None:
+        _engine_pid = os.getpid()
         url = normalize_db_url(get_settings().database_url)
         kwargs: dict = {"pool_pre_ping": True}
         if url.startswith("postgresql"):

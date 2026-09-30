@@ -21,7 +21,14 @@ from dataclasses import dataclass
 DETECTOR_VERSION = "accuracy-v1"
 
 _SENTENCE_RE = re.compile(r"[^.!?\n]+[.!?]?")
-_NUM_RE = re.compile(r"(\$\s?[\d,]+(?:\.\d+)?)|([\d,]+(?:\.\d+)?\s?%)|(\b[\d,]+(?:\.\d+)?\b)")
+_NUM_RE = re.compile(
+    r"(\$\s?[\d,]+(?:\.\d+)?)((?:\s?(?:k|m|bn|b|thousand|million|billion))\b)?"
+    r"|([\d,]+(?:\.\d+)?\s?%)"
+    r"|(\b[\d,]+(?:\.\d+)?\b)((?:\s?(?:k|thousand|million|billion))\b)?",
+    re.IGNORECASE,
+)
+_SCALE = {"k": 1e3, "thousand": 1e3, "m": 1e6, "million": 1e6,
+          "b": 1e9, "bn": 1e9, "billion": 1e9}
 
 
 @dataclass
@@ -69,14 +76,18 @@ def _sentences(text: str) -> list[str]:
 def _numbers(s: str) -> list[tuple[str, float, str]]:
     """(kind, value, raw) for each number, where kind ∈ currency|percent|plain."""
     out: list[tuple[str, float, str]] = []
-    for cur, pct, plain in _NUM_RE.findall(s):
+    for cur, cur_sfx, pct, plain, plain_sfx in _NUM_RE.findall(s):
         try:
             if cur:
-                out.append(("currency", float(cur.replace("$", "").replace(",", "").strip()), cur))
+                value = float(cur.replace("$", "").replace(",", "").strip())
+                value *= _SCALE.get(cur_sfx.strip().lower(), 1.0) if cur_sfx else 1.0
+                out.append(("currency", value, cur + cur_sfx))
             elif pct:
                 out.append(("percent", float(pct.replace("%", "").replace(",", "").strip()), pct))
             elif plain:
-                out.append(("plain", float(plain.replace(",", "")), plain))
+                value = float(plain.replace(",", ""))
+                value *= _SCALE.get(plain_sfx.strip().lower(), 1.0) if plain_sfx else 1.0
+                out.append(("plain", value, plain + plain_sfx))
         except ValueError:  # pragma: no cover - regex already constrains shape
             continue
     return out
@@ -100,17 +111,19 @@ def check_text(text: str, facts: list[FactSpec]) -> list[AccuracyHit]:
         alias_lows = [n for n in (_norm(a) for a in f.aliases) if n]
 
         if f.kind == "disallowed":
-            needle = _norm(f.expected)
-            if needle and needle in low_text:
+            # The forbidden claim, or any of its listed alternate phrasings.
+            needles = [n for n in (_norm(f.expected), *alias_lows) if n]
+            matched = next((n for n in needles if n in low_text), None)
+            if matched:
                 snippet = next(
-                    (s for s, ls in zip(sents, low_sents, strict=False) if needle in ls),
+                    (s for s, ls in zip(sents, low_sents, strict=False) if matched in ls),
                     f.expected,
                 )
                 hits.append(AccuracyHit(
                     fact_id=f.id, category=f.category, severity="high",
                     subject=f.subject, expected=f.expected, snippet=snippet[:200],
-                    detail=f"States a disallowed claim about {f.subject}: “{f.expected}”.",
-                    stated=f.expected,
+                    detail=f"States a disallowed claim about {f.subject}: “{matched}”.",
+                    stated=matched,
                 ))
             continue
 

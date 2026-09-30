@@ -61,14 +61,10 @@ ANSWER_MAX_TOKENS = 1200
 
 
 def build_request_body(persona_prompt: str, query_text: str, *, model: str) -> dict[str, Any]:
-    return {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": persona_prompt.strip()},
-            {"role": "user", "content": query_text.strip()},
-        ],
-        "max_tokens": ANSWER_MAX_TOKENS,
-    }
+    messages = [{"role": "user", "content": query_text.strip()}]
+    if persona_prompt.strip():  # no empty system message for the baseline
+        messages.insert(0, {"role": "system", "content": persona_prompt.strip()})
+    return {"model": model, "messages": messages, "max_tokens": ANSWER_MAX_TOKENS}
 
 
 async def retrieve(
@@ -87,7 +83,14 @@ async def retrieve(
     started = time.monotonic()
     async with httpx.AsyncClient(timeout=timeout_s) as client:
         for attempt in range(1, max_attempts + 1):
-            resp = await client.post(PERPLEXITY_URL, json=body, headers=headers)
+            try:
+                resp = await client.post(PERPLEXITY_URL, json=body, headers=headers)
+            except httpx.TransportError:
+                # Dropped connection / timeout: retry like a 5xx.
+                if attempt < max_attempts:
+                    await asyncio.sleep(2**attempt)
+                    continue
+                raise
             if resp.status_code in RETRYABLE_STATUS and attempt < max_attempts:
                 await asyncio.sleep(2**attempt)
                 continue

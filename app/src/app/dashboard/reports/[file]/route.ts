@@ -14,10 +14,17 @@ export async function GET(
   if (!ALLOWED.has(file)) notFound();
   const { getToken } = await auth();
   const token = await getToken();
-  const upstream = await fetch(`${API_ORIGIN}/api/tenant/reports/${file}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-    cache: "no-store",
-  });
+  let upstream: Response;
+  try {
+    upstream = await fetch(`${API_ORIGIN}/api/tenant/reports/${file}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      cache: "no-store",
+    });
+  } catch {
+    return new Response("The reporting service is unreachable. Try again shortly.", {
+      status: 502,
+    });
+  }
   if (!upstream.ok) {
     return new Response(await upstream.text(), { status: upstream.status });
   }

@@ -12,6 +12,7 @@ utility models.
 import asyncio
 import time
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 
@@ -19,6 +20,26 @@ from engine.retrievers.openai_api import ParsedCitation, ParsedResponse, Retriev
 
 GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
 RETRYABLE_STATUS = {429, 500, 502, 503, 504}
+
+
+_REDIRECT_HOST = "vertexaisearch.cloud.google.com"
+
+
+def _grounding_domain(url: str, title: str) -> str:
+    """Gemini grounding URIs are Google redirects; the chunk title carries the
+    real source domain (e.g. "godaddy.com"). Use it when the URI is a
+    redirect and the title looks like a bare domain; otherwise leave the
+    domain to be parsed from the URL."""
+    host = (urlparse(url).hostname or "").lower()
+    candidate = title.strip().lower()
+    if (
+        (host == _REDIRECT_HOST or "grounding-api-redirect" in url)
+        and "." in candidate
+        and " " not in candidate
+        and "/" not in candidate
+    ):
+        return candidate.removeprefix("www.")
+    return ""
 
 
 def parse_gemini_payload(payload: dict[str, Any]) -> ParsedResponse:
@@ -39,7 +60,10 @@ def parse_gemini_payload(payload: dict[str, Any]) -> ParsedResponse:
             url = web.get("uri")
             if url and url not in seen:
                 seen.add(url)
-                citations.append(ParsedCitation(url=url, title=web.get("title", "")))
+                title = str(web.get("title", "") or "")
+                citations.append(ParsedCitation(
+                    url=url, title=title, source_domain=_grounding_domain(url, title)
+                ))
         queries = list(grounding.get("webSearchQueries", []) or [])
         web_search_calls = len(queries) if queries else (1 if citations else 0)
 
@@ -49,7 +73,8 @@ def parse_gemini_payload(payload: dict[str, Any]) -> ParsedResponse:
         citations=citations,
         web_search_calls=web_search_calls,
         input_tokens=usage.get("promptTokenCount", 0),
-        output_tokens=usage.get("candidatesTokenCount", 0),
+        # Thinking tokens are billed as output but reported separately.
+        output_tokens=usage.get("candidatesTokenCount", 0) + usage.get("thoughtsTokenCount", 0),
         model=payload.get("modelVersion", ""),
         # Gemini is the richest fan-out source: the exact sub-queries it ran.
         fanout_queries=queries if candidates else [],
@@ -61,19 +86,32 @@ def parse_gemini_payload(payload: dict[str, Any]) -> ParsedResponse:
 # set (matching the consumer product's fast path). Pro models don't allow
 # disabling thinking, so they get only the output cap.
 ANSWER_MAX_TOKENS = 1200
+PRO_THINKING_BUDGET = 128  # the minimum Pro accepts
+PRO_THINKING_HEADROOM = 1024
 
 
 def build_request_body(
     persona_prompt: str, query_text: str, *, model: str = "", web_search: bool = True
 ) -> dict[str, Any]:
     generation_config: dict[str, Any] = {"maxOutputTokens": ANSWER_MAX_TOKENS}
-    if "flash" in model:
+    if "2.5-flash" in model:
+        # 2.5 Flash / Flash-Lite can turn thinking off (2.0 models have no
+        # thinkingConfig at all and would reject it).
         generation_config["thinkingConfig"] = {"thinkingBudget": 0}
+    elif "pro" in model:
+        # Pro can't disable thinking and thinking counts toward
+        # maxOutputTokens, so pin the minimum budget and leave headroom —
+        # otherwise answers come back empty with finishReason MAX_TOKENS.
+        generation_config["thinkingConfig"] = {"thinkingBudget": PRO_THINKING_BUDGET}
+        generation_config["maxOutputTokens"] = ANSWER_MAX_TOKENS + PRO_THINKING_HEADROOM
     body: dict[str, Any] = {
-        "system_instruction": {"parts": [{"text": persona_prompt.strip()}]},
         "contents": [{"role": "user", "parts": [{"text": query_text.strip()}]}],
         "generationConfig": generation_config,
     }
+    # Gemini rejects an empty text part; the generic baseline persona has no
+    # prompt, so omit the system instruction entirely in that case.
+    if persona_prompt.strip():
+        body["system_instruction"] = {"parts": [{"text": persona_prompt.strip()}]}
     if web_search:
         # The grounding-DISABLED twin is the other half of the dual-query diff.
         body["tools"] = [{"google_search": {}}]
@@ -96,14 +134,25 @@ async def retrieve(
     started = time.monotonic()
     async with httpx.AsyncClient(timeout=timeout_s) as client:
         for attempt in range(1, max_attempts + 1):
-            resp = await client.post(
-                url, json=body, headers={"x-goog-api-key": api_key}
-            )
+            try:
+                resp = await client.post(url, json=body, headers={"x-goog-api-key": api_key})
+            except httpx.TransportError:
+                # Dropped connection / timeout: retry like a 5xx.
+                if attempt < max_attempts:
+                    await asyncio.sleep(2**attempt)
+                    continue
+                raise
             if resp.status_code in RETRYABLE_STATUS and attempt < max_attempts:
                 await asyncio.sleep(2**attempt)
                 continue
             resp.raise_for_status()
             payload = resp.json()
+            candidates = payload.get("candidates") or []
+            if candidates and not parse_gemini_payload(payload).text:
+                # e.g. finishReason MAX_TOKENS/SAFETY with no text: an error,
+                # not an answer that "doesn't mention the brand".
+                reason = candidates[0].get("finishReason", "unknown")
+                raise RuntimeError(f"Gemini returned no answer text ({reason})")
             return RetrievalOutcome(
                 payload=payload,
                 parsed=parse_gemini_payload(payload),
