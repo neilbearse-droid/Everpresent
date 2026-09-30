@@ -6,7 +6,7 @@ mentions, citations) arrive with M2+."""
 from datetime import UTC, datetime
 from enum import StrEnum
 
-from sqlalchemy import JSON, Column, Index
+from sqlalchemy import JSON, Column, Index, UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 
@@ -56,6 +56,11 @@ class Tenant(SQLModel, table=True):
     # LLM call per answer). Off by default so existing tenants incur no LLM
     # cost; requires ai_processing_approved + an approved utility model.
     entity_extraction_enabled: bool = Field(default=False)
+    # Opt-in to the fan-out re-probe (§FANOUT_SCORECARD M25b): re-runs the top
+    # fan-out shards as their own queries to measure honest per-shard presence.
+    # Plain retrieval (no LLM processing), so it doesn't need
+    # ai_processing_approved; off by default because it is extra spend.
+    fanout_reprobe_enabled: bool = Field(default=False)
     # §9: per-tenant monthly cap, enforced in the dispatch loop before each
     # provider call — never after.
     monthly_spend_cap_usd: float = Field(default=50.0)
@@ -240,6 +245,10 @@ class ResultVariant(StrEnum):
     # so whether the model searches reveals natural routing (~31% of prompts
     # are answered from training). Measurement only — excluded from scoring.
     natural = "natural"
+    # Fan-out re-probe (§FANOUT_SCORECARD M25b): one shard run as its own query
+    # to measure per-shard presence. Measurement only — never scored; every
+    # competitive aggregation requests search/natural/nosearch explicitly.
+    shard = "shard"
 
 
 class Result(SQLModel, table=True):
@@ -356,6 +365,43 @@ class AccuracyFinding(SQLModel, table=True):
     snippet: str = ""
     detail: str = ""
     detector_version: str = ""
+
+
+class FanoutShard(SQLModel, table=True):
+    """One fan-out sub-query observed in a run (§FANOUT_SCORECARD M25). Keyed by
+    (tenant, run, parent prompt, shard_norm) so reprocessing a run updates, never
+    duplicates, and shard_norm joins the same shard across runs for trends.
+    Presence is only claimed when `source` is 'reprobed' — 'unresolved' means we
+    have the shard text but no per-shard measurement."""
+
+    __tablename__ = "fanout_shards"  # pyright: ignore[reportAssignmentType]
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id", "run_id", "parent_query_text", "shard_norm",
+            name="uq_fanout_shards_key",
+        ),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenants.id", index=True)
+    run_id: int = Field(foreign_key="runs.id", index=True)
+    parent_query_text: str = Field(index=True)
+    shard_text: str
+    shard_norm: str = Field(index=True)
+    issuing_surfaces: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    reach: int = 0  # number of engines that issued this shard
+    brand_present: bool | None = None  # None = unresolved
+    winners: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    source: str = "unresolved"  # reprobed | unresolved
+    priority: str = ""  # high | med | low; "" while unresolved (no claim)
+    # Why an unresolved shard wasn't measured, or how the probe went, so no cap
+    # is silent: "" (not a candidate) | ok | error | dropped_k |
+    # dropped_ceiling | withheld_cap.
+    probe_status: str = ""
+    probe_surface: str = ""
+    probe_result_id: int | None = None  # soft ref to the variant=shard Result
+    probed_at: datetime | None = None
+    created_at: datetime = Field(default_factory=utcnow)
 
 
 class Mention(SQLModel, table=True):

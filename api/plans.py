@@ -36,6 +36,13 @@ class PlanLimits:
     # many active locations; volume = queries × surfaces × locations, so this
     # is the multi-location cost gate. 1 = single (default) location only.
     max_locations: int | None = 1
+    # Fan-out re-probe (§FANOUT_SCORECARD M25b). K = shards re-probed per parent
+    # prompt; the per-run ceiling bounds the whole run regardless of K. 0 = the
+    # map only (no re-probe spend). Sized from the cost model in DECISIONS.md
+    # M25b: a Gemini re-probe is ~$0.14 (grounding bills per sub-query), an
+    # OpenAI one ~$0.02–0.07, so these hold re-probe spend near 10% of price.
+    shard_probes_per_prompt: int = 0
+    shard_probes_per_run: int = 0
 
 
 PLANS: dict[str, PlanLimits] = {
@@ -48,16 +55,19 @@ PLANS: dict[str, PlanLimits] = {
         "Diagnose", max_prompts=50, max_personas=2, max_engines=4,
         diagnosis=True, model_tier="standard", outcome=True,
         max_runs_per_day=1, monthly_price_usd=549, max_locations=1,
+        shard_probes_per_prompt=2, shard_probes_per_run=15,
     ),
     "command": PlanLimits(
         "Command", max_prompts=None, max_personas=None, max_engines=None,
         diagnosis=True, model_tier="premium", outcome=True,
         max_runs_per_day=None, monthly_price_usd=2900, max_locations=5,
+        shard_probes_per_prompt=5, shard_probes_per_run=75,
     ),
     "custom": PlanLimits(
         "Custom", max_prompts=None, max_personas=None, max_engines=None,
         diagnosis=True, model_tier="configured", outcome=True,
         max_runs_per_day=None, monthly_price_usd=0, max_locations=None,
+        shard_probes_per_prompt=5, shard_probes_per_run=75,
     ),
 }
 

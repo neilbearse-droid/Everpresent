@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { apiFetch, type Me, type TenantDetail } from "@/lib/api";
 import { surfaceLabel } from "@/lib/viz";
-import { setGovernance, toggleSurface } from "../actions";
+import { setFanoutReprobe, setGovernance, toggleSurface } from "../actions";
 import { AccessAuditPanel } from "./access-audit-panel";
 import { BrandFactsPanel, type BrandFact } from "./brand-facts-panel";
 import { ClerkOrgForm } from "./clerk-org-form";
@@ -110,6 +110,30 @@ export default async function TenantAdminPage({
             silently skipped.
           </p>
           <SpendCapForm slug={tenant.slug} cap={tenant.monthly_spend_cap_usd} />
+          <div className="mt-5 border-t border-[var(--border)] pt-4">
+            <p className="mb-3 text-sm">
+              Fan-out re-probe:{" "}
+              <span className={tenant.fanout_reprobe_enabled ? "text-[var(--pos)]" : "text-[var(--text-2)]"}>
+                {tenant.fanout_reprobe_enabled ? "on" : "off"}
+              </span>
+            </p>
+            <form action={setFanoutReprobe.bind(null, tenant.slug, !tenant.fanout_reprobe_enabled)}>
+              <button className="rounded-md border border-[var(--border)] px-3 py-2 text-sm hover:bg-[var(--surface-2)]">
+                {tenant.fanout_reprobe_enabled ? "Turn off re-probe" : "Turn on re-probe"}
+              </button>
+            </form>
+            <p className="mt-3 text-xs text-[var(--text-3)]">
+              After each run, re-runs the top fan-out sub-queries on the engine that issued them
+              to measure whether the brand appears in each one.{" "}
+              {(() => {
+                const lim = plans[tenant.plan];
+                return lim && lim.shard_probes_per_run > 0
+                  ? `This plan allows ${lim.shard_probes_per_prompt} per prompt, ${lim.shard_probes_per_run} per run.`
+                  : "This plan includes the map only — no re-probes.";
+              })()}{" "}
+              Spend counts toward the monthly cap.
+            </p>
+          </div>
         </section>
 
         <section className="card p-5">

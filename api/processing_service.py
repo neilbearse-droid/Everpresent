@@ -372,6 +372,17 @@ def process_run(session: Session, run: Run) -> dict[str, int]:
             session.add(row)
         counts["aio_classified"] = counts.get("aio_classified", 0) + 1
 
+    # Fan-out shards (§FANOUT_SCORECARD M25b): harvest this run's sub-queries so
+    # the scorecard is longitudinal and the worker can re-probe the top ones.
+    from api.config import get_settings
+    from api.fanout_service import harvest_shards
+
+    shard_count = harvest_shards(
+        session, run, search_results, ttl_days=get_settings().fanout_reprobe_ttl_days
+    )
+    if shard_count:
+        counts["fanout_shards"] = shard_count
+
     session.commit()
     rollup_day(session, run.tenant_id, _run_day(run))
 

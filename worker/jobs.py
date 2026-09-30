@@ -12,10 +12,22 @@ from sqlmodel import Session, select
 
 from api.config import get_settings
 from api.db import get_engine
+from api.fanout_service import (
+    ShardCandidate,
+    evaluate_probe,
+    names_present,
+    probe_surface_for,
+    select_candidates,
+    shard_priority,
+)
 from api.models import (
+    BrandProfile,
     Citation,
+    Competitor,
     ConsultedSource,
+    FanoutShard,
     Location,
+    Mention,
     Persona,
     Query,
     Result,
@@ -229,6 +241,24 @@ def _finalize_run(session: Session, run: Run, tenant: Tenant) -> None:
         session.add(run)
         session.commit()
 
+    # Fan-out re-probe (§FANOUT_SCORECARD M25b) runs as its own job after the
+    # run is final: opt-in, plan-gated, and never fails the run it follows.
+    if (
+        tenant.fanout_reprobe_enabled
+        and limits_for(tenant.plan).shard_probes_per_run > 0
+        and run.counts.get("fanout_shards", 0) > 0
+        and not run.counts.get("capped")
+    ):
+        from api import queue
+
+        try:
+            queue.enqueue_fanout_reprobe(run.id)  # pyright: ignore[reportArgumentType]
+            run.counts = {**run.counts, "fanout_reprobe_queued": 1}
+        except Exception:  # noqa: BLE001 — a queue hiccup must not fail the run
+            run.counts = {**run.counts, "fanout_reprobe_enqueue_failed": 1}
+        session.add(run)
+        session.commit()
+
     # M5 notifications: report lands in the inbox; failure never fails a run.
     from api.notifications import notify_run_complete
 
@@ -433,7 +463,9 @@ async def _dispatch_all(
                     api_key=getattr(settings, adapter.key_attr),
                     model=model,
                     timeout_s=getattr(settings, adapter.timeout_attr),
-                    web_search=item.variant in (ResultVariant.search, ResultVariant.natural),
+                    # Search, natural and shard probes all search; only the
+                    # diagnosis twin runs with retrieval disabled.
+                    web_search=item.variant != ResultVariant.nosearch,
                     # M2 natural probe: offer the tool but don't force it.
                     force_search=item.variant != ResultVariant.natural,
                 )
@@ -983,3 +1015,252 @@ async def _run_mode_b(run_id: int) -> None:
         session.add(run)
         session.commit()
         _finalize_run(session, run, tenant)
+
+
+def run_fanout_reprobe(run_id: int) -> None:
+    """Fan-out re-probe job (§FANOUT_SCORECARD M25b), enqueued by _finalize_run.
+    A crash is flagged in the run's counts; the run's own status is already
+    final and is left alone."""
+    try:
+        asyncio.run(_run_fanout_reprobe(run_id))
+    except Exception:  # noqa: BLE001
+        with Session(get_engine()) as session:
+            run = session.get(Run, run_id)
+            if run is not None:
+                run.counts = {**run.counts, "fanout_reprobe_crashed": 1}
+                session.add(run)
+                session.commit()
+        raise
+
+
+def _mark_shards(session: Session, ids: list[int], status: str) -> None:
+    for shard_id in ids:
+        shard = session.get(FanoutShard, shard_id)
+        if shard is not None:
+            shard.probe_status = status
+            session.add(shard)
+
+
+async def _run_fanout_reprobe(run_id: int) -> None:
+    """Re-run the top unresolved shards as their own queries on an engine that
+    issued them, and record honest per-shard presence. Top-K per prompt and a
+    per-run ceiling from the plan, then the monthly spend cap per call — every
+    shard left out is stamped with why (dropped_k / dropped_ceiling /
+    withheld_cap), never silently skipped (§4, §8)."""
+    settings = get_settings()
+
+    # Phase 1 — load, rank, and choose. Then RELEASE the connection.
+    with Session(get_engine()) as session:
+        run = session.get(Run, run_id)
+        if run is None or run.status != RunStatus.complete:
+            return
+        tenant = session.get(Tenant, run.tenant_id)
+        assert tenant is not None
+        limits = limits_for(tenant.plan)
+        if not tenant.fanout_reprobe_enabled or limits.shard_probes_per_run <= 0:
+            return
+        tenant_id = run.tenant_id
+        tenant_slug = tenant.slug
+        cap_usd = tenant.monthly_spend_cap_usd
+
+        brand = session.exec(
+            select(BrandProfile).where(BrandProfile.tenant_id == tenant_id)
+        ).first()
+        brand_name = brand.brand_name if brand else tenant.name
+        brand_aliases = list(brand.aliases) if brand else []
+        brand_domains = list(brand.domains) if brand else []
+        competitors = [
+            (c.id, c.name, list(c.aliases), list(c.domains))
+            for c in session.exec(
+                select(Competitor).where(Competitor.tenant_id == tenant_id)
+            ).all()
+        ]
+        comp_tokens = {
+            t.lower() for _cid, name, aliases, _d in competitors for t in [name, *aliases] if t
+        }
+        brand_tokens = {t.lower() for t in [brand_name, *brand_aliases] if t}
+
+        # Parent-prompt loss signals from this run's own answers.
+        search = [
+            r for r in session.exec(select(Result).where(Result.run_id == run_id)).all()
+            if r.variant == ResultVariant.search and r.status == ResultStatus.ok
+        ]
+        parent_of = {r.id: r.query_text for r in search if r.id is not None}
+        brand_named: set[str] = set()
+        rival_named: set[str] = set()
+        if parent_of:
+            for m in session.exec(
+                select(Mention).where(Mention.result_id.in_(list(parent_of)))  # pyright: ignore[reportAttributeAccessIssue]
+            ).all():
+                (brand_named if m.entity_type == "brand" else rival_named).add(
+                    parent_of[m.result_id]
+                )
+
+        configured = {
+            s for s in A_ADAPTERS if getattr(settings, A_ADAPTERS[s].key_attr)
+        }
+        shards = list(
+            session.exec(
+                select(FanoutShard).where(
+                    FanoutShard.run_id == run_id, FanoutShard.source == "unresolved"
+                )
+            ).all()
+        )
+        surface_of: dict[int, str] = {}
+        candidates: list[ShardCandidate] = []
+        for shard in shards:
+            assert shard.id is not None
+            surface = probe_surface_for(list(shard.issuing_surfaces or []), configured)
+            if surface is None:
+                continue  # no issuing engine we can call — stays unresolved
+            surface_of[shard.id] = surface
+            low = shard.shard_text.lower()
+            candidates.append(
+                ShardCandidate(
+                    shard_id=shard.id,
+                    parent=shard.parent_query_text,
+                    text=shard.shard_text,
+                    reach=shard.reach,
+                    parent_brand_absent=shard.parent_query_text not in brand_named,
+                    shard_names_rival=names_present(low, comp_tokens),
+                    parent_names_rival=shard.parent_query_text in rival_named,
+                    names_brand=names_present(low, brand_tokens),
+                )
+            )
+        chosen, dropped_k, dropped_ceiling = select_candidates(
+            candidates, limits.shard_probes_per_prompt, limits.shard_probes_per_run
+        )
+        _mark_shards(session, [c.shard_id for c in dropped_k], "dropped_k")
+        _mark_shards(session, [c.shard_id for c in dropped_ceiling], "dropped_ceiling")
+
+        personas = [
+            (p.id, p.name, p.prompt_text, p.segment_tag)
+            for p in session.exec(
+                select(Persona).where(Persona.tenant_id == tenant_id).order_by(Persona.id)  # pyright: ignore[reportArgumentType]
+            ).all()
+        ]
+        baseline = _baseline_persona(personas) or (
+            None, "(shard)", "You are a helpful assistant.", ""
+        )
+        month_spent_before = month_spend_usd(session, tenant_id)
+        session.commit()
+
+    bpid, bpname, bpprompt, bpseg = baseline
+    work = [
+        _AWorkItem(None, c.text, bpid, bpname, bpprompt, bpseg,
+                   surface_of[c.shard_id], ResultVariant.shard)
+        for c in chosen
+    ]
+
+    # Phase 2 — dispatch. NO DB CONNECTION HELD. Same cap reservation as a run.
+    outcomes, capped = await _dispatch_all(
+        work,
+        settings=settings,
+        model_tier=limits.model_tier,
+        concurrency=settings.openai_concurrency,
+        month_spent_before=month_spent_before,
+        cap_usd=cap_usd,
+    )
+
+    # Phase 3 — persist the probes and resolve the shards.
+    counts = {
+        "fanout_reprobed": 0,
+        "fanout_reprobe_failed": 0,
+        "fanout_withheld_by_cap": 0,
+        "fanout_dropped_k": len(dropped_k),
+        "fanout_dropped_ceiling": len(dropped_ceiling),
+    }
+    cost = 0.0
+    with Session(get_engine()) as session:
+        run = session.get(Run, run_id)
+        assert run is not None
+        for index, (cand, item) in enumerate(zip(chosen, outcomes, strict=True)):
+            shard = session.get(FanoutShard, cand.shard_id)
+            if shard is None:
+                continue
+            if item is None:
+                counts["fanout_withheld_by_cap"] += 1
+                shard.probe_status = "withheld_cap"
+                session.add(shard)
+                continue
+            wi: _AWorkItem = item["item"]
+            result = Result(
+                run_id=run_id,
+                tenant_id=tenant_id,
+                persona_id=wi.persona_id,
+                query_text=wi.query_text,
+                persona_name=wi.persona_name,
+                persona_segment=wi.persona_segment,
+                surface=SurfaceCode(wi.surface),
+                variant=ResultVariant.shard,
+            )
+            shard.probe_surface = wi.surface
+            if "error" in item:
+                counts["fanout_reprobe_failed"] += 1
+                result.status = ResultStatus.error
+                result.error = item["error"]
+                session.add(result)
+                shard.probe_status = "error"
+                session.add(shard)
+                continue
+            outcome = item["outcome"]
+            cost += item["cost"]
+            counts["fanout_reprobed"] += 1
+            cited = [c.domain for c in outcome.parsed.citations]
+            result.latency_ms = outcome.latency_ms
+            result.web_search_calls = outcome.parsed.web_search_calls
+            result.fanout_queries = list(outcome.parsed.fanout_queries)
+            result.response_hash = hashlib.sha256(
+                outcome.parsed.text.encode("utf-8")
+            ).hexdigest()
+            # No Citation/Mention rows for a shard probe: presence lives on the
+            # FanoutShard, so no citation or mention read can ever count it.
+            result.raw_uri = write_raw_envelope(
+                tenant_slug,
+                run_id,
+                f"shard-{index:04d}",
+                {
+                    "surface": wi.surface,
+                    "mode": "A",
+                    "variant": "shard",
+                    "query": wi.query_text,
+                    "parent_query": cand.parent,
+                    "persona": wi.persona_name,
+                    "persona_prompt": wi.persona_prompt,
+                    "model": item.get("model", ""),
+                    "response": outcome.payload,
+                    "parsed_text": outcome.parsed.text,
+                    "citations": [
+                        {"url": c.url, "domain": c.domain} for c in outcome.parsed.citations
+                    ],
+                    "cost_usd": item["cost"],
+                },
+                session=session,
+            )
+            session.add(result)
+            session.flush()
+            present, winners = evaluate_probe(
+                outcome.parsed.text,
+                cited,
+                brand_name=brand_name,
+                brand_aliases=brand_aliases,
+                brand_domains=brand_domains,
+                competitors=competitors,
+            )
+            shard.brand_present = present
+            shard.winners = winners
+            shard.source = "reprobed"
+            shard.probe_status = "ok"
+            shard.probe_result_id = result.id
+            shard.probed_at = utcnow()
+            shard.priority = shard_priority(present, winners)
+            session.add(shard)
+
+        counts["fanout_reprobe_cost_usd"] = round(cost, 6)  # pyright: ignore[reportArgumentType]
+        if capped:
+            counts["fanout_reprobe_capped"] = 1
+        run.counts = {**run.counts, **counts}
+        # Probe spend accrues to the run, so the monthly cap sees it.
+        run.cost_usd = round((run.cost_usd or 0.0) + cost, 6)
+        session.add(run)
+        session.commit()

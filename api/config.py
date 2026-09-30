@@ -137,6 +137,11 @@ class Settings(BaseSettings):
     # render.yaml (NATURAL_PROBE_FRACTION) so it's an explicit, costed opt-in.
     natural_probe_fraction: float = 0.0
 
+    # Fan-out re-probe freshness (§FANOUT_SCORECARD M25b). A shard re-probed
+    # within this many days carries its presence forward instead of being
+    # re-bought, so the per-run ceiling rotates coverage across the shard set.
+    fanout_reprobe_ttl_days: int = 7
+
     # BigQuery mirror (§5.3). Unset project = mirror disabled.
     bigquery_project: str = ""
     bigquery_dataset: str = "everpresent_v3"

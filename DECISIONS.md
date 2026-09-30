@@ -3,6 +3,52 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M25b — fan-out re-probe (2026-09-30)
+
+1. **K settled from a cost model, lower than the spec's 5 / 12.** Per-probe
+   estimates from `engine/costs.py` at each plan's model tier: an OpenAI probe
+   is ~$0.02 (economy) to ~$0.07 (premium); a Gemini probe is ~$0.14 at every
+   tier, because grounding bills $35/1k *per sub-query* and a probe fans out
+   again (~4 queries). Most shards are Gemini-issued, so the blended cost is
+   ~$0.11–0.13/probe. Target: re-probe spend ≈10% of the plan price at one run
+   a day.
+   | Plan | K / prompt | Ceiling / run | ~Max probes / mo | ~Max spend / mo |
+   |---|---|---|---|---|
+   | Monitor ($149) | 0 (map only) | 0 | 0 | $0 |
+   | Diagnose ($549) | 2 | 15 | 450 | ~$50 |
+   | Command ($2,900) | 5 | 75 | 2,250 | ~$290 |
+   | Custom | 5 | 75 | — | spend cap governs |
+   Everything still runs through `monthly_spend_cap_usd` (default $50), so a
+   Diagnose tenant needs its cap raised to use the full re-probe allowance.
+2. **7-day freshness TTL** (`FANOUT_REPROBE_TTL_DAYS`). A shard re-probed within
+   the TTL carries its presence forward (`probe_status=carried`) instead of
+   being re-bought, so the per-run ceiling rotates coverage across the whole
+   shard set week to week. Same idea as the diagnosis-twin cache.
+3. **Probe on the cheapest engine that issued the shard** (OpenAI before
+   Gemini), never on an engine that didn't issue it — presence is measured
+   where the contest happened. One probe per shard, baseline persona.
+4. **Winner attribution reuses the mention detector** (spec open question 2):
+   present = the answer names you or cites an owned domain; a competitor "won"
+   the shard on the same test.
+5. **Shard probes write a `Result(variant="shard")` but NO Mention/Citation
+   rows.** Presence lives on `FanoutShard`, so no mention or citation read —
+   even one that filters only by tenant — can count a probe. Tighter than the
+   spec's "run through the existing extraction", same classifier.
+6. **HIGH no longer requires reach ≥ 2.** Only Gemini and OpenAI expose
+   fan-out, and an exact shard match across both is rare, so the spec's gate
+   would leave HIGH near-empty. HIGH = absent + a competitor won; MED = absent,
+   no tracked winner; LOW = present. Reach orders shards within a band.
+   Unresolved shards get no priority at all — no claim without a measurement.
+7. **No "grounded" source.** §2 established that no engine maps sources to a
+   shard, so the only honest sources are `reprobed` and `unresolved`.
+8. **Re-probe is its own RQ job** (`worker.jobs.run_fanout_reprobe`), enqueued
+   by `_finalize_run` once the run is final: no nested event loop, no DB
+   connection held during provider calls, and a probe failure never touches
+   the run's status. Drops are stamped per shard (`dropped_k`,
+   `dropped_ceiling`, `withheld_cap`, `error`) and counted on the run.
+9. **Deferred:** audience-weighted composite (spec open question 3) — its own
+   small milestone; M25c (corrective brief per HIGH miss, trend deltas).
+
 ## M6 (2026-07-13)
 
 1. **AIO CLASSIFIER IS UNCALIBRATED — §12.1 remains open.** The rule-based

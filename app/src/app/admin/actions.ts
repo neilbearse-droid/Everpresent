@@ -157,6 +157,10 @@ export async function setGovernance(slug: string, approved: boolean): Promise<vo
   await patchTenant(slug, { ai_processing_approved: approved });
 }
 
+export async function setFanoutReprobe(slug: string, enabled: boolean): Promise<void> {
+  await patchTenant(slug, { fanout_reprobe_enabled: enabled });
+}
+
 export async function setPlan(
   slug: string,
   _prev: ActionState,

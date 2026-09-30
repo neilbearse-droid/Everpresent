@@ -7,6 +7,8 @@ from datetime import UTC, datetime, timedelta
 
 from sqlmodel import Session, select
 
+from api.fanout_service import PRIORITY_RANK, shard_norm
+from api.fanout_service import names_present as _names_present
 from api.models import (
     AccuracyFinding,
     AiReferralDaily,
@@ -15,6 +17,7 @@ from api.models import (
     Citation,
     Competitor,
     ConsultedSource,
+    FanoutShard,
     Intervention,
     Mention,
     PagePresence,
@@ -723,24 +726,17 @@ def fanout_report(session: Session, tenant_id: int) -> dict:
     }
 
 
-def _names_present(text_low: str, tokens: set[str]) -> bool:
-    """Whitespace-delimited containment — a token counts only as a standalone
-    word (so 'wix' doesn't fire inside 'wixel'). Cheap and honest for the
-    indicative shard-text signal."""
-    padded = f" {text_low} "
-    return any(f" {t} " in padded for t in tokens if t)
-
-
 def fanout_scorecard(
     session: Session, tenant_id: int, start: str | None = None, end: str | None = None
 ) -> dict:
-    """Fan-out MAP (§AEO-plan M25a, free tier): per priority prompt, the shards
-    the engines actually issued, which engines issued each, and honest indicative
-    signals derived from the shard TEXT (does the shard name the brand / a
-    competitor). Prompt-level presence ('did you appear in the final answer') is
-    real, from mentions; per-shard *presence* is deliberately NOT claimed here —
-    that needs the re-probe phase (M25b). Competitive scope; branded probes live
-    in the Brand layer. Pure reads, no spend."""
+    """Fan-out scorecard (§FANOUT_SCORECARD M25a + M25b): per priority prompt,
+    the shards the engines actually issued, which engines issued each, and
+    indicative signals from the shard TEXT (does it name the brand / a
+    competitor). Per-shard PRESENCE is claimed only where the shard was
+    re-probed (source 'reprobed'); every other shard is 'unresolved' and says
+    why (probe_status), so partial coverage is visible, never hidden.
+    Prompt-level presence comes from mentions. Competitive scope; branded
+    probes live in the Brand layer. Pure reads, no spend."""
     lo, hi = _date_window(start, end)
     search = _latest_results_by_variant(
         session, tenant_id, ResultVariant.search, lo, hi, scope="competitive"
@@ -782,48 +778,96 @@ def fanout_scorecard(
         label = _surface_label(surface)
         for sub in r.fanout_queries or []:
             s = str(sub).strip()
-            low = s.lower()
-            if not s or low == qtext.lower():
+            norm = shard_norm(s)
+            # Same key as the harvested FanoutShard rows, so presence joins.
+            if not norm or norm == shard_norm(qtext):
                 continue
-            entry = p["shards"].setdefault(low, {"text": s, "engines": set()})
+            entry = p["shards"].setdefault(norm, {"text": s, "engines": set()})
             if label not in entry["engines"]:
                 entry["engines"].add(label)
                 p["reach"][label] += 1
 
+    # Per-shard presence from the harvested rows: newest row per (prompt,
+    # shard) in the window. Carry-forward means a fresh re-probe from an
+    # earlier run is already copied onto the newest row.
+    measured: dict[tuple[str, str], FanoutShard] = {}
+    if per_prompt:
+        for row in session.exec(
+            select(FanoutShard).where(
+                FanoutShard.tenant_id == tenant_id,
+                FanoutShard.parent_query_text.in_(list(per_prompt)),  # pyright: ignore[reportAttributeAccessIssue]
+            )
+        ).all():
+            if not _in_window(row.created_at, lo, hi):
+                continue
+            key = (row.parent_query_text, row.shard_norm)
+            if key not in measured or (row.id or 0) > (measured[key].id or 0):
+                measured[key] = row
+
+    tenant = session.get(Tenant, tenant_id)
+    coverage = {"reprobed": 0, "unresolved": 0}
     prompts = []
     for qtext, p in per_prompt.items():
         shards = []
         contested = 0
-        for entry in p["shards"].values():
+        present = absent = 0
+        for norm, entry in p["shards"].items():
             low = entry["text"].lower()
             names_comp = sorted(
                 name for name, toks in comp_tokens.items() if _names_present(low, toks)
             )
             if names_comp:
                 contested += 1
+            row = measured.get((qtext, norm))
+            resolved = row if row is not None and row.source == "reprobed" else None
+            if resolved is not None:
+                coverage["reprobed"] += 1
+                if resolved.brand_present:
+                    present += 1
+                else:
+                    absent += 1
+            else:
+                coverage["unresolved"] += 1
             shards.append({
                 "text": entry["text"],
                 "engines": sorted(entry["engines"]),
                 "names_brand": _names_present(low, brand_tokens),
                 "names_competitors": names_comp,
+                "brand_present": resolved.brand_present if resolved else None,
+                "winners": list(resolved.winners or []) if resolved else [],
+                "source": "reprobed" if resolved else "unresolved",
+                "priority": resolved.priority if resolved else "",
+                "probe_status": row.probe_status if row is not None else "",
+                "probe_engine": _surface_label(resolved.probe_surface)
+                if resolved and resolved.probe_surface else None,
+                "probed_at": resolved.probed_at.isoformat()
+                if resolved and resolved.probed_at else None,
             })
-        shards.sort(key=lambda s: (-len(s["engines"]), s["text"].lower()))
+        shards.sort(key=lambda s: (
+            PRIORITY_RANK.get(s["priority"], 3), -len(s["engines"]), s["text"].lower()
+        ))
         prompts.append({
             "query": qtext,
             "shards_total": len(shards),
+            "shards_present": present,
+            "shards_absent": absent,
+            "shards_unresolved": len(shards) - present - absent,
+            "high_misses": sum(1 for s in shards if s["priority"] == "high"),
             "engines_count": len(p["reach"]),
             "reach_by_engine": dict(sorted(p["reach"].items())),
             "brand_in_answer": p["brand_in_answer"],
             "contested": contested,
             "shards": shards,
         })
-    prompts.sort(key=lambda x: -x["shards_total"])
+    prompts.sort(key=lambda x: (-x["high_misses"], -x["shards_total"]))
 
     return {
         "brand_name": brand_name,
         "prompts": prompts,
         "observed": bool(prompts),
         "branded_excluded": True,
+        "coverage": coverage,
+        "reprobe_enabled": bool(tenant and tenant.fanout_reprobe_enabled),
     }
 
 

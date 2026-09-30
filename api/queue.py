@@ -23,3 +23,7 @@ def enqueue_run_mode_b(run_id: int) -> None:
 
 def enqueue_page_crawl(tenant_id: int) -> None:
     get_queue().enqueue("worker.page_crawl.crawl_power_pages", tenant_id, job_timeout=15 * 60)
+
+
+def enqueue_fanout_reprobe(run_id: int) -> None:
+    get_queue().enqueue("worker.jobs.run_fanout_reprobe", run_id, job_timeout=30 * 60)

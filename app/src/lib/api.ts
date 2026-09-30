@@ -80,6 +80,7 @@ export type Tenant = {
   notify_emails: string[];
   ga4_property_id: string | null;
   plan: string;
+  fanout_reprobe_enabled: boolean;
   created_at: string;
 };
 
@@ -93,6 +94,8 @@ export type PlanLimits = {
   outcome: boolean;
   max_runs_per_day: number | null;
   monthly_price_usd: number;
+  shard_probes_per_prompt: number;
+  shard_probes_per_run: number;
 };
 
 export type OutcomePayload = {
@@ -222,6 +225,14 @@ export type FanoutShard = {
   engines: string[];
   names_brand: boolean;
   names_competitors: string[];
+  // Per-shard presence — only set when source is "reprobed" (M25b).
+  brand_present: boolean | null;
+  winners: string[];
+  source: "reprobed" | "unresolved";
+  priority: "high" | "med" | "low" | "";
+  probe_status: string;
+  probe_engine: string | null;
+  probed_at: string | null;
 };
 
 export type FanoutScorecardPayload = {
@@ -235,8 +246,14 @@ export type FanoutScorecardPayload = {
     reach_by_engine: Record<string, number>;
     brand_in_answer: boolean;
     contested: number;
+    shards_present: number;
+    shards_absent: number;
+    shards_unresolved: number;
+    high_misses: number;
     shards: FanoutShard[];
   }[];
+  coverage: { reprobed: number; unresolved: number };
+  reprobe_enabled: boolean;
 };
 
 export type CitationsPayload = {

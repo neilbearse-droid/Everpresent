@@ -1,6 +1,7 @@
 # Fan-out Scorecard — Milestone Spec (build 2)
 
-Status: **proposed**. Companion to the shipped reframed Overview (`engine_modes`).
+Status: **M25a + M25b shipped; M25c open.** Companion to the shipped reframed
+Overview (`engine_modes`). Build decisions and the K cost model: DECISIONS.md M25b.
 This turns fan-out from a *map* into a *prioritized, longitudinal worklist*.
 
 ## 1. Why
@@ -93,10 +94,14 @@ test asserting `shard` is absent from every aggregation's variant filter.
 
 ## 4. Probe budget & governance
 
-- **Plan-gated K** (shards re-probed per parent prompt), via `plans.py`:
-  Starter → 0 (grounded-only), Growth → 5, Scale/Custom → 12. Log what was
-  dropped when a prompt's shard count exceeds K (no silent truncation).
-- **Global per-run ceiling** on shard probes, independent of K.
+- **Plan-gated K** (shards re-probed per parent prompt), via `plans.py` —
+  *settled from the cost model (DECISIONS.md M25b)*: Monitor → 0 (map only),
+  Diagnose → 2, Command/Custom → 5. Every shard dropped by K is stamped
+  `dropped_k` (no silent truncation).
+- **Per-run ceiling** on shard probes, independent of K: Diagnose 15,
+  Command/Custom 75 (`dropped_ceiling`).
+- **Freshness TTL** (7 days): a recently re-probed shard carries its presence
+  forward instead of being re-bought.
 - **Spend cap**: shard probes are ordinary metered calls — they run through the
   existing `monthly_spend_cap_usd` accounting and stop when the cap trips,
   recording `blocked`, never silently skipped.
@@ -122,9 +127,12 @@ pipeline. Grounded-only tenants (K=0) still get a real (partial) scorecard.
 ## 6. Priority ranking
 
 `priority = f(reach, loss)`:
-- **HIGH** — reach ≥ 2 engines **and** brand absent **and** ≥1 competitor present.
-- **MED** — brand absent (reach 1, or no competitor named).
-- **LOW** — brand present, or shard is purely informational with no competitor.
+- **HIGH** — brand absent **and** ≥1 competitor present. *(Shipped without the
+  original reach ≥ 2 gate — with two fan-out engines it almost never fires;
+  see DECISIONS.md M25b.)*
+- **MED** — brand absent, no tracked competitor present.
+- **LOW** — brand present.
+- *(none)* — unresolved: no priority without a measurement.
 
 Sort HIGH → MED → LOW, then by reach desc. HIGH misses are the content worklist.
 
@@ -182,9 +190,8 @@ Sort HIGH → MED → LOW, then by reach desc. HIGH misses are the content workl
   - *Aggregation pollution* — mitigated structurally (variant filter) + the
     coupling test.
 - **Open questions:**
-  1. Default K per plan tier — needs a cost model pass against real fan-out
-     counts (Gemini's tail can be 15–18).
-  2. Winner attribution on re-probed shards — reuse competitor mention classifier
-     (preferred) vs a lighter heuristic.
-  3. Audience-weighted composite (deferred from build 1) — fold the per-tenant
-     engine weighting in here or as its own small milestone.
+  1. ~~Default K per plan tier~~ — settled (DECISIONS.md M25b).
+  2. ~~Winner attribution~~ — settled: reuse the competitor mention classifier
+     plus owned-domain citations.
+  3. Audience-weighted composite (deferred from build 1) — still open; its own
+     small milestone.

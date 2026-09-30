@@ -2,6 +2,22 @@ import { apiFetch, rangeQuery, type FanoutScorecardPayload, type Me } from "@/li
 import { DashNav } from "@/components/dash-nav";
 import { NoOrgNotice } from "@/components/no-org-notice";
 
+// Why a shard has no measured presence — shown on hover so no cap is silent.
+function unresolvedReason(status: string): string {
+  switch (status) {
+    case "dropped_k":
+      return "Not re-probed: outside this plan's per-prompt limit this run";
+    case "dropped_ceiling":
+      return "Not re-probed: this run's re-probe limit was reached";
+    case "withheld_cap":
+      return "Not re-probed: the monthly spend cap was reached";
+    case "error":
+      return "The re-probe call failed";
+    default:
+      return "Not re-probed";
+  }
+}
+
 export default async function FanoutPage({
   searchParams,
 }: {
@@ -40,10 +56,19 @@ export default async function FanoutPage({
           <span className="font-semibold text-[var(--text)]">What&apos;s measured here.</span>{" "}
           The shard list and &quot;names you / a competitor&quot; flags come straight from the shard
           text the engines exposed. Whether you appeared in the <em>final answer</em> is real,
-          from mentions. Verified <span className="font-medium">per-shard presence</span> — winning
-          or losing each individual shard — needs a deeper probe of every shard and arrives with the
-          next phase; it is deliberately not claimed here. Branded prompts are excluded (they live in
-          the Brand layer).
+          from mentions. <span className="font-medium">Per-shard presence</span> is shown only for
+          shards we re-ran as their own query on an engine that issued them (&quot;re-probed&quot;);
+          every other shard is marked unresolved — we never guess it from the parent answer.
+          Branded prompts are excluded (they live in the Brand layer).
+          {data?.observed && (
+            <>
+              {" "}
+              <span className="font-medium text-[var(--text)]">
+                Coverage: {data.coverage.reprobed} re-probed · {data.coverage.unresolved} unresolved.
+              </span>
+              {!data.reprobe_enabled && " Re-probing is off for this account, so presence is not measured yet."}
+            </>
+          )}
         </p>
       </div>
 
@@ -77,6 +102,15 @@ export default async function FanoutPage({
                         {p.contested} name a competitor
                       </span>
                     )}
+                    {p.shards_present + p.shards_absent > 0 && (
+                      <span className="text-[11px] font-medium text-[var(--text-2)]">
+                        · you&apos;re in {p.shards_present} of {p.shards_present + p.shards_absent}{" "}
+                        re-probed
+                        {p.high_misses > 0 && (
+                          <span className="text-[var(--neg)]"> · {p.high_misses} high-priority miss{p.high_misses === 1 ? "" : "es"}</span>
+                        )}
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="text-right">
@@ -105,7 +139,10 @@ export default async function FanoutPage({
                     <tr className="text-left text-[11px] uppercase tracking-wide text-[var(--text-3)]">
                       <th className="pb-2 pr-4 font-semibold">Shard</th>
                       <th className="pb-2 pr-4 font-semibold">Issued by</th>
-                      <th className="pb-2 font-semibold">Names</th>
+                      <th className="pb-2 pr-4 font-semibold">Names</th>
+                      <th className="pb-2 pr-4 font-semibold">You</th>
+                      <th className="pb-2 pr-4 font-semibold">Who won</th>
+                      <th className="pb-2 font-semibold">Priority</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -114,8 +151,8 @@ export default async function FanoutPage({
                         key={s.text}
                         className="border-t border-[var(--border)] align-top"
                         style={
-                          s.names_competitors.length && !s.names_brand
-                            ? { background: "color-mix(in srgb, var(--neg) 4%, transparent)" }
+                          s.priority === "high"
+                            ? { background: "color-mix(in srgb, var(--neg) 6%, transparent)" }
                             : undefined
                         }
                       >
@@ -132,7 +169,7 @@ export default async function FanoutPage({
                             ))}
                           </div>
                         </td>
-                        <td className="py-2.5">
+                        <td className="py-2.5 pr-4">
                           <div className="flex flex-wrap gap-1">
                             {s.names_brand && (
                               <span
@@ -155,6 +192,38 @@ export default async function FanoutPage({
                               <span className="text-[var(--text-3)]">—</span>
                             )}
                           </div>
+                        </td>
+                        <td className="py-2.5 pr-4 whitespace-nowrap">
+                          {s.source === "reprobed" ? (
+                            <span
+                              className="text-[12px] font-semibold"
+                              style={{ color: s.brand_present ? "var(--pos)" : "var(--neg)" }}
+                              title={`Re-probed on ${s.probe_engine ?? "an issuing engine"}${s.probed_at ? ` · ${s.probed_at.slice(0, 10)}` : ""}`}
+                            >
+                              {s.brand_present ? "✓ present" : "✗ absent"}
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-[var(--text-3)]" title={unresolvedReason(s.probe_status)}>
+                              unresolved
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2.5 pr-4 text-[12px] text-[var(--text-2)]">
+                          {s.source === "reprobed" ? (s.winners.length ? s.winners.join(", ") : "—") : ""}
+                        </td>
+                        <td className="py-2.5">
+                          {s.priority && (
+                            <span
+                              className="rounded-full px-2 py-0.5 text-[10.5px] font-semibold uppercase"
+                              style={
+                                s.priority === "high"
+                                  ? { background: "rgba(192,42,34,.1)", color: "var(--neg)" }
+                                  : { background: "var(--surface-2)", color: "var(--text-2)" }
+                              }
+                            >
+                              {s.priority}
+                            </span>
+                          )}
                         </td>
                       </tr>
                     ))}

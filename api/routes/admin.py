@@ -120,6 +120,7 @@ class TenantPatch(BaseModel):
     notify_emails: list[str] | None = None
     ga4_property_id: str | None = None
     plan: str | None = None
+    fanout_reprobe_enabled: bool | None = None
 
 
 @router.patch("/tenants/{slug}")
@@ -152,6 +153,9 @@ def patch_tenant(slug: str, payload: TenantPatch, session: Db, admin: Admin) -> 
     if payload.ai_processing_approved is not None:
         tenant.ai_processing_approved = payload.ai_processing_approved
         changed.append("ai_processing_approved")
+    if payload.fanout_reprobe_enabled is not None:
+        tenant.fanout_reprobe_enabled = payload.fanout_reprobe_enabled
+        changed.append("fanout_reprobe_enabled")
     if payload.approved_surfaces is not None:
         tenant.approved_surfaces = [s.value for s in payload.approved_surfaces]
         changed.append("approved_surfaces")
