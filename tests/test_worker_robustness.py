@@ -103,3 +103,55 @@ def test_engine_is_rebuilt_after_fork(monkeypatch):
     assert db.get_engine() is first
     monkeypatch.setattr(db.os, "getpid", lambda: -1)  # pretend we're a forked child
     assert db.get_engine() is not first
+
+
+def _runnable_tenant(db_session) -> Tenant:
+    t = Tenant(name="T", slug="t", ai_processing_approved=True, approved_surfaces=["openai_api"])
+    db_session.add(t)
+    db_session.commit()
+    db_session.add(TenantSurface(tenant_id=t.id, code=SurfaceCode.openai_api, enabled=True))
+    db_session.commit()
+    return t
+
+
+def test_second_trigger_is_blocked_while_a_run_is_live(db_session, monkeypatch):
+    import pytest
+
+    from api.runs_service import RunInFlight, trigger_run
+
+    monkeypatch.setattr("api.queue.enqueue_run", lambda _run_id: None)
+    t = _runnable_tenant(db_session)
+    first = trigger_run(db_session, t)
+    assert first.status == RunStatus.pending
+    with pytest.raises(RunInFlight) as exc:
+        trigger_run(db_session, t)
+    assert exc.value.run.id == first.id
+    assert len(db_session.exec(select(Run)).all()) == 1
+
+
+def test_stale_or_finished_runs_do_not_block(db_session, monkeypatch):
+    from api.runs_service import trigger_run
+
+    monkeypatch.setattr("api.queue.enqueue_run", lambda _run_id: None)
+    t = _runnable_tenant(db_session)
+    db_session.add(Run(tenant_id=t.id, status=RunStatus.complete))
+    db_session.add(Run(tenant_id=t.id, status=RunStatus.pending,
+                       created_at=utcnow() - timedelta(hours=6)))  # lost job
+    db_session.commit()
+    assert trigger_run(db_session, t).status == RunStatus.pending
+
+
+def test_reclaim_fails_a_pending_run_that_was_never_picked_up(db_session, monkeypatch):
+    from worker.main import reclaim_orphaned_runs
+
+    monkeypatch.setattr("api.db.get_engine", lambda: db_session.get_bind())
+    t = Tenant(name="T", slug="t")
+    db_session.add(t)
+    db_session.commit()
+    lost = Run(tenant_id=t.id, status=RunStatus.pending, created_at=utcnow() - timedelta(hours=6))
+    db_session.add(lost)
+    db_session.commit()
+    reclaim_orphaned_runs()
+    db_session.expire_all()
+    got = db_session.get(Run, lost.id)
+    assert got.status == RunStatus.failed and "never picked up" in (got.error or "")  # type: ignore[union-attr]

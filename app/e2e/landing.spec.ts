@@ -5,8 +5,9 @@ import { test, expect } from "@playwright/test";
 
 test("landing page renders", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "EverPresent" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Sign in" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: /AI answers/ })).toBeVisible();
+  // Header "[Sign in]" and the hero CTA both link to sign-in.
+  await expect(page.getByRole("link", { name: /Sign in/ }).first()).toBeVisible();
 });
 
 test("dashboard redirects anonymous visitors to sign-in", async ({ page }) => {

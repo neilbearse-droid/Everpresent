@@ -223,14 +223,14 @@ def citations_intel(
 
     def _with_presence(p: dict) -> dict:
         row = presence_by_url.get(p["url"])
-        crawled = row is not None and row.status == "ok"
+        crawled = row if row is not None and row.status == "ok" else None
         return {
             **p,
             "queries": len(p["queries"]),
             "surfaces": sorted(p["surfaces"]),
-            "on_page": row.brand_found if crawled else None,
-            "competitors_on_page": row.competitors_found if crawled else [],
-            "page_features": row.features if crawled else None,
+            "on_page": crawled.brand_found if crawled else None,
+            "competitors_on_page": crawled.competitors_found if crawled else [],
+            "page_features": crawled.features if crawled else None,
         }
 
     # Consulted-but-not-cited domains (§AEO-plan M6): the engines read these on
@@ -1310,7 +1310,7 @@ def brand_report(
         q = per_query.setdefault(qtext, {"query": qtext, "surfaces": [], "accuracy": []})
         m = brand_mention.get(rid)
         present = m is not None
-        if present:
+        if m is not None:
             present_cells += 1
             sentiment_mix[m.sentiment or "neutral"] += 1
         q["surfaces"].append({
@@ -1376,18 +1376,15 @@ def whitespace_report(
             entry["segments"].add(seg)
             entry["surfaces"].add(surface)
 
-    entities = sorted(
-        (
-            {
-                "name": e["name"],
-                "count": e["count"],
-                "segments": sorted(e["segments"]),
-                "engines": sorted(_surface_label(s) for s in e["surfaces"]),
-            }
-            for e in agg.values()
-        ),
-        key=lambda e: (-e["count"], e["name"]),
-    )
+    entities = [
+        {
+            "name": e["name"],
+            "count": e["count"],
+            "segments": sorted(e["segments"]),
+            "engines": sorted(_surface_label(s) for s in e["surfaces"]),
+        }
+        for e in sorted(agg.values(), key=lambda e: (-e["count"], e["name"]))
+    ]
     return {
         "brand_name": _brand_name(session, tenant_id),
         "measured": len(latest_ids),
@@ -1485,7 +1482,7 @@ def kpi_scorecard(
     answer_share = _pct(weight_by_entity.get(brand_name, 0.0), weight_total)
     share_breakdown = sorted(
         ({"name": n, "share": _pct(w, weight_total)} for n, w in weight_by_entity.items()),
-        key=lambda x: -x["share"],
+        key=lambda x: -float(x["share"]),
     )
     head_to_head = sorted(
         (
@@ -1497,7 +1494,7 @@ def kpi_scorecard(
             }
             for name, s in comp_stats.items()
         ),
-        key=lambda x: -x["shared"],
+        key=lambda x: -int(x["shared"]),
     )
 
     # Stability: brand presence rate across the last few runs (in-window).

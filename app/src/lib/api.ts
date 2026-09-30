@@ -625,6 +625,8 @@ export type EngineReadiness = {
 export type ReadinessPayload = {
   engines: EngineReadiness[];
   checks: { label: string; ok: boolean; hint: string }[];
+  /** Database, Redis, workers, scheduler (absent on an older API). */
+  system?: { label: string; ok: boolean; hint: string }[];
 };
 
 export type TenantDetail = {

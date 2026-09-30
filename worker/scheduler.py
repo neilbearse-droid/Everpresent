@@ -11,8 +11,9 @@ from sqlmodel import Session, select
 
 from api.config import get_settings
 from api.db import get_engine
+from api.health_service import beat_scheduler
 from api.models import Citation, MirrorState, RunSchedule, Tenant, utcnow
-from api.runs_service import trigger_run
+from api.runs_service import RunInFlight, trigger_run
 
 log = structlog.get_logger()
 
@@ -74,7 +75,13 @@ def _tick_one(session: Session, schedule: RunSchedule, now: datetime) -> int | N
     if cap is not None and runs_in_last_day(session, tenant.id) >= cap:  # pyright: ignore[reportArgumentType]
         log.info("schedule.skipped_frequency_cap", tenant=tenant.slug, cap=cap)
         return None
-    run = trigger_run(session, tenant, trigger="schedule")
+    try:
+        run = trigger_run(session, tenant, trigger="schedule")
+    except RunInFlight as exc:
+        # The previous run is still going; next_run_at already advanced, so
+        # this slot is simply skipped rather than stacking a second run.
+        log.info("schedule.skipped_run_in_flight", tenant=tenant.slug, run_id=exc.run.id)
+        return None
     log.info("schedule.fired", tenant=tenant.slug, run_id=run.id, status=run.status)
     # Only stamp last_triggered_at when a run actually fired (§audit low).
     schedule.last_triggered_at = now
@@ -132,6 +139,8 @@ def run() -> None:
                 tick(session)
         except Exception:  # noqa: BLE001 — the loop must survive anything
             log.exception("scheduler.tick_failed")
+        # Liveness for the admin System panel (never raises).
+        beat_scheduler()
         time.sleep(TICK_SECONDS)
 
 

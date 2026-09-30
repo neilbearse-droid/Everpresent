@@ -7,7 +7,7 @@ from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import and_, or_
-from sqlmodel import Session, delete, select
+from sqlmodel import Session, col, delete, select
 
 from api.models import (
     AccuracyFinding,
@@ -91,6 +91,7 @@ def _extract_untracked(
     # Cap the number of calls to what the remaining monthly budget affords.
     per_call = settings.utility_extract_cost_usd
     if per_call > 0:
+        assert tenant.id is not None
         remaining = tenant.monthly_spend_cap_usd - month_spend_usd(session, tenant.id)
         affordable = max(0, int(remaining / per_call))
         items = items[:affordable]
@@ -418,8 +419,8 @@ def rollup_day(
         select(Run).where(
             Run.tenant_id == tenant_id,
             or_(
-                Run.finished_at.is_(None),  # pyright: ignore[reportAttributeAccessIssue]
-                and_(Run.finished_at >= day_start, Run.finished_at < day_end),  # pyright: ignore[reportOptionalOperand]
+                col(Run.finished_at).is_(None),
+                and_(col(Run.finished_at) >= day_start, col(Run.finished_at) < day_end),
             ),
         )
     ).all()

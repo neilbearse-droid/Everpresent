@@ -61,7 +61,7 @@ def test_godaddy_seed_is_us_and_includes_google_aio():
 
     spec = parse_config_yaml(Path("seeds/godaddy.yaml").read_text())
     assert spec.geo is not None and spec.geo.country == "us"
-    assert SurfaceCode.google_aio in spec.surfaces
+    assert spec.surfaces is not None and SurfaceCode.google_aio in spec.surfaces
 
 
 def test_verdicts_follow_config_and_last_run_evidence(db_session):

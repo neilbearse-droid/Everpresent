@@ -25,7 +25,7 @@ from api.models import (
     TenantStatus,
     TenantSurface,
 )
-from api.runs_service import month_spend_usd, run_detail_payload, trigger_run
+from api.runs_service import RunInFlight, month_spend_usd, run_detail_payload, trigger_run
 from api.storage import read_raw_envelope
 from api.yaml_import import ConfigImportError, import_config, parse_config_yaml
 from engine.llm.policy import RUNTIME_LLM_ALLOWLIST
@@ -249,7 +249,10 @@ def import_yaml(
 @router.post("/tenants/{slug}/runs", status_code=201)
 def trigger_run_route(slug: str, session: Db, admin: Admin) -> Run:
     tenant = _tenant_or_404(session, slug)
-    run = trigger_run(session, tenant, trigger="manual")
+    try:
+        run = trigger_run(session, tenant, trigger="manual")
+    except RunInFlight as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     write_audit(
         session,
         tenant_id=tenant.id,
@@ -370,6 +373,7 @@ def create_brand_fact(
         raise HTTPException(status_code=422, detail="kind must be 'numeric' or 'disallowed'")
     if not payload.label.strip() or not payload.subject.strip() or not payload.expected.strip():
         raise HTTPException(status_code=422, detail="label, subject, and expected are required")
+    assert tenant.id is not None
     fact = BrandFact(
         tenant_id=tenant.id,
         category=payload.category.strip() or "general",

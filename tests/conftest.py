@@ -9,14 +9,40 @@ import pytest
 from sqlmodel import Session, SQLModel, create_engine
 from sqlmodel.pool import StaticPool
 
+# CI's Postgres job sets TEST_DATABASE_URL to a database built by
+# `alembic upgrade head` — so the suite runs against the MIGRATED schema, and a
+# migration that drifts from the models (e.g. a native-enum value never added)
+# fails here instead of in production. Unset, tests use in-memory SQLite.
+_PG_URL = os.environ.get("TEST_DATABASE_URL", "")
+_pg_engine = None
+
+
+def _postgres_engine():
+    global _pg_engine
+    if _pg_engine is None:
+        from api.db import normalize_db_url
+
+        _pg_engine = create_engine(normalize_db_url(_PG_URL))
+    return _pg_engine
+
 
 @pytest.fixture()
 def db_session():
+    import api.models  # noqa: F401
+
+    if _PG_URL:
+        engine = _postgres_engine()
+        with Session(engine) as session:
+            yield session
+            session.rollback()
+        tables = ", ".join(f'"{t.name}"' for t in SQLModel.metadata.sorted_tables)
+        with engine.begin() as conn:
+            conn.exec_driver_sql(f"TRUNCATE {tables} RESTART IDENTITY CASCADE")
+        return
+
     engine = create_engine(
         "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
-    import api.models  # noqa: F401
-
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
         yield session

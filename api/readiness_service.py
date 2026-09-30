@@ -198,4 +198,6 @@ def engine_readiness(session: Session, tenant: Tenant) -> dict:
             "hint": "Run schedule → set a daily cron so trend lines build before the demo.",
         },
     ]
-    return {"engines": engines, "checks": checks}
+    from api.health_service import system_checks
+
+    return {"engines": engines, "checks": checks, "system": system_checks(session)}

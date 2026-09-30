@@ -39,7 +39,14 @@ cd app && npm run typecheck && npm run build && npx playwright test
 ```
 
 Postgres/Redis for local dev: `docker compose -f infra/docker-compose.yml up postgres redis`.
-Tests need neither (they run on in-memory SQLite).
+Tests need neither (they run on in-memory SQLite). CI also runs them against a
+Postgres built by `alembic upgrade head`; to do the same locally:
+`DATABASE_URL=$PG alembic upgrade head && TEST_DATABASE_URL=$PG pytest`.
+
+Health: `/api/health` is liveness only (Render's deploy gate). `/api/health/deep`
+checks the database, Redis, both worker queues and the scheduler, and returns 503
+if any is down; point an uptime monitor at it. The same checks appear as the
+System row on each tenant's admin page.
 
 ## Deploying
 

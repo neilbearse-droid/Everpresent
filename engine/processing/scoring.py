@@ -50,7 +50,8 @@ def score_entity(signals: list[ResultSignals]) -> EntityScore:
     mentioned = [s for s in signals if s.mention_rank is not None and s.mention_rank >= 1]
     mention_rate = len(mentioned) / n
     rank_factor = (
-        sum(1.0 / s.mention_rank for s in mentioned) / len(mentioned)  # pyright: ignore[reportOptionalOperand]
+        # `or 1` only narrows the type: every rank here is already >= 1.
+        sum(1.0 / (s.mention_rank or 1) for s in mentioned) / len(mentioned)
         if mentioned
         else 0.0
     )

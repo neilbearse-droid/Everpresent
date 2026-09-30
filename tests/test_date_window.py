@@ -24,7 +24,7 @@ def _tenant(db) -> int:
     tenant = Tenant(name="Acme", slug="acme")
     db.add(tenant)
     db.commit()
-    return tenant.id
+    return tenant.id  # type: ignore[return-value]
 
 
 def _result(db, tid, qtext, created, *, brand: bool) -> Result:

@@ -2,7 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    # The working branch (claude/...) is what Render deploys, so CI must run
+    # there too, not only on main.
+    branches: [main, "claude/**"]
   pull_request:
 
 jobs:
@@ -22,6 +24,39 @@ jobs:
         run: pyright
       - name: Tests (includes the runtime model policy guard)
         run: pytest -q
+
+  # Runs the suite against a Postgres built by `alembic upgrade head`, not by
+  # create_all: catches migrations that drift from the models (native enum
+  # values, constraints) that in-memory SQLite can't see.
+  postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ep
+          POSTGRES_PASSWORD: ep
+          POSTGRES_DB: everpresent
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U ep"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PG_URL: postgresql+psycopg://ep:ep@localhost:5432/everpresent
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Migrate a blank database
+        run: DATABASE_URL="$PG_URL" alembic upgrade head
+      - name: Tests on the migrated schema
+        run: TEST_DATABASE_URL="$PG_URL" pytest -q
 
   frontend:
     runs-on: ubuntu-latest

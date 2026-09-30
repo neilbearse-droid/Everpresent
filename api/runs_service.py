@@ -1,7 +1,7 @@
 """Run lifecycle shared by the admin trigger routes and the read endpoints.
 Dispatch itself lives in worker/jobs.py."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlmodel import Session, func, select
 
@@ -72,10 +72,57 @@ def create_run(session: Session, tenant: Tenant, *, trigger: str = "manual") -> 
     return run
 
 
+# Longer than any job can legitimately take (Mode A 1h + Mode B 4h timeouts).
+# A run pending/running past this has no live job behind it: it no longer
+# blocks new runs, and the worker reclaims it as failed on startup.
+IN_FLIGHT_TTL = timedelta(hours=5)
+
+
+class RunInFlight(Exception):
+    """A run for this tenant is already pending or running."""
+
+    def __init__(self, run: Run) -> None:
+        super().__init__(f"Run #{run.id} is still {run.status}. Wait for it to finish.")
+        self.run = run
+
+
+def _as_utc(stamp: datetime) -> datetime:
+    return stamp if stamp.tzinfo else stamp.replace(tzinfo=UTC)
+
+
+def run_in_flight(session: Session, tenant_id: int) -> Run | None:
+    """The tenant's live (pending/running, not stale) run, if any."""
+    cutoff = utcnow() - IN_FLIGHT_TTL
+    live = session.exec(
+        select(Run)
+        .where(
+            Run.tenant_id == tenant_id,
+            Run.status.in_([RunStatus.pending, RunStatus.running]),  # pyright: ignore[reportAttributeAccessIssue]
+        )
+        .order_by(Run.id.desc())  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
+    ).all()
+    return next((r for r in live if _as_utc(r.started_at or r.created_at) >= cutoff), None)
+
+
 def trigger_run(session: Session, tenant: Tenant, *, trigger: str = "manual") -> Run:
     """Create, commit, and dispatch a run — shared by the admin trigger route
-    and the scheduler. Gated/failed runs are recorded and never enqueued."""
+    and the scheduler. Gated/failed runs are recorded and never enqueued.
+
+    Raises RunInFlight when the tenant already has a live run: a double-click
+    (or a schedule firing mid-run) must not start a second, double-spending
+    run over the same prompts."""
     from api.queue import enqueue_run, enqueue_run_mode_b  # avoid import cycle
+
+    assert tenant.id is not None
+    # Serialize concurrent triggers per tenant (Postgres row lock; SQLite has
+    # a single writer anyway) so two simultaneous clicks can't both pass.
+    session.exec(
+        select(Tenant).where(Tenant.id == tenant.id).with_for_update()
+    ).one()
+    existing = run_in_flight(session, tenant.id)
+    if existing is not None:
+        session.rollback()  # release the lock
+        raise RunInFlight(existing)
 
     run = create_run(session, tenant, trigger=trigger)
     session.add(run)

@@ -56,5 +56,15 @@ include = ["api", "engine", "worker", "tests"]
 pythonVersion = "3.11"
 typeCheckingMode = "basic"
 
+# Tests build rows then pass `row.id` (typed `int | None` until the row is
+# committed) straight into helpers. That's always an int at runtime, and the
+# suite itself proves it, so in tests those two rules report as warnings
+# rather than failing CI. App code keeps them as errors.
+[[tool.pyright.executionEnvironments]]
+root = "tests"
+extraPaths = ["."]
+reportArgumentType = "warning"
+reportOptionalMemberAccess = "warning"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -314,3 +314,12 @@ def test_run_reads_are_tenant_scoped(client, login, db_session, job_env, fake_re
     raw = client.get(f"/api/tenant/results/{first_result['id']}/raw")
     assert raw.status_code == 200
     assert raw.json()["response"]["model"] == "gpt-4o-2024-08-06"
+
+
+def test_double_click_gets_a_clear_409(client, as_superadmin, enqueue_spy, db_session):
+    make_tenant(db_session, approved=True)
+    first = client.post("/api/admin/tenants/smith/runs")
+    assert first.status_code == 201
+    second = client.post("/api/admin/tenants/smith/runs")
+    assert second.status_code == 409
+    assert f"Run #{first.json()['id']}" in second.json()["detail"]

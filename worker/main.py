@@ -10,6 +10,7 @@ from rq import Queue, Worker
 from sqlmodel import select
 
 from api.config import get_settings
+from api.runs_service import IN_FLIGHT_TTL
 
 log = structlog.get_logger()
 
@@ -18,9 +19,8 @@ def _as_utc(stamp: datetime) -> datetime:
     return stamp if stamp.tzinfo else stamp.replace(tzinfo=UTC)
 
 
-# Longer than any job can legitimately take (Mode A 1h + Mode B 4h timeouts),
-# so a run still "running" past this has no live job behind it.
-ORPHAN_AFTER = 5 * 60 * 60  # seconds
+# Same window that stops a stale run from blocking new ones (runs_service).
+ORPHAN_AFTER = int(IN_FLIGHT_TTL.total_seconds())
 
 
 def reclaim_orphaned_runs() -> None:
@@ -40,12 +40,20 @@ def reclaim_orphaned_runs() -> None:
             cutoff = utcnow() - timedelta(seconds=ORPHAN_AFTER)
             orphaned = [
                 r
-                for r in session.exec(select(Run).where(Run.status == RunStatus.running)).all()
+                for r in session.exec(
+                    select(Run).where(
+                        Run.status.in_([RunStatus.pending, RunStatus.running])  # pyright: ignore[reportAttributeAccessIssue]
+                    )
+                ).all()
                 if _as_utc(r.started_at or r.created_at) < cutoff
             ]
             for run in orphaned:
+                run.error = (
+                    "worker restarted while this run was in progress"
+                    if run.status == RunStatus.running
+                    else "never picked up by a worker (queue lost?)"
+                )
                 run.status = RunStatus.failed
-                run.error = "worker restarted while this run was in progress"
                 run.finished_at = utcnow()
                 session.add(run)
             if orphaned:

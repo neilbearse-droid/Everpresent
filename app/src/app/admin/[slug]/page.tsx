@@ -98,6 +98,33 @@ export default async function TenantAdminPage({
                   {ready.engines.filter((e) => e.available).length} verified
                 </span>
               </div>
+              {ready.system && (
+                <>
+                  <div className="bp-bar">
+                    <span>System</span>
+                    <span>
+                      {ready.system.every((c) => c.ok)
+                        ? "All up"
+                        : `${ready.system.filter((c) => !c.ok).length} down`}
+                    </span>
+                  </div>
+                  <div className="grid gap-[2px] bg-[var(--line)] sm:grid-cols-3 lg:grid-cols-5">
+                    {ready.system.map((c) => (
+                      <div key={c.label} className="bg-[var(--surface)] p-3">
+                        <div className="bp-label">{c.ok ? "✓ Up" : "✗ Down"}</div>
+                        <div className={`mt-1 text-[13px] font-semibold ${c.ok ? "" : "bp-neg"}`}>
+                          {c.label}
+                        </div>
+                        <p className="mt-1 text-[11.5px] text-[var(--text-2)]">{c.hint}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="bp-bar">
+                    <span>Setup</span>
+                    <span />
+                  </div>
+                </>
+              )}
               <div className="grid gap-[2px] bg-[var(--line)] sm:grid-cols-2 lg:grid-cols-4">
                 {ready.checks.map((c) => (
                   <div key={c.label} className="bg-[var(--surface)] p-3">
