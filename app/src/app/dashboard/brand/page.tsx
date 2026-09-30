@@ -68,7 +68,7 @@ export default async function BrandPage({
                   <span className="text-[var(--text-3)]">—</span>
                 ) : (
                   Object.entries(d.sentiment).map(([k, v]) => (
-                    <span key={k} className="tabular-nums" style={{ color: SENT_COLOR[k] ?? "var(--text-2)" }}>
+                    <span key={k} className={`tabular-nums ${k === "negative" && v > 0 ? "bp-neg" : ""}`} style={{ color: SENT_COLOR[k] ?? "var(--text-2)" }}>
                       {v} {k}
                     </span>
                   ))
@@ -79,8 +79,8 @@ export default async function BrandPage({
             <div className="card p-4">
               <p className="eyebrow mb-2.5">Accuracy issues</p>
               <div className="text-4xl font-semibold leading-none tabular-nums"
-                   style={{ color: d.accuracy_issues > 0 ? "var(--neg)" : "var(--pos)" }}>
-                {d.accuracy_issues}
+                   >
+                <span className={d.accuracy_issues > 0 ? "bp-neg" : ""}>{d.accuracy_issues}</span>
               </div>
               <p className="mt-2.5 text-xs text-[var(--text-3)]">factual errors the models state about you</p>
             </div>
@@ -113,7 +113,7 @@ export default async function BrandPage({
                           </td>
                           <td className="py-2.5 pr-4">
                             {s.sentiment ? (
-                              <span style={{ color: SENT_COLOR[s.sentiment] ?? "var(--text-2)" }}>
+                              <span className={s.sentiment === "negative" ? "bp-neg" : ""} style={{ color: SENT_COLOR[s.sentiment] ?? "var(--text-2)" }}>
                                 {s.sentiment}
                               </span>
                             ) : (

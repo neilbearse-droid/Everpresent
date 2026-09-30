@@ -108,12 +108,17 @@ export default async function FanoutPage({
                         · you&apos;re in {p.shards_present} of {p.shards_present + p.shards_absent}{" "}
                         re-probed
                         {p.high_misses > 0 && (
-                          <span className="text-[var(--neg)]"> · {p.high_misses} high-priority miss{p.high_misses === 1 ? "" : "es"}</span>
+                          <>
+                            {" · "}
+                            <span className="text-[var(--neg)]">
+                              {p.high_misses} high-priority miss{p.high_misses === 1 ? "" : "es"}
+                            </span>
+                          </>
                         )}
                         {p.won_back > 0 && (
                           <span className="text-[var(--pos)]"> · ▲ {p.won_back} won back</span>
                         )}
-                        {p.lost > 0 && <span className="text-[var(--neg)]"> · ▼ {p.lost} newly lost</span>}
+                        {p.lost > 0 && <>{" · "}<span className="text-[var(--neg)]">▼ {p.lost} newly lost</span></>}
                       </span>
                     )}
                   </div>
@@ -130,7 +135,7 @@ export default async function FanoutPage({
                     style={
                       p.brand_in_answer
                         ? { background: "var(--surface)", color: "var(--text)", border: "1.5px solid var(--line)" }
-                        : { background: "var(--accent)", color: "var(--accent-ink)", border: "1.5px solid var(--line)" }
+                        : { background: "var(--line)", color: "var(--plane)", border: "1.5px solid var(--line)" }
                     }
                   >
                     {p.brand_in_answer ? "✓ in final answer" : "✗ not in final answer"}
@@ -209,8 +214,7 @@ export default async function FanoutPage({
                         <td className="py-2.5 pr-4 whitespace-nowrap">
                           {s.source === "reprobed" ? (
                             <span
-                              className="text-[12px] font-semibold"
-                              style={{ color: s.brand_present ? "var(--pos)" : "var(--neg)" }}
+                              className={`text-[12px] font-bold ${s.brand_present ? "" : "bp-neg"}`}
                               title={`Re-probed on ${s.probe_engine ?? "an issuing engine"}${s.probed_at ? ` · ${s.probed_at.slice(0, 10)}` : ""}`}
                             >
                               {s.brand_present ? "✓ present" : "✗ absent"}
@@ -236,7 +240,7 @@ export default async function FanoutPage({
                               className="rounded-[4px] px-2 py-0.5 text-[10.5px] font-semibold"
                               style={
                                 s.priority === "high"
-                                  ? { background: "var(--accent)", color: "var(--accent-ink)", border: "1.5px solid var(--line)" }
+                                  ? { background: "var(--line)", color: "var(--plane)", border: "1.5px solid var(--line)" }
                                   : { background: "var(--surface)", color: "var(--text)", border: "1.5px solid var(--line)" }
                               }
                             >

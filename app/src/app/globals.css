@@ -57,11 +57,10 @@
   --text-2: #3b3b37;
   --text-3: #6b6b64;
 
-  /* The one accent. --accent-deep is the same hue darkened for small text
-     on white, where the bright orange would fail contrast. */
+  /* The one accent: the brand colour. It marks the tenant's own brand,
+     primary actions and highlights — NEVER bad news. */
   --accent: #ff5a1f;
   --accent-2: #ff5a1f;
-  --accent-deep: #b93800;
   --accent-soft: #ebebe5; /* no pastel accent: neutral fill */
   /* Diagonal hatch for flagged rows: a texture, not a tint. */
   --hatch: repeating-linear-gradient(-45deg, transparent 0 7px, rgba(13, 13, 13, 0.09) 7px 8.5px);
@@ -72,14 +71,15 @@
   --ink-hover: #0d0d0d;
   --ink-text: #f4f4f0;
 
-  /* Semantics collapse onto black / accent: good is plain ink, bad is the
-     accent. No second hue. */
+  /* Semantics stay in black and white so the accent never reads as a
+     warning. Good is plain ink; bad is ink too, rendered as an inverted
+     block (see the --neg rule below) with its ▼ / ✗ marker. */
   --good: #0d0d0d;
   --pos: #0d0d0d;
   --warn: #3b3b37;
   --warn-t: #3b3b37;
-  --danger: #b93800;
-  --neg: #b93800;
+  --danger: #0d0d0d;
+  --neg: #0d0d0d;
 
   --mode-recall: #0d0d0d;
   --mode-recall-soft: #ebebe5;
@@ -123,7 +123,6 @@
   --text-2: #c9c9c1;
   --text-3: #8f8f87;
 
-  --accent-deep: #ff7a47;
   --accent-soft: #222220;
   --hatch: repeating-linear-gradient(-45deg, transparent 0 7px, rgba(244, 244, 240, 0.12) 7px 8.5px);
 
@@ -135,8 +134,8 @@
   --pos: #f4f4f0;
   --warn: #c9c9c1;
   --warn-t: #c9c9c1;
-  --danger: #ff7a47;
-  --neg: #ff7a47;
+  --danger: #f4f4f0;
+  --neg: #f4f4f0;
 
   --mode-recall: #f4f4f0;
   --mode-mixed: #f4f4f0;
@@ -284,12 +283,34 @@ h1 { letter-spacing: -0.03em; }
   -webkit-text-stroke: 1px var(--line);
 }
 
-/* Critical inline flag: black on accent. */
-.bp-alert {
+/* Accent highlight — positive emphasis only (brand, headline). */
+.bp-mark {
   background: var(--accent);
   color: var(--accent-ink);
   font-weight: 700;
   padding: 0 0.3em;
+}
+
+/* Bad news: an inverted ink block. Every text-[var(--neg)] element gets the
+   same treatment (exact class token, so hover: variants are untouched), so losses read instantly without borrowing the brand
+   colour. */
+.bp-neg,
+[class~="text-[var(--neg)]"] {
+  background: var(--line);
+  color: var(--plane) !important;
+  font-weight: 700;
+  padding: 0 0.3em;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+/* Links: ink text, thick accent underline. The accent means "act here". */
+[class~="text-[var(--accent)]"] {
+  color: var(--text) !important;
+  text-decoration: underline;
+  text-decoration-color: var(--accent);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
 }
 
 .bp-link {

@@ -216,7 +216,7 @@ export default async function OverviewPage({
                       <tr key={mover.label}>
                         <td>{mover.label}</td>
                         <td
-                          className={`text-right font-mono font-bold ${mover.delta < 0 ? "bp-alert" : ""}`}
+                          className={`text-right font-mono font-bold ${mover.delta < 0 ? "bp-neg" : ""}`}
                         >
                           {mover.delta >= 0 ? "▲ +" : "▼ "}
                           {mover.delta}

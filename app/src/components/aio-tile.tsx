@@ -25,7 +25,7 @@ export function AIOTile({ aio, bare = true }: { aio: AIOSummary; bare?: boolean 
         {aio.brand_cited_in_aio > 0 ? (
           <span>Brand cited as a source in {aio.brand_cited_in_aio}</span>
         ) : (
-          <span className="bp-alert">Brand is never an AIO source</span>
+          <span className="bp-neg">Brand is never an AIO source</span>
         )}
       </div>
     </div>

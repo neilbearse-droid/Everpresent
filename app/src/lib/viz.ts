@@ -14,7 +14,7 @@ export const SERIES_COLORS = [
 export const SERIES_DASHES = ["", "", "6 3", "", "2 3", "8 3 2 3"] as const;
 
 export const DELTA_UP = "#0d0d0d";
-export const DELTA_DOWN = "#b93800";
+export const DELTA_DOWN = "#0d0d0d";
 
 /** Stable entity→color map: brand takes slot 1, competitors take the
  * remaining slots in alphabetical order — color follows the entity, never its

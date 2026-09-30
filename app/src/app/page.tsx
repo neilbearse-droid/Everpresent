@@ -45,7 +45,7 @@ export default async function LandingPage() {
           <div className="p-6 lg:col-span-8 lg:p-10">
             <div className="bp-label mb-6">AI answer visibility / measurement system</div>
             <h1 className="bp-display">
-              Know where your brand stands in <span className="bp-alert">AI answers</span>.
+              Know where your brand stands in <span className="bp-mark">AI answers</span>.
             </h1>
             <p className="mt-8 max-w-2xl text-[16px] leading-relaxed text-[var(--text-2)]">
               EverPresent measures how AI assistants describe your category, whether they mention

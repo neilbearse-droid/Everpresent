@@ -120,7 +120,11 @@ export default async function ScorecardPage({
             </h2>
             <span
               className="chip"
-              style={{ color: acc.data.error_count === 0 ? "var(--pos)" : "var(--neg)" }}
+              style={
+                acc.data.error_count === 0
+                  ? undefined
+                  : { background: "var(--line)", color: "var(--plane)" }
+              }
             >
               {acc.data.error_count === 0
                 ? "clean"
