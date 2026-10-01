@@ -53,14 +53,18 @@ def estimate_openai_cost_usd(
     return round(cost, 6)
 
 
-# Perplexity Sonar (§6.1). Token prices per 1M; plus a per-request search fee.
+# Perplexity (§6.1). Token prices per 1M. Agent API models (provider-prefixed,
+# the default since Sonar chat completions retired on 2026-09-27) bill each
+# web_search invocation; legacy Sonar billed one fee per request.
 PERPLEXITY_TOKEN_PRICES: dict[str, tuple[float, float]] = {
+    "perplexity/sonar": (0.25, 2.50),
     "sonar-reasoning-pro": (2.00, 8.00),
     "sonar-reasoning": (1.00, 5.00),
     "sonar-pro": (3.00, 15.00),
     "sonar": (1.00, 1.00),
 }
-PERPLEXITY_SEARCH_PER_1K = 5.00
+PERPLEXITY_SEARCH_PER_1K = 5.00  # legacy Sonar: per request
+PERPLEXITY_AGENT_SEARCH_PER_1K = 2.50  # Agent API: per web_search invocation
 _PERPLEXITY_FALLBACK = (1.00, 1.00)
 
 
@@ -70,8 +74,11 @@ def estimate_perplexity_cost_usd(
     cost = _token_cost(
         PERPLEXITY_TOKEN_PRICES, _PERPLEXITY_FALLBACK, model, input_tokens, output_tokens
     )
-    # Sonar's request fee is charged once per request, not per search query.
-    cost += min(web_search_calls, 1) * PERPLEXITY_SEARCH_PER_1K / 1_000
+    if model.startswith("perplexity/"):
+        cost += web_search_calls * PERPLEXITY_AGENT_SEARCH_PER_1K / 1_000
+    else:
+        # Legacy Sonar's request fee was charged once per request.
+        cost += min(web_search_calls, 1) * PERPLEXITY_SEARCH_PER_1K / 1_000
     return round(cost, 6)
 
 

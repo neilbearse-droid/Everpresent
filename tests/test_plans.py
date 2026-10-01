@@ -133,7 +133,7 @@ def test_diagnosis_twin_cached_across_runs(db_session, env, monkeypatch):
     t = _tenant(db_session, "diagnose")
     run1 = _run(db_session, t)
     run_mode_a(run1)
-    assert sum(1 for (_s, ws) in calls if not ws) == 9  # 3 queries × 3 twin engines
+    assert sum(1 for (_s, ws) in calls if not ws) == 12  # 3 queries × 4 twin engines
 
     calls.clear()
     run2 = _run(db_session, t)
@@ -142,10 +142,10 @@ def test_diagnosis_twin_cached_across_runs(db_session, env, monkeypatch):
     assert sum(1 for (_s, ws) in calls if ws) == 24      # searches still live
 
     nosearch2 = [r for r in _results(db_session, run2) if r.variant == ResultVariant.nosearch]
-    assert len(nosearch2) == 9  # cloned into the run so the classifier pairing works
+    assert len(nosearch2) == 12  # cloned into the run so the classifier pairing works
     assert all(r.latency_ms == 0 and r.raw_uri for r in nosearch2)
     run = db_session.get(Run, run2)
-    assert run is not None and run.counts["diagnosis_cached"] == 9
+    assert run is not None and run.counts["diagnosis_cached"] == 12
 
 
 def test_diagnose_enables_twin_and_two_personas(db_session, env):
@@ -162,8 +162,10 @@ def test_diagnose_enables_twin_and_two_personas(db_session, env):
     assert len(search) == 24
     assert len({r.persona_name for r in search}) == 2
     # Diagnosis twin on the 3 engines that support it (not Perplexity), 1 persona.
-    assert {r.surface.value for r in nosearch} == {"openai_api", "claude_api", "gemini_api"}
-    assert len(nosearch) == 9
+    assert {r.surface.value for r in nosearch} == {
+        "openai_api", "perplexity_api", "claude_api", "gemini_api",
+    }
+    assert len(nosearch) == 12
 
 
 def test_every_dispatchable_surface_is_prioritised():

@@ -41,18 +41,56 @@ def test_perplexity_dedupes_search_results_and_citations():
     assert len(parsed.citations) == 2
 
 
-def test_perplexity_body_maps_persona_to_system():
+def test_perplexity_agent_body_forces_search_and_maps_persona():
     body = pplx_body("You are a persona.", "best MBA?", model="sonar")
-    assert body["messages"][0] == {"role": "system", "content": "You are a persona."}
-    assert body["messages"][1] == {"role": "user", "content": "best MBA?"}
+    # Agent API: legacy names map to the Perplexity-native slug, persona is
+    # `instructions`, search is an explicit forced tool, and nothing else is
+    # sent (unknown fields are rejected with a 400).
+    assert body == {
+        "model": "perplexity/sonar",
+        "input": "best MBA?",
+        "max_output_tokens": 1200,
+        "instructions": "You are a persona.",
+        "tools": [{"type": "web_search"}],
+        "tool_choice": {"type": "web_search"},
+    }
+    assert pplx_body("p", "q", model="sonar-pro")["model"] == "perplexity/sonar"
+
+
+def test_perplexity_agent_body_variants():
+    assert "instructions" not in pplx_body("", "q", model="perplexity/sonar")
+    nosearch = pplx_body("", "q", model="perplexity/sonar", web_search=False)
+    assert "tools" not in nosearch and "tool_choice" not in nosearch
+    natural = pplx_body("", "q", model="perplexity/sonar", force_search=False)
+    assert natural["tools"] == [{"type": "web_search"}] and "tool_choice" not in natural
+
+
+def test_perplexity_parses_agent_response():
+    parsed = parse_perplexity_payload(json.loads((FIX / "perplexity_agent.json").read_text()))
+    assert parsed.text.startswith("Wix and GoDaddy")
+    assert [c.url for c in parsed.citations] == [
+        "https://www.pcmag.com/picks/the-best-website-builders",
+        "https://www.godaddy.com/websites/website-builder",
+    ]
+    assert parsed.fanout_queries == [
+        "best website builder small business 2026", "GoDaddy vs Wix pricing",
+    ]
+    assert parsed.web_search_calls == 2
+    assert parsed.input_tokens == 1040 and parsed.output_tokens == 220
+    assert parsed.model == "perplexity/sonar"
 
 
 def test_perplexity_cost_uses_sonar_prices():
-    # sonar: $1/1M in, $1/1M out; + ONE request fee ($5/1k) however many
-    # searches the request ran.
+    # Legacy sonar: $1/1M in, $1/1M out; + ONE request fee ($5/1k).
     cost = estimate_perplexity_cost_usd("sonar", 1_000_000, 1_000_000, 2)
     assert cost == round(1.0 + 1.0 + 5.0 / 1000, 6)
     assert estimate_perplexity_cost_usd("sonar", 0, 0, 0) == 0.0
+
+
+def test_perplexity_agent_cost_bills_each_search():
+    # Agent API: $0.25/1M in, $2.50/1M out, $2.50/1k per web_search call.
+    cost = estimate_perplexity_cost_usd("perplexity/sonar", 1_000_000, 1_000_000, 2)
+    assert cost == round(0.25 + 2.50 + 2 * 2.50 / 1000, 6)
 
 
 # --- Anthropic Claude -------------------------------------------------------
@@ -148,7 +186,7 @@ def test_empty_persona_prompt_is_omitted_everywhere():
 
     assert "system_instruction" not in gemini_body("", "q", model="gemini-2.5-flash")
     assert "system" not in claude_body("", "q", model="claude-sonnet-4-6")
-    assert [m["role"] for m in pplx_body("  ", "q", model="sonar")["messages"]] == ["user"]
+    assert "instructions" not in pplx_body("  ", "q", model="sonar")
     assert "instructions" not in openai_body("", "q", model="gpt-5-mini")
     assert build_opening_message("", "best registrar?") == "best registrar?"
     # A real persona is still sent.
@@ -190,7 +228,7 @@ def test_claude_web_search_capped_and_perplexity_output_capped():
     from engine.retrievers.claude_api import WEB_SEARCH_TOOL
 
     assert WEB_SEARCH_TOOL["max_uses"] == 3  # bounds the $10/1k fee tail
-    assert pplx_body("p", "q", model="sonar")["max_tokens"] == 1200
+    assert pplx_body("p", "q", model="sonar")["max_output_tokens"] == 1200
 
 
 def test_gemini_cost_uses_flash_prices():

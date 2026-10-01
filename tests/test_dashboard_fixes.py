@@ -55,3 +55,26 @@ def test_movers_ignore_entities_missing_on_one_day(db_session):
     labels = {m["label"] for m in movers}
     assert "NewCo" not in labels  # not a +70 jump from nothing
     assert "Wix" in labels
+
+
+def test_trend_spanning_perplexity_switch_gets_a_note(db_session):
+    from api.models import Result, ResultStatus, ResultVariant, Run, RunMode
+
+    tid = _tenant(db_session)
+    for date in ("2026-09-20", "2026-09-30"):
+        db_session.add(VisibilityDaily(
+            tenant_id=tid, date=date, surface=SurfaceCode.openai_api,
+            persona_segment="all", brand_score=50.0,
+        ))
+    run = Run(tenant_id=tid)
+    db_session.add(run)
+    db_session.commit()
+    db_session.add(Result(run_id=run.id, tenant_id=tid, query_text="q", persona_name="p",
+                          persona_segment="all", surface=SurfaceCode.perplexity_api,
+                          mode=RunMode.A, variant=ResultVariant.search,
+                          status=ResultStatus.ok))
+    db_session.commit()
+    notes = overview(db_session, tid, start="2026-09-01", end="2026-09-30")["series_notes"]
+    assert [n["surface"] for n in notes] == ["perplexity_api"]
+    # A window that doesn't cross the date gets no note.
+    assert overview(db_session, tid, start="2026-09-28", end="2026-09-30")["series_notes"] == []

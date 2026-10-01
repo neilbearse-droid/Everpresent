@@ -27,6 +27,7 @@ from api.models import (
     Result,
     ResultStatus,
     ResultVariant,
+    SurfaceCode,
     Tenant,
     UntrackedMention,
     VisibilityDaily,
@@ -405,7 +406,39 @@ def overview(
             {"date": dates[-1], "brand_score": trend[-1]["brand_score"]} if trend else None
         ),
         "aio": aio_summary(session, tenant_id),
+        "series_notes": _series_notes(session, tenant_id, [t["date"] for t in trend]),
     }
+
+
+# Provider-side changes that make an engine's numbers before and after a date
+# different systems. A trend spanning one gets a visible note, never a silent
+# "movement". (date, surface, note)
+SERIES_BREAKS: list[tuple[str, SurfaceCode, str]] = [
+    (
+        "2026-09-27",
+        SurfaceCode.perplexity_api,
+        "Perplexity retired its Sonar API on Sep 27, 2026; Perplexity (API) "
+        "numbers before and after come from different systems.",
+    ),
+]
+
+
+def _series_notes(session: Session, tenant_id: int, dates: list[str]) -> list[dict]:
+    if not dates:
+        return []
+    lo, hi = min(dates), max(dates)
+    notes = []
+    for date, surface, note in SERIES_BREAKS:
+        if not (lo < date <= hi):
+            continue
+        measured = session.exec(
+            select(func.count()).select_from(Result).where(
+                Result.tenant_id == tenant_id, Result.surface == surface
+            )
+        ).one()
+        if measured:
+            notes.append({"date": date, "surface": str(surface), "note": note})
+    return notes
 
 
 def personas(
@@ -973,7 +1006,7 @@ def fanout_scorecard(
 # Surfaces whose search variant is FORCED (tool_choice), so their search-variant
 # results can't reveal natural routing — only their M2 natural probe can. Kept
 # in sync with worker.jobs.A_ADAPTERS[...].forces_search.
-_FORCED_SEARCH_SURFACES = {"openai_api"}
+_FORCED_SEARCH_SURFACES = {"openai_api", "perplexity_api"}
 
 
 def routing_report(

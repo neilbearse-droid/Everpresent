@@ -74,7 +74,7 @@ services:
       - key: PERPLEXITY_API_KEY
         sync: false
       - key: PERPLEXITY_MODEL
-        value: sonar
+        value: perplexity/sonar
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: CLAUDE_MODEL
@@ -177,7 +177,7 @@ services:
       - key: PERPLEXITY_API_KEY
         sync: false
       - key: PERPLEXITY_MODEL
-        value: sonar
+        value: perplexity/sonar
       - key: ANTHROPIC_API_KEY
         sync: false
       - key: CLAUDE_MODEL

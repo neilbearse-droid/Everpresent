@@ -41,7 +41,9 @@ class Settings(BaseSettings):
     # a clear reason, never a crash. Concurrency is shared across all Mode A
     # providers via openai_concurrency.
     perplexity_api_key: str = ""
-    perplexity_model: str = "sonar"
+    # Agent API slug (Sonar chat completions retired 2026-09-27). Bare legacy
+    # names like "sonar" are still accepted and mapped by the adapter.
+    perplexity_model: str = "perplexity/sonar"
     perplexity_timeout_s: float = 90.0
 
     anthropic_api_key: str = ""

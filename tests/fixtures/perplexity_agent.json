@@ -1,0 +1,31 @@
+{
+  "id": "resp_pplx_0001",
+  "object": "response",
+  "created_at": 1790812800,
+  "model": "perplexity/sonar",
+  "status": "completed",
+  "output": [
+    {
+      "type": "search_results",
+      "queries": ["best website builder small business 2026", "GoDaddy vs Wix pricing"],
+      "results": [
+        {"id": 1, "url": "https://www.pcmag.com/picks/the-best-website-builders", "title": "The Best Website Builders", "snippet": "...", "date": "2026-08-01"},
+        {"id": 2, "url": "https://www.godaddy.com/websites/website-builder", "title": "GoDaddy Website Builder", "snippet": "..."},
+        {"id": 3, "url": "https://www.pcmag.com/picks/the-best-website-builders", "title": "dup"}
+      ]
+    },
+    {
+      "type": "message",
+      "role": "assistant",
+      "content": [
+        {"type": "output_text", "text": "Wix and GoDaddy are the most common picks for small businesses.", "annotations": []}
+      ]
+    }
+  ],
+  "usage": {
+    "input_tokens": 1040,
+    "output_tokens": 220,
+    "tool_calls_details": {"search_web": {"invocation": 2}},
+    "cost": {"total_cost": 0.0058, "currency": "USD"}
+  }
+}

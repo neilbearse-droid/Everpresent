@@ -99,7 +99,12 @@ def cap_engines(surfaces: list[str], max_engines: int | None) -> list[str]:
 # deployment's settings. All real consumer models — no build-time models.
 MODEL_TIERS: dict[str, dict[str, str]] = {
     "openai_api": {"economy": "gpt-5-mini", "standard": "gpt-5.6-terra", "premium": "gpt-5.6-sol"},
-    "perplexity_api": {"economy": "sonar", "standard": "sonar", "premium": "sonar-pro"},
+    # One Perplexity-native model on the Agent API: `sonar-pro` has no slug
+    # there, and the "presets" run OpenAI models (wrong engine to measure).
+    "perplexity_api": {
+        "economy": "perplexity/sonar", "standard": "perplexity/sonar",
+        "premium": "perplexity/sonar",
+    },
     "claude_api": {
         "economy": "claude-haiku-4-5-20251001",
         "standard": "claude-sonnet-4-6",

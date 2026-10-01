@@ -210,6 +210,8 @@ export type OverviewPayload = {
   movers: { label: string; kind: string; before: number; after: number; delta: number }[];
   latest: { date: string; brand_score: number } | null;
   aio: AIOSummary;
+  /** Provider changes inside the trend window (absent on an older API). */
+  series_notes?: { date: string; surface: string; note: string }[];
 };
 
 export type EngineMode = {

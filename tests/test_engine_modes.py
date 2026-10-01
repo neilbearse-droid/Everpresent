@@ -104,15 +104,15 @@ def test_gemini_retrieves_chatgpt_recalls(db_session):
 def test_mixed_band(db_session):
     tid = _tenant(db_session)
     run = _run(db_session, tid)
-    # perplexity_api: searches on 2 of 4 -> 50% -> mixed.
+    # claude_api (search not forced): searches on 2 of 4 -> 50% -> mixed.
     for i in range(4):
         q = f"q{i}"
         db_session.add(Query(tenant_id=tid, text=q, branded=False))
         db_session.commit()
-        _result(db_session, tid, run, q, SurfaceCode.perplexity_api,
+        _result(db_session, tid, run, q, SurfaceCode.claude_api,
                 ResultVariant.search, searched=1 if i < 2 else 0, brand=(i == 0))
     rep = engine_modes(db_session, tid)
-    assert _by_surface(rep)["perplexity_api"]["mode"] == "mixed"
+    assert _by_surface(rep)["claude_api"]["mode"] == "mixed"
 
 
 def test_two_mode_split_and_branded_excluded(db_session):

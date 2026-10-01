@@ -168,6 +168,11 @@ export default async function OverviewPage({
               </div>
               <div className="p-4">
                 <TrendChart data={trendRows} series={trendSeries} />
+                {(data?.series_notes ?? []).map((n) => (
+                  <p key={`${n.surface}-${n.date}`} className="mt-2 text-xs text-[var(--text-3)]">
+                    <span className="bp-label">Series break · {n.date}</span> {n.note}
+                  </p>
+                ))}
               </div>
             </div>
             <div className="bp-stack lg:col-span-4">

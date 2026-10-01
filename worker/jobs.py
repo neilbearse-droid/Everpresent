@@ -158,7 +158,10 @@ A_ADAPTERS: dict[str, _AAdapter] = {
     ),
     "perplexity_api": _AAdapter(
         perplexity_api, "perplexity_api_key", "perplexity_model", "perplexity_timeout_s",
-        estimate_perplexity_cost_usd, "PERPLEXITY_API_KEY", supports_nosearch=False,
+        # The Agent API makes search an explicit tool, so the search-disabled
+        # (training-only) twin works for Perplexity too since the migration.
+        estimate_perplexity_cost_usd, "PERPLEXITY_API_KEY", supports_nosearch=True,
+        forces_search=True,
     ),
     "claude_api": _AAdapter(
         claude_api, "anthropic_api_key", "claude_model", "claude_timeout_s",
@@ -638,8 +641,9 @@ async def _run_mode_a(run_id: int) -> None:
     # The client-facing matrix (selective query×persona, or full cross-product
     # for tenants without a 'generic' baseline), plus one search-disabled twin
     # per (query, surface) on the baseline persona — the dual-query diff the
-    # classifier consumes (§6.1). The twin only applies to providers with a
-    # non-search mode (Perplexity Sonar always searches). Plain snapshots: no DB
+    # classifier consumes (§6.1). The twin applies to every provider with a
+    # search-disabled mode (all four since Perplexity's Agent API migration).
+    # Plain snapshots: no DB
     # connection during dispatch.
     cells = matrix_cells(queries, personas)
     work: list[_AWorkItem] = [

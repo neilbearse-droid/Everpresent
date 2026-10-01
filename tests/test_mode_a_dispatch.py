@@ -98,10 +98,9 @@ def test_dispatch_routes_every_surface(db_session, multi_env):
 
     # One search result per surface (1 query × 1 persona × 4 surfaces).
     assert {r.surface.value for r in search} == set(A_SURFACES)
-    # The dual-query twin applies to every provider EXCEPT Perplexity (Sonar
-    # always searches), so 3 nosearch results, none of them Perplexity.
-    assert {r.surface.value for r in nosearch} == {"openai_api", "claude_api", "gemini_api"}
-    assert all(r.surface.value != "perplexity_api" for r in nosearch)
+    # The dual-query twin applies to every provider; Perplexity gained a
+    # search-disabled mode with the Agent API, so all four have one.
+    assert {r.surface.value for r in nosearch} == set(A_SURFACES)
 
 
 def test_unconfigured_surface_is_skipped_not_crashed(db_session, multi_env, monkeypatch):

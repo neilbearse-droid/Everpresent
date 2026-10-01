@@ -143,19 +143,23 @@ async def _capture_serpapi(
         # fetch it now). Without this the AIO reads as present but empty and
         # the brand looks absent from it.
         if aio.get("page_token") and not aio.get("text_blocks"):
-            follow = await client.get(
-                SERPAPI_URL,
-                params={
+            extra = 1  # billed as a search whether or not it succeeds
+            # Retried like the first request (the token lives a few minutes).
+            follow = await _serpapi_get(
+                client,
+                {
                     "engine": "google_ai_overview",
                     "page_token": aio["page_token"],
                     "api_key": api_key,
                 },
             )
-            extra = 1  # billed as a search whether or not it succeeds
-            if follow.status_code == 200:
-                expanded = (follow.json() or {}).get("ai_overview") or {}
-                if expanded:
-                    payload = {**payload, "ai_overview": expanded}
+            expanded = (follow or {}).get("ai_overview") or {}
+            if not expanded.get("text_blocks"):
+                # The Overview exists but its content never loaded. Recording
+                # it as an empty Overview would read as "brand absent" — make
+                # it an error result instead.
+                raise RuntimeError("AI Overview present but its content failed to load")
+            payload = {**payload, "ai_overview": expanded}
         outcome = parse_serpapi_payload(payload)
         outcome.extra_searches = extra
         outcome.page_html = ""  # JSON path has no rendered page
