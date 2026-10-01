@@ -6,7 +6,9 @@ are read from two places and deduped: the `citations` array on text blocks
 (web_search_result_location) and the `web_search_tool_result` blocks. Web
 search counts come from usage.server_tool_use.web_search_requests.
 
-Measured surface: this is what a claude.ai consumer sees, called directly. The
+Measured surface: the Claude API with web search, called directly. It is a
+proxy for the claude.ai app, not the same thing (the app adds memory, its own
+system prompt and location); label it "(API)" wherever it is shown. The
 configured model is a real consumer model, never a build-time (fable/mythos)
 model — the policy test (§4) scans config for that. It deliberately bypasses
 engine/llm's allowlist router, which governs only the platform's own utility

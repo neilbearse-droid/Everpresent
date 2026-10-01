@@ -450,6 +450,8 @@ export type ActionPlan = {
     subtopics: string[];
     subtopics_source?: "observed" | "heuristic";
     outline: string[];
+    /** Set when the query invites a self-ranked list (spam-policy risk). */
+    spam_risk?: { level: string; note: string } | null;
     contestability: {
       score: number | null;
       label: string;

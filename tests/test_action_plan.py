@@ -317,3 +317,13 @@ def test_lost_citation_radar_catches_a_run_that_lost_everything(db_session):
 
     protect = action_plan(db_session, tid)["protect"]
     assert [e["url"] for e in protect["lost"]] == ["https://acme.com/guide"]
+
+
+def test_listicle_queries_carry_a_spam_policy_warning():
+    from api.dashboards_service import _spam_risk
+
+    risk = _spam_risk("What's the best website builder for a small business?")
+    assert risk is not None and risk["level"] == "high"
+    assert _spam_risk("GoDaddy vs. Namecheap — which is better for domains?") is not None
+    assert _spam_risk("Wix alternatives") is not None
+    assert _spam_risk("How do I connect a domain to my site?") is None

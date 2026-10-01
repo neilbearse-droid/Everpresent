@@ -166,6 +166,10 @@ class Query(SQLModel, table=True):
     # the tenant has a "generic" baseline persona (selective mode); tenants
     # without one keep the full persona × query cross-product.
     persona_runs: list[dict] = Field(default_factory=list, sa_column=Column(JSON))
+    # Alternate wordings of the same question. Repeated samples of the generic
+    # cell rotate through [text, *paraphrases], so the measured rate reflects
+    # the topic, not one exact phrasing. Results keep `text` as query_text.
+    paraphrases: list[str] = Field(default_factory=list, sa_column=Column(JSON))
 
 
 class Location(SQLModel, table=True):

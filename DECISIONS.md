@@ -3,6 +3,36 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M26–M29 — measurement credibility (2026-10-01)
+
+Driven by the Sept 2026 AEO research (repeated-sampling studies, API-vs-UI
+divergence, Perplexity's API change, Google's spam policy).
+
+1. **Mention rate is the headline, with a 95% Wilson range.** Pooled over the
+   window (default 28 days) from every ok search answer to a competitive query,
+   per engine and overall. A change is called only when the window's two halves
+   differ at p < 0.05 with 30+ answers a side. Answer Share and average position
+   stay, labelled "directional": brand order rarely repeats run to run.
+2. **Repeated sampling on generic cells only** (Monitor 1, Diagnose 2,
+   Command/Custom 3 samples per run), rotating through `queries.paraphrases`.
+   Results keep the canonical `query_text`; the envelope records the wording
+   asked. Persona cells and Mode B stay at 1 (cost). Recommended cadence is
+   3×/week rather than daily: more samples per dollar.
+3. **Perplexity on the Agent API** (`/v1/agent`, `perplexity/sonar`, forced
+   web_search) since Sonar chat completions retired on 2026-09-27. Presets are
+   avoided because they resolve to OpenAI models; `sonar-pro` has no Agent slug.
+   One fallback to the legacy endpoint on a 400/404/405/422, tagged in the
+   payload. The Overview flags trends that span the switch.
+4. **Google AI Mode via SerpApi** (`engine=google_ai_mode`), per query and
+   location like AI Overviews. Empty captures are errors, never "absent".
+   Kept behind the provider module because Google v. SerpApi is unresolved.
+5. **Contestability = churn in the set of brands named**, not answer-text
+   churn (text changes nearly every run, so the old measure called everything
+   volatile).
+6. **Spam-policy guard on content advice.** Briefs for "best/top/vs/
+   alternatives" queries carry a warning and point to earned third-party
+   placement; the drafting prompt refuses self-ranked lists.
+
 ## M25c — fan-out close the loop (2026-09-30)
 
 1. **Brief only for a measured miss.** The service refuses any shard that

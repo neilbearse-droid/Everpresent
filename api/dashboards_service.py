@@ -2,6 +2,7 @@
 Queries). Pure Postgres reads over the processed rollups — no LLM, no
 provider calls."""
 
+import re
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 from typing import Any
@@ -185,7 +186,7 @@ def citations_intel(
         select(Citation).where(
             Citation.tenant_id == tenant_id,
             col(Citation.result_id).in_(list(latest_ids) or [-1]),
-        )
+        ).order_by(col(Citation.id))
     ).all():
         _res = results_by_id.get(citation.result_id)
         if _res is not None:
@@ -559,7 +560,12 @@ def _latest_results_by_variant(
         .group_by(col(Result.query_text), col(Result.surface))
     )
     latest: dict[tuple[str, str], Result] = {}
-    for result in session.exec(select(Result).where(col(Result.id).in_(newest))).all():
+    # Ordered by id, as the history scan was: callers iterate this dict and
+    # some keep the first form they see, so row order must not depend on the
+    # database (Postgres and SQLite return IN-subquery rows differently).
+    for result in session.exec(
+        select(Result).where(col(Result.id).in_(newest)).order_by(col(Result.id))
+    ).all():
         latest[(result.query_text, str(result.surface))] = result
     return latest
 
@@ -1010,6 +1016,11 @@ def fanout_scorecard(
 # results can't reveal natural routing — only their M2 natural probe can. Kept
 # in sync with worker.jobs.A_ADAPTERS[...].forces_search.
 _FORCED_SEARCH_SURFACES = {"openai_api", "perplexity_api"}
+# Google's AI answer surfaces are search features: always retrieval.
+_SERP_SURFACES = {"google_aio", "google_ai_mode"}
+# Consumer UIs captured in a browser: no search count, so a cited source is
+# the evidence that the answer searched.
+_BROWSER_SURFACES = {"chatgpt_web", "perplexity_web", "copilot_web", "gemini_web"}
 
 
 def routing_report(
@@ -1133,6 +1144,28 @@ def engine_modes(
         if r.id is not None
     ]
     brand_ids, cited_ids = _brand_and_cited_ids(session, all_ids)
+    # Captured surfaces don't report a search count. Google's AI surfaces are
+    # search features by definition; a browser-captured answer searched if it
+    # shows sources. Without this they'd read as "answers from memory".
+    captured_ids = [
+        r.id for (_q, s), r in search.items()
+        if s in _BROWSER_SURFACES and r.id is not None
+    ]
+    sourced_ids: set[int] = set()
+    if captured_ids:
+        sourced_ids = set(session.exec(
+            select(col(Citation.result_id))
+            .where(col(Citation.result_id).in_(captured_ids))
+            .distinct()
+        ).all())
+
+    def _searched(r: Result) -> bool:
+        surface = str(r.surface)
+        if surface in _SERP_SURFACES:
+            return True
+        if surface in _BROWSER_SURFACES:
+            return r.id in sourced_ids
+        return (r.web_search_calls or 0) > 0
 
     surfaces = sorted({s for (_q, s) in search} | {s for (_q, s) in natural})
     engines = []
@@ -1147,7 +1180,7 @@ def engine_modes(
         measured = len(sig_rows)
         if not measured:
             continue
-        searched = sum(1 for r in sig_rows if (r.web_search_calls or 0) > 0)
+        searched = sum(1 for r in sig_rows if _searched(r))
         named = sum(1 for r in sig_rows if r.id in brand_ids)
         search_rate = _pct(searched, measured)
 
@@ -2323,6 +2356,7 @@ def action_plan(session: Session, tenant_id: int) -> dict:
             "subtopics": subtopics,
             "subtopics_source": "observed" if observed else "heuristic",
             "outline": _brief_outline(row["query"], brand_name, competitors_winning, subtopics),
+            "spam_risk": _spam_risk(row["query"]),
         })
 
     # Citability diff per brief: your page vs the crawled winning pages.
@@ -2409,6 +2443,32 @@ def _surface_label(surface: str) -> str:
     return labels.get(surface, surface)
 
 
+# Queries whose natural self-published answer is a ranked "best X" list or an
+# "alternatives"/"vs" page — the formats Google's 2026 spam policy and the
+# June 2026 spam update targeted (self-promotional listicles, scaled
+# alternatives pages). For these, the safe play is earned placement on
+# third-party lists, not publishing your own ranking.
+_LISTICLE_RE = re.compile(
+    r"\b(best|top|cheapest|alternatives?|vs\.?|versus|compare|comparison|which is better)\b",
+    re.IGNORECASE,
+)
+
+
+def _spam_risk(query: str) -> dict | None:
+    if not _LISTICLE_RE.search(query):
+        return None
+    return {
+        "level": "high",
+        "note": (
+            "Don't answer this with your own ranked 'best X' list or an "
+            "'alternatives' page: Google's 2026 spam policy targets self-promotional "
+            "listicles. Earn a place on the third-party pages engines already cite "
+            "(target sources), and publish an honest comparison that says where "
+            "competitors fit better."
+        ),
+    }
+
+
 def _brief_outline(
     query: str, brand: str, competitors: list[str], subtopics: list[str]
 ) -> list[str]:
@@ -2474,7 +2534,9 @@ def queries_intel(
         ).all()
     }
     latest_results: dict[tuple[str, str], Result] = {
-        key: by_id[rid] for key, rid in chosen.items() if rid in by_id
+        key: by_id[rid]
+        for key, rid in sorted(chosen.items(), key=lambda kv: kv[1] or 0)
+        if rid in by_id
     }
 
     result_ids = [r.id for r in latest_results.values() if r.id is not None]

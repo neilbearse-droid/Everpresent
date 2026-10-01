@@ -145,3 +145,25 @@ def test_empty_tenant_observed_false(db_session):
     assert rep["observed"] is False
     assert rep["engines"] == []
     assert rep["composite"] is None
+
+
+def test_google_surfaces_and_sourced_browser_answers_count_as_search(db_session):
+    """Captured surfaces report no search count: Google's AI surfaces are
+    search features, and a browser answer with sources searched. Neither may
+    read as 'answers from memory'."""
+    tid = _tenant(db_session)
+    run = _run(db_session, tid)
+    for i in range(2):
+        q = f"q{i}"
+        db_session.add(Query(tenant_id=tid, text=q, branded=False))
+        db_session.commit()
+        _result(db_session, tid, run, q, SurfaceCode.google_ai_mode, ResultVariant.search)
+        _result(db_session, tid, run, q, SurfaceCode.google_aio, ResultVariant.search)
+        _result(db_session, tid, run, q, SurfaceCode.chatgpt_web, ResultVariant.search,
+                cited=True)
+        _result(db_session, tid, run, q, SurfaceCode.copilot_web, ResultVariant.search)
+    by = _by_surface(engine_modes(db_session, tid))
+    assert by["google_ai_mode"]["mode"] == "retrieve"
+    assert by["google_aio"]["mode"] == "retrieve"
+    assert by["chatgpt_web"]["mode"] == "retrieve"  # it showed sources
+    assert by["copilot_web"]["mode"] == "recall"    # no sources shown

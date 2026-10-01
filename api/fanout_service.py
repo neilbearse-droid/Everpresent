@@ -85,9 +85,21 @@ def harvest_shards(
             if not norm or norm == parent_norm:
                 continue
             entry = observed.setdefault(
-                (r.query_text, norm), {"text": text, "surfaces": set()}
+                (r.query_text, norm), {"text": text, "surfaces": set(), "forms": {}}
             )
             entry["surfaces"].add(str(r.surface))
+            entry["forms"][text] = entry["forms"].get(text, 0) + 1
+
+    # Display wording: the most common form, ties to the cleanest (single-
+    # spaced, lowercase) — never "whichever row the database returned first",
+    # which differs between Postgres and SQLite and between runs.
+    for entry in observed.values():
+        entry["text"] = min(
+            entry["forms"],
+            key=lambda t: (
+                -entry["forms"][t], t != " ".join(t.split()), t != t.lower(), t,
+            ),
+        )
 
     existing = {
         (row.parent_query_text, row.shard_norm): row

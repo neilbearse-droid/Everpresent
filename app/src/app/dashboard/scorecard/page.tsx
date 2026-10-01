@@ -90,7 +90,7 @@ function MentionRatePanel({ m, brand }: { m: MentionRates; brand: string }) {
             <tbody>
               {m.engines.map((e) => (
                 <tr key={e.surface} className="border-t border-[var(--border)]">
-                  <td className="py-1.5 pr-4">{e.label}</td>
+                  <td className="py-1.5 pr-4">{surfaceLabel(e.surface)}</td>
                   <td className="py-1.5 pr-4 font-medium tabular-nums">{e.rate}%</td>
                   <td className="py-1.5 pr-4 tabular-nums text-[var(--text-2)]">
                     {e.low}–{e.high}%

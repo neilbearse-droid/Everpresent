@@ -56,6 +56,8 @@ class QuerySpec(BaseModel):
     # bare segment string or {segment, overlay}. The baseline "generic" persona
     # runs on every query implicitly and need not be listed.
     personas: list[str | PersonaRunSpec] = Field(default_factory=list)
+    # Alternate wordings of the same question, rotated across repeated samples.
+    paraphrases: list[str] = Field(default_factory=list)
 
     def persona_runs(self) -> list[dict]:
         out: list[dict] = []
@@ -152,6 +154,7 @@ def import_config(session: Session, tenant: Tenant, spec: TenantConfigSpec) -> d
                 active=q.active,
                 branded=q.branded,
                 persona_runs=q.persona_runs(),
+                paraphrases=[p.strip() for p in q.paraphrases if p.strip()][:10],
             )
         )
     for bf in spec.brand_facts:

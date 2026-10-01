@@ -204,6 +204,13 @@ export default async function EnginesPage({
               (hover for names) · a dash means neither. The diagnosis uses the no-search answer
               where available.
             </p>
+            <p className="mt-2 text-xs text-[var(--text-3)]">
+              <span className="font-medium text-[var(--text-2)]">(API)</span> engines are the
+              provider&apos;s developer API with web search: a close proxy for the consumer app,
+              which adds memory, location, ads and shopping units.{" "}
+              <span className="font-medium text-[var(--text-2)]">(web)</span>, Copilot and the
+              Google surfaces are captured from what a logged-out user actually sees.
+            </p>
           </section>
         </>
       )}

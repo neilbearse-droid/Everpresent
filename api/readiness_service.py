@@ -195,9 +195,10 @@ def engine_readiness(session: Session, tenant: Tenant) -> dict:
             "hint": "Governance → Search country. Match the client's market (US for GoDaddy).",
         },
         {
-            "label": "Daily schedule set",
+            "label": "Run schedule set",
             "ok": schedule is not None and schedule.enabled,
-            "hint": "Run schedule → set a daily cron so trend lines build before the demo.",
+            "hint": "Run schedule → 3x/week (0 13 * * 1,3,5) builds trend lines with "
+            "enough samples for real confidence ranges.",
         },
     ]
     from api.health_service import system_checks

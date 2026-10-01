@@ -43,6 +43,11 @@ class PlanLimits:
     # OpenAI one ~$0.02–0.07, so these hold re-probe spend near 10% of price.
     shard_probes_per_prompt: int = 0
     shard_probes_per_run: int = 0
+    # Repeated sampling (Mode A, generic cells only): answers to the same
+    # question vary run to run, so each run takes this many samples of every
+    # generic query x engine cell, rotating through the query's paraphrases.
+    # Persona cells stay at 1. See research "AEO deep dive" sampling design.
+    samples_per_cell: int = 1
 
 
 PLANS: dict[str, PlanLimits] = {
@@ -55,19 +60,19 @@ PLANS: dict[str, PlanLimits] = {
         "Diagnose", max_prompts=50, max_personas=2, max_engines=4,
         diagnosis=True, model_tier="standard", outcome=True,
         max_runs_per_day=1, monthly_price_usd=549, max_locations=1,
-        shard_probes_per_prompt=2, shard_probes_per_run=15,
+        shard_probes_per_prompt=2, shard_probes_per_run=15, samples_per_cell=2,
     ),
     "command": PlanLimits(
         "Command", max_prompts=None, max_personas=None, max_engines=None,
         diagnosis=True, model_tier="premium", outcome=True,
         max_runs_per_day=None, monthly_price_usd=2900, max_locations=5,
-        shard_probes_per_prompt=5, shard_probes_per_run=75,
+        shard_probes_per_prompt=5, shard_probes_per_run=75, samples_per_cell=3,
     ),
     "custom": PlanLimits(
         "Custom", max_prompts=None, max_personas=None, max_engines=None,
         diagnosis=True, model_tier="configured", outcome=True,
         max_runs_per_day=None, monthly_price_usd=0, max_locations=None,
-        shard_probes_per_prompt=5, shard_probes_per_run=75,
+        shard_probes_per_prompt=5, shard_probes_per_run=75, samples_per_cell=3,
     ),
 }
 

@@ -20,11 +20,13 @@ export function ScheduleForm({
     <form action={action} className="flex flex-col gap-3">
       <div className="flex items-end gap-2">
         <label className="flex flex-1 flex-col text-xs text-[var(--text-2)]">
-          Cron expression (UTC) — e.g. <code>0 13 * * 1</code> = Mondays 13:00
+          Cron expression (UTC). Recommended: <code>0 13 * * 1,3,5</code> = Mon/Wed/Fri
+          13:00. Three runs a week with repeat samples measures better than a daily single
+          reading, at lower cost.
           <input
             name="cron_expr"
-            defaultValue={cronExpr}
-            placeholder="0 13 * * 1"
+            defaultValue={cronExpr || "0 13 * * 1,3,5"}
+            placeholder="0 13 * * 1,3,5"
             required
             className="mt-1 rounded-md border border-[var(--border)] bg-[var(--inset)] px-3 py-2 font-mono text-sm text-[var(--text)]"
           />

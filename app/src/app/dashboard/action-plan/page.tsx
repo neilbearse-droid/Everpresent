@@ -321,6 +321,11 @@ export default async function ActionPlanPage() {
                     </div>
 
                     <div>
+                      {b.spam_risk && (
+                        <p className="mb-2 text-xs text-[var(--text-2)]">
+                          <span className="bp-label">Spam-policy risk</span> {b.spam_risk.note}
+                        </p>
+                      )}
                       <div className="mb-1 text-xs font-medium text-[var(--text-2)]">Suggested outline</div>
                       <ul className="space-y-1 text-sm text-[var(--text-2)]">
                         {b.outline.map((line, i) => (

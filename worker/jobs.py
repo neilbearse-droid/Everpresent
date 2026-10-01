@@ -323,6 +323,9 @@ class _AWorkItem:
     persona_segment: str
     surface: str
     variant: ResultVariant
+    # The wording actually sent, when a repeated sample uses a paraphrase.
+    # Results are still recorded under query_text (the canonical question).
+    asked_text: str = ""
 
 
 @dataclass
@@ -501,7 +504,7 @@ async def _dispatch_all(
             try:
                 outcome = await adapter.module.retrieve(
                     item.persona_prompt,
-                    item.query_text,
+                    item.asked_text or item.query_text,
                     api_key=getattr(settings, adapter.key_attr),
                     model=model,
                     timeout_s=getattr(settings, adapter.timeout_attr),
@@ -555,14 +558,17 @@ async def _run_mode_a(run_id: int) -> None:
         # The plan caps the run matrix (§pricing-model): prompts, personas, and
         # whether the dual-query diagnosis twin runs. Engines are already capped
         # into surface_set at run creation.
-        queries = [
-            (q.id, q.text, list(q.persona_runs or []))
-            for q in session.exec(
-                select(Query)
-                .where(Query.tenant_id == tenant.id, Query.active == True)  # noqa: E712
-                .order_by(Query.id)  # pyright: ignore[reportArgumentType]
-            ).all()
-        ]
+        query_rows = session.exec(
+            select(Query)
+            .where(Query.tenant_id == tenant.id, Query.active == True)  # noqa: E712
+            .order_by(Query.id)  # pyright: ignore[reportArgumentType]
+        ).all()
+        queries = [(q.id, q.text, list(q.persona_runs or [])) for q in query_rows]
+        # Alternate wordings for repeated samples (plain snapshot, no ORM).
+        paraphrases_by_qid = {
+            q.id: [p for p in (q.paraphrases or []) if isinstance(p, str) and p.strip()]
+            for q in query_rows
+        }
         personas = [
             (p.id, p.name, p.prompt_text, p.segment_tag)
             for p in session.exec(
@@ -657,6 +663,21 @@ async def _run_mode_a(run_id: int) -> None:
         for s in configured
         for (qid, qtext, (pid, pname, pprompt, pseg)) in cells
     ]
+    # Repeated sampling: extra samples of each GENERIC cell (persona cells stay
+    # at one), rotating through the query's paraphrases. Answers vary run to
+    # run; pooled samples are what the mention-rate confidence range is made of.
+    extra = max(0, limits.samples_per_cell - 1)
+    if extra:
+        for s in configured:
+            for (qid, qtext, (pid, pname, pprompt, pseg)) in cells:
+                if pseg != _GENERIC_SEGMENT:
+                    continue
+                wordings = [qtext, *paraphrases_by_qid.get(qid, [])]
+                for r in range(1, extra + 1):
+                    work.append(_AWorkItem(
+                        qid, qtext, pid, pname, pprompt, pseg, s, ResultVariant.search,
+                        asked_text=wordings[r % len(wordings)],
+                    ))
     baseline = _baseline_persona(personas)
     if baseline is not None and limits.diagnosis:
         bpid, bpname, bpprompt, bpseg = baseline
@@ -754,6 +775,7 @@ async def _run_mode_a(run_id: int) -> None:
                         "mode": "A",
                         "variant": wi.variant,
                         "query": wi.query_text,
+                        "asked": wi.asked_text or wi.query_text,
                         "persona": wi.persona_name,
                         "persona_prompt": wi.persona_prompt,
                         "model": item.get("model", ""),

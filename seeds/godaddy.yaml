@@ -89,9 +89,11 @@ personas:
 queries:
   - text: "What's the best place to buy a domain name?"
     corpus: domains
+    paraphrases: ["Where should I register a domain name?", "Which domain registrar is best?"]
     personas: [dreamer, domain_investor]
   - text: "GoDaddy vs. Namecheap — which is better for domains?"
     corpus: domains
+    paraphrases: ["Should I use GoDaddy or Namecheap for my domain?", "Namecheap or GoDaddy: which registrar is better?"]
     personas: [domain_investor]
   - text: "Is domain privacy free with GoDaddy?"   # Q3 — accuracy specimen, generic only
     corpus: domains
@@ -99,28 +101,35 @@ queries:
                     # so it belongs in the Brand layer, not the competitive visibility score
   - text: "What's the best AI website builder?"
     corpus: ai_builder
+    paraphrases: ["Which AI tool builds the best website?", "Top AI website builders right now?"]
     personas: [new_entrepreneur, side_hustler]
   - text: "How can I build an app for my small business without coding?"
     corpus: ai_builder
+    paraphrases: ["What's the easiest no-code way to make an app for my business?", "Can I create a business app without a developer?"]
     personas:
       - new_entrepreneur
       - side_hustler
       - { segment: new_entrepreneur, overlay: "It's a small restaurant." }
   - text: "What's the best website builder for a small business?"
     corpus: website_builder
+    paraphrases: ["Which website builder should a small business use?", "Best site builder for a small company?"]
     personas: [new_entrepreneur, side_hustler]
   - text: "Best web hosting for a small business website?"   # generic only for the demo
     corpus: hosting
+    paraphrases: ["Which web host is best for a small business?", "Where should a small business host its website?"]
   - text: "What's the cheapest way to get a domain and website for a new business?"
     corpus: cross_category
+    paraphrases: ["How do I get a domain and website cheaply for a new business?", "Lowest-cost way to launch a business website with its own domain?"]
     personas: [dreamer, side_hustler]
   - text: "Best all-in-one platform to start an online business?"
     corpus: cross_category
+    paraphrases: ["Which all-in-one platform is best for launching an online business?", "What's the best single platform to start selling online?"]
     personas:
       - new_entrepreneur
       - { segment: new_entrepreneur, overlay: "It's an online store selling handmade goods." }
   - text: "How much does it cost to build a website or app with AI?"
     corpus: ai_builder
+    paraphrases: ["What does an AI-built website or app cost?", "How expensive is it to make a site or app using AI?"]
     personas: [new_entrepreneur]
 
 brand_facts:
