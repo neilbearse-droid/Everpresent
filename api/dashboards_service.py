@@ -1510,13 +1510,15 @@ def mention_rates(
         .where(*conds)
         .group_by(col(Result.surface), second_half)
     ).all()
-    prompts = dict(
-        session.exec(
+    # Keyed by plain string: the dialect may return the enum or its value.
+    prompts: dict[str, int] = {
+        str(surface): int(n)
+        for surface, n in session.exec(
             select(col(Result.surface), func.count(func.distinct(col(Result.query_text))))
             .where(*conds)
             .group_by(col(Result.surface))
         ).all()
-    )
+    }
     # counts[surface] = [k_first, n_first, k_second, n_second]
     counts: dict[str, list[int]] = defaultdict(lambda: [0, 0, 0, 0])
     for surface, half, n, k in rows:
@@ -1540,12 +1542,12 @@ def mention_rates(
             {
                 "surface": surface,
                 "label": _surface_label(surface),
-                "prompts": int(prompts.get(SurfaceCode(surface), prompts.get(surface, 0)) or 0),
+                "prompts": prompts.get(surface, 0),
                 **_entry(c),
             }
             for surface, c in counts.items()
         ),
-        key=lambda e: -e["answers"],
+        key=lambda e: -int(e["answers"]),
     )
     return {
         "window": {"start": lo_eff.date().isoformat(), "end": hi_eff.date().isoformat(),
@@ -1977,7 +1979,8 @@ def _contestability(session: Session, tenant_id: int, query_texts: set[str]) -> 
         .where(*conds)
         .order_by(col(Result.id))
     ).all():
-        hashes_by_key[(query_text, str(surface))].append(frozenset(named.get(rid, set())))
+        if rid is not None:
+            hashes_by_key[(query_text, str(surface))].append(frozenset(named.get(rid, set())))
 
     dependence_by_query: dict[str, list[float]] = defaultdict(list)
     for c in session.exec(
