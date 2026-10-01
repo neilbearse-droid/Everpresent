@@ -20,7 +20,8 @@ import httpx
 from engine.retrievers.openai_api import ParsedCitation, ParsedResponse, RetrievalOutcome
 
 PERPLEXITY_URL = "https://api.perplexity.ai/chat/completions"
-RETRYABLE_STATUS = {429, 500, 502, 503, 504}
+# 529 is Anthropic's "overloaded"; common under load, always transient.
+RETRYABLE_STATUS = {429, 500, 502, 503, 504, 529}
 
 
 def parse_perplexity_payload(payload: dict[str, Any]) -> ParsedResponse:
@@ -95,7 +96,14 @@ async def retrieve(
                 await asyncio.sleep(2**attempt)
                 continue
             resp.raise_for_status()
-            payload = resp.json()
+            try:
+                payload = resp.json()
+            except ValueError:
+                # A 200 that isn't JSON (proxy/CDN error page): transient.
+                if attempt < max_attempts:
+                    await asyncio.sleep(2**attempt)
+                    continue
+                raise
             return RetrievalOutcome(
                 payload=payload,
                 parsed=parse_perplexity_payload(payload),

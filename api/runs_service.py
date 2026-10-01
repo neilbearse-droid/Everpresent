@@ -11,6 +11,7 @@ from api.models import (
     Run,
     RunMode,
     RunStatus,
+    SpendEntry,
     SurfaceCode,
     Tenant,
     TenantSurface,
@@ -72,10 +73,16 @@ def create_run(session: Session, tenant: Tenant, *, trigger: str = "manual") -> 
     return run
 
 
-# Longer than any job can legitimately take (Mode A 1h + Mode B 4h timeouts).
-# A run pending/running past this has no live job behind it: it no longer
-# blocks new runs, and the worker reclaims it as failed on startup.
-IN_FLIGHT_TTL = timedelta(hours=5)
+# Hard ceiling on how long a run can be in flight (Mode A 3h + Mode B 4h job
+# timeouts, plus slack). Past it a run is abandoned no matter what.
+IN_FLIGHT_TTL = timedelta(hours=8)
+# A run is committed before its job is enqueued and picked up; within this
+# window it counts as live even if no job is visible yet.
+START_GRACE = timedelta(minutes=2)
+RUN_JOB_FUNCS = {"worker.jobs.run_mode_a", "worker.jobs.run_mode_b"}
+ABANDONED_ERROR = (
+    "abandoned: its worker job is gone (worker restarted or redeployed mid-run)"
+)
 
 
 class RunInFlight(Exception):
@@ -90,10 +97,63 @@ def _as_utc(stamp: datetime) -> datetime:
     return stamp if stamp.tzinfo else stamp.replace(tzinfo=UTC)
 
 
+def runs_with_live_jobs(run_ids: set[int]) -> set[int] | None:
+    """Which of these runs have a queued or executing RQ job. None when Redis
+    can't be read (callers then assume live — never fail a run on a blip).
+
+    A job whose worker was killed (deploy SIGKILL) drops out of the started
+    registry once its heartbeat lapses (~90s, measured), so a killed run stops
+    counting as live within a couple of minutes instead of blocking for hours."""
+    if not run_ids:
+        return set()
+    try:
+        from redis import Redis
+        from rq import Queue
+        from rq.job import Job
+        from rq.registry import StartedJobRegistry
+
+        from api.config import get_settings
+
+        conn = Redis.from_url(
+            get_settings().redis_url, socket_connect_timeout=2, socket_timeout=2
+        )
+        job_ids: list[str] = []
+        for name in ("default", "scrape"):
+            queue = Queue(name, connection=conn)
+            job_ids += queue.get_job_ids()
+            job_ids += StartedJobRegistry(queue=queue).get_job_ids()  # drops dead jobs
+        alive: set[int] = set()
+        for job in Job.fetch_many(job_ids, connection=conn):
+            if job is None or job.func_name not in RUN_JOB_FUNCS or not job.args:
+                continue
+            if job.args[0] in run_ids:
+                alive.add(job.args[0])
+        return alive
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _is_abandoned(run: Run, alive: set[int] | None) -> bool:
+    now = utcnow()
+    if now - _as_utc(run.started_at or run.created_at) >= IN_FLIGHT_TTL:
+        return True
+    if now - _as_utc(run.created_at) < START_GRACE or alive is None:
+        return False
+    return run.id not in alive
+
+
+def _mark_abandoned(session: Session, run: Run) -> None:
+    run.status = RunStatus.failed
+    run.error = ABANDONED_ERROR
+    run.finished_at = utcnow()
+    session.add(run)
+
+
 def run_in_flight(session: Session, tenant_id: int) -> Run | None:
-    """The tenant's live (pending/running, not stale) run, if any."""
-    cutoff = utcnow() - IN_FLIGHT_TTL
-    live = session.exec(
+    """The tenant's live pending/running run, if any. Runs whose job is gone
+    are marked failed on the way (caller commits), so a run killed by a deploy
+    self-heals instead of blocking "Run now"."""
+    rows = session.exec(
         select(Run)
         .where(
             Run.tenant_id == tenant_id,
@@ -101,7 +161,36 @@ def run_in_flight(session: Session, tenant_id: int) -> Run | None:
         )
         .order_by(Run.id.desc())  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
     ).all()
-    return next((r for r in live if _as_utc(r.started_at or r.created_at) >= cutoff), None)
+    if not rows:
+        return None
+    alive = runs_with_live_jobs({r.id for r in rows if r.id is not None})
+    live: Run | None = None
+    for run in rows:
+        if _is_abandoned(run, alive):
+            _mark_abandoned(session, run)
+        elif live is None:
+            live = run
+    return live
+
+
+def reap_abandoned_runs(session: Session) -> int:
+    """Fail every pending/running run (any tenant) whose job is gone. Called
+    from the scheduler tick so the Runs page stops saying "running" for a run
+    a deploy killed, without anyone having to click."""
+    rows = session.exec(
+        select(Run).where(
+            Run.status.in_([RunStatus.pending, RunStatus.running])  # pyright: ignore[reportAttributeAccessIssue]
+        )
+    ).all()
+    if not rows:
+        return 0
+    alive = runs_with_live_jobs({r.id for r in rows if r.id is not None})
+    reaped = [r for r in rows if _is_abandoned(r, alive)]
+    for run in reaped:
+        _mark_abandoned(session, run)
+    if reaped:
+        session.commit()
+    return len(reaped)
 
 
 def trigger_run(session: Session, tenant: Tenant, *, trigger: str = "manual") -> Run:
@@ -121,7 +210,7 @@ def trigger_run(session: Session, tenant: Tenant, *, trigger: str = "manual") ->
     ).one()
     existing = run_in_flight(session, tenant.id)
     if existing is not None:
-        session.rollback()  # release the lock
+        session.commit()  # keep any abandoned runs it reaped; releases the lock
         raise RunInFlight(existing)
 
     run = create_run(session, tenant, trigger=trigger)
@@ -154,7 +243,14 @@ def month_spend_usd(session: Session, tenant_id: int) -> float:
             Run.tenant_id == tenant_id, Run.created_at >= month_start  # pyright: ignore[reportArgumentType]
         )
     ).one()
-    return float(total)
+    # Paid calls outside runs (content drafting) count toward the cap too.
+    other = session.exec(
+        select(func.coalesce(func.sum(SpendEntry.cost_usd), 0.0)).where(
+            SpendEntry.tenant_id == tenant_id,
+            SpendEntry.created_at >= month_start,  # pyright: ignore[reportArgumentType]
+        )
+    ).one()
+    return float(total) + float(other)
 
 
 def run_detail_payload(session: Session, run: Run) -> dict:

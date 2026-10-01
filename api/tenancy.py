@@ -11,7 +11,7 @@ from sqlmodel import Session, select
 
 from api.auth import AuthedUser, get_current_user
 from api.db import get_session
-from api.models import Membership, MembershipRole, Tenant
+from api.models import Membership, MembershipRole, Tenant, TenantStatus
 
 
 @dataclass
@@ -42,6 +42,8 @@ def get_current_tenant(
     tenant = session.exec(select(Tenant).where(Tenant.clerk_org_id == authed.org_id)).first()
     if tenant is None:
         raise HTTPException(status_code=403, detail="Organization is not provisioned as a tenant")
+    if tenant.status == TenantStatus.archived:
+        raise HTTPException(status_code=403, detail="This account is archived")
 
     # Mirror Clerk org membership lazily; Clerk only issues an org_id claim to
     # actual members of that org, so the claim itself is the authorization.

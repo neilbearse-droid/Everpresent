@@ -4,8 +4,9 @@ provider calls."""
 
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
-from sqlmodel import Session, select
+from sqlmodel import Session, col, func, select
 
 from api.fanout_service import PRIORITY_RANK, shard_norm
 from api.fanout_service import names_present as _names_present
@@ -77,6 +78,11 @@ def _date_window(
         except OverflowError:  # e.g. end=9999-12-31: no upper bound
             hi = None
     return lo, hi
+
+
+def _utc(dt: datetime) -> datetime:
+    """A window bound as aware UTC, the form the datetime columns bind."""
+    return dt.astimezone(UTC) if dt.tzinfo else dt.replace(tzinfo=UTC)
 
 
 def _in_window(dt: datetime, lo: datetime | None, hi: datetime | None) -> bool:
@@ -173,10 +179,11 @@ def citations_intel(
     # citations from, so the earned-media playbook can be tailored per engine.
     source_types_by_engine: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
     for citation in session.exec(
-        select(Citation).where(Citation.tenant_id == tenant_id)
+        select(Citation).where(
+            Citation.tenant_id == tenant_id,
+            col(Citation.result_id).in_(list(latest_ids) or [-1]),
+        )
     ).all():
-        if citation.result_id not in latest_ids:
-            continue
         _res = results_by_id.get(citation.result_id)
         if _res is not None:
             source_types_by_engine[str(_res.surface)][
@@ -278,13 +285,12 @@ def overview(
         if start
         else (datetime.now(UTC) - timedelta(days=TREND_DAYS)).date().isoformat()
     )
-    rows = [
-        r
-        for r in session.exec(
-            select(VisibilityDaily).where(VisibilityDaily.tenant_id == tenant_id)
-        ).all()
-        if _date_in_range(r.date, cutoff, end)
+    vd_conds: list[Any] = [
+        VisibilityDaily.tenant_id == tenant_id, col(VisibilityDaily.date) >= cutoff
     ]
+    if end:
+        vd_conds.append(col(VisibilityDaily.date) <= end)
+    rows = list(session.exec(select(VisibilityDaily).where(*vd_conds)).all())
 
     by_date: dict[str, list[VisibilityDaily]] = defaultdict(list)
     for row in rows:
@@ -314,20 +320,27 @@ def overview(
     # Share of voice is a competitive metric — exclude branded queries (the
     # brand always appears in them, which would inflate its share).
     branded = _branded_query_texts(session, tenant_id)
-    recent_result_ids = {
-        r.id
-        for r in session.exec(select(Result).where(Result.tenant_id == tenant_id)).all()
-        if r.id is not None
-        and r.variant == ResultVariant.search
-        and r.query_text not in branded
-        and _in_window(r.created_at, sov_lo, sov_hi)
+    # Counted in the database: this spans every result in the window.
+    sov_conds: list[Any] = [
+        Result.tenant_id == tenant_id,
+        Result.variant == ResultVariant.search,
+        Mention.tenant_id == tenant_id,
+    ]
+    if branded:
+        sov_conds.append(col(Result.query_text).not_in(branded))
+    if sov_lo is not None:
+        sov_conds.append(col(Result.created_at) >= _utc(sov_lo))
+    if sov_hi is not None:
+        sov_conds.append(col(Result.created_at) < _utc(sov_hi))
+    mention_counts: dict[str, int] = {
+        name: int(n)
+        for name, n in session.exec(
+            select(col(Mention.entity_name), func.count())
+            .join(Result, col(Result.id) == col(Mention.result_id))
+            .where(*sov_conds)
+            .group_by(col(Mention.entity_name))
+        ).all()
     }
-    mention_counts: dict[str, int] = defaultdict(int)
-    for mention in session.exec(
-        select(Mention).where(Mention.tenant_id == tenant_id)
-    ).all():
-        if mention.result_id in recent_result_ids:
-            mention_counts[mention.entity_name] += 1
     total = sum(mention_counts.values())
     share_of_voice = (
         {name: round(100.0 * count / total, 2) for name, count in mention_counts.items()}
@@ -486,23 +499,32 @@ def _latest_results_by_variant(
     branded = (
         _branded_query_texts(session, tenant_id) if scope != "all" else frozenset()
     )
+    if scope == "branded" and not branded:
+        return {}
+    # The database picks the newest id per (query, surface); only those rows
+    # are loaded. Loading the whole history to keep a few dozen rows cost
+    # seconds and hundreds of MB per call once a tenant has months of runs.
+    conds: list[Any] = [
+        Result.tenant_id == tenant_id,
+        Result.variant == variant,
+        Result.status == "ok",
+    ]
+    if lo is not None:
+        conds.append(col(Result.created_at) >= _utc(lo))
+    if hi is not None:
+        conds.append(col(Result.created_at) < _utc(hi))
+    if scope == "competitive" and branded:
+        conds.append(col(Result.query_text).not_in(branded))
+    if scope == "branded":
+        conds.append(col(Result.query_text).in_(branded))
+    newest = (
+        select(func.max(Result.id))
+        .where(*conds)
+        .group_by(col(Result.query_text), col(Result.surface))
+    )
     latest: dict[tuple[str, str], Result] = {}
-    for result in session.exec(
-        select(Result).where(
-            Result.tenant_id == tenant_id,
-            Result.variant == variant,
-            Result.status == "ok",
-        )
-    ).all():
-        if not _in_window(result.created_at, lo, hi):
-            continue
-        if scope == "competitive" and result.query_text in branded:
-            continue
-        if scope == "branded" and result.query_text not in branded:
-            continue
-        key = (result.query_text, str(result.surface))
-        if key not in latest or (result.id or 0) > (latest[key].id or 0):
-            latest[key] = result
+    for result in session.exec(select(Result).where(col(Result.id).in_(newest))).all():
+        latest[(result.query_text, str(result.surface))] = result
     return latest
 
 
@@ -1501,16 +1523,28 @@ def kpi_scorecard(
     # Competitive queries only, matching presence_rate on the same screen
     # (branded queries name the brand almost always and would inflate it).
     branded_texts = _branded_query_texts(session, tenant_id)
+    st_conds: list[Any] = [
+        Result.tenant_id == tenant_id, Result.variant == ResultVariant.search,
+        Result.status == "ok",
+    ]
+    if lo is not None:
+        st_conds.append(col(Result.created_at) >= _utc(lo))
+    if hi is not None:
+        st_conds.append(col(Result.created_at) < _utc(hi))
+    if branded_texts:
+        st_conds.append(col(Result.query_text).not_in(branded_texts))
+    # Only the last STABILITY_RUNS runs are used; load just those.
+    recent_run_ids = session.exec(
+        select(col(Result.run_id)).where(*st_conds)
+        .group_by(col(Result.run_id)).order_by(col(Result.run_id).desc())
+        .limit(STABILITY_RUNS)
+    ).all()
     by_run: dict[int, list[Result]] = defaultdict(list)
-    for r in session.exec(
-        select(Result).where(
-            Result.tenant_id == tenant_id, Result.variant == ResultVariant.search,
-            Result.status == "ok",
-        )
-    ).all():
-        if not _in_window(r.created_at, lo, hi) or r.query_text in branded_texts:
-            continue
-        by_run[r.run_id].append(r)
+    if recent_run_ids:
+        for r in session.exec(
+            select(Result).where(*st_conds, col(Result.run_id).in_(recent_run_ids))
+        ).all():
+            by_run[r.run_id].append(r)
     recent_runs = sorted(by_run)[-STABILITY_RUNS:]
     run_ids_flat = [x.id for rid in recent_runs for x in by_run[rid] if x.id is not None]
     brand_result_ids: set[int] = set()
@@ -1650,27 +1684,32 @@ def interventions_report(session: Session, tenant_id: int) -> dict:
         ).all()
     )
 
-    rows = [
-        (r.query_text, str(r.surface), _as_utc(r.created_at), r.id)
-        for r in session.exec(
-            select(Result).where(
-                Result.tenant_id == tenant_id,
-                Result.variant == ResultVariant.search,
-                Result.status == "ok",
-            )
-        ).all()
-        if r.id is not None
+    if not ledger:
+        return {"interventions": [], "aggregate": None}
+
+    result_conds: list[Any] = [
+        Result.tenant_id == tenant_id,
+        Result.variant == ResultVariant.search,
+        Result.status == "ok",
     ]
-    brand_ids: set[int] = set()
-    ids = [rid for (_q, _s, _c, rid) in rows]
-    if ids:
-        for m in session.exec(
-            select(Mention).where(
-                Mention.result_id.in_(ids),  # pyright: ignore[reportAttributeAccessIssue]
-                Mention.entity_type == "brand",
-            )
-        ).all():
-            brand_ids.add(m.result_id)
+    rows = [
+        (query_text, str(surface), _as_utc(created_at), rid)
+        for query_text, surface, created_at, rid in session.exec(
+            select(
+                col(Result.query_text), col(Result.surface),
+                col(Result.created_at), col(Result.id),
+            ).where(*result_conds)
+        ).all()
+        if rid is not None
+    ]
+    # Joined in the database rather than an IN list of every result id.
+    brand_ids: set[int] = set(
+        session.exec(
+            select(col(Mention.result_id))
+            .join(Result, col(Result.id) == col(Mention.result_id))
+            .where(*result_conds, Mention.entity_type == "brand")
+        ).all()
+    )
 
     treated_queries = {i.query_text for i in ledger}
 
@@ -1780,17 +1819,22 @@ def _contestability(session: Session, tenant_id: int, query_texts: set[str]) -> 
     in. Needs ≥2 runs of history to say anything — reported honestly as
     'needs history' until then."""
     hashes_by_key: dict[tuple[str, str], list[str]] = defaultdict(list)
-    for r in session.exec(
-        select(Result)
+    if not query_texts:
+        return {}
+    # Three columns, not full rows: this walks the whole history.
+    for query_text, surface, response_hash in session.exec(
+        select(col(Result.query_text), col(Result.surface), col(Result.response_hash))
         .where(
             Result.tenant_id == tenant_id,
             Result.variant == ResultVariant.search,
             Result.status == "ok",
+            col(Result.query_text).in_(query_texts),
+            col(Result.response_hash).is_not(None),
         )
-        .order_by(Result.id)  # pyright: ignore[reportArgumentType]
+        .order_by(col(Result.id))
     ).all():
-        if r.query_text in query_texts and r.response_hash:
-            hashes_by_key[(r.query_text, str(r.surface))].append(r.response_hash)
+        if response_hash:
+            hashes_by_key[(query_text, str(surface))].append(response_hash)
 
     dependence_by_query: dict[str, list[float]] = defaultdict(list)
     for c in session.exec(
@@ -1832,24 +1876,37 @@ def _lost_citations(session: Session, tenant_id: int) -> dict:
     # or not they produced brand citations: a run that lost EVERY brand
     # citation is exactly the one this radar exists to catch.
     branded = _branded_query_texts(session, tenant_id)
+    base: list[Any] = [
+        Result.tenant_id == tenant_id,
+        Result.variant == ResultVariant.search,
+        Result.status == "ok",
+    ]
+    if branded:
+        base.append(col(Result.query_text).not_in(branded))
+    # Only the last two measured runs matter; don't load the whole history.
+    last_two = session.exec(
+        select(col(Result.run_id)).where(*base)
+        .group_by(col(Result.run_id)).order_by(col(Result.run_id).desc()).limit(2)
+    ).all()
     result_ctx: dict[int, tuple[int, str]] = {}
     measured: dict[int, set[str]] = defaultdict(set)
-    for r in session.exec(
-        select(Result).where(
-            Result.tenant_id == tenant_id,
-            Result.variant == ResultVariant.search,
-            Result.status == "ok",
-        )
-    ).all():
-        if r.id is None or r.query_text in branded:
-            continue
-        result_ctx[r.id] = (r.run_id, r.query_text)
-        measured[r.run_id].add(r.query_text)
+    if last_two:
+        for rid, run_id, query_text in session.exec(
+            select(col(Result.id), col(Result.run_id), col(Result.query_text)).where(
+                *base, col(Result.run_id).in_(last_two)
+            )
+        ).all():
+            if rid is None:
+                continue
+            result_ctx[rid] = (run_id, query_text)
+            measured[run_id].add(query_text)
     by_run: dict[int, set[tuple[str, str]]] = defaultdict(set)
     domain_of: dict[str, str] = {}
     for c in session.exec(
         select(Citation).where(
-            Citation.tenant_id == tenant_id, Citation.source_category == "brand"
+            Citation.tenant_id == tenant_id,
+            Citation.source_category == "brand",
+            col(Citation.result_id).in_(list(result_ctx) or [-1]),
         )
     ).all():
         ctx = result_ctx.get(c.result_id)
@@ -2238,27 +2295,40 @@ def queries_intel(
 
     # Latest search-variant result per (query_text, surface), in-window.
     lo, hi = _date_window(start, end)
-    latest_results: dict[tuple[str, str], Result] = {}
-    for result in session.exec(
-        select(Result).where(
-            Result.tenant_id == tenant_id, Result.variant == ResultVariant.search
-        )
-    ).all():
-        if not _in_window(result.created_at, lo, hi):
-            continue
-        key = (result.query_text, str(result.surface))
-        current = latest_results.get(key)
-        # Prefer the newest SUCCESSFUL answer: a failed or blocked retry must
-        # not hide the last good one (it would read as "brand not mentioned").
-        # Fall back to the newest attempt of any status when none succeeded.
-        ok_new = result.status == ResultStatus.ok
-        ok_cur = current is not None and current.status == ResultStatus.ok
-        if (
-            current is None
-            or (ok_new and not ok_cur)
-            or (ok_new == ok_cur and (result.id or 0) > (current.id or 0))
-        ):
-            latest_results[key] = result
+    # Prefer the newest SUCCESSFUL answer per (query, surface): a failed or
+    # blocked retry must not hide the last good one (it would read as "brand
+    # not mentioned"). Fall back to the newest attempt when none succeeded.
+    # Both picks happen in the database; only the chosen rows are loaded.
+    conds: list[Any] = [Result.tenant_id == tenant_id, Result.variant == ResultVariant.search]
+    if lo is not None:
+        conds.append(col(Result.created_at) >= _utc(lo))
+    if hi is not None:
+        conds.append(col(Result.created_at) < _utc(hi))
+    key_cols = (col(Result.query_text), col(Result.surface))
+    newest_ok = {
+        (qt, str(sf)): rid
+        for qt, sf, rid in session.exec(
+            select(*key_cols, func.max(Result.id))
+            .where(*conds, Result.status == ResultStatus.ok)
+            .group_by(*key_cols)
+        ).all()
+    }
+    newest_any = {
+        (qt, str(sf)): rid
+        for qt, sf, rid in session.exec(
+            select(*key_cols, func.max(Result.id)).where(*conds).group_by(*key_cols)
+        ).all()
+    }
+    chosen = {key: newest_ok.get(key, rid) for key, rid in newest_any.items()}
+    by_id = {
+        r.id: r
+        for r in session.exec(
+            select(Result).where(col(Result.id).in_(list(chosen.values()) or [-1]))
+        ).all()
+    }
+    latest_results: dict[tuple[str, str], Result] = {
+        key: by_id[rid] for key, rid in chosen.items() if rid in by_id
+    }
 
     result_ids = [r.id for r in latest_results.values() if r.id is not None]
     brand_mentioned_ids: set[int] = set()

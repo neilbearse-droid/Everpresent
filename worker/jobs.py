@@ -193,6 +193,7 @@ B_ADAPTERS: dict[str, tuple[Any, str, str, str]] = {
 # Extra seconds a Mode B call gets beyond its configured timeout (browser
 # launch and teardown) before the dispatch loop gives up on it.
 _B_TIMEOUT_GRACE_S = 60
+_B_BREAKER_THRESHOLD = 5  # consecutive failures before a surface is skipped
 
 # Conservative per-call upper bounds for the cap reservation (§audit H6). A
 # real call rarely exceeds these; over-reserving errs toward withholding early.
@@ -918,7 +919,35 @@ async def _run_mode_b(run_id: int) -> None:
     booked_b_cost = 0.0  # portion of mode_b_cost already added to run.cost_usd
     capped = False
 
+    # Circuit breaker: a surface that fails N times in a row (browser won't
+    # launch, proxy dead, wall on every page) has its remaining items recorded
+    # as skipped instead of burning a scrape + rate-limit sleep each — without
+    # it one broken engine holds the only worker for hours.
+    consecutive_fail: dict[str, int] = {}
+    last_error: dict[str, str] = {}
+    last_call_at: dict[str, float] = {}
+    loop = asyncio.get_running_loop()
+
     for index, wi in enumerate(work):
+        if consecutive_fail.get(wi.surface, 0) >= _B_BREAKER_THRESHOLD:
+            with Session(get_engine()) as session:
+                session.add(Result(
+                    run_id=run_id, tenant_id=tenant_id, query_id=wi.query_id,
+                    persona_id=wi.persona_id, query_text=wi.query_text,
+                    persona_name=wi.persona_name, persona_segment=wi.persona_segment,
+                    surface=SurfaceCode(wi.surface), mode=RunMode.B,
+                    location_label=wi.location_label, status=ResultStatus.error,
+                    error=(f"skipped: {wi.surface} failed {_B_BREAKER_THRESHOLD} times in a "
+                           f"row (last: {last_error.get(wi.surface, '')})")[:500],
+                ))
+                counts["failed"] = counts.get("failed", 0) + 1
+                counts[f"skipped:{wi.surface}"] = counts.get(f"skipped:{wi.surface}", 0) + 1
+                run = session.get(Run, run_id)
+                if run is not None:
+                    run.counts = counts
+                    session.add(run)
+                session.commit()
+            continue
         # Estimated cost of this call — charged whether it succeeds, blocks, or
         # errors (the provider/proxy resources were consumed either way).
         call_cost = estimate_mode_b_cost_usd(
@@ -946,9 +975,14 @@ async def _run_mode_b(run_id: int) -> None:
         mode_b_cost += call_cost
 
         adapter_module, model_label, rate_attr, timeout_attr = B_ADAPTERS[wi.surface]
-        if index > 0:
-            rate = max(float(getattr(settings, rate_attr)), 0.1)
-            await asyncio.sleep(60.0 / rate)
+        # Pace per surface: only wait out the remainder of THIS engine's
+        # interval, not a full sleep between two different engines.
+        rate = max(float(getattr(settings, rate_attr)), 0.1)
+        if wi.surface in last_call_at:
+            wait = 60.0 / rate - (loop.time() - last_call_at[wi.surface])
+            if wait > 0:
+                await asyncio.sleep(wait)
+        last_call_at[wi.surface] = loop.time()
         is_aio = wi.surface == str(SurfaceCode.google_aio)
 
         # The request's geo (from its location) drives locale + residential
@@ -1026,6 +1060,11 @@ async def _run_mode_b(run_id: int) -> None:
                 mode=RunMode.B,
                 location_label=wi.location_label,
             )
+            if blocked or error is not None or outcome is None:
+                consecutive_fail[wi.surface] = consecutive_fail.get(wi.surface, 0) + 1
+                last_error[wi.surface] = (error or "no outcome")[:200]
+            else:
+                consecutive_fail[wi.surface] = 0
             if blocked:
                 counts["blocked"] = counts.get("blocked", 0) + 1
                 result.status = ResultStatus.blocked

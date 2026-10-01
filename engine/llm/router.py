@@ -20,7 +20,8 @@ from engine.llm.policy import assert_runtime_model_allowed
 
 ANTHROPIC_MESSAGES_URL = "https://api.anthropic.com/v1/messages"
 ANTHROPIC_VERSION = "2023-06-01"
-RETRYABLE_STATUS = {429, 500, 502, 503, 504}
+# 529 is Anthropic's "overloaded"; common under load, always transient.
+RETRYABLE_STATUS = {429, 500, 502, 503, 504, 529}
 
 
 class UtilityLLMError(RuntimeError):
@@ -75,7 +76,14 @@ def complete(
                 continue
             if resp.status_code >= 400:
                 raise UtilityLLMError(f"utility LLM HTTP {resp.status_code}: {resp.text[:200]}")
-            return parse_message_text(resp.json())
+            try:
+                return parse_message_text(resp.json())
+            except ValueError as exc:  # non-JSON 200 (proxy error page)
+                last_exc = exc
+                if attempt < max_attempts:
+                    _sleep(2**attempt)
+                    continue
+                raise UtilityLLMError(f"utility LLM returned non-JSON: {exc}") from exc
     raise UtilityLLMError(f"utility LLM exhausted retries: {last_exc}")  # pragma: no cover
 
 

@@ -11,7 +11,9 @@ ai_processing_approved AND have the draft model on approved_utility_models AND a
 key configured; otherwise ContentGenUnavailable is raised (the caller renders a
 clear reason, not a crash)."""
 
-from sqlmodel import Session, select
+from datetime import timedelta
+
+from sqlmodel import Session, func, select
 
 from api.config import get_settings
 from api.dashboards_service import _surface_label
@@ -25,6 +27,7 @@ from api.models import (
     ContentDraftStatus,
     FanoutShard,
     Result,
+    SpendEntry,
     Tenant,
     utcnow,
 )
@@ -156,8 +159,26 @@ def _draft(
 
     # Drafting is a paid LLM call: respect the tenant's monthly cap like every
     # other spend path.
-    if month_spend_usd(session, tenant.id) >= tenant.monthly_spend_cap_usd:
+    settings = get_settings()
+    cost = settings.utility_draft_cost_usd
+    if month_spend_usd(session, tenant.id) + cost > tenant.monthly_spend_cap_usd:
         raise ContentGenUnavailable("the monthly spend cap is reached; raise it to draft more")
+    hour_ago = utcnow() - timedelta(hours=1)
+    recent = session.exec(
+        select(func.count()).select_from(SpendEntry).where(
+            SpendEntry.tenant_id == tenant.id,
+            SpendEntry.kind == "content_draft",
+            SpendEntry.created_at >= hour_ago,  # pyright: ignore[reportArgumentType]
+        )
+    ).one()
+    if recent >= settings.content_drafts_per_hour:
+        raise ContentGenUnavailable(
+            f"draft limit reached ({settings.content_drafts_per_hour} per hour); try again later"
+        )
+    # Book the spend before the call: a failed or slow call was still paid for,
+    # and concurrent clicks each see the others' entries.
+    session.add(SpendEntry(tenant_id=tenant.id, kind="content_draft", cost_usd=cost))
+    session.commit()
     raw = router.complete(
         prompt,
         model=model,

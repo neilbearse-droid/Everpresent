@@ -3,10 +3,13 @@ inbox. Everything reads Postgres rollups — no provider calls."""
 
 import csv
 import io
+from collections import Counter
 from datetime import UTC, datetime
+from typing import Any
 
 from fpdf import FPDF
-from sqlmodel import Session, select
+from sqlalchemy import select as sa_select
+from sqlmodel import Session, col, func, select
 
 from api import dashboards_service
 from api.dashboards_service import overview, personas
@@ -46,37 +49,72 @@ class _LatinPDF(FPDF):
         return super().multi_cell(w, h, _latin1(text), *args, **kwargs)
 
 
+_FORMULA_START = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _csv_cell(value: object) -> object:
+    """Neutralize spreadsheet formula injection: a text cell starting with
+    = + - @ (or tab/CR) is prefixed with ' so Excel/Sheets shows it as text.
+    Numbers pass through untouched, so negative scores stay numeric."""
+    if isinstance(value, str) and value.startswith(_FORMULA_START):
+        return "'" + value
+    return value
+
+
+class _SafeCsvWriter:
+    def __init__(self, out: io.StringIO) -> None:
+        self._writer = csv.writer(out)
+
+    def writerow(self, row: list) -> None:
+        self._writer.writerow([_csv_cell(v) for v in row])
+
+
 def build_results_csv(session: Session, tenant_id: int, run_id: int | None = None) -> str:
     """Per-result rows; scoped to one run when run_id is given."""
-    statement = select(Result).where(
-        Result.tenant_id == tenant_id, Result.variant == ResultVariant.search
-    )
+    scope: list[Any] = [Result.tenant_id == tenant_id, Result.variant == ResultVariant.search]
     if run_id is not None:
-        statement = statement.where(Result.run_id == run_id)
-    results = list(session.exec(statement).all())
-    result_ids = [r.id for r in results if r.id is not None]
+        scope.append(Result.run_id == run_id)
+    # Plain column rows, not ORM objects: a full-history export is tens of
+    # thousands of rows and full objects cost hundreds of MB per request.
+    # (sqlalchemy's select: sqlmodel's typed overloads stop at four columns.)
+    results = list(session.execute(
+        sa_select(
+            col(Result.run_id), col(Result.id), col(Result.created_at), col(Result.surface),
+            col(Result.mode), col(Result.status), col(Result.query_text),
+            col(Result.persona_name), col(Result.persona_segment), col(Result.latency_ms),
+        ).where(*scope).order_by(col(Result.run_id), col(Result.id))
+    ).all())
 
-    brand_mentions: dict[int, Mention] = {}
+    # result_id -> (rank, sentiment) of its best-ranked brand mention.
+    brand_mentions: dict[int, tuple[int | None, str | None]] = {}
     citation_counts: dict[int, int] = {}
-    if result_ids:
-        for m in session.exec(
-            select(Mention).where(Mention.result_id.in_(result_ids))  # pyright: ignore[reportAttributeAccessIssue]
+    if results:
+        # Joined/aggregated in the database: an IN list of every result id
+        # (tens of thousands after a few months) is slow and memory-heavy.
+        for result_id, rank, sentiment in session.exec(
+            select(col(Mention.result_id), col(Mention.rank), col(Mention.sentiment))
+            .join(Result, col(Result.id) == col(Mention.result_id))
+            .where(*scope, Mention.entity_type == "brand")
         ).all():
-            if m.entity_type == "brand":
-                # Keep the BEST-ranked brand mention per result (lowest rank),
-                # matching kpi_scorecard's min(...key=rank); setdefault kept the
-                # first row the DB happened to return, which could be a lower
-                # slot and disagree with the dashboard.
-                current = brand_mentions.get(m.result_id)
-                if current is None or (m.rank or 999) < (current.rank or 999):
-                    brand_mentions[m.result_id] = m
-        for c in session.exec(
-            select(Citation).where(Citation.result_id.in_(result_ids))  # pyright: ignore[reportAttributeAccessIssue]
-        ).all():
-            citation_counts[c.result_id] = citation_counts.get(c.result_id, 0) + 1
+            # Keep the BEST-ranked brand mention per result (lowest rank),
+            # matching kpi_scorecard's min(...key=rank); setdefault kept the
+            # first row the DB happened to return, which could be a lower
+            # slot and disagree with the dashboard.
+            current = brand_mentions.get(result_id)
+            if current is None or (rank or 999) < (current[0] or 999):
+                brand_mentions[result_id] = (rank, sentiment)
+        citation_counts = {
+            rid: int(n)
+            for rid, n in session.exec(
+                select(col(Citation.result_id), func.count())
+                .join(Result, col(Result.id) == col(Citation.result_id))
+                .where(*scope)
+                .group_by(col(Citation.result_id))
+            ).all()
+        }
 
     out = io.StringIO()
-    writer = csv.writer(out)
+    writer = _SafeCsvWriter(out)
     writer.writerow(
         [
             "run_id", "result_id", "created_at", "surface", "mode", "status",
@@ -84,14 +122,14 @@ def build_results_csv(session: Session, tenant_id: int, run_id: int | None = Non
             "brand_sentiment", "citations", "latency_ms",
         ]
     )
-    for r in sorted(results, key=lambda r: (r.run_id, r.id or 0)):
+    for r in results:
         mention = brand_mentions.get(r.id or -1)
         writer.writerow(
             [
                 r.run_id, r.id, r.created_at.isoformat(), r.surface, r.mode, r.status,
                 r.query_text, r.persona_name, r.persona_segment,
-                bool(mention), mention.rank if mention else "",
-                mention.sentiment if mention else "",
+                bool(mention), mention[0] if mention else "",
+                mention[1] if mention else "",
                 citation_counts.get(r.id or -1, 0), r.latency_ms,
             ]
         )
@@ -104,7 +142,7 @@ def build_visibility_csv(session: Session, tenant_id: int) -> str:
     ).all()
     competitor_names = sorted({n for row in rows for n in row.competitor_scores})
     out = io.StringIO()
-    writer = csv.writer(out)
+    writer = _SafeCsvWriter(out)
     writer.writerow(
         ["date", "surface", "segment", "brand_score", "mention_rate", "citation_rate",
          "result_count", *competitor_names]
@@ -130,9 +168,16 @@ def build_summary_pdf(session: Session, tenant: Tenant, run: Run | None = None) 
     classifications = session.exec(
         select(QueryClassification).where(QueryClassification.tenant_id == tenant.id)
     ).all()
-    buckets: dict[str, int] = {}
+    # Classifications are per (query, engine); the corpus counts QUERIES, so
+    # each query lands in the bucket most of its engines agree on.
+    per_query: dict[str, Counter[str]] = {}
     for c in classifications:
-        buckets[c.web_search_likelihood] = buckets.get(c.web_search_likelihood, 0) + 1
+        if c.web_search_likelihood:
+            per_query.setdefault(c.query_text, Counter())[c.web_search_likelihood] += 1
+    buckets: dict[str, int] = {}
+    for votes in per_query.values():
+        label = votes.most_common(1)[0][0]
+        buckets[label] = buckets.get(label, 0) + 1
 
     pdf = _LatinPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
@@ -176,7 +221,11 @@ def build_summary_pdf(session: Session, tenant: Tenant, run: Run | None = None) 
         pdf.set_font("helvetica", "B", 13)
         pdf.cell(0, 8, "Biggest movers", new_x="LMARGIN", new_y="NEXT")
         pdf.set_font("helvetica", "", 10)
-        for mover in ov["movers"][:6]:
+        moved = [m for m in ov["movers"] if m["delta"] != 0]
+        if not moved:
+            pdf.cell(0, 5.5, "  No change since the previous measurement.",
+                     new_x="LMARGIN", new_y="NEXT")
+        for mover in moved[:6]:
             sign = "+" if mover["delta"] >= 0 else ""
             change = f"({mover['before']} -> {mover['after']})"
             pdf.cell(

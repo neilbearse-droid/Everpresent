@@ -266,11 +266,14 @@ def create_intervention(payload: InterventionCreate, ctx: Ctx, session: Db) -> I
             raise HTTPException(
                 status_code=422, detail="shipped_at must be an ISO date (YYYY-MM-DD)"
             ) from exc
+    url = payload.url.strip()
+    if url and not url.lower().startswith(("http://", "https://")):
+        raise HTTPException(status_code=422, detail="url must start with http:// or https://")
     item = Intervention(
         tenant_id=ctx.tenant_id,
         query_text=text,
         description=payload.description.strip(),
-        url=payload.url.strip(),
+        url=url,
         shipped_at=shipped,
         created_by=ctx.authed.user.email,
     )

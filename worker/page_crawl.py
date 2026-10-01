@@ -15,6 +15,7 @@ from api.config import get_settings
 from api.dashboards_service import citations_intel
 from api.models import BrandProfile, Competitor, PagePresence, Tenant, utcnow
 from engine.audit.presence import crawl_page, detect_presence, extract_features
+from engine.netguard import guard_public_request
 
 log = structlog.get_logger()
 
@@ -63,9 +64,11 @@ def crawl_power_pages(tenant_id: int) -> int:
     # Phase 2 — fetch + parse each page. NO DB CONNECTION HELD.
     proxy = get_settings().scrape_proxy_url or None
     parsed: list[dict] = []
+    # Cited URLs are outsider-controlled: public http(s) only, every hop.
     with httpx.Client(
         timeout=TIMEOUT_S, follow_redirects=True, proxy=proxy,
         headers={"User-Agent": _CRAWL_UA},
+        event_hooks={"request": [guard_public_request]},
     ) as client:
         for page in pages:
             fetched = crawl_page(client, page["url"])

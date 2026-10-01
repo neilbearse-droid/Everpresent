@@ -637,6 +637,19 @@ class ContentDraft(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=utcnow)
 
 
+class SpendEntry(SQLModel, table=True):
+    """Paid calls made outside a Run (e.g. content drafting), so the monthly
+    spend cap sees them. Run spend stays on Run.cost_usd."""
+
+    __tablename__ = "spend_entries"  # pyright: ignore[reportAssignmentType]
+
+    id: int | None = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenants.id", index=True)
+    kind: str = Field(index=True)  # e.g. "content_draft"
+    cost_usd: float = 0.0
+    created_at: datetime = Field(default_factory=utcnow, index=True)
+
+
 class AuditLog(SQLModel, table=True):
     __tablename__ = "audit_log"  # pyright: ignore[reportAssignmentType]
 

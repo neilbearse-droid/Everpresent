@@ -150,8 +150,16 @@ def extract_features(html: str) -> dict[str, Any]:
 def crawl_page(client: httpx.Client, url: str) -> dict[str, Any]:
     """Fetch one page. Returns {html, http_status} or {error}."""
     try:
-        resp = client.get(url, headers={"User-Agent": BROWSER_UA})
-        html = resp.text[:MAX_HTML_BYTES]
-        return {"html": html, "http_status": resp.status_code}
+        # Stream and stop at the cap: a multi-GB response must not be pulled
+        # into worker memory before truncation.
+        with client.stream("GET", url, headers={"User-Agent": BROWSER_UA}) as resp:
+            buf = bytearray()
+            for chunk in resp.iter_bytes():
+                buf.extend(chunk)
+                if len(buf) >= MAX_HTML_BYTES:
+                    break
+            encoding = resp.encoding or "utf-8"
+            html = bytes(buf[:MAX_HTML_BYTES]).decode(encoding, errors="replace")
+            return {"html": html, "http_status": resp.status_code}
     except httpx.HTTPError as exc:
         return {"error": f"{type(exc).__name__}: {exc}"[:300], "http_status": None}

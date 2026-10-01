@@ -223,3 +223,45 @@ def test_queries_intel_shows_both_modes(
         modes = {r["mode"] for r in query["latest_results"].values()}
         assert modes == {"A", "B"}  # the side-by-side comparison, per query
         assert query["latest_results"]["chatgpt_web"]["brand_mentioned"] is True
+
+
+def test_a_broken_browser_engine_trips_the_breaker(
+    db_session, job_env, fake_retrieve, monkeypatch  # noqa: F811
+):
+    """A web engine that fails every time (browser won't launch, proxy dead)
+    stops being called after 5 straight failures; the rest are recorded as
+    skipped, the run still completes on the other engines."""
+    from api.config import get_settings
+    from api.models import Query, Result
+    from worker.jobs import _B_BREAKER_THRESHOLD, run_mode_a, run_mode_b
+
+    calls: list[str] = []
+
+    async def _broken(persona_prompt, query_text, **_kw):
+        calls.append(query_text)
+        raise RuntimeError("BrowserType.launch: Executable doesn't exist")
+
+    monkeypatch.setattr("engine.retrievers.chatgpt_web.retrieve", _broken)
+    monkeypatch.setenv("CHATGPT_WEB_RATE_PER_MIN", "100000")
+    get_settings.cache_clear()
+    monkeypatch.setattr("worker.jobs.enqueue_run_mode_b", lambda _rid: None)
+
+    tenant = make_tenant(db_session)
+    for i in range(8):
+        db_session.add(Query(tenant_id=tenant.id, text=f"extra question {i}"))
+    db_session.commit()
+    add_web_surface(db_session, tenant)
+    run_id = _pending_run(db_session, tenant)
+    run_mode_a(run_id)
+    run_mode_b(run_id)
+
+    db_session.expire_all()
+    run = db_session.get(Run, run_id)
+    assert run is not None and run.status == RunStatus.complete
+    assert len(calls) == _B_BREAKER_THRESHOLD
+    web = db_session.exec(
+        select(Result).where(Result.run_id == run_id, Result.surface == SurfaceCode.chatgpt_web)
+    ).all()
+    skipped = [r for r in web if (r.error or "").startswith("skipped:")]
+    assert len(web) > _B_BREAKER_THRESHOLD and len(skipped) == len(web) - _B_BREAKER_THRESHOLD
+    assert run.counts[f"skipped:{SurfaceCode.chatgpt_web.value}"] == len(skipped)

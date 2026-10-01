@@ -18,7 +18,7 @@ from api.models import (
 )
 
 
-def test_reclaim_only_fails_stale_running_runs(db_session, monkeypatch):
+def test_reclaim_fails_runs_whose_job_is_gone_and_keeps_live_ones(db_session, monkeypatch):
     from worker.main import reclaim_orphaned_runs
 
     monkeypatch.setattr("api.db.get_engine", lambda: db_session.get_bind())
@@ -26,15 +26,38 @@ def test_reclaim_only_fails_stale_running_runs(db_session, monkeypatch):
     db_session.add(t)
     db_session.commit()
     now = utcnow()
-    fresh = Run(tenant_id=t.id, status=RunStatus.running, started_at=now - timedelta(minutes=20))
-    stale = Run(tenant_id=t.id, status=RunStatus.running, started_at=now - timedelta(hours=6))
-    db_session.add_all([fresh, stale])
+    live = Run(tenant_id=t.id, status=RunStatus.running, created_at=now - timedelta(minutes=20),
+               started_at=now - timedelta(minutes=20))
+    killed = Run(tenant_id=t.id, status=RunStatus.running, created_at=now - timedelta(minutes=20),
+                 started_at=now - timedelta(minutes=20))
+    db_session.add_all([live, killed])
     db_session.commit()
+    monkeypatch.setattr("api.runs_service.runs_with_live_jobs", lambda ids: {live.id})
 
     reclaim_orphaned_runs()
     db_session.expire_all()
-    assert db_session.get(Run, fresh.id).status == RunStatus.running  # type: ignore[union-attr]
-    assert db_session.get(Run, stale.id).status == RunStatus.failed  # type: ignore[union-attr]
+    assert db_session.get(Run, live.id).status == RunStatus.running  # type: ignore[union-attr]
+    got = db_session.get(Run, killed.id)
+    assert got.status == RunStatus.failed and "abandoned" in (got.error or "")  # type: ignore[union-attr]
+
+
+def test_redis_unreadable_never_fails_a_recent_run(db_session, monkeypatch):
+    from worker.main import reclaim_orphaned_runs
+
+    monkeypatch.setattr("api.db.get_engine", lambda: db_session.get_bind())
+    monkeypatch.setattr("api.runs_service.runs_with_live_jobs", lambda ids: None)
+    t = Tenant(name="T", slug="t")
+    db_session.add(t)
+    db_session.commit()
+    recent = Run(tenant_id=t.id, status=RunStatus.running, created_at=utcnow() - timedelta(hours=1))
+    ancient = Run(tenant_id=t.id, status=RunStatus.pending,
+                  created_at=utcnow() - timedelta(hours=9))
+    db_session.add_all([recent, ancient])
+    db_session.commit()
+    reclaim_orphaned_runs()
+    db_session.expire_all()
+    assert db_session.get(Run, recent.id).status == RunStatus.running  # type: ignore[union-attr]
+    assert db_session.get(Run, ancient.id).status == RunStatus.failed  # type: ignore[union-attr]
 
 
 def test_trigger_run_records_a_queue_failure(db_session, monkeypatch):
@@ -129,29 +152,30 @@ def test_second_trigger_is_blocked_while_a_run_is_live(db_session, monkeypatch):
     assert len(db_session.exec(select(Run)).all()) == 1
 
 
-def test_stale_or_finished_runs_do_not_block(db_session, monkeypatch):
+def test_a_run_killed_by_a_deploy_does_not_block_the_next(db_session, monkeypatch):
     from api.runs_service import trigger_run
 
     monkeypatch.setattr("api.queue.enqueue_run", lambda _run_id: None)
     t = _runnable_tenant(db_session)
     db_session.add(Run(tenant_id=t.id, status=RunStatus.complete))
-    db_session.add(Run(tenant_id=t.id, status=RunStatus.pending,
-                       created_at=utcnow() - timedelta(hours=6)))  # lost job
+    killed = Run(tenant_id=t.id, status=RunStatus.running,
+                 created_at=utcnow() - timedelta(minutes=10))  # its job died
+    db_session.add(killed)
     db_session.commit()
+    monkeypatch.setattr("api.runs_service.runs_with_live_jobs", lambda ids: set())
     assert trigger_run(db_session, t).status == RunStatus.pending
+    db_session.refresh(killed)
+    assert killed.status == RunStatus.failed and "abandoned" in (killed.error or "")
 
 
-def test_reclaim_fails_a_pending_run_that_was_never_picked_up(db_session, monkeypatch):
-    from worker.main import reclaim_orphaned_runs
+def test_a_just_triggered_run_blocks_even_before_its_job_is_visible(db_session, monkeypatch):
+    import pytest
 
-    monkeypatch.setattr("api.db.get_engine", lambda: db_session.get_bind())
-    t = Tenant(name="T", slug="t")
-    db_session.add(t)
-    db_session.commit()
-    lost = Run(tenant_id=t.id, status=RunStatus.pending, created_at=utcnow() - timedelta(hours=6))
-    db_session.add(lost)
-    db_session.commit()
-    reclaim_orphaned_runs()
-    db_session.expire_all()
-    got = db_session.get(Run, lost.id)
-    assert got.status == RunStatus.failed and "never picked up" in (got.error or "")  # type: ignore[union-attr]
+    from api.runs_service import RunInFlight, trigger_run
+
+    monkeypatch.setattr("api.queue.enqueue_run", lambda _run_id: None)
+    monkeypatch.setattr("api.runs_service.runs_with_live_jobs", lambda ids: set())
+    t = _runnable_tenant(db_session)
+    trigger_run(db_session, t)
+    with pytest.raises(RunInFlight):
+        trigger_run(db_session, t)  # within START_GRACE

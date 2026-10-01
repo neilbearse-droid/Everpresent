@@ -249,6 +249,8 @@ def import_yaml(
 @router.post("/tenants/{slug}/runs", status_code=201)
 def trigger_run_route(slug: str, session: Db, admin: Admin) -> Run:
     tenant = _tenant_or_404(session, slug)
+    if tenant.status == TenantStatus.archived:
+        raise HTTPException(status_code=409, detail="Tenant is archived; unarchive it to run")
     try:
         run = trigger_run(session, tenant, trigger="manual")
     except RunInFlight as exc:

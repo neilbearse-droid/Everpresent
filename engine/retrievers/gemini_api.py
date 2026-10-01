@@ -19,7 +19,8 @@ import httpx
 from engine.retrievers.openai_api import ParsedCitation, ParsedResponse, RetrievalOutcome
 
 GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
-RETRYABLE_STATUS = {429, 500, 502, 503, 504}
+# 529 is Anthropic's "overloaded"; common under load, always transient.
+RETRYABLE_STATUS = {429, 500, 502, 503, 504, 529}
 
 
 _REDIRECT_HOST = "vertexaisearch.cloud.google.com"
@@ -146,7 +147,14 @@ async def retrieve(
                 await asyncio.sleep(2**attempt)
                 continue
             resp.raise_for_status()
-            payload = resp.json()
+            try:
+                payload = resp.json()
+            except ValueError:
+                # A 200 that isn't JSON (proxy/CDN error page): transient.
+                if attempt < max_attempts:
+                    await asyncio.sleep(2**attempt)
+                    continue
+                raise
             candidates = payload.get("candidates") or []
             if candidates and not parse_gemini_payload(payload).text:
                 # e.g. finishReason MAX_TOKENS/SAFETY with no text: an error,

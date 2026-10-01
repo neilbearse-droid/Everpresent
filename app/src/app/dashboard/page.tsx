@@ -201,6 +201,10 @@ export default async function OverviewPage({
                 <p className="p-4 text-sm text-[var(--text-2)]">
                   Available after a second day of measurement.
                 </p>
+              ) : data!.movers.every((m) => m.delta === 0) ? (
+                <p className="p-4 text-sm text-[var(--text-2)]">
+                  No change since the previous measurement.
+                </p>
               ) : (
                 <table className="bp-table w-full">
                   <thead>
@@ -212,7 +216,7 @@ export default async function OverviewPage({
                     </tr>
                   </thead>
                   <tbody>
-                    {data!.movers.map((mover) => (
+                    {data!.movers.filter((m) => m.delta !== 0).map((mover) => (
                       <tr key={mover.label}>
                         <td>{mover.label}</td>
                         <td

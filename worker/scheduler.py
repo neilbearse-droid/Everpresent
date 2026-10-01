@@ -12,8 +12,8 @@ from sqlmodel import Session, select
 from api.config import get_settings
 from api.db import get_engine
 from api.health_service import beat_scheduler
-from api.models import Citation, MirrorState, RunSchedule, Tenant, utcnow
-from api.runs_service import RunInFlight, trigger_run
+from api.models import Citation, MirrorState, RunSchedule, Tenant, TenantStatus, utcnow
+from api.runs_service import RunInFlight, reap_abandoned_runs, trigger_run
 
 log = structlog.get_logger()
 
@@ -65,6 +65,9 @@ def _tick_one(session: Session, schedule: RunSchedule, now: datetime) -> int | N
 
     tenant = session.get(Tenant, schedule.tenant_id)
     if tenant is None:
+        return None
+    if tenant.status == TenantStatus.archived:
+        log.info("schedule.skipped_archived", tenant=tenant.slug)
         return None
     from api.plans import limits_for
     from api.scheduling import runs_in_last_day
@@ -139,6 +142,13 @@ def run() -> None:
                 tick(session)
         except Exception:  # noqa: BLE001 — the loop must survive anything
             log.exception("scheduler.tick_failed")
+        try:
+            # A run killed mid-flight (deploy SIGKILL) shows as failed within
+            # ~2 minutes instead of "running" until someone clicks Run now.
+            with Session(get_engine()) as session:
+                reap_abandoned_runs(session)
+        except Exception:  # noqa: BLE001
+            log.exception("scheduler.reap_failed")
         # Liveness for the admin System panel (never raises).
         beat_scheduler()
         time.sleep(TICK_SECONDS)

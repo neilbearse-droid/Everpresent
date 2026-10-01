@@ -13,6 +13,7 @@ import threading
 import structlog
 
 from worker.main import run as run_worker
+from worker.main import wait_for_schema
 from worker.scheduler import run as run_scheduler
 
 log = structlog.get_logger()
@@ -20,6 +21,8 @@ log = structlog.get_logger()
 
 def main() -> None:
     os.environ.setdefault("WORKER_QUEUES", "default,scrape")
+    # Before the scheduler thread starts: it queries the schema too.
+    wait_for_schema()
     # The scheduler is a resilient self-looping tick; run it alongside the
     # worker. The worker owns the main thread so its signal handlers work.
     scheduler_thread = threading.Thread(target=run_scheduler, name="scheduler", daemon=True)

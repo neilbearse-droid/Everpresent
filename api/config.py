@@ -61,6 +61,11 @@ class Settings(BaseSettings):
     # Rough per-call cost estimate for utility-LLM spend accounting (extraction
     # answers are short; kept conservative for the cap).
     utility_extract_cost_usd: float = 0.002
+    # Estimated per-draft cost (Sonnet, ~2k in / up to 1.6k out), booked to
+    # the spend ledger so the monthly cap sees drafting.
+    utility_draft_cost_usd: float = 0.03
+    # Per-tenant ceiling on draft generations per rolling hour.
+    content_drafts_per_hour: int = 30
 
     gemini_api_key: str = ""
     gemini_model: str = "gemini-2.5-flash"

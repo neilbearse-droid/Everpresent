@@ -102,17 +102,39 @@ def parse_serpapi_payload(payload: dict[str, Any]) -> AIOOutcome:
     return AIOOutcome(summary=summary, aio_text=text, citations=citations)
 
 
+_SERPAPI_RETRYABLE = {429, 500, 502, 503, 504}
+
+
+async def _serpapi_get(
+    client: httpx.AsyncClient, params: dict[str, str], *, max_attempts: int = 3
+) -> dict[str, Any]:
+    """GET SerpApi with retries on network errors, 429/5xx and non-JSON bodies:
+    one transient error must not cost a query its AI Overview data point."""
+    for attempt in range(1, max_attempts + 1):
+        try:
+            resp = await client.get(SERPAPI_URL, params=params)
+            if resp.status_code in _SERPAPI_RETRYABLE and attempt < max_attempts:
+                await asyncio.sleep(2**attempt)
+                continue
+            resp.raise_for_status()
+            return resp.json()
+        except (httpx.TransportError, ValueError):
+            if attempt < max_attempts:
+                await asyncio.sleep(2**attempt)
+                continue
+            raise
+    raise RuntimeError("unreachable")  # pragma: no cover
+
+
 async def _capture_serpapi(
     query_text: str, *, gl: str, hl: str, api_key: str, timeout_s: float
 ) -> AIOOutcome:
     started = time.monotonic()
     async with httpx.AsyncClient(timeout=timeout_s) as client:
-        resp = await client.get(
-            SERPAPI_URL,
-            params={"engine": "google", "q": query_text, "gl": gl, "hl": hl, "api_key": api_key},
+        payload = await _serpapi_get(
+            client,
+            {"engine": "google", "q": query_text, "gl": gl, "hl": hl, "api_key": api_key},
         )
-        resp.raise_for_status()
-        payload = resp.json()
         extra = 0
         aio = payload.get("ai_overview") or {}
         # Google often renders the AI Overview lazily: SerpApi then returns only

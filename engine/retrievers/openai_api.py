@@ -20,7 +20,8 @@ from urllib.parse import urlparse
 import httpx
 
 OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
-RETRYABLE_STATUS = {429, 500, 502, 503, 504}
+# 529 is Anthropic's "overloaded"; common under load, always transient.
+RETRYABLE_STATUS = {429, 500, 502, 503, 504, 529}
 
 
 @dataclass
@@ -195,7 +196,14 @@ async def retrieve(
                 await asyncio.sleep(2**attempt)
                 continue
             resp.raise_for_status()
-            payload = resp.json()
+            try:
+                payload = resp.json()
+            except ValueError:
+                # A 200 that isn't JSON (proxy/CDN error page): transient.
+                if attempt < max_attempts:
+                    await asyncio.sleep(2**attempt)
+                    continue
+                raise
             if payload.get("status") == "incomplete" and not parse_responses_payload(payload).text:
                 # Ran out of output budget before any answer text: an error,
                 # not an answer that "doesn't mention the brand".

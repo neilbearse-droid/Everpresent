@@ -22,6 +22,7 @@ from urllib import robotparser
 import httpx
 
 from engine.audit.rendering import render_verdict
+from engine.netguard import guard_public_request
 
 # (agent, what it powers, kind). Three functional classes (§AEO-plan m2):
 #  - training: feeds the next model's parametric layer — blocking is a slow,
@@ -237,5 +238,8 @@ def audit_domain(client: httpx.Client, domain: str) -> dict[str, Any]:
 
 
 def audit_domains(domains: list[str], *, timeout_s: float = 8.0) -> list[dict[str, Any]]:
-    with httpx.Client(timeout=timeout_s, follow_redirects=True) as client:
+    with httpx.Client(
+        timeout=timeout_s, follow_redirects=True,
+        event_hooks={"request": [guard_public_request]},
+    ) as client:
         return [audit_domain(client, d) for d in domains]

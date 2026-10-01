@@ -27,7 +27,8 @@ ANTHROPIC_VERSION = "2023-06-01"
 # queries rarely need more, so this caps the fee tail without changing the
 # answer for the typical case.
 WEB_SEARCH_TOOL = {"type": "web_search_20250305", "name": "web_search", "max_uses": 3}
-RETRYABLE_STATUS = {429, 500, 502, 503, 504}
+# 529 is Anthropic's "overloaded"; common under load, always transient.
+RETRYABLE_STATUS = {429, 500, 502, 503, 504, 529}
 
 
 def _collect_citations(
@@ -142,7 +143,14 @@ async def retrieve(
                 await asyncio.sleep(2**attempt)
                 continue
             resp.raise_for_status()
-            payload = resp.json()
+            try:
+                payload = resp.json()
+            except ValueError:
+                # A 200 that isn't JSON (proxy/CDN error page): transient.
+                if attempt < max_attempts:
+                    await asyncio.sleep(2**attempt)
+                    continue
+                raise
             return RetrievalOutcome(
                 payload=payload,
                 parsed=parse_claude_payload(payload),
