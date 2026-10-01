@@ -45,6 +45,7 @@ export const SURFACE_LABELS: Record<string, string> = {
   gemini_web: "Gemini (web)",
   copilot_web: "Microsoft Copilot",
   google_aio: "Google AI Overviews",
+  google_ai_mode: "Google AI Mode",
 };
 
 export function surfaceLabel(code: string): string {

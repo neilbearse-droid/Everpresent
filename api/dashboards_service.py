@@ -6,6 +6,7 @@ from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+from sqlalchemy import case
 from sqlmodel import Session, col, func, select
 
 from api.fanout_service import PRIORITY_RANK, shard_norm
@@ -33,6 +34,7 @@ from api.models import (
     VisibilityDaily,
 )
 from engine.processing.citations import classify_source_type, domain_is_owned
+from engine.processing.stats import change_verdict, rate_summary
 
 TREND_DAYS = 90
 SOV_DAYS = 30
@@ -407,6 +409,7 @@ def overview(
         ),
         "aio": aio_summary(session, tenant_id),
         "series_notes": _series_notes(session, tenant_id, [t["date"] for t in trend]),
+        "mention_rate": mention_rates(session, tenant_id, start, end)["overall"],
     }
 
 
@@ -1463,6 +1466,100 @@ def _stdev(values: list[float]) -> float:
 STABILITY_RUNS = 8
 
 
+MENTION_WINDOW_DAYS = 28
+
+
+def mention_rates(
+    session: Session, tenant_id: int, start: str | None = None, end: str | None = None
+) -> dict:
+    """Headline measurement: how often AI answers name the brand, pooled over
+    a window, per engine and overall — each with a 95% range — plus whether
+    the second half of the window differs from the first by more than noise.
+
+    Every ok search answer to a competitive (non-branded) query counts, across
+    all runs in the window: repeated runs are samples, not duplicates. Counted
+    in the database, so it stays fast at any history size."""
+    lo, hi = _date_window(start, end)
+    now = datetime.now(UTC)
+    hi_eff = _utc(hi) if hi is not None else now
+    lo_eff = _utc(lo) if lo is not None else hi_eff - timedelta(days=MENTION_WINDOW_DAYS)
+    mid = lo_eff + (hi_eff - lo_eff) / 2
+    branded = _branded_query_texts(session, tenant_id)
+    conds: list[Any] = [
+        Result.tenant_id == tenant_id,
+        Result.variant == ResultVariant.search,
+        Result.status == ResultStatus.ok,
+        col(Result.created_at) >= lo_eff,
+        col(Result.created_at) < hi_eff,
+    ]
+    if branded:
+        conds.append(col(Result.query_text).not_in(branded))
+    brand_hits = (
+        select(col(Mention.result_id))
+        .where(Mention.tenant_id == tenant_id, Mention.entity_type == "brand")
+        .distinct()
+        .subquery()
+    )
+    second_half = case((col(Result.created_at) >= mid, 1), else_=0)
+    rows = session.exec(
+        select(
+            col(Result.surface), second_half,
+            func.count(col(Result.id)), func.count(brand_hits.c.result_id),
+        )
+        .outerjoin(brand_hits, brand_hits.c.result_id == col(Result.id))
+        .where(*conds)
+        .group_by(col(Result.surface), second_half)
+    ).all()
+    prompts = dict(
+        session.exec(
+            select(col(Result.surface), func.count(func.distinct(col(Result.query_text))))
+            .where(*conds)
+            .group_by(col(Result.surface))
+        ).all()
+    )
+    # counts[surface] = [k_first, n_first, k_second, n_second]
+    counts: dict[str, list[int]] = defaultdict(lambda: [0, 0, 0, 0])
+    for surface, half, n, k in rows:
+        c = counts[str(surface)]
+        if half:
+            c[2] += int(k)
+            c[3] += int(n)
+        else:
+            c[0] += int(k)
+            c[1] += int(n)
+
+    def _entry(c: list[int]) -> dict:
+        return {
+            **rate_summary(c[0] + c[2], c[1] + c[3]),
+            "change": change_verdict(c[0], c[1], c[2], c[3]),
+        }
+
+    total = [sum(c[i] for c in counts.values()) for i in range(4)]
+    engines = sorted(
+        (
+            {
+                "surface": surface,
+                "label": _surface_label(surface),
+                "prompts": int(prompts.get(SurfaceCode(surface), prompts.get(surface, 0)) or 0),
+                **_entry(c),
+            }
+            for surface, c in counts.items()
+        ),
+        key=lambda e: -e["answers"],
+    )
+    return {
+        "window": {"start": lo_eff.date().isoformat(), "end": hi_eff.date().isoformat(),
+                   "split": mid.date().isoformat()},
+        "overall": {
+            "prompts": int(session.exec(
+                select(func.count(func.distinct(col(Result.query_text)))).where(*conds)
+            ).one() or 0),
+            **_entry(total),
+        },
+        "engines": engines,
+    }
+
+
 def kpi_scorecard(
     session: Session, tenant_id: int, start: str | None = None, end: str | None = None
 ) -> dict:
@@ -1611,6 +1708,7 @@ def kpi_scorecard(
 
     return {
         "brand_name": brand_name,
+        "mention_rates": mention_rates(session, tenant_id, start, end),
         "answer_share": answer_share,
         "share_breakdown": share_breakdown,
         "prominence": {
@@ -1843,31 +1941,43 @@ def _owned_domains(session: Session, tenant_id: int) -> list[str]:
 _DEPENDENCE_WEIGHT = {"very_likely": 1.0, "likely": 0.75, "possible": 0.5, "unlikely": 0.25}
 
 
+CONTEST_WINDOW_DAYS = 60
+
+
 def _contestability(session: Session, tenant_id: int, query_texts: set[str]) -> dict[str, dict]:
     """Contestability = answer volatility × retrieval dependence, per query.
 
-    Volatility comes from response_hash churn across runs (per surface, then
-    averaged): a changing answer means the engine's retrieval is still
-    shopping and fresh content can win it now; a byte-stable answer is locked
-    in. Needs ≥2 runs of history to say anything — reported honestly as
-    'needs history' until then."""
-    hashes_by_key: dict[tuple[str, str], list[str]] = defaultdict(list)
+    Volatility is churn in WHICH brands an answer names, run over run (per
+    surface, then averaged): when the named set keeps changing, the engine's
+    retrieval is still shopping and fresh content can win it now; when the same
+    brands come back every time, it's locked in. (Answer wording changes on
+    nearly every run, so text churn would call everything volatile.) Uses the
+    last CONTEST_WINDOW_DAYS. Needs >=2 runs of history to say anything —
+    reported honestly as 'needs history' until then."""
+    hashes_by_key: dict[tuple[str, str], list[frozenset[str]]] = defaultdict(list)
     if not query_texts:
         return {}
-    # Three columns, not full rows: this walks the whole history.
-    for query_text, surface, response_hash in session.exec(
-        select(col(Result.query_text), col(Result.surface), col(Result.response_hash))
-        .where(
-            Result.tenant_id == tenant_id,
-            Result.variant == ResultVariant.search,
-            Result.status == "ok",
-            col(Result.query_text).in_(query_texts),
-            col(Result.response_hash).is_not(None),
-        )
+    since = datetime.now(UTC) - timedelta(days=CONTEST_WINDOW_DAYS)
+    conds: list[Any] = [
+        Result.tenant_id == tenant_id,
+        Result.variant == ResultVariant.search,
+        Result.status == "ok",
+        col(Result.query_text).in_(query_texts),
+        col(Result.created_at) >= since,
+    ]
+    named: dict[int, set[str]] = defaultdict(set)
+    for rid, name in session.exec(
+        select(col(Mention.result_id), col(Mention.entity_name))
+        .join(Result, col(Result.id) == col(Mention.result_id))
+        .where(*conds)
+    ).all():
+        named[rid].add(name.lower())
+    for rid, query_text, surface in session.exec(
+        select(col(Result.id), col(Result.query_text), col(Result.surface))
+        .where(*conds)
         .order_by(col(Result.id))
     ).all():
-        if response_hash:
-            hashes_by_key[(query_text, str(surface))].append(response_hash)
+        hashes_by_key[(query_text, str(surface))].append(frozenset(named.get(rid, set())))
 
     dependence_by_query: dict[str, list[float]] = defaultdict(list)
     for c in session.exec(
@@ -2291,6 +2401,7 @@ def _surface_label(surface: str) -> str:
         "perplexity_web": "Perplexity (web)",
         "gemini_web": "Gemini (web)", "copilot_web": "Microsoft Copilot",
         "google_aio": "Google AI Overviews",
+        "google_ai_mode": "Google AI Mode",
     }
     return labels.get(surface, surface)
 

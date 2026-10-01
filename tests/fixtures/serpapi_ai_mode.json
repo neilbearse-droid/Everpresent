@@ -1,0 +1,16 @@
+{
+  "search_metadata": {"status": "Success"},
+  "text_blocks": [
+    {"type": "paragraph", "snippet": "For a small business, Wix and GoDaddy are the most common website builders.", "reference_indexes": [0, 1]},
+    {"type": "list", "list": [
+      {"type": "paragraph", "snippet": "GoDaddy Airo builds a site from a prompt."},
+      {"type": "paragraph", "snippet": "Squarespace has the strongest templates."}
+    ]}
+  ],
+  "references": [
+    {"title": "Best website builders 2026", "link": "https://www.pcmag.com/picks/the-best-website-builders", "source": "PCMag", "index": 0},
+    {"title": "GoDaddy Website Builder", "link": "https://www.godaddy.com/websites/website-builder", "source": "GoDaddy", "index": 1},
+    {"title": "dup", "link": "https://www.pcmag.com/picks/the-best-website-builders", "index": 2}
+  ],
+  "shopping_results": [{"title": "x"}]
+}

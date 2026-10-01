@@ -34,6 +34,9 @@ class SurfaceCode(StrEnum):
     gemini_web = "gemini_web"
     copilot_web = "copilot_web"
     google_aio = "google_aio"
+    # Google AI Mode (conversational search tab), via SerpApi. Enum value
+    # added in m28.
+    google_ai_mode = "google_ai_mode"
 
 
 class Tenant(SQLModel, table=True):

@@ -57,6 +57,7 @@ from engine.retrievers import (
     claude_api,
     copilot_web,
     gemini_api,
+    google_ai_mode,
     google_aio,
     openai_api,
     perplexity_api,
@@ -190,6 +191,11 @@ B_ADAPTERS: dict[str, tuple[Any, str, str, str]] = {
     # google_aio has its own call shape (per-query SERP capture, no persona);
     # the dispatch loop branches on it but rate limiting comes from here.
     "google_aio": (google_aio, "google-serp", "google_aio_rate_per_min", "google_aio_timeout_s"),
+    # AI Mode is a SERP-style capture too (SerpApi, per query, no persona).
+    "google_ai_mode": (
+        google_ai_mode, "google-ai-mode", "google_ai_mode_rate_per_min",
+        "google_ai_mode_timeout_s",
+    ),
 }
 
 
@@ -893,6 +899,11 @@ async def _run_mode_b(run_id: int) -> None:
         if limits.max_personas is not None:
             personas = personas[: limits.max_personas]
         base_counts = dict(run.counts) if run.counts else {}
+        if not settings.serpapi_key and str(SurfaceCode.google_ai_mode) in b_surfaces:
+            # AI Mode only runs through SerpApi: skip it as unconfigured (the
+            # readiness panel says what to set) instead of N failed calls.
+            b_surfaces = [b for b in b_surfaces if b != str(SurfaceCode.google_ai_mode)]
+            base_counts[f"unconfigured:{SurfaceCode.google_ai_mode}"] = 1
 
     # Work fans out over locations × queries × surfaces (§SCRAPING_V3 Part 2).
     # google_aio is per (query, geo) — a SERP takes no persona (§6.3).
@@ -902,7 +913,7 @@ async def _run_mode_b(run_id: int) -> None:
     web_cells = matrix_cells(queries, personas, first_persona_only=True)
     work: list[_BWorkItem] = []
     for surface in b_surfaces:
-        if surface == str(SurfaceCode.google_aio):
+        if surface in (str(SurfaceCode.google_aio), str(SurfaceCode.google_ai_mode)):
             work += [
                 _BWorkItem(qid, qtext, None, "(serp)", "", "", surface, label, geo)
                 for (label, geo) in locations
@@ -1027,6 +1038,19 @@ async def _run_mode_b(run_id: int) -> None:
                     # §6.3: the full rendered SERP goes to object storage.
                     "page_html": outcome.page_html,
                 }
+            elif wi.surface == str(SurfaceCode.google_ai_mode):
+                ai_mode = await asyncio.wait_for(
+                    google_ai_mode.capture(
+                        wi.query_text,
+                        geo=wi.geo or aio_geo,
+                        api_key=settings.serpapi_key,
+                        timeout_s=settings.google_ai_mode_timeout_s,
+                    ),
+                    timeout=settings.google_ai_mode_timeout_s + _B_TIMEOUT_GRACE_S,
+                )
+                outcome = ai_mode
+                parsed_text = ai_mode.text
+                response_payload = {"shopping_results": ai_mode.shopping_results}
             else:
                 timeout_s = float(getattr(settings, timeout_attr))
                 outcome = await asyncio.wait_for(

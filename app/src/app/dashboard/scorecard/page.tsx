@@ -1,4 +1,12 @@
-import { apiFetch, rangeQuery, type AccuracyReport, type KpiScorecard, type Me } from "@/lib/api";
+import {
+  apiFetch,
+  rangeQuery,
+  type AccuracyReport,
+  type KpiScorecard,
+  type Me,
+  type MentionRates,
+  type RateChange,
+} from "@/lib/api";
 import { GenerateDraft } from "./generate-draft";
 import { DashNav } from "@/components/dash-nav";
 import { NoOrgNotice } from "@/components/no-org-notice";
@@ -19,6 +27,85 @@ function Tile({ value, label, sub }: { value: string; label: string; sub?: strin
       <div className="mt-1 text-sm text-[var(--text-2)]">{label}</div>
       {sub && <div className="text-xs text-[var(--text-3)]">{sub}</div>}
     </div>
+  );
+}
+
+function ChangeBadge({ change }: { change: RateChange }) {
+  if (change.verdict === "up" || change.verdict === "down") {
+    const up = change.verdict === "up";
+    return (
+      <span className={`chip ${up ? "text-[var(--pos)]" : "text-[var(--neg)]"}`}>
+        {up ? "▲" : "▼"} {change.delta! > 0 ? "+" : ""}
+        {change.delta}pt · real change
+      </span>
+    );
+  }
+  return (
+    <span className="chip text-[var(--text-3)]">
+      {change.verdict === "no real change" ? "no real change" : "not enough data yet"}
+    </span>
+  );
+}
+
+/** The headline: how often AI answers name you, with an honest range. Answers
+ * vary run to run, so a single reading is noise; the pooled rate isn't. */
+function MentionRatePanel({ m, brand }: { m: MentionRates; brand: string }) {
+  const o = m.overall;
+  return (
+    <section className="card mb-6 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-10">
+        <div>
+          <p className="eyebrow mb-2">Mention rate · {brand}</p>
+          <div className="flex items-baseline gap-3">
+            <span className="text-6xl font-semibold leading-none tabular-nums text-[var(--text)]">
+              {o.rate}%
+            </span>
+            <span className="text-lg tabular-nums text-[var(--text-2)]">
+              ({o.low}–{o.high}%)
+            </span>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+            <ChangeBadge change={o.change} />
+            <span className="text-[var(--text-3)]">
+              {o.answers} answers · {o.prompts} prompts · {m.window.start} to {m.window.end}
+            </span>
+          </div>
+          <p className="mt-3 max-w-md text-xs leading-relaxed text-[var(--text-3)]">
+            How often AI answers name you, across every run in the window. The range is the 95%
+            confidence interval. A change is flagged only when the second half of the window
+            differs from the first by more than the noise.
+          </p>
+        </div>
+        <div className="min-w-72 flex-1 overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="text-xs text-[var(--text-3)]">
+                <th className="pb-2 pr-4 font-medium">Engine</th>
+                <th className="pb-2 pr-4 font-medium">Mention rate</th>
+                <th className="pb-2 pr-4 font-medium">95% range</th>
+                <th className="pb-2 pr-4 font-medium">Answers</th>
+                <th className="pb-2 font-medium">Change</th>
+              </tr>
+            </thead>
+            <tbody>
+              {m.engines.map((e) => (
+                <tr key={e.surface} className="border-t border-[var(--border)]">
+                  <td className="py-1.5 pr-4">{e.label}</td>
+                  <td className="py-1.5 pr-4 font-medium tabular-nums">{e.rate}%</td>
+                  <td className="py-1.5 pr-4 tabular-nums text-[var(--text-2)]">
+                    {e.low}–{e.high}%
+                  </td>
+                  <td className="py-1.5 pr-4 tabular-nums text-[var(--text-3)]">{e.answers}</td>
+                  <td className="py-1.5 text-xs">
+                    <ChangeBadge change={e.change} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -64,11 +151,15 @@ export default async function ScorecardPage({
     <main className="mx-auto max-w-[1400px] px-6 pb-16">
       <DashNav active="Scorecard" isSuperadmin={me.data?.is_superadmin} withDateRange />
 
-      {/* North-star */}
+      {d.mention_rates && d.mention_rates.overall.answers > 0 && (
+        <MentionRatePanel m={d.mention_rates} brand={d.brand_name} />
+      )}
+
+      {/* Prominence-weighted share: useful, but rank is noisy run to run. */}
       <section className="card mb-6 p-4">
         <div className="flex flex-wrap items-start justify-between gap-10">
           <div>
-            <p className="eyebrow mb-2">Answer share · {d.brand_name}</p>
+            <p className="eyebrow mb-2">Answer share · {d.brand_name} · directional</p>
             <div className="flex items-baseline gap-2">
               <span className="text-6xl font-semibold leading-none tabular-nums text-[var(--text)]">
                 {d.answer_share}%
@@ -76,7 +167,8 @@ export default async function ScorecardPage({
             </div>
             <p className="mt-3 max-w-md text-xs leading-relaxed text-[var(--text-3)]">
               Your share of AI answers compared with competitors, weighted by prominence. Being
-              named earlier and more often counts for more.
+              named earlier and more often counts for more. Treat it as directional: where a
+              brand is listed varies a lot from one answer to the next.
             </p>
           </div>
           <div className="min-w-64 flex-1">
@@ -100,6 +192,7 @@ export default async function ScorecardPage({
         <Tile
           value={d.prominence.avg_rank === null ? "—" : `#${d.prominence.avg_rank}`}
           label="Average position when named"
+          sub="directional: order varies run to run"
         />
         <div className="card p-4">
           <div className={`text-3xl font-semibold ${STABILITY_STYLE[d.stability.label] ?? ""}`}>

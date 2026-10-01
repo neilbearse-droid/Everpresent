@@ -130,8 +130,26 @@ export default async function OverviewPage({
           </div>
         </div>
         <div className="p-3">
-          <div className="bp-label">Engines measured</div>
-          <div className="bp-metric mt-1 text-[22px]">{modes?.engines.length ?? 0}</div>
+          <div className="bp-label">Mention rate (95% range)</div>
+          {data?.mention_rate && data.mention_rate.answers > 0 ? (
+            <>
+              <div className="bp-metric mt-1 text-[22px]">
+                {data.mention_rate.rate}%{" "}
+                <span className="text-[14px] text-[var(--text-2)]">
+                  {data.mention_rate.low}–{data.mention_rate.high}%
+                </span>
+              </div>
+              <div className="text-[11px] text-[var(--text-3)]">
+                {data.mention_rate.answers} answers ·{" "}
+                {data.mention_rate.change.verdict === "up" ||
+                data.mention_rate.change.verdict === "down"
+                  ? `${data.mention_rate.change.delta! > 0 ? "+" : ""}${data.mention_rate.change.delta}pt real change`
+                  : data.mention_rate.change.verdict}
+              </div>
+            </>
+          ) : (
+            <div className="bp-metric mt-1 text-[22px]">N/A</div>
+          )}
         </div>
         <div className="p-3">
           <div className="bp-label">Share-of-voice window</div>

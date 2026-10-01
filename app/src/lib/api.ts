@@ -212,6 +212,8 @@ export type OverviewPayload = {
   aio: AIOSummary;
   /** Provider changes inside the trend window (absent on an older API). */
   series_notes?: { date: string; surface: string; note: string }[];
+  /** Pooled mention rate with its 95% range (absent on an older API). */
+  mention_rate?: MentionRate;
 };
 
 export type EngineMode = {
@@ -373,8 +375,32 @@ export type EngineScorecard = {
   diagnosis_summary: Record<string, number>;
 };
 
+export type RateChange = {
+  verdict: "up" | "down" | "no real change" | "not enough data";
+  delta: number | null;
+  p_value: number | null;
+};
+
+export type MentionRate = {
+  rate: number;
+  low: number;
+  high: number;
+  answers: number;
+  mentioned: number;
+  prompts: number;
+  change: RateChange;
+};
+
+export type MentionRates = {
+  window: { start: string; end: string; split: string };
+  overall: MentionRate;
+  engines: (MentionRate & { surface: string; label: string })[];
+};
+
 export type KpiScorecard = {
   brand_name: string;
+  /** Headline: pooled mention rate with 95% ranges (absent on an older API). */
+  mention_rates?: MentionRates;
   answer_share: number;
   share_breakdown: { name: string; share: number }[];
   prominence: {

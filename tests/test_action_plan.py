@@ -96,26 +96,27 @@ def test_contestability_ranks_briefs_and_power_pages_group_by_url(db_session):
     db_session.add(run2)
     db_session.commit()
 
-    def rival(r):
+    def rival(r, name="Globex"):
         db_session.add(Mention(result_id=r.id, tenant_id=tid, entity_type="competitor",
-                               entity_name="Globex", position=0, rank=1))
+                               entity_name=name, position=0, rank=1))
         db_session.commit()
 
-    # "q hot": answer churns across runs (hash aaa -> bbb) and is search-driven.
+    # "q hot": the brands named churn across runs (Globex -> Initech) and the
+    # query is search-driven.
     r1 = _result(db_session, run1.id, tid, "q hot", "openai_api", "search", rhash="aaa")
     rival(r1)
     r2 = _result(db_session, run2.id, tid, "q hot", "openai_api", "search", rhash="bbb")
-    rival(r2)
+    rival(r2, "Initech")
     # Twin with no brand mention -> knowledge gap (brief-worthy).
     _result(db_session, run2.id, tid, "q hot", "openai_api", "nosearch")
     db_session.add(QueryClassification(tenant_id=tid, query_text="q hot",
                                        surface=SurfaceCode.openai_api,
                                        web_search_likelihood="very_likely"))
 
-    # "q frozen": byte-identical answer across runs -> locked in.
+    # "q frozen": wording changes but the same brand comes back -> locked in.
     r3 = _result(db_session, run1.id, tid, "q frozen", "openai_api", "search", rhash="ccc")
     rival(r3)
-    r4 = _result(db_session, run2.id, tid, "q frozen", "openai_api", "search", rhash="ccc")
+    r4 = _result(db_session, run2.id, tid, "q frozen", "openai_api", "search", rhash="ddd")
     rival(r4)
     _result(db_session, run2.id, tid, "q frozen", "openai_api", "nosearch")
 

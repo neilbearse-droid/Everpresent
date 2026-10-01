@@ -109,6 +109,9 @@ class Settings(BaseSettings):
     google_aio_rate_per_min: float = 6.0
     google_aio_provider: str = "direct"
     google_aio_timeout_s: float = 120.0
+    # Google AI Mode (SerpApi engine=google_ai_mode; uses SERPAPI_KEY).
+    google_ai_mode_rate_per_min: float = 6.0
+    google_ai_mode_timeout_s: float = 120.0
     serpapi_key: str = ""
 
     # Mode B cost governance (§9): scraping and SerpApi spend the monthly cap

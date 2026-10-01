@@ -38,6 +38,7 @@ _NEEDS: dict[str, list[str]] = {
         "SERPAPI_KEY on everpresent-worker",
         "GOOGLE_AIO_PROVIDER=serpapi (already set in render.yaml)",
     ],
+    "google_ai_mode": ["SERPAPI_KEY on everpresent-worker"],
     "gemini_web": [],
 }
 
@@ -50,6 +51,7 @@ _LABELS = {
     "perplexity_web": "Perplexity (web)",
     "copilot_web": "Microsoft Copilot",
     "google_aio": "Google AI Overviews",
+    "google_ai_mode": "Google AI Mode",
     "gemini_web": "Gemini (web)",
 }
 
@@ -70,7 +72,7 @@ _HINTS = {
 def _mode(code: str) -> str:
     if code in {str(s) for s in MODE_A_SURFACES}:
         return "API"
-    if code == "google_aio":
+    if code in ("google_aio", "google_ai_mode"):
         return "SERP"
     return "Browser"
 

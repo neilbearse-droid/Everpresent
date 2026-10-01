@@ -31,6 +31,7 @@ MODE_B_SURFACES = {
     SurfaceCode.perplexity_web,
     SurfaceCode.copilot_web,
     SurfaceCode.google_aio,
+    SurfaceCode.google_ai_mode,
 }
 DISPATCHABLE_SURFACES = MODE_A_SURFACES | MODE_B_SURFACES
 

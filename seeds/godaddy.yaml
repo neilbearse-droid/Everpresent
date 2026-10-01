@@ -148,3 +148,4 @@ surfaces:
   - perplexity_web  # Perplexity (web)
   - copilot_web     # Microsoft Copilot — Bing-index-driven, browser-only, non-optional
   - google_aio      # Google AI Overviews — via SerpApi (SERPAPI_KEY on the worker)
+  - google_ai_mode  # Google AI Mode — via SerpApi (same SERPAPI_KEY)

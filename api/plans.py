@@ -82,7 +82,8 @@ def limits_for(plan: str | None) -> PlanLimits:
 # canonical order (the most-used answer engines first) rather than alphabetical.
 ENGINE_PRIORITY: list[str] = [
     "openai_api", "perplexity_api", "claude_api", "gemini_api",
-    "chatgpt_web", "perplexity_web", "copilot_web", "google_aio", "gemini_web",
+    "chatgpt_web", "perplexity_web", "copilot_web", "google_aio", "google_ai_mode",
+    "gemini_web",
 ]
 
 

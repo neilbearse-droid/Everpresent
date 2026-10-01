@@ -141,4 +141,6 @@ def estimate_mode_b_cost_usd(
     overspending."""
     if surface == "google_aio" and aio_provider == "serpapi":
         return round(serpapi_cost_per_search, 6)
+    if surface == "google_ai_mode":  # always SerpApi
+        return round(serpapi_cost_per_search, 6)
     return round(scrape_cost_per_page, 6)
