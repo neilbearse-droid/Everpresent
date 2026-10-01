@@ -82,7 +82,7 @@ services:
       - key: GEMINI_API_KEY
         sync: false
       - key: GEMINI_MODEL
-        value: gemini-2.5-flash
+        value: gemini-3.6-flash
       # Optional integrations — leave blank to disable.
       - key: SMTP_HOST
         sync: false
@@ -185,7 +185,7 @@ services:
       - key: GEMINI_API_KEY
         sync: false
       - key: GEMINI_MODEL
-        value: gemini-2.5-flash
+        value: gemini-3.6-flash
       # Natural search-routing probe (§AEO-plan M2): un-forced OpenAI call on
       # this fraction of queries to measure which prompts trigger search.
       # ~+34% OpenAI calls on the probed slice; 0 disables.

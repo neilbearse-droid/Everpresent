@@ -32,6 +32,12 @@ divergence, Perplexity's API change, Google's spam policy).
 6. **Spam-policy guard on content advice.** Briefs for "best/top/vs/
    alternatives" queries carry a warning and point to earned third-party
    placement; the drafting prompt refuses self-ranked lists.
+7. **Gemini on 3.x** (economy 3.5 Flash-Lite, standard 3.6 Flash, premium
+   3.1 Pro preview). 2.5 Pro is deprecated for 2026-10-16 and already refuses
+   new users; Gemini 4 "Argon" (announced 2026-09-30) is limited-access only.
+   Gemini 3 takes `thinkingLevel: low` (never with thinkingBudget). A retired
+   or unavailable model falls back once to `gemini-3.6-flash`, tagged in the
+   payload. Prices are third-party figures, the higher list price used.
 
 ## M25c — fan-out close the loop (2026-09-30)
 

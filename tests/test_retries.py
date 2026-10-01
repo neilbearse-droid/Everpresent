@@ -169,3 +169,45 @@ def test_an_overview_that_never_loads_is_an_error_not_empty(monkeypatch):
     _sequence(monkeypatch, "get", [_resp(200, first), _resp(200, {"ai_overview": {}})])
     with pytest.raises(RuntimeError, match="failed to load"):
         asyncio.run(google_aio._capture_serpapi("q", gl="us", hl="en", api_key="k", timeout_s=5))
+
+
+GEMINI_OK = {"modelVersion": "gemini-3.6-flash", "candidates": [
+    {"content": {"parts": [{"text": "GoDaddy and Wix."}]}, "finishReason": "STOP"}],
+    "usageMetadata": {}}
+
+
+def test_gemini3_uses_thinking_level_not_budget():
+    from engine.retrievers.gemini_api import build_request_body
+
+    cfg = build_request_body("", "q", model="gemini-3.6-flash")["generationConfig"]
+    assert cfg["thinkingConfig"] == {"thinkingLevel": "low"}  # never both (API error)
+    assert cfg["maxOutputTokens"] > 1200  # headroom: thinking counts toward the cap
+    legacy = build_request_body("", "q", model="gemini-2.5-flash")["generationConfig"]
+    assert legacy["thinkingConfig"] == {"thinkingBudget": 0}
+
+
+def test_gemini_retired_model_falls_back_to_stable(monkeypatch):
+    from engine.retrievers import gemini_api
+
+    urls: list[str] = []
+
+    async def _post(self, url, *a, **k):
+        urls.append(url)
+        if "gemini-2.5-pro" in url:
+            return _resp(404, {"error": {"message": "models/gemini-2.5-pro is not found"}})
+        return _resp(200, GEMINI_OK)
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", _post)
+    out = asyncio.run(gemini_api.retrieve("", "q", api_key="k", model="gemini-2.5-pro"))
+    assert urls[-1].endswith("/gemini-3.6-flash:generateContent")
+    assert "gemini-2.5-pro" in out.payload["_everpresent_model_fallback"]
+    assert out.parsed.text == "GoDaddy and Wix."
+
+
+def test_gemini3_grounding_is_billed_per_query():
+    from engine.costs import estimate_gemini_cost_usd
+
+    # 3.6 Flash: $1.50/$7.50 per 1M (conservative list), $14 per 1k queries.
+    assert estimate_gemini_cost_usd("gemini-3.6-flash", 1_000_000, 0, 3) == round(
+        1.50 + 3 * 14 / 1000, 6)
+    assert estimate_gemini_cost_usd("gemini-3.1-pro-preview", 0, 1_000_000, 0) == 12.0

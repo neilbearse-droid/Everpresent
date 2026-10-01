@@ -89,13 +89,25 @@ def parse_gemini_payload(payload: dict[str, Any]) -> ParsedResponse:
 ANSWER_MAX_TOKENS = 1200
 PRO_THINKING_BUDGET = 128  # the minimum Pro accepts
 PRO_THINKING_HEADROOM = 1024
+# Stable model a retired/unknown configured model falls back to (2.5 Pro was
+# deprecated for 2026-10-16 and refuses new users; Gemini 4 isn't GA yet).
+FALLBACK_MODEL = "gemini-3.6-flash"
+# Gemini 3 replaces thinkingBudget with thinkingLevel (sending both is an
+# error). "low" matches the consumer app's fast path, like OpenAI effort=low.
+GEMINI3_THINKING_LEVEL = "low"
+_MODEL_GONE_STATUS = {400, 404}
 
 
 def build_request_body(
     persona_prompt: str, query_text: str, *, model: str = "", web_search: bool = True
 ) -> dict[str, Any]:
     generation_config: dict[str, Any] = {"maxOutputTokens": ANSWER_MAX_TOKENS}
-    if "2.5-flash" in model:
+    if model.startswith("gemini-3") or model.startswith("gemini-4"):
+        # Thinking can't be fully disabled on Gemini 3 and counts toward
+        # maxOutputTokens, so keep it low and leave headroom for it.
+        generation_config["thinkingConfig"] = {"thinkingLevel": GEMINI3_THINKING_LEVEL}
+        generation_config["maxOutputTokens"] = ANSWER_MAX_TOKENS + PRO_THINKING_HEADROOM
+    elif "2.5-flash" in model:
         # 2.5 Flash / Flash-Lite can turn thinking off (2.0 models have no
         # thinkingConfig at all and would reject it).
         generation_config["thinkingConfig"] = {"thinkingBudget": 0}
@@ -130,11 +142,14 @@ async def retrieve(
     timeout_s: float = 90.0,
     max_attempts: int = 3,
 ) -> RetrievalOutcome:
-    body = build_request_body(persona_prompt, query_text, model=model, web_search=web_search)
-    url = f"{GEMINI_BASE}/{model}:generateContent"
     started = time.monotonic()
+    fallback_reason = ""
     async with httpx.AsyncClient(timeout=timeout_s) as client:
-        for attempt in range(1, max_attempts + 1):
+        for attempt in range(1, max_attempts + 2):
+            body = build_request_body(
+                persona_prompt, query_text, model=model, web_search=web_search
+            )
+            url = f"{GEMINI_BASE}/{model}:generateContent"
             try:
                 resp = await client.post(url, json=body, headers={"x-goog-api-key": api_key})
             except httpx.TransportError:
@@ -145,6 +160,17 @@ async def retrieve(
                 raise
             if resp.status_code in RETRYABLE_STATUS and attempt < max_attempts:
                 await asyncio.sleep(2**attempt)
+                continue
+            if (
+                resp.status_code in _MODEL_GONE_STATUS
+                and model != FALLBACK_MODEL
+                and not fallback_reason
+                and "model" in resp.text.lower()
+            ):
+                # Configured model retired / not available to this project:
+                # degrade to the stable model once instead of losing the engine.
+                fallback_reason = f"{model}: HTTP {resp.status_code}: {resp.text[:160]}"
+                model = FALLBACK_MODEL
                 continue
             resp.raise_for_status()
             try:
@@ -161,6 +187,8 @@ async def retrieve(
                 # not an answer that "doesn't mention the brand".
                 reason = candidates[0].get("finishReason", "unknown")
                 raise RuntimeError(f"Gemini returned no answer text ({reason})")
+            if fallback_reason:
+                payload["_everpresent_model_fallback"] = fallback_reason
             return RetrievalOutcome(
                 payload=payload,
                 parsed=parse_gemini_payload(payload),

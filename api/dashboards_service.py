@@ -424,6 +424,12 @@ SERIES_BREAKS: list[tuple[str, SurfaceCode, str]] = [
         "Perplexity retired its Sonar API on Sep 27, 2026; Perplexity (API) "
         "numbers before and after come from different systems.",
     ),
+    (
+        "2026-10-01",
+        SurfaceCode.gemini_api,
+        "Gemini (API) moved from Gemini 2.5 to Gemini 3.x models on Oct 1, 2026; "
+        "a model change shifts answers, so compare like with like.",
+    ),
 ]
 
 

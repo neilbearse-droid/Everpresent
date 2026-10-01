@@ -70,7 +70,7 @@ class Settings(BaseSettings):
     content_drafts_per_hour: int = 30
 
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-2.5-flash"
+    gemini_model: str = "gemini-3.6-flash"
     gemini_timeout_s: float = 90.0
 
     # Mode B scraping (§6.2): conservative by default, sequential per surface.

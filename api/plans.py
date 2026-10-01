@@ -116,8 +116,10 @@ MODEL_TIERS: dict[str, dict[str, str]] = {
         "standard": "claude-sonnet-4-6",
         "premium": "claude-sonnet-4-6",
     },
-    "gemini_api": {"economy": "gemini-2.5-flash-lite", "standard": "gemini-2.5-flash",
-                   "premium": "gemini-2.5-pro"},
+    # Gemini 3.x (2.5 Pro is deprecated for 2026-10-16). Gemini 4 "Argon" was
+    # announced 2026-09-30 but isn't generally available yet.
+    "gemini_api": {"economy": "gemini-3.5-flash-lite", "standard": "gemini-3.6-flash",
+                   "premium": "gemini-3.1-pro-preview"},
 }
 
 

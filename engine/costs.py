@@ -103,13 +103,20 @@ def estimate_anthropic_cost_usd(
 
 
 # Google Gemini (§6.1). Token prices per 1M; grounding billed per 1k requests.
+# Gemini 3.x figures are from third-party price trackers (Sept 2026; sources
+# disagree on a temporary 3.6 Flash discount), so the HIGHER list price is used
+# to keep the spend cap conservative. Verify against ai.google.dev/pricing.
 GEMINI_TOKEN_PRICES: dict[str, tuple[float, float]] = {
+    "gemini-3.6-flash": (1.50, 7.50),
+    "gemini-3.5-flash-lite": (0.30, 2.50),
+    "gemini-3.1-pro": (2.00, 12.00),
     "gemini-2.5-flash-lite": (0.10, 0.40),
     "gemini-2.5-pro": (1.25, 10.00),
     "gemini-2.5-flash": (0.30, 2.50),
     "gemini-2.0-flash": (0.10, 0.40),
 }
-GEMINI_GROUNDING_PER_1K = 35.00
+GEMINI_GROUNDING_PER_1K = 35.00  # Gemini 2.x: per grounded prompt
+GEMINI3_GROUNDING_PER_1K = 14.00  # Gemini 3.x: per search query
 _GEMINI_FALLBACK = (0.30, 2.50)
 
 
@@ -121,8 +128,10 @@ def estimate_gemini_cost_usd(
     )
     # Gemini 2.x bills grounding once per grounded PROMPT, however many search
     # queries it fans out into; Gemini 3 bills per search query.
-    grounded = web_search_calls if model.startswith("gemini-3") else min(web_search_calls, 1)
-    cost += grounded * GEMINI_GROUNDING_PER_1K / 1_000
+    if model.startswith(("gemini-3", "gemini-4")):
+        cost += web_search_calls * GEMINI3_GROUNDING_PER_1K / 1_000
+    else:
+        cost += min(web_search_calls, 1) * GEMINI_GROUNDING_PER_1K / 1_000
     return round(cost, 6)
 
 
