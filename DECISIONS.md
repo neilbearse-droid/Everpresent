@@ -3,6 +3,27 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M32 — October sweep hardening (2026-10-03)
+
+1. **Log input is hostile by default.** Anyone can make a request to a
+   tenant's site with a bot user agent, so every parsed field is bounded:
+   control characters are stripped from paths, statuses outside 100–599
+   become 0, bad timestamps are skipped, lines over 16 KB are dropped
+   without being buffered, and every regex is bounded and non-overlapping.
+2. **Uploads stream in linear time and bounded memory**, with parsing and
+   database work in a worker thread so one upload can't stall the API.
+   Cells are written with INSERT … ON CONFLICT DO UPDATE, so concurrent
+   pushes add up exactly. Uploads still add (that's how log drains work);
+   the response lists days that already had data so a re-upload is visible.
+3. **Push tokens are stored as SHA-256 digests** (m32 hashes existing ones).
+4. **Crawler feature checks read only visible text** (no scripts/styles) and
+   every pattern is bounded; the worst hostile page went from minutes to ~1 s.
+5. **Playbook stability.** Each play source runs in a savepoint; a source
+   that fails, or has only stale data, leaves its existing plays untouched.
+   Lost-citation plays stay open until the page is cited again. One play
+   per wrong fact. Only refusals (401/403/429/5xx) count as a bot blocked.
+6. **(tenant_id, gap_ref) is unique** on recommendations.
+
 ## M30–M31 — Agent Analytics and the evidence-graded playbook (2026-10-03)
 
 1. **Recommendations follow the 2026 evidence order.** Controlled studies

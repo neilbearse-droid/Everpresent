@@ -46,7 +46,7 @@ export default async function LandingPage() {
       <main className="relative mx-auto max-w-[1200px] px-6 pb-20 pt-16 lg:pt-24">
         <p className="eyebrow mb-6">AI answer visibility</p>
         <h1 className="bp-display max-w-[15ch]">
-          Know where your brand stands in <em style={{ color: "var(--accent)" }}>AI answers</em>.
+          Know where your brand stands in <em style={{ color: "var(--accent-display)" }}>AI answers</em>.
         </h1>
         <p className="mt-8 max-w-[56ch] text-[17px] leading-relaxed text-[var(--text-2)]">
           EverPresent measures how AI assistants describe your category, whether they mention you,

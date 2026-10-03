@@ -4,7 +4,7 @@ import { surfaceLabel } from "@/lib/viz";
 
 const STATUS_STYLES: Record<Run["status"], string> = {
   pending: "bg-[var(--surface-2)] text-[var(--text)]",
-  running: "border border-[var(--border)] bg-[var(--surface)] text-[var(--accent)]",
+  running: "border border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--text)]",
   complete: "border border-[var(--border)] bg-[var(--surface)] text-[var(--pos)]",
   failed: "border border-[var(--border)] bg-[var(--surface)] text-[var(--neg)]",
   gated: "border border-[var(--border)] bg-[var(--surface)] text-[var(--warn-t)]",
@@ -13,7 +13,7 @@ const STATUS_STYLES: Record<Run["status"], string> = {
 
 export function StatusBadge({ status }: { status: Run["status"] }) {
   return (
-    <span className={`rounded px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[status]}`}>
+    <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[status]}`}>
       {status}
     </span>
   );
@@ -24,10 +24,11 @@ export function RunsTable({ runs, hrefBase }: { runs: Run[]; hrefBase: string })
     return <p className="text-sm text-[var(--text-3)]">No runs yet.</p>;
   }
   return (
-    <table className="w-full text-left text-sm">
-      <thead className="text-[var(--text-2)]">
+    <div className="card overflow-x-auto">
+    <table className="bp-table w-full min-w-[760px] text-left">
+      <thead>
         <tr>
-          <th className="py-2">Run</th>
+          <th>Run</th>
           <th>Status</th>
           <th>Trigger</th>
           <th>Surfaces</th>
@@ -38,8 +39,8 @@ export function RunsTable({ runs, hrefBase }: { runs: Run[]; hrefBase: string })
       </thead>
       <tbody>
         {runs.map((run) => (
-          <tr key={run.id} className="border-t border-[var(--border)]">
-            <td className="py-3">
+          <tr key={run.id}>
+            <td>
               <Link href={`${hrefBase}/${run.id}`} className="text-[var(--accent)] hover:underline">
                 #{run.id}
               </Link>
@@ -48,23 +49,26 @@ export function RunsTable({ runs, hrefBase }: { runs: Run[]; hrefBase: string })
               <StatusBadge status={run.status} />
             </td>
             <td className="text-[var(--text-2)]">{run.trigger}</td>
-            <td className="font-mono text-xs text-[var(--text-2)]">{run.surface_set.join(", ")}</td>
+            <td className="text-xs text-[var(--text-2)]">
+              {run.surface_set.map((x) => surfaceLabel(x)).join(", ")}
+            </td>
             <td>
               {run.counts.completed ?? 0} / {run.counts.planned ?? 0}
               {(run.counts.withheld_by_cap ?? 0) > 0 && (
-                <span className="ml-1 text-xs text-orange-400">
+                <span className="ml-1 text-xs text-[var(--text-3)]">
                   ({run.counts.withheld_by_cap} capped)
                 </span>
               )}
             </td>
-            <td>${run.cost_usd.toFixed(4)}</td>
-            <td className="text-[var(--text-2)]">
+            <td className="tabular-nums">${run.cost_usd.toFixed(2)}</td>
+            <td className="whitespace-nowrap text-[var(--text-2)]">
               {run.started_at ? new Date(run.started_at).toLocaleString() : "—"}
             </td>
           </tr>
         ))}
       </tbody>
     </table>
+    </div>
   );
 }
 
@@ -79,10 +83,11 @@ export function RunDetailView({ detail, hrefBase }: { detail: RunDetail; hrefBas
         <span>citations: {run.counts.citations ?? 0}</span>
         {run.error && <span className="text-[var(--warn-t)]">{run.error}</span>}
       </div>
-      <table className="w-full text-left text-sm">
-        <thead className="text-[var(--text-2)]">
+      <div className="card overflow-x-auto">
+      <table className="bp-table w-full min-w-[820px] text-left">
+        <thead>
           <tr>
-            <th className="py-2">Query</th>
+            <th>Query</th>
             <th>Persona</th>
             <th>Surface</th>
             <th>Status</th>
@@ -93,9 +98,9 @@ export function RunDetailView({ detail, hrefBase }: { detail: RunDetail; hrefBas
         </thead>
         <tbody>
           {results.map(({ result, citations }) => (
-            <tr key={result.id} className="border-t border-[var(--border)] align-top">
-              <td className="max-w-xs py-3 pr-3">{result.query_text}</td>
-              <td className="pr-3">
+            <tr key={result.id} className="align-top">
+              <td className="max-w-xs">{result.query_text}</td>
+              <td>
                 {result.persona_name}
                 <div className="text-xs text-[var(--text-3)]">{result.persona_segment}</div>
               </td>
@@ -110,20 +115,22 @@ export function RunDetailView({ detail, hrefBase }: { detail: RunDetail; hrefBas
                     blocked
                   </span>
                 ) : (
-                  <span className="text-[var(--neg)]" title={result.error ?? ""}>
+                  <span className="bp-neg text-xs" title={result.error ?? ""}>
                     error
                   </span>
                 )}
               </td>
               <td>{citations.length}</td>
-              <td className="text-[var(--text-2)]">{result.latency_ms} ms</td>
+              <td className="whitespace-nowrap tabular-nums text-[var(--text-2)]">
+                {result.latency_ms} ms
+              </td>
               <td>
                 {result.status === "ok" && (
                   <Link
                     href={`${hrefBase}/results/${result.id}`}
                     className="text-[var(--accent)] hover:underline"
                   >
-                    view response
+                    <span className="whitespace-nowrap">view response</span>
                   </Link>
                 )}
               </td>
@@ -131,6 +138,7 @@ export function RunDetailView({ detail, hrefBase }: { detail: RunDetail; hrefBas
           ))}
         </tbody>
       </table>
+      </div>
     </>
   );
 }

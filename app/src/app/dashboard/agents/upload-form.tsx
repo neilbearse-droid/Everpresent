@@ -24,10 +24,15 @@ export function UploadLogs() {
         setMsg({ ok: false, text: detail || `Upload failed (HTTP ${res.status})` });
       } else {
         const d = JSON.parse(text);
+        const overlap: string[] = d.overlap_days ?? [];
         setMsg({
           ok: true,
           text: `Read ${d.lines.toLocaleString()} lines: ${d.ai_hits.toLocaleString()} AI-bot hits kept, everything else discarded.${
             d.parsed === 0 ? " No line matched a known log format." : ""
+          }${
+            overlap.length
+              ? ` Heads-up: ${overlap.length} of these days already had data, and uploads add up. If this file was uploaded before, those days are now counted twice.`
+              : ""
           }`,
         });
         router.refresh();

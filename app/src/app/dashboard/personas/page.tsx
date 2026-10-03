@@ -2,7 +2,7 @@ import { apiFetch, rangeQuery, type Me, type PersonasPayload } from "@/lib/api";
 import { DashNav } from "@/components/dash-nav";
 import { NoOrgNotice } from "@/components/no-org-notice";
 import { HBars } from "@/components/charts";
-import { SERIES_COLORS } from "@/lib/viz";
+import { SERIES_COLORS, humanize } from "@/lib/viz";
 
 export default async function PersonasPage({
   searchParams,
@@ -42,7 +42,7 @@ export default async function PersonasPage({
             {/* Single measure across segments: one hue, no legend. */}
             <HBars
               items={data.segments.map((s) => ({
-                label: s.segment,
+                label: humanize(s.segment),
                 value: s.brand_score,
                 color: SERIES_COLORS[0],
               }))}
@@ -75,7 +75,7 @@ export default async function PersonasPage({
                       : null;
                     return (
                       <tr key={segment.segment} className="border-t border-[var(--border)]">
-                        <td className="py-3 pr-4 font-medium">{segment.segment}</td>
+                        <td className="py-3 pr-4 font-medium">{humanize(segment.segment)}</td>
                         <td className="pr-4 tabular-nums">{segment.brand_score}</td>
                         <td className="pr-4 tabular-nums">
                           {Math.round(segment.mention_rate * 100)}%

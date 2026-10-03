@@ -46,34 +46,81 @@ def _recent_years(now: datetime | None = None) -> tuple[str, ...]:
 _YEAR_RE = re.compile(r"\b(20[0-9]{2})\b")
 # An explicit price: currency symbol or code with an amount, optionally per period.
 _PRICE_RE = re.compile(
-    r"(?:[$€£¥]\s?\d[\d,]*(?:\.\d{1,2})?|\b\d[\d,]*(?:\.\d{1,2})?\s?(?:usd|eur|gbp)\b)",
+    r"(?:[$€£¥]\s?\d[\d,]{0,15}(?:\.\d{1,2})?"
+    r"|(?<![\d,.])\d[\d,]{0,15}(?:\.\d{1,2})?\s?(?:usd|eur|gbp)\b)",
     re.IGNORECASE,
 )
 # A visible or machine-readable "last updated" date.
+# A visible "last updated" date, in the common formats: "Updated October 3,
+# 2026", "Updated 3 October 2026", "Updated on Oct 3rd, 2026", "Last updated:
+# 10/03/2026", "Reviewed 2026-10-03". The year must be 2010+ so "updated 2000
+# records" doesn't count. Every repetition is bounded (third-party HTML).
+_DATE = (
+    r"(?:\d{1,2}(?:st|nd|rd|th)?\s{1,3})?(?:[a-z]{3,9}\.?\s{1,3})?"
+    r"(?:\d{1,2}(?:st|nd|rd|th)?,?\s{1,3})?20[1-9]\d\b"
+    r"|\d{1,2}[/.-]\d{1,2}[/.-]20[1-9]\d\b|20[1-9]\d-\d{2}-\d{2}"
+)
 _UPDATED_RE = re.compile(
-    r"(?:\"datemodified\"|<time[^>]+datetime=|\b(?:last\s+)?(?:updated|reviewed|modified)"
-    r"\s*(?:on|:)?\s*(?:[a-z]{3,9}\.?\s+\d{1,2},?\s+)?(?:[a-z]{3,9}\s+)?20\d{2})",
+    r"\b(?:last\s{1,3})?(?:updated|reviewed|modified)\b\s{0,3}(?:on\b|:)?\s{0,3}(?:" + _DATE + ")",
     re.IGNORECASE,
 )
+# Machine-readable dates and ratings in the raw HTML (JSON-LD, <time>).
+_UPDATED_MARKUP_RE = re.compile(r"\"datemodified\"|<time\b[^>]{0,200}?\bdatetime=", re.IGNORECASE)
+_RATING_MARKUP = "aggregaterating"
+_NON_VISIBLE = ("script", "style", "noscript", "template")
+
+
+def _visible_html(html: str) -> str:
+    """The HTML without <script>/<style>/<noscript>/<template> blocks, in one
+    linear pass (a regex with a lazy body would go quadratic on unclosed
+    tags). Feature checks for prices, ratings and dates read only what a
+    visitor sees: "$1" in JavaScript or "aspect-ratio: 4/5" in CSS are not
+    facts on the page."""
+    lower = html.lower()
+    out: list[str] = []
+    i, n = 0, len(html)
+    while i < n:
+        start = lower.find("<", i)
+        if start == -1:
+            out.append(html[i:])
+            break
+        tag = next((t for t in _NON_VISIBLE if lower.startswith(t, start + 1)), None)
+        if tag is None:
+            out.append(html[i:start + 1])
+            i = start + 1
+            continue
+        out.append(html[i:start])
+        end = lower.find("</" + tag, start)
+        if end == -1:
+            break  # unclosed: drop the rest
+        close = lower.find(">", end)
+        i = n if close == -1 else close + 1
+    return "".join(out)
+
 # A rating: schema.org aggregateRating, or "4.6 out of 5" / "4.6 stars" / "4.6/5".
+# A visible rating: "4.6 out of 5", "4.6/5", "4.6 stars", "5 stars". A bare
+# "1/5" is too ambiguous (fractions, dates) to count without a decimal.
 _RATING_RE = re.compile(
-    r"aggregaterating|\b[0-5](?:\.\d)?\s?(?:out of 5|/\s?5\b|stars?\b)",
+    r"\b[0-5]\.\d\s?(?:out of 5|/\s?5\b|stars?\b)|\b[0-5]\s?(?:out of 5\b|stars?\b)",
     re.IGNORECASE,
 )
 
 # Currency, percentages, scaled numbers, and any multi-digit figure — a proxy
 # for "data-rich" (pages with 19+ data points earn 2-3x citations).
+# Every quantifier below is bounded and digit runs can't start mid-run: these
+# patterns run on third-party HTML, and unbounded `\d+`/`[\d,]*` go quadratic
+# on a hostile page (a long digit run, "1,1,1,..." and so on).
 _STAT_RE = re.compile(
-    r"\$\s?\d[\d,]*(?:\.\d+)?"
-    r"|\d+(?:\.\d+)?\s?%"
-    r"|\b\d+(?:\.\d+)?\s?(?:percent|million|billion|thousand|bps|x|×)\b"
-    r"|\b\d{2,}\b",
+    r"\$\s?\d[\d,]{0,15}(?:\.\d{1,4})?"
+    r"|(?<![\d.])\d{1,9}(?:\.\d{1,4})?\s?%"
+    r"|(?<![\d.])\d{1,9}(?:\.\d{1,4})?\s?(?:percent|million|billion|thousand|bps|x|×)\b"
+    r"|\b\d{2,12}\b",
     re.IGNORECASE,
 )
 # Attributed quotations: a blockquote, or a quote-delimited span of real length.
 _BLOCKQUOTE_RE = re.compile(r"<blockquote", re.IGNORECASE)
-_QUOTE_RE = re.compile(r"[\"“][^\"“”]{30,}[\"”]")
-_HREF_RE = re.compile(r'href=["\'](https?://[^"\'#?]+)', re.IGNORECASE)
+_QUOTE_RE = re.compile(r"[\"“][^\"“”]{30,2000}[\"”]")
+_HREF_RE = re.compile(r'href=["\'](https?://[^"\'#?\s]{1,2000})', re.IGNORECASE)
 # Marketing voice AI engines are "allergic" to — measured as a rate, higher=worse.
 _PROMO_PHRASES = (
     "best-in-class", "best in class", "world-class", "world class", "cutting-edge",
@@ -90,9 +137,12 @@ def _host(url: str) -> str:
     return rest.split("/", 1)[0].lower()
 
 
-_HEADING_RE = re.compile(r"<h[1-4][^>]*>(.*?)</h[1-4]>", re.IGNORECASE | re.DOTALL)
-_PARA_RE = re.compile(r"<p[^>]*>(.*?)</p>", re.IGNORECASE | re.DOTALL)
-_TAG_RE = re.compile(r"<[^>]+>")
+# Bounded so an unclosed tag can't make each match scan the rest of the page.
+_HEADING_RE = re.compile(r"<h[1-4][^>]{0,300}>(.{0,600}?)</h[1-4]>", re.IGNORECASE | re.DOTALL)
+_PARA_RE = re.compile(r"<p(?:\s[^>]{0,300})?>(.{0,4000}?)</p>", re.IGNORECASE | re.DOTALL)
+_TAG_RE = re.compile(r"<[^>]{0,2000}>")
+_MAX_HEADINGS = 300
+_CAPSULE_WINDOW = 6000  # how far after a heading to look for its answer
 
 
 def _has_answer_capsule(html: str) -> bool:
@@ -100,10 +150,12 @@ def _has_answer_capsule(html: str) -> bool:
     72% of cited blog posts have one. Detected on HTML structure (robust to
     source line-wrapping): a question heading followed by a paragraph of
     answer-capsule length."""
-    for m in _HEADING_RE.finditer(html):
+    for i, m in enumerate(_HEADING_RE.finditer(html)):
+        if i >= _MAX_HEADINGS:
+            break
         heading = _TAG_RE.sub("", m.group(1)).strip()
         if heading.endswith("?") and len(heading.split()) <= 20:
-            after = _PARA_RE.search(html[m.end():])
+            after = _PARA_RE.search(html, m.end(), m.end() + _CAPSULE_WINDOW)
             if after:
                 words = len(_TAG_RE.sub(" ", after.group(1)).split())
                 if 25 <= words <= 120:
@@ -147,7 +199,8 @@ def extract_features(html: str) -> dict[str, Any]:
     cited sources, promotional tone); then machine-legibility hygiene (JSON-LD,
     FAQ schema, tables)."""
     lower = html.lower()
-    text, _ = extract_text_and_links(html, ())
+    visible = _visible_html(html)
+    text, _ = extract_text_and_links(visible, ())
     word_count = len(text.split())
 
     statistic_count = sum(1 for _ in _STAT_RE.finditer(text))
@@ -160,8 +213,8 @@ def extract_features(html: str) -> dict[str, Any]:
     return {
         # Explicit facts (controlled 2026 evidence: raise citation odds).
         "has_price": bool(_PRICE_RE.search(text)),
-        "has_updated_date": bool(_UPDATED_RE.search(html)),
-        "has_rating": bool(_RATING_RE.search(html)),
+        "has_updated_date": bool(_UPDATED_MARKUP_RE.search(html) or _UPDATED_RE.search(text)),
+        "has_rating": _RATING_MARKUP in lower or bool(_RATING_RE.search(text)),
         "latest_year": max(years) if years else 0,
         # Evidence density and second-order formatting.
         "quotation_count": quotation_count,

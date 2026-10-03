@@ -255,6 +255,13 @@ export default async function ActionPlanPage() {
                   ))}
               </div>
             )}
+            {briefs.length === 0 && (
+              <p className="card p-5 text-sm text-[var(--text-2)]">
+                No content gaps right now: every tracked query names you somewhere it
+                counts. Briefs appear here when a query loses you. See Recommendations for
+                the full playbook.
+              </p>
+            )}
             <div className="space-y-5">
               {briefs.map((b) => (
                 <article

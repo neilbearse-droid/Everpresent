@@ -2,7 +2,7 @@ import Link from "next/link";
 import { apiFetch, rangeQuery, type Me, type QueriesIntelPayload } from "@/lib/api";
 import { DashNav } from "@/components/dash-nav";
 import { NoOrgNotice } from "@/components/no-org-notice";
-import { LIKELIHOOD_COLORS, LIKELIHOOD_LABELS, surfaceLabel } from "@/lib/viz";
+import { LIKELIHOOD_COLORS, LIKELIHOOD_LABELS, surfaceLabel, humanize } from "@/lib/viz";
 
 function ClassificationChip({
   classification,
@@ -20,7 +20,7 @@ function ClassificationChip({
     >
       <span
         className="inline-block h-2.5 w-2.5 rounded-full"
-        style={{ background: LIKELIHOOD_COLORS[bucket] ?? "#9a9a92" }}
+        style={{ background: LIKELIHOOD_COLORS[bucket] ?? "var(--border-strong)" }}
       />
       {LIKELIHOOD_LABELS[bucket] ?? bucket}
     </span>
@@ -47,8 +47,10 @@ function ModeLinks({
             {surfaceLabel(surface)} →
           </Link>
         ) : (
-          <span key={surface} className="text-xs text-[var(--neg)]">
-            {surfaceLabel(surface)}: error
+          // A failed capture is missing data, not bad news about the brand:
+          // quiet text, not the bad-news pill.
+          <span key={surface} className="text-xs text-[var(--text-3)]">
+            {surfaceLabel(surface)}: no answer
           </span>
         ),
       )}
@@ -90,7 +92,7 @@ export default async function QueriesPage({
           <p className="text-sm text-[var(--text-3)]">No queries configured.</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            <div className="overflow-x-auto"><table className="w-full text-left text-sm min-w-[760px]">
               <thead className="text-[var(--text-2)]">
                 <tr>
                   <th className="py-2 pr-4">Query</th>
@@ -126,7 +128,7 @@ export default async function QueriesPage({
                           <span className="ml-2 text-xs text-[var(--text-3)]">(inactive)</span>
                         )}
                       </td>
-                      <td className="pr-4 text-[var(--text-2)]">{query.corpus_tag}</td>
+                      <td className="pr-4 text-[var(--text-2)]">{humanize(query.corpus_tag)}</td>
                       <td className="pr-4">
                         <ClassificationChip classification={query.classification} />
                       </td>
@@ -163,7 +165,7 @@ export default async function QueriesPage({
                   );
                 })}
               </tbody>
-            </table>
+            </table></div>
           </div>
         )}
       </section>

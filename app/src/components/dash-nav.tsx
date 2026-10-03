@@ -90,10 +90,13 @@ export function DashNav({
             appearance={{
               elements: {
                 rootBox: "w-full",
+                // `!` (important): Clerk's own unlayered styles would otherwise
+                // win over Tailwind's layered utilities and keep dark text in
+                // dark mode.
                 organizationSwitcherTrigger:
-                  "w-full justify-between rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5 text-[var(--text)] shadow-none focus:shadow-none",
-                organizationPreviewMainIdentifier: "text-[13px] font-medium text-[var(--text)]",
-                organizationSwitcherTriggerIcon: "text-[var(--text-3)]",
+                  "w-full justify-between rounded-lg border border-[var(--border)] bg-[var(--surface)]! px-2.5 py-1.5 text-[var(--text)]! shadow-none focus:shadow-none",
+                organizationPreviewMainIdentifier: "text-[13px] font-medium text-[var(--text)]!",
+                organizationSwitcherTriggerIcon: "text-[var(--text-3)]!",
               },
             }}
           />
@@ -170,7 +173,7 @@ export function DashNav({
         <p className="text-[13px] text-[var(--text-3)]">
           {group && group !== active ? (
             <>
-              {group} <span className="px-1 text-[var(--border-strong)]">/</span>
+              {group} <span className="px-1 text-[var(--text-3)]">/</span>
               <span className="text-[var(--text-2)]">{active}</span>
             </>
           ) : (

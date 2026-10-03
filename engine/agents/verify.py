@@ -14,6 +14,7 @@ from typing import Any
 import httpx
 
 _TTL_S = 24 * 3600
+_FAIL_TTL_S = 600  # retry a failed fetch soon: a hit stays unverified for good
 _Network = ipaddress.IPv4Network | ipaddress.IPv6Network
 _cache: dict[str, tuple[float, list[_Network]]] = {}
 
@@ -47,19 +48,23 @@ def _fetch(url: str) -> list[_Network]:
 def ranges_for(url: str, fetch: Callable[[str], list[_Network]] = _fetch) -> list[_Network]:
     now = time.time()
     hit = _cache.get(url)
-    if hit and now - hit[0] < _TTL_S:
+    if hit and now < hit[0]:
         return hit[1]
     try:
         nets = fetch(url)
+        expires = now + _TTL_S
     except Exception:  # noqa: BLE001 — unverifiable, not an error
         nets = []
-    _cache[url] = (now, nets)
+        expires = now + _FAIL_TTL_S
+    _cache[url] = (expires, nets)
     return nets
 
 
 def ip_in(ip: str, nets: list[_Network]) -> bool:
     try:
-        addr = ipaddress.ip_address(ip)
+        addr = ipaddress.ip_address(ip.strip().strip("[]"))
     except ValueError:
         return False
+    if isinstance(addr, ipaddress.IPv6Address) and addr.ipv4_mapped is not None:
+        addr = addr.ipv4_mapped  # "::ffff:66.249.0.5" is an IPv4 client
     return any(addr.version == n.version and addr in n for n in nets)

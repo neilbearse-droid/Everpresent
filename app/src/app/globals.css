@@ -53,15 +53,16 @@
 
   --text: #141413;
   --text-2: #57554f;
-  --text-3: #8d8a82;
+  --text-3: #6f6c65;   /* 4.8:1 on paper: small text stays AA */
 
   /* The one accent: the brand colour. The tenant's own brand, primary
      highlights and good news — NEVER bad news. */
   --accent: #ff5a1f;
-  --accent-2: #e84a12;
+  --accent-2: #c2410c;  /* orange as text: 4.9:1 on paper */
+  --accent-display: #f04e15;  /* large orange type: 3.3:1 on paper (AA large) */
   --accent-soft: #fff0e8;
   --accent-ring: rgba(255, 90, 31, 0.28);
-  --accent-ink: #ffffff;
+  --accent-ink: #141413;  /* ink on orange: 5.9:1 (white is only 3.1:1) */
   --hatch: repeating-linear-gradient(-45deg, transparent 0 6px, rgba(20, 20, 19, 0.05) 6px 7px);
 
   --ink: #141413;
@@ -114,10 +115,12 @@
 
   --text: #eeede9;
   --text-2: #a8a69f;
-  --text-3: #74726b;
+  --text-3: #8f8d86;   /* 5.3:1 on the dark ground */
 
   --accent-soft: rgba(255, 90, 31, 0.12);
-  --accent-ink: #ffffff;
+  --accent-ink: #141413;
+  --accent-2: #ff7a45;  /* orange as text on the dark ground */
+  --accent-display: #ff5a1f;
   --hatch: repeating-linear-gradient(-45deg, transparent 0 6px, rgba(238, 237, 233, 0.06) 6px 7px);
 
   --ink: #eeede9;
@@ -297,7 +300,7 @@ h1 { letter-spacing: -0.03em; }
 
 /* Critical number: the accent, at display size only. */
 .bp-critical {
-  color: var(--accent);
+  color: var(--accent-display);
 }
 
 /* Accent highlight — positive emphasis only (brand, headline). */
@@ -324,12 +327,23 @@ h1 { letter-spacing: -0.03em; }
   font-weight: 600;
   padding: 0.05em 0.4em;
   border-radius: 6px;
+  /* A pill, never a bar: block and flex children must not stretch. */
+  width: fit-content;
+  max-width: 100%;
+  align-self: flex-start;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
 }
 
-/* Links: ink text, accent underline. The accent means "act here". */
+/* Orange text that isn't a link: the darker accent, for contrast. */
 [class~="text-[var(--accent)]"] {
+  color: var(--accent-2);
+}
+
+/* Links: ink text, accent underline. The accent means "act here". Only real
+   links and buttons get the underline; other orange text stays orange. */
+a[class~="text-[var(--accent)]"],
+button[class~="text-[var(--accent)]"] {
   color: var(--text) !important;
   text-decoration: underline;
   text-decoration-color: var(--accent);
@@ -448,6 +462,7 @@ select.field {
   font-weight: 500;
   color: var(--text-2);
   background: var(--surface);
+  white-space: nowrap;
 }
 
 .btn {

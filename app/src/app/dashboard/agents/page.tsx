@@ -106,7 +106,7 @@ export default async function AgentsPage() {
                 <span>By bot</span>
                 <span>Requests · verified · errors</span>
               </div>
-              <table className="bp-table w-full">
+              <div className="overflow-x-auto"><table className="bp-table w-full min-w-[460px]">
                 <tbody>
                   {d.by_bot.slice(0, 12).map((b) => (
                     <tr key={b.bot}>
@@ -124,7 +124,7 @@ export default async function AgentsPage() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
             </div>
           </section>
 
@@ -139,7 +139,7 @@ export default async function AgentsPage() {
                   Every page AI engines read is also being cited. Nothing to fix here.
                 </p>
               ) : (
-                <table className="bp-table w-full">
+                <div className="overflow-x-auto"><table className="bp-table w-full min-w-[460px]">
                   <tbody>
                     {d.read_not_cited.map((p) => (
                       <tr key={p.path}>
@@ -148,7 +148,7 @@ export default async function AgentsPage() {
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </table></div>
               )}
               <p className="px-4 pb-3 text-xs text-[var(--text-3)]">
                 Answer engines are considering these pages and choosing other sources. Lead with a
@@ -165,7 +165,7 @@ export default async function AgentsPage() {
                   No cited page is erroring for AI bots or going unread.
                 </p>
               ) : (
-                <table className="bp-table w-full">
+                <div className="overflow-x-auto"><table className="bp-table w-full min-w-[460px]">
                   <tbody>
                     {d.cited_at_risk.map((p) => (
                       <tr key={p.path}>
@@ -174,7 +174,7 @@ export default async function AgentsPage() {
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </table></div>
               )}
               {(d.broken_pages ?? []).length > 0 && (
                 <>
@@ -182,7 +182,7 @@ export default async function AgentsPage() {
                     <span>Broken for AI bots</span>
                     <span className="bp-neg">{d.broken_pages.length}</span>
                   </div>
-                  <table className="bp-table w-full">
+                  <div className="overflow-x-auto"><table className="bp-table w-full min-w-[460px]">
                     <tbody>
                       {d.broken_pages.map((p) => (
                         <tr key={p.path}>
@@ -191,7 +191,7 @@ export default async function AgentsPage() {
                         </tr>
                       ))}
                     </tbody>
-                  </table>
+                  </table></div>
                   <p className="px-4 pb-3 text-xs text-[var(--text-3)]">
                     Bots keep requesting these and getting errors. Redirect them to the live page.
                   </p>
@@ -206,7 +206,7 @@ export default async function AgentsPage() {
                 <span>Most-read pages</span>
                 <span>{d.pages_tracked.toLocaleString()} pages tracked</span>
               </div>
-              <table className="bp-table w-full">
+              <div className="overflow-x-auto"><table className="bp-table w-full min-w-[460px]">
                 <thead>
                   <tr>
                     <th>Page</th>
@@ -231,7 +231,7 @@ export default async function AgentsPage() {
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
             </div>
           </section>
         </>

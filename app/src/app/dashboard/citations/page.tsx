@@ -57,7 +57,7 @@ export default async function CitationsPage({
                 these, or outranking it, affects every answer that cites it.
               </p>
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
+                <div className="overflow-x-auto"><table className="w-full text-left text-sm min-w-[640px]">
                   <thead className="text-[var(--text-2)]">
                     <tr>
                       <th className="py-2 pr-4">Page</th>
@@ -134,7 +134,7 @@ export default async function CitationsPage({
                       </tr>
                     ))}
                   </tbody>
-                </table>
+                </table></div>
               </div>
             </section>
           )}
@@ -204,7 +204,7 @@ export default async function CitationsPage({
             {data.domains.length === 0 ? (
               <p className="text-sm text-[var(--text-3)]">No citations captured yet.</p>
             ) : (
-              <table className="w-full text-left text-sm">
+              <div className="overflow-x-auto"><table className="w-full text-left text-sm min-w-[640px]">
                 <thead className="text-[var(--text-2)]">
                   <tr>
                     <th className="py-2 pr-4">Domain</th>
@@ -233,7 +233,7 @@ export default async function CitationsPage({
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
             )}
           </section>
         </>

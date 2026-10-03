@@ -12,7 +12,7 @@ export default async function AdminRawResultPage({
   const me = await apiFetch<Me>("/api/me");
   if (!me.data?.is_superadmin) {
     return (
-      <main className="mx-auto max-w-3xl px-8 py-16">
+      <main className="mx-auto max-w-3xl px-4 py-16 sm:px-8">
         <h1 className="text-xl font-semibold">Not authorized</h1>
       </main>
     );
@@ -21,7 +21,7 @@ export default async function AdminRawResultPage({
   if (!raw.data) notFound();
 
   return (
-    <main className="mx-auto max-w-4xl px-8 py-10">
+    <main className="mx-auto max-w-4xl px-4 py-10 sm:px-8">
       <Link
         href={`/admin/${slug}/runs/${runId}`}
         className="text-sm text-[var(--accent)] hover:underline"

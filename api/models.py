@@ -607,6 +607,7 @@ class Recommendation(SQLModel, table=True):
     regenerations."""
 
     __tablename__ = "recommendations"  # pyright: ignore[reportAssignmentType]
+    __table_args__ = (UniqueConstraint("tenant_id", "gap_ref", name="uq_recommendation_gap"),)
 
     id: int | None = Field(default=None, primary_key=True)
     tenant_id: int = Field(foreign_key="tenants.id", index=True)

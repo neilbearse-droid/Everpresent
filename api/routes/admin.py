@@ -305,13 +305,16 @@ def rotate_agent_log_token(slug: str, session: Db, admin: Admin) -> dict:
     stops working immediately."""
     import secrets
 
+    from api.routes.ingest import hash_token
+
     tenant = _tenant_or_404(session, slug)
-    tenant.agent_log_token = "eplog_" + secrets.token_urlsafe(32)
+    token = "eplog_" + secrets.token_urlsafe(32)
+    tenant.agent_log_token = hash_token(token)  # only the digest is stored
     session.add(tenant)
     write_audit(session, tenant_id=tenant.id, actor=admin.user.email,
                 action=f"tenant.agent-log-token rotated {slug}")
     session.commit()
-    return {"token": tenant.agent_log_token, "endpoint": "/api/ingest/agent-logs"}
+    return {"token": token, "endpoint": "/api/ingest/agent-logs"}
 
 
 @router.post("/tenants/{slug}/runs", status_code=201)

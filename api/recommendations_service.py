@@ -409,18 +409,22 @@ def _accuracy_plays(session: Session, tenant_id: int) -> list[Play]:
     by_id = {r.id: r for r in latest.values() if r.id is not None}
     if not by_id:
         return []
-    groups: dict[tuple[int, str], dict] = {}
+    # One play per fact, however differently the engines word the wrong value.
+    groups: dict[int, dict] = {}
     for f in session.exec(
         select(AccuracyFinding).where(
             AccuracyFinding.tenant_id == tenant_id,
             col(AccuracyFinding.result_id).in_(list(by_id)),
-        )
+        ).order_by(col(AccuracyFinding.id))
     ).all():
-        g = groups.setdefault((f.fact_id, f.stated), {"f": f, "results": set()})
+        g = groups.setdefault(f.fact_id, {"f": f, "results": set(), "stated": []})
         g["results"].add(f.result_id)
+        if f.stated not in g["stated"]:
+            g["stated"].append(f.stated)
     plays = []
-    for (fact_id, stated), g in groups.items():
+    for fact_id, g in sorted(groups.items()):
         f = g["f"]
+        stated = " / ".join(g["stated"][:3])
         rids = sorted(g["results"])
         engines = sorted({_surface_label(str(by_id[r].surface)) for r in rids})
         urls: dict[str, int] = {}
@@ -428,7 +432,7 @@ def _accuracy_plays(session: Session, tenant_id: int) -> list[Play]:
             select(col(Citation.url)).where(col(Citation.result_id).in_(rids))
         ).all():
             urls[url] = urls.get(url, 0) + 1
-        top = [u for u, _n in sorted(urls.items(), key=lambda kv: -kv[1])][:4]
+        top = [u for u, _n in sorted(urls.items(), key=lambda kv: (-kv[1], kv[0]))][:4]
         steps = []
         if top:
             steps.append(f"Check the pages those answers cite, and get them corrected: "
@@ -438,7 +442,7 @@ def _accuracy_plays(session: Session, tenant_id: int) -> list[Play]:
                   "Re-check over the next 2–3 runs; memory-based answers may wait for "
                   "the next model version"]
         plays.append(Play(
-            f"accuracy:{fact_id}:{stated}", "accuracy",
+            f"accuracy:{fact_id}", "accuracy",
             f"Fix a wrong fact: {f.subject}",
             f"{_join(engines, 4)} say {f.subject} is {stated}; it's {f.expected}.",
             98 if len(engines) > 1 else 94, "moderate", WHY["accuracy"], steps,
@@ -461,6 +465,17 @@ def _agent_plays(session: Session, tenant_id: int) -> list[Play]:
     from api.agent_analytics import agent_analytics
 
     a = agent_analytics(session, tenant_id)
+    if not a.get("has_data") and a.get("stale"):
+        # Logs were uploaded once but none are recent: ask for fresh logs and
+        # leave the existing bot plays as they are (no data isn't "fixed").
+        raise _KeepExisting([Play(
+            "connect_logs", "connect_logs", "Upload recent server logs",
+            f"Your newest AI-bot log data is more than {a['days']} days old, so bot "
+            "access and page checks are on hold.",
+            40, "official", WHY["logs"],
+            ["Upload the last 30 days of access logs on the AI Agents tab, or set up "
+             "the automatic push from your CDN so this never goes stale"],
+            link="/dashboard/agents")])
     if not a.get("has_data"):
         return [Play(
             "connect_logs", "connect_logs", "Connect your server logs",
@@ -486,15 +501,18 @@ def _agent_plays(session: Session, tenant_id: int) -> list[Play]:
                      "Confirm the site is indexed in Bing Webmaster Tools and Google "
                      "Search Console"],
                     link="/dashboard/agents"))
-            elif b["hits"] and b["errors"] / b["hits"] > 0.2 and b["errors"] >= 20:
-                pct = round(100 * b["errors"] / b["hits"])
+            elif b["hits"] and b.get("blocked", 0) / b["hits"] > 0.2 and b["blocked"] >= 20:
+                # Only refusals count (401/403/429/5xx): a 404 is a dead page,
+                # handled by the broken-pages play, not the bot being blocked.
+                pct = round(100 * b["blocked"] / b["hits"])
                 plays.append(Play(
                     f"crawler:{bot}:errors", "crawler_access",
-                    f"{bot} gets errors on {pct}% of requests",
+                    f"{bot} is refused on {pct}% of requests",
                     f"{engine} is being turned away from much of your site.",
                     88, "official", WHY["crawler"],
-                    ["Find which responses fail on the AI Agents tab (Most-read pages)",
-                     f"Check rate limits and bot challenges aren't serving {bot} errors"],
+                    ["Check firewall, bot-challenge and rate-limit rules for "
+                     f"{bot} (403, 429 and 5xx responses)",
+                     "Find the affected pages on the AI Agents tab (Most-read pages)"],
                     link="/dashboard/agents"))
     for p in a.get("cited_at_risk", [])[:5]:
         if "error" in p["reason"]:
@@ -586,7 +604,7 @@ def _subquery_plays(session: Session, tenant_id: int) -> list[Play]:
              "State the facts they ask about explicitly: numbers, prices, dates",
              "Check which pages rank for them and whether you can be listed there"],
             query_text=parent, link="/dashboard/fanout"))
-    plays.sort(key=lambda p: -p.priority)
+    plays.sort(key=lambda p: (-p.priority, p.gap_ref))
     return plays[:6]
 
 
@@ -725,13 +743,46 @@ def _strategy_play(session: Session, tenant_id: int) -> list[Play]:
                  steps, link="/dashboard")]
 
 
-def _safe(name: str, fn: Callable[[], list[Play]]) -> list[Play]:
-    """One failing signal must not cost the tenant every other play (or the run's
-    processing): log it and carry on."""
+class _KeepExisting(Exception):  # noqa: N818 — a signal, not an error
+    """Raised by a play source that can't judge its plays right now (data
+    missing or stale): its `plays` are added, and the plays it already had
+    are left exactly as they are instead of being auto-resolved."""
+
+    def __init__(self, plays: list[Play]) -> None:
+        super().__init__("keep existing")
+        self.plays = plays
+
+
+# Which kinds of play each source owns, so a source that failed or can't
+# judge leaves its own plays alone.
+_SOURCE_BRANCHES = {
+    "query": {"web_search", "training", "aio"},
+    "accuracy": {"accuracy"},
+    "agents": {"crawler_access", "broken_page", "read_not_cited", "connect_logs"},
+    "refresh": {"refresh"},
+    "subquery": {"subquery"},
+    "sources": {"reviews", "earned", "community", "reference"},
+    "owned_docs": {"owned"},
+    "strategy": {"strategy"},
+}
+
+
+def _run_source(
+    session: Session, name: str, fn: Callable[[], list[Play]], frozen: set[str]
+) -> list[Play]:
+    """Run one play source inside a savepoint. A failure (logged) or a
+    _KeepExisting freezes that source's branches: its existing plays keep
+    their status instead of being resolved by a missing signal. The savepoint
+    keeps a SQL error in one source from aborting the whole transaction."""
     try:
-        return fn()
+        with session.begin_nested():
+            return fn()
+    except _KeepExisting as keep:
+        frozen.update(_SOURCE_BRANCHES[name])
+        return keep.plays
     except Exception:  # noqa: BLE001
         log.exception("recommendations: %s plays failed", name)
+        frozen.update(_SOURCE_BRANCHES[name])
         return []
 
 
@@ -742,25 +793,52 @@ def generate_recommendations(session: Session, tenant: Tenant) -> int:
     assert tenant.id is not None
     tenant_id = tenant.id
     try:
-        plan_d: dict = action_plan(session, tenant_id)
+        with session.begin_nested():
+            plan_d: dict = action_plan(session, tenant_id)
     except Exception:  # noqa: BLE001 — degrade to the plays that don't need it
         log.exception("recommendations: action plan failed")
         plan_d = {}
 
+    frozen: set[str] = set()
+    if not plan_d:
+        frozen |= _SOURCE_BRANCHES["refresh"] | _SOURCE_BRANCHES["sources"]
+    sources: list[tuple[str, Callable[[], list[Play]]]] = [
+        ("query", lambda: _query_plays(session, tenant_id, plan_d)),
+        ("accuracy", lambda: _accuracy_plays(session, tenant_id)),
+        ("agents", lambda: _agent_plays(session, tenant_id)),
+        ("refresh", lambda: _refresh_plays(plan_d)),
+        ("subquery", lambda: _subquery_plays(session, tenant_id)),
+        ("sources", lambda: _source_plays(plan_d)),
+        ("owned_docs", lambda: _owned_docs_play(session, tenant_id, plan_d)),
+        ("strategy", lambda: _strategy_play(session, tenant_id)),
+    ]
     plays: list[Play] = []
-    plays += _safe("query", lambda: _query_plays(session, tenant_id, plan_d))
-    plays += _safe("accuracy", lambda: _accuracy_plays(session, tenant_id))
-    plays += _safe("agents", lambda: _agent_plays(session, tenant_id))
-    plays += _safe("refresh", lambda: _refresh_plays(plan_d))
-    plays += _safe("subquery", lambda: _subquery_plays(session, tenant_id))
-    plays += _safe("sources", lambda: _source_plays(plan_d))
-    plays += _safe("owned_docs", lambda: _owned_docs_play(session, tenant_id, plan_d))
-    plays += _safe("strategy", lambda: _strategy_play(session, tenant_id))
+    for name, fn in sources:
+        plays += _run_source(session, name, fn, frozen)
+
+    # A lost citation stays a to-do until the page is cited again, not just
+    # until it drops out of the latest two-run comparison.
+    protect = plan_d.get("protect") or {}
+    still_lost: set[str] = set()
+    if "latest_cited" in protect:
+        cited_now = set(protect["latest_cited"])
+        still_lost = {
+            r.gap_ref for r in session.exec(
+                select(Recommendation).where(
+                    Recommendation.tenant_id == tenant_id,
+                    Recommendation.branch == "refresh",
+                    col(Recommendation.status).in_(
+                        [RecommendationStatus.open, RecommendationStatus.in_progress]),
+                )
+            ).all()
+            if r.gap_ref.removeprefix("refresh:") not in cited_now
+        }
 
     existing = {
         r.gap_ref: r
         for r in session.exec(
             select(Recommendation).where(Recommendation.tenant_id == tenant_id)
+            .order_by(col(Recommendation.id))
         ).all()
     }
     open_count = 0
@@ -785,11 +863,16 @@ def generate_recommendations(session: Session, tenant: Tenant) -> int:
             open_count += 1
 
     # Anything left no longer matches a live gap: auto-resolve unless a human
-    # already closed it.
+    # already closed it, its source couldn't judge this time, or it's a lost
+    # citation that hasn't been won back.
     for rec in existing.values():
-        if rec.status not in HAND_STATUSES and rec.status != RecommendationStatus.resolved:
-            rec.status = RecommendationStatus.resolved
-            rec.updated_at = utcnow()
-            session.add(rec)
+        if rec.status in HAND_STATUSES or rec.status == RecommendationStatus.resolved:
+            continue
+        if rec.branch in frozen or rec.gap_ref in still_lost:
+            open_count += 1
+            continue
+        rec.status = RecommendationStatus.resolved
+        rec.updated_at = utcnow()
+        session.add(rec)
     session.commit()
     return open_count

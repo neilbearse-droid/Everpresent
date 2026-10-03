@@ -13,6 +13,7 @@ human IPs never leave the parser.
 """
 
 import json
+import math
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -29,10 +30,25 @@ class LogHit:
     user_agent: str
 
 
+# Real access-log lines are a few hundred bytes; anything far longer is junk
+# or hostile and is skipped before any pattern runs on it.
+MAX_LINE_CHARS = 16_384
+
+# Bounded and non-overlapping (target can't contain a quote), so a malformed
+# request line can't backtrack.
 _COMBINED = re.compile(
-    r'^(?P<ip>\S+) \S+ \S+ \[(?P<ts>[^\]]+)\] "(?P<method>[A-Z]+) (?P<target>\S+)[^"]*" '
-    r'(?P<status>\d{3}) \S+(?: "[^"]*" "(?P<ua>[^"]*)")?'
+    r'^(?P<ip>[^\s]{1,64}) [^\s]{1,256} [^\s]{1,256} \[(?P<ts>[^\]]{1,64})\] '
+    r'"(?P<method>[A-Z]{1,16}) (?P<target>[^\s"]{1,8192})[^"]{0,64}" '
+    r'(?P<status>\d{3}) [^\s]{1,32}(?: "[^"]{0,8192}" "(?P<ua>[^"]{0,4096})")?'
 )
+# NUL and other C0 control characters: Postgres text can't hold NUL, and none
+# belong in a URL path.
+_CONTROL = re.compile(r"[\x00-\x1f\x7f]")
+
+
+def _http_status(code: int) -> int:
+    """A real HTTP status or 0 (unknown); keeps junk out of an int column."""
+    return code if 100 <= code <= 599 else 0
 
 
 def _clean_path(target: str) -> str:
@@ -40,14 +56,18 @@ def _clean_path(target: str) -> str:
     if "://" in target:
         target = urlsplit(target).path or "/"
     path = target.split("?", 1)[0].split("#", 1)[0] or "/"
-    return unquote(path)[:500]
+    return _CONTROL.sub("", unquote(path))[:500] or "/"
 
 
 def _parse_ts(value: object) -> datetime | None:
     if value is None or value == "":
         return None
+    if isinstance(value, bool):
+        return None
     if isinstance(value, (int, float)):
         n = float(value)
+        if not math.isfinite(n) or n <= 0:
+            return None
         # Cloudflare uses ns, ms or s epochs depending on the timestamp format.
         if n > 1e17:
             n /= 1e9
@@ -55,8 +75,13 @@ def _parse_ts(value: object) -> datetime | None:
             n /= 1e6
         elif n > 1e11:
             n /= 1e3
-        return datetime.fromtimestamp(n, tz=UTC)
+        try:
+            return datetime.fromtimestamp(n, tz=UTC)
+        except (OverflowError, OSError, ValueError):
+            return None
     s = str(value).strip()
+    if s.isdigit():  # an epoch sent as a string
+        return _parse_ts(int(s)) if len(s) <= 20 else None
     for fmt in ("%d/%b/%Y:%H:%M:%S %z",):
         try:
             return datetime.strptime(s, fmt).astimezone(UTC)
@@ -81,13 +106,18 @@ def _first(d: dict, *keys: str) -> object:
     return None
 
 
-def _parse_json(line: str) -> LogHit | None:
+def _parse_json(line: str) -> list[LogHit]:
+    """One JSON object per line, or a JSON array of them (Vercel's "json"
+    drain format sends an array per request body)."""
     try:
         d = json.loads(line)
-    except ValueError:
-        return None
-    if not isinstance(d, dict):
-        return None
+    except (ValueError, RecursionError):
+        return []
+    items = d if isinstance(d, list) else [d]
+    return [h for h in (_hit_from_dict(x) for x in items[:100_000] if isinstance(x, dict)) if h]
+
+
+def _hit_from_dict(d: dict) -> LogHit | None:
     ua = _first(d, "ClientRequestUserAgent", "proxy.userAgent", "user_agent", "userAgent",
                 "request_user_agent", "http.user_agent", "ua", "request.headers.user-agent")
     target = _first(d, "ClientRequestPath", "ClientRequestURI", "proxy.path", "path", "url",
@@ -107,6 +137,7 @@ def _parse_json(line: str) -> LogHit | None:
         code = int(str(status)) if status is not None else 0
     except ValueError:
         code = 0
+    code = _http_status(code)
     return LogHit(ts=ts, ip=str(ip or ""), method=str(method or "GET").upper(),
                   path=_clean_path(str(target)), status=code, user_agent=str(ua))
 
@@ -118,7 +149,23 @@ class LogParser:
         self._cf_fields: list[str] | None = None
 
     def parse(self, line: str) -> LogHit | None:
-        line = line.rstrip("\r\n")
+        """The single hit on this line, or None."""
+        hits = self.parse_all(line)
+        return hits[0] if hits else None
+
+    def parse_all(self, line: str) -> list[LogHit]:
+        """Every hit on this line: one for text formats, possibly many for a
+        JSON array body."""
+        stripped = line.lstrip("\ufeff").lstrip()  # BOM on a file's first line
+        if stripped.startswith("["):
+            # A JSON array body can be large; it's bounded by the upload cap.
+            return _parse_json(stripped)
+        if len(line) > MAX_LINE_CHARS:
+            return []
+        hit = self._parse_line(line.rstrip("\r\n").lstrip("\ufeff"))
+        return [hit] if hit else []
+
+    def _parse_line(self, line: str) -> LogHit | None:
         if not line.strip():
             return None
         if line.startswith("#Fields:"):
@@ -127,7 +174,8 @@ class LogParser:
         if line.startswith("#"):
             return None
         if line.lstrip().startswith("{"):
-            return _parse_json(line)
+            hits = _parse_json(line)
+            return hits[0] if hits else None
         if self._cf_fields and "\t" in line:
             return self._parse_cloudfront(line)
         m = _COMBINED.match(line)
@@ -148,7 +196,7 @@ class LogParser:
         if ts is None or not ua:
             return None
         try:
-            status = int(row.get("sc-status", "0"))
+            status = _http_status(int(row.get("sc-status", "0")))
         except ValueError:
             status = 0
         return LogHit(ts=ts, ip=row.get("c-ip", ""), method=row.get("cs-method", "GET"),

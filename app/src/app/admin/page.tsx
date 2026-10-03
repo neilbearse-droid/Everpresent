@@ -6,7 +6,7 @@ export default async function AdminPage() {
   const me = await apiFetch<Me>("/api/me");
   if (!me.data?.is_superadmin) {
     return (
-      <main className="mx-auto max-w-3xl px-8 py-16">
+      <main className="mx-auto max-w-3xl px-4 py-16 sm:px-8">
         <h1 className="text-xl font-semibold">Not authorized</h1>
         <p className="mt-2 text-sm text-[var(--text-2)]">
           The admin panel is superadmin-only.
@@ -18,7 +18,7 @@ export default async function AdminPage() {
   const tenants = await apiFetch<Tenant[]>("/api/admin/tenants");
 
   return (
-    <main className="mx-auto max-w-5xl px-8 py-10">
+    <main className="mx-auto max-w-5xl px-4 py-10 sm:px-8">
       <header className="mb-8 flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">Admin — Tenants</h1>
         <Link href="/dashboard" className="text-sm text-[var(--accent)] hover:underline">

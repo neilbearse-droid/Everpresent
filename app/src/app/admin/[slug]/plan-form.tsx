@@ -36,7 +36,7 @@ export function PlanForm({
               key={key}
               className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 text-sm transition-colors ${
                 on
-                  ? "border-[var(--line)] bg-[var(--accent)]"
+                  ? "border-[var(--ink)] bg-[var(--surface-2)] ring-1 ring-[var(--ink)]"
                   : "border-[var(--border)] hover:border-[var(--border-strong)]"
               }`}
             >
@@ -45,14 +45,14 @@ export function PlanForm({
                 name="plan"
                 value={key}
                 defaultChecked={on}
-                className="accent-[var(--accent)]"
+                className="accent-[var(--ink)]"
               />
               <span className="flex-1">
                 <span className="font-medium">{p.label}</span>
-                <span className="ml-2 font-mono text-xs text-[var(--text-3)]">
+                <span className="ml-2 text-xs tabular-nums text-[var(--text-2)]">
                   {p.monthly_price_usd > 0 ? `$${p.monthly_price_usd}/mo` : "custom"}
                 </span>
-                <span className="mt-0.5 block font-mono text-xs text-[var(--text-3)]">
+                <span className="mt-0.5 block text-xs text-[var(--text-2)]">
                   {cap(p.max_prompts)} prompts · {cap(p.max_personas)} personas ·{" "}
                   {cap(p.max_engines)} engines ·{" "}
                   {p.max_runs_per_day === null ? "∞" : `${p.max_runs_per_day}`}×/day ·{" "}

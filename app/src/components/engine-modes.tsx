@@ -14,7 +14,7 @@ function EngineCell({ e }: { e: EngineMode }) {
   return (
     <div className="flex flex-col">
       <div className="flex flex-1 flex-col p-4">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1">
           <h3 className="bp-head text-[17px]">{e.label}</h3>
           <span className="chip shrink-0">{MODE_CODE[e.mode]}</span>
         </div>

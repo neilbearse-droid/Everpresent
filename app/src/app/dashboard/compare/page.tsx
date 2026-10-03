@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { apiFetch, type RawEnvelope } from "@/lib/api";
+import { apiFetch, type Me, type RawEnvelope } from "@/lib/api";
+import { DashNav } from "@/components/dash-nav";
 import { surfaceLabel } from "@/lib/viz";
 
 function AnswerColumn({ title, envelope }: { title: string; envelope: RawEnvelope }) {
@@ -24,20 +25,22 @@ export default async function ComparePage({
 }) {
   const { a, b } = await searchParams;
   if (!a || !b) notFound();
-  const [modeA, modeB] = await Promise.all([
+  const [modeA, modeB, me] = await Promise.all([
     apiFetch<RawEnvelope>(`/api/tenant/results/${a}/raw`),
     apiFetch<RawEnvelope>(`/api/tenant/results/${b}/raw`),
+    apiFetch<Me>("/api/me"),
   ]);
   if (!modeA.data || !modeB.data) notFound();
 
   return (
     <main className="mx-auto max-w-[1400px] px-6 pb-16">
+      <DashNav active="Queries" isSuperadmin={me.data?.is_superadmin} />
       <Link href="/dashboard/queries" className="text-sm text-[var(--accent)] hover:underline">
         ← Queries
       </Link>
       <h1 className="mt-1 text-2xl font-semibold tracking-tight">API vs web interface</h1>
       <p className="mt-1 mb-6 text-sm text-[var(--text-2)]">“{modeA.data.query}”</p>
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <AnswerColumn title="Mode A — provider API" envelope={modeA.data} />
         <AnswerColumn title="Mode B — consumer web interface" envelope={modeB.data} />
       </div>

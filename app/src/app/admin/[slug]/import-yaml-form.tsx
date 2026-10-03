@@ -23,7 +23,7 @@ export function ImportYamlForm({ slug, seeds = [] }: { slug: string; seeds?: Bun
             competitors, personas, questions and engines.
           </label>
           <div className="flex gap-2">
-            <select name="seed" className="field px-2 py-1.5 text-[12px]" defaultValue={seeds[0].name}>
+            <select name="seed" className="field min-w-0 flex-1 px-2 py-1.5 text-[12px]" defaultValue={seeds[0].name}>
               {seeds.map((s) => (
                 <option key={s.name} value={s.name}>
                   {s.brand} ({s.queries} questions, {s.personas} personas)

@@ -24,7 +24,7 @@ export default async function TenantAdminPage({
   const me = await apiFetch<Me>("/api/me");
   if (!me.data?.is_superadmin) {
     return (
-      <main className="mx-auto max-w-3xl px-8 py-16">
+      <main className="mx-auto max-w-3xl px-4 py-16 sm:px-8">
         <h1 className="text-xl font-semibold">Not authorized</h1>
       </main>
     );
@@ -58,7 +58,7 @@ export default async function TenantAdminPage({
   if (!countries.some(([code]) => code === country)) countries.push([country, "Current"]);
 
   return (
-    <main className="mx-auto max-w-5xl px-8 py-10">
+    <main className="mx-auto max-w-5xl px-4 py-10 sm:px-8">
       <header className="mb-8 flex items-center justify-between">
         <div>
           <Link href="/admin" className="text-sm text-[var(--accent)] hover:underline">
@@ -110,9 +110,9 @@ export default async function TenantAdminPage({
                         : `${ready.system.filter((c) => !c.ok).length} down`}
                     </span>
                   </div>
-                  <div className="grid gap-px overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--line)] sm:grid-cols-3 lg:grid-cols-5">
+                  <div className="grid grid-cols-1 gap-2 p-3 sm:grid-cols-3 lg:grid-cols-5">
                     {ready.system.map((c) => (
-                      <div key={c.label} className="bg-[var(--surface)] p-3">
+                      <div key={c.label} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">
                         <div className="bp-label">{c.ok ? "✓ Up" : "✗ Down"}</div>
                         <div className={`mt-1 text-[13px] font-semibold ${c.ok ? "" : "bp-neg"}`}>
                           {c.label}
@@ -127,9 +127,9 @@ export default async function TenantAdminPage({
                   </div>
                 </>
               )}
-              <div className="grid gap-px overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--line)] sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid grid-cols-1 gap-2 p-3 sm:grid-cols-2 lg:grid-cols-4">
                 {ready.checks.map((c) => (
-                  <div key={c.label} className="bg-[var(--surface)] p-3">
+                  <div key={c.label} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">
                     <div className="bp-label">{c.ok ? "✓ Done" : "✗ To do"}</div>
                     <div className={`mt-1 text-[13px] font-semibold ${c.ok ? "" : "bp-neg"}`}>
                       {c.label}
@@ -138,7 +138,7 @@ export default async function TenantAdminPage({
                   </div>
                 ))}
               </div>
-              <table className="bp-table w-full">
+              <div className="overflow-x-auto"><table className="bp-table w-full min-w-[680px]">
                 <thead>
                   <tr>
                     <th>Engine</th>
@@ -155,9 +155,9 @@ export default async function TenantAdminPage({
                     <tr key={e.code}>
                       <td>
                         <div className="font-semibold">{e.label}</div>
-                        <div className="font-mono text-[10.5px] text-[var(--text-3)]">{e.code}</div>
+                        <div className="text-[11px] text-[var(--text-3)]">{e.code}</div>
                       </td>
-                      <td className="bp-label">{e.mode}</td>
+                      <td className="bp-label whitespace-nowrap">{e.mode}</td>
                       <td>
                         <span
                           className={`text-[12px] font-medium ${
@@ -175,7 +175,7 @@ export default async function TenantAdminPage({
                       <td className="text-[11.5px] text-[var(--text-2)]">
                         {e.needs.length ? e.needs.map((n) => <div key={n}>{n}</div>) : "—"}
                       </td>
-                      <td className="font-mono text-[11px]">
+                      <td className="whitespace-nowrap text-[12px] tabular-nums">
                         {e.last_run.run_id ? (
                           <Link href={`/admin/${tenant.slug}/runs/${e.last_run.run_id}`} className="bp-link">
                             #{e.last_run.run_id}
@@ -203,7 +203,7 @@ export default async function TenantAdminPage({
                     </tr>
                   ))}
                 </tbody>
-              </table>
+              </table></div>
             </div>
           </div>
         </section>
@@ -218,7 +218,7 @@ export default async function TenantAdminPage({
         <PlanForm slug={tenant.slug} current={tenant.plan} plans={plans} />
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <section className="card p-5">
           <h2 className="mb-3 font-medium">Clerk organization</h2>
           <p className="mb-3 text-xs text-[var(--text-2)]">
@@ -384,7 +384,7 @@ export default async function TenantAdminPage({
         </section>
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <section className="card p-5">
           <h2 className="mb-3 font-medium">Personas ({personas.length})</h2>
           <ul className="space-y-3">

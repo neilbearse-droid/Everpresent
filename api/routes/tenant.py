@@ -94,13 +94,13 @@ def surfaces(ctx: Ctx, session: Db) -> list[TenantSurface]:
 async def upload_agent_logs(request: Request, ctx: Ctx, session: Db) -> dict:
     """Upload an access log (raw or .gz): Apache/Nginx, Cloudflare Logpush,
     Vercel, CloudFront or JSON lines. Only AI-bot hits are kept."""
-    from api.agent_analytics import ingest_stream
+    from api.agent_analytics import UploadError, ingest_stream
 
     try:
         summary = await ingest_stream(session, ctx.tenant_id, request.stream())
-    except ValueError as exc:
+    except UploadError as exc:
         session.rollback()
-        raise HTTPException(status_code=413, detail=str(exc)) from exc
+        raise HTTPException(status_code=exc.status, detail=str(exc)) from exc
     session.commit()
     return summary
 

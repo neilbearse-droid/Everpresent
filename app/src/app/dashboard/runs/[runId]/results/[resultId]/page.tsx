@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { apiFetch, type RawEnvelope } from "@/lib/api";
+import { apiFetch, type Me, type RawEnvelope } from "@/lib/api";
+import { DashNav } from "@/components/dash-nav";
 import { RawResponseView } from "@/components/raw-response";
 
 export default async function TenantRawResultPage({
@@ -9,10 +10,14 @@ export default async function TenantRawResultPage({
   params: Promise<{ runId: string; resultId: string }>;
 }) {
   const { runId, resultId } = await params;
-  const raw = await apiFetch<RawEnvelope>(`/api/tenant/results/${resultId}/raw`);
+  const [raw, me] = await Promise.all([
+    apiFetch<RawEnvelope>(`/api/tenant/results/${resultId}/raw`),
+    apiFetch<Me>("/api/me"),
+  ]);
   if (!raw.data) notFound();
   return (
-    <main className="mx-auto max-w-4xl px-8 py-10">
+    <main className="mx-auto max-w-[1400px] px-6 pb-16">
+      <DashNav active="Runs" isSuperadmin={me.data?.is_superadmin} />
       <Link href={`/dashboard/runs/${runId}`} className="text-sm text-[var(--accent)] hover:underline">
         ← Run #{runId}
       </Link>

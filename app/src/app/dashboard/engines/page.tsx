@@ -8,7 +8,9 @@ const DIAGNOSIS_ORDER = ["knowledge_gap", "content_gap", "undetermined", "visibl
 const DIAGNOSIS_STYLE: Record<string, { chip: string; dot: string }> = {
   visible: { chip: "text-[var(--pos)]", dot: "bg-[var(--pos)]" },
   content_gap: { chip: "text-[var(--warn-t)]", dot: "bg-[var(--warn)]" },
-  knowledge_gap: { chip: "text-[var(--neg)]", dot: "bg-[var(--neg)]" },
+  // Bad news: the chip is the ink pill; its dot is drawn in the pill's text
+  // colour so it stays visible on the ink.
+  knowledge_gap: { chip: "bp-neg", dot: "bg-[var(--ink-text)]" },
   undetermined: { chip: "text-[var(--text-2)]", dot: "bg-[var(--text-3)]" },
 };
 
@@ -184,7 +186,7 @@ export default async function EnginesPage({
                           </td>
                         );
                       })}
-                      <td className="pl-4">
+                      <td className="py-3 pl-4">
                         <div className={`flex items-center gap-1.5 text-xs font-medium ${(DIAGNOSIS_STYLE[row.diagnosis.type] ?? DIAGNOSIS_STYLE.undetermined).chip}`}>
                           <span className={`h-2 w-2 rounded-full ${(DIAGNOSIS_STYLE[row.diagnosis.type] ?? DIAGNOSIS_STYLE.undetermined).dot}`} />
                           {row.diagnosis.label}
@@ -199,8 +201,10 @@ export default async function EnginesPage({
               </table>
             </div>
             <p className="mt-4 text-xs text-[var(--text-3)]">
-              <span className="text-[var(--pos)]">You</span> = your brand named ·{" "}
-              <span className="text-[var(--warn-t)]">Rival</span> = a competitor named, you absent
+              <span className={`rounded px-1.5 py-0.5 font-medium ${CELL_STYLE.brand}`}>You</span>{" "}
+              = your brand named ·{" "}
+              <span className={`rounded px-1.5 py-0.5 font-medium ${CELL_STYLE.competitor}`}>Rival</span>{" "}
+              = a competitor named, you absent
               (hover for names) · a dash means neither. The diagnosis uses the no-search answer
               where available.
             </p>

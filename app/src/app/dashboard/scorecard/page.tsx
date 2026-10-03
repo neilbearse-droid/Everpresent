@@ -11,7 +11,7 @@ import { GenerateDraft } from "./generate-draft";
 import { DashNav } from "@/components/dash-nav";
 import { NoOrgNotice } from "@/components/no-org-notice";
 import { HBars } from "@/components/charts";
-import { entityColors, surfaceLabel } from "@/lib/viz";
+import { entityColors, OTHER_COLOR, surfaceLabel } from "@/lib/viz";
 
 const STABILITY_STYLE: Record<string, string> = {
   Stable: "text-[var(--pos)]",
@@ -138,11 +138,14 @@ export default async function ScorecardPage({
     );
   }
 
-  const colors = entityColors(d.brand_name, d.share_breakdown.map((s) => s.name).filter((n) => n !== d.brand_name));
+  const colors = entityColors(
+    d.brand_name,
+    [...d.share_breakdown].sort((a, b) => b.share - a.share).map((s) => s.name),
+  );
   const shareItems = d.share_breakdown.map((s) => ({
     label: s.name,
     value: s.share,
-    color: colors.get(s.name) ?? "#9a9a92",
+    color: colors.get(s.name) ?? OTHER_COLOR,
   }));
   const pd = d.prominence.position_distribution;
   const maxRate = Math.max(...d.stability.series.map((s) => s.presence_rate), 1);
@@ -269,7 +272,7 @@ export default async function ScorecardPage({
             items={[
               { label: "Leads the answer (1st)", value: pd.leads, color: "#ff5a1f" },
               { label: "Second", value: pd.second, color: "var(--text)" },
-              { label: "Third or later", value: pd.third_plus, color: "#9a9a92" },
+              { label: "Third or later", value: pd.third_plus, color: OTHER_COLOR },
             ]}
             max={Math.max(pd.leads, pd.second, pd.third_plus, 1)}
           />
@@ -352,10 +355,13 @@ export default async function ScorecardPage({
             {d.stability.series.map((s) => (
               <div key={s.run_id} className="flex h-full flex-1 flex-col items-center gap-1">
                 {/* The bar's % height needs a definite-height parent. */}
-                <div className="flex w-full flex-1 items-end">
+                <div className="flex w-full flex-1 flex-col items-center justify-end border-b border-[var(--line)]">
+                  <span className="mb-1 text-[11px] font-medium tabular-nums">
+                    {s.presence_rate}%
+                  </span>
                   <div
-                    className="w-full bg-[var(--accent)]"
-                    style={{ height: `${(s.presence_rate / maxRate) * 100}%`, minHeight: 2 }}
+                    className="w-full max-w-[56px] rounded-t-md bg-[var(--accent)]"
+                    style={{ height: `${(s.presence_rate / maxRate) * 80}%`, minHeight: 2 }}
                     title={`Run #${s.run_id}: ${s.presence_rate}%`}
                   />
                 </div>

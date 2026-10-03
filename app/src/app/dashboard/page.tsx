@@ -11,7 +11,7 @@ import { DashNav } from "@/components/dash-nav";
 import { EngineStrip, ModeStack } from "@/components/engine-modes";
 import { NoOrgNotice } from "@/components/no-org-notice";
 import { TrendChart, HBars } from "@/components/charts";
-import { entityColors } from "@/lib/viz";
+import { entityColors, OTHER_COLOR } from "@/lib/viz";
 
 export default async function OverviewPage({
   searchParams,
@@ -40,7 +40,12 @@ export default async function OverviewPage({
   const competitorNames = data
     ? [...new Set(data.trend.flatMap((t) => Object.keys(t.competitors)))]
     : [];
-  const colors = entityColors(data?.brand_name ?? "Brand", competitorNames);
+  // Rank rivals by share of voice so the chart shows the ones that matter.
+  const shareOf = (name: string) => data?.share_of_voice[name] ?? 0;
+  const rivalsByShare = [...competitorNames].sort(
+    (a, b) => shareOf(b) - shareOf(a) || a.localeCompare(b),
+  );
+  const colors = entityColors(data?.brand_name ?? "Brand", rivalsByShare);
 
   const trendRows =
     data?.trend.map((point) => ({
@@ -48,7 +53,7 @@ export default async function OverviewPage({
       [data.brand_name]: point.brand_score,
       ...point.competitors,
     })) ?? [];
-  const trendSeries = [data?.brand_name ?? "Brand", ...competitorNames.sort()]
+  const trendSeries = [data?.brand_name ?? "Brand", ...rivalsByShare]
     .filter((name) => colors.has(name))
     .map((name) => ({ name, color: colors.get(name)! }));
 
@@ -58,7 +63,7 @@ export default async function OverviewPage({
         .map(([label, value]) => ({
           label,
           value,
-          color: colors.get(label) ?? "#9a9a92",
+          color: colors.get(label) ?? OTHER_COLOR,
         }))
     : [];
 
@@ -213,7 +218,13 @@ export default async function OverviewPage({
                 <span>Score 0–100</span>
               </div>
               <div className="p-4">
-                <TrendChart data={trendRows} series={trendSeries} />
+                {trendRows.length >= 2 ? (
+                  <TrendChart data={trendRows} series={trendSeries} />
+                ) : (
+                  <p className="py-16 text-center text-sm text-[var(--text-3)]">
+                    The trend line appears after a second day of measurements.
+                  </p>
+                )}
                 {(data?.series_notes ?? []).map((n) => (
                   <p key={`${n.surface}-${n.date}`} className="mt-2 text-xs text-[var(--text-3)]">
                     <span className="bp-label">Series break · {n.date}</span> {n.note}

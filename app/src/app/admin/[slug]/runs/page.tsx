@@ -12,18 +12,18 @@ export default async function AdminRunsPage({
   const me = await apiFetch<Me>("/api/me");
   if (!me.data?.is_superadmin) {
     return (
-      <main className="mx-auto max-w-3xl px-8 py-16">
+      <main className="mx-auto max-w-3xl px-4 py-16 sm:px-8">
         <h1 className="text-xl font-semibold">Not authorized</h1>
       </main>
     );
   }
   const payload = await apiFetch<AdminRunsPayload>(`/api/admin/tenants/${slug}/runs`);
   if (!payload.data) {
-    return <main className="mx-auto max-w-3xl px-8 py-16">{payload.error}</main>;
+    return <main className="mx-auto max-w-3xl px-4 py-16 sm:px-8">{payload.error}</main>;
   }
 
   return (
-    <main className="mx-auto max-w-5xl px-8 py-10">
+    <main className="mx-auto max-w-5xl px-4 py-10 sm:px-8">
       <header className="mb-8 flex items-center justify-between">
         <div>
           <Link href={`/admin/${slug}`} className="text-sm text-[var(--accent)] hover:underline">

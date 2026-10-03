@@ -2117,7 +2117,8 @@ def _page_url(url: str, owned: list[str]) -> str | None:
     if not host or not domain_is_owned(host, owned):
         return None
     path = parts.path.rstrip("/") or "/"
-    return f"{parts.scheme or 'https'}://{host}{path}"
+    # One page however it was linked: http/https and www. variants collapse.
+    return f"https://{host.removeprefix('www.')}{path}"
 
 
 def _lost_citations(session: Session, tenant_id: int) -> dict:
@@ -2176,7 +2177,8 @@ def _lost_citations(session: Session, tenant_id: int) -> dict:
     run_ids = sorted(measured)
     if len(run_ids) < 2:
         latest = by_run[run_ids[-1]] if run_ids else set()
-        return {"ready": False, "lost": [], "held": len(latest), "gained": 0}
+        return {"ready": False, "lost": [], "held": len(latest), "gained": 0,
+                "latest_cited": sorted({url for url, _q in latest})}
     prev_id, latest_id = run_ids[-2], run_ids[-1]
     # Compare only queries BOTH runs measured, so a partial run doesn't
     # report everything it skipped as "lost".
@@ -2193,6 +2195,9 @@ def _lost_citations(session: Session, tenant_id: int) -> dict:
         lost_by_url[url].append(query)
     return {
         "ready": True,
+        # Every brand page the latest run cited (any query): a lost page only
+        # counts as won back once it shows up here again.
+        "latest_cited": sorted({url for url, _q in by_run[latest_id]}),
         "lost": [
             {"url": url, "domain": domain_of.get(url, ""), "queries": queries,
              "still_cited_on": latest_urls.get(url, 0)}

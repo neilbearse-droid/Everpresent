@@ -18,8 +18,8 @@ export function ScheduleForm({
   );
   return (
     <form action={action} className="flex flex-col gap-3">
-      <div className="flex items-end gap-2">
-        <label className="flex flex-1 flex-col text-xs text-[var(--text-2)]">
+      <div className="flex flex-wrap items-end gap-2">
+        <label className="flex min-w-[220px] flex-1 flex-col text-xs text-[var(--text-2)]">
           Cron expression (UTC). Recommended: <code>0 13 * * 1,3,5</code> = Mon/Wed/Fri
           13:00. Three runs a week with repeat samples measures better than a daily single
           reading, at lower cost.
