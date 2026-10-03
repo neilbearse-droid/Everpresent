@@ -3,7 +3,7 @@ context (api.tenancy), never from a request parameter."""
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel
 from sqlmodel import Session, func, select
 
@@ -88,6 +88,28 @@ def surfaces(ctx: Ctx, session: Db) -> list[TenantSurface]:
     return list(
         session.exec(select(TenantSurface).where(TenantSurface.tenant_id == ctx.tenant_id)).all()
     )
+
+
+@router.post("/agent-logs")
+async def upload_agent_logs(request: Request, ctx: Ctx, session: Db) -> dict:
+    """Upload an access log (raw or .gz): Apache/Nginx, Cloudflare Logpush,
+    Vercel, CloudFront or JSON lines. Only AI-bot hits are kept."""
+    from api.agent_analytics import ingest_stream
+
+    try:
+        summary = await ingest_stream(session, ctx.tenant_id, request.stream())
+    except ValueError as exc:
+        session.rollback()
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
+    session.commit()
+    return summary
+
+
+@router.get("/agent-analytics")
+def agent_analytics(ctx: Ctx, session: Db, days: int = 30) -> dict:
+    from api.agent_analytics import agent_analytics as _report
+
+    return _report(session, ctx.tenant_id, days=max(1, min(days, 365)))
 
 
 @router.get("/overview")

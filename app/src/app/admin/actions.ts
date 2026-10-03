@@ -95,6 +95,22 @@ export async function setQueryBranded(
   return { ok: true, message: branded ? "Marked branded." : "Marked competitive." };
 }
 
+export async function rotateAgentLogToken(
+  slug: string,
+  _prev: ActionState,
+  _formData: FormData,
+): Promise<ActionState> {
+  const res = await apiFetch<{ token: string; endpoint: string }>(
+    `/api/admin/tenants/${slug}/agent-log-token`,
+    { method: "POST" },
+  );
+  if (!res.ok) return { ok: false, message: res.error ?? "Could not create a token" };
+  return {
+    ok: true,
+    message: `New token (shown once; the old one stops working now): ${res.data!.token} · POST logs to <API>${res.data!.endpoint} with header "Authorization: Bearer <token>".`,
+  };
+}
+
 export async function importSeed(
   slug: string,
   _prev: ActionState,

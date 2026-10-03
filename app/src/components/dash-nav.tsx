@@ -13,6 +13,7 @@ const TABS: { href: string; label: string }[] = [
   { href: "/dashboard/engines", label: "Engines" },
   { href: "/dashboard/fanout", label: "Fan-out" },
   { href: "/dashboard/citations", label: "Citations" },
+  { href: "/dashboard/agents", label: "AI Agents" },
   { href: "/dashboard/whitespace", label: "Whitespace" },
   { href: "/dashboard/action-plan", label: "Action Plan" },
   { href: "/dashboard/recommendations", label: "Recommendations" },

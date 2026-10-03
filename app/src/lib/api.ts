@@ -670,3 +670,41 @@ export type TenantDetail = {
   surfaces: { id: number; code: string; enabled: boolean }[];
   plans: Record<string, PlanLimits>;
 };
+
+export type AgentPage = {
+  path: string;
+  hits: number;
+  user: number;
+  search: number;
+  training: number;
+  agent: number;
+  errors: number;
+  cited: number;
+};
+
+export type AgentAnalytics =
+  | { has_data: false; days: number }
+  | {
+      has_data: true;
+      days: number;
+      total_hits: number;
+      verified_share: number;
+      error_rate: number;
+      by_purpose: Record<"search" | "user" | "agent" | "training", number>;
+      by_company: { company: string; hits: number }[];
+      by_bot: {
+        bot: string;
+        company: string;
+        purpose: string;
+        hits: number;
+        verified: number;
+        errors: number;
+      }[];
+      series: { date: string; search: number; user: number; agent: number; training: number }[];
+      top_pages: AgentPage[];
+      user_fetch_pages: AgentPage[];
+      read_not_cited: AgentPage[];
+      cited_at_risk: { path: string; cited: number; reason: string }[];
+      broken_pages: AgentPage[];
+      pages_tracked: number;
+    };

@@ -65,6 +65,9 @@ class Tenant(SQLModel, table=True):
     # Plain retrieval (no LLM processing), so it doesn't need
     # ai_processing_approved; off by default because it is extra spend.
     fanout_reprobe_enabled: bool = Field(default=False)
+    # Agent Analytics: secret for pushing access logs (log drains / Logpush)
+    # straight to the ingest endpoint. Unset = push disabled (upload only).
+    agent_log_token: str | None = Field(default=None, index=True, exclude=True)
     # §9: per-tenant monthly cap, enforced in the dispatch loop before each
     # provider call — never after.
     monthly_spend_cap_usd: float = Field(default=50.0)
@@ -642,6 +645,30 @@ class ContentDraft(SQLModel, table=True):
     status: ContentDraftStatus = Field(default=ContentDraftStatus.draft, index=True)
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
+
+
+class AgentTrafficDaily(SQLModel, table=True):
+    """Agent Analytics: AI bot hits per (day, bot, path, status), aggregated at
+    ingest. Only AI-bot lines are kept — human traffic and IPs are never
+    stored. `verified` counts hits whose IP matched the operator's published
+    ranges; the rest only claimed the user agent."""
+
+    __tablename__ = "agent_traffic_daily"  # pyright: ignore[reportAssignmentType]
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "date", "bot", "path", "status",
+                         name="uq_agent_traffic_cell"),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenants.id", index=True)
+    date: str = Field(index=True)  # YYYY-MM-DD (UTC)
+    bot: str = Field(index=True)
+    company: str = ""
+    purpose: str = Field(default="", index=True)  # training|search|user|agent
+    path: str = ""
+    status: int = 0
+    hits: int = 0
+    verified: int = 0
 
 
 class SpendEntry(SQLModel, table=True):

@@ -8,6 +8,7 @@ import { ClerkOrgForm } from "./clerk-org-form";
 import { CrawlPagesButton } from "./crawl-pages-button";
 import { Ga4Form } from "./ga4-form";
 import { ImportYamlForm, type BundledSeed } from "./import-yaml-form";
+import { AgentTokenForm } from "./agent-token-form";
 import { QueriesPanel } from "./queries-panel";
 import { NotifyEmailsForm } from "./notify-emails-form";
 import { PlanForm } from "./plan-form";
@@ -376,6 +377,10 @@ export default async function TenantAdminPage({
             enablement are swapped wholesale.
           </p>
           <ImportYamlForm slug={tenant.slug} seeds={seeds.data ?? []} />
+          <div className="mt-6 border-t border-[var(--border)] pt-4">
+            <p className="mb-2 text-sm">AI Agents log push</p>
+            <AgentTokenForm slug={tenant.slug} />
+          </div>
         </section>
       </div>
 

@@ -299,6 +299,21 @@ def import_seed(slug: str, payload: SeedImport, session: Db, admin: Admin) -> di
     return {"imported": counts, "brand": spec.brand.name}
 
 
+@router.post("/tenants/{slug}/agent-log-token")
+def rotate_agent_log_token(slug: str, session: Db, admin: Admin) -> dict:
+    """Create or rotate the tenant's log-push token. Shown once; the old token
+    stops working immediately."""
+    import secrets
+
+    tenant = _tenant_or_404(session, slug)
+    tenant.agent_log_token = "eplog_" + secrets.token_urlsafe(32)
+    session.add(tenant)
+    write_audit(session, tenant_id=tenant.id, actor=admin.user.email,
+                action=f"tenant.agent-log-token rotated {slug}")
+    session.commit()
+    return {"token": tenant.agent_log_token, "endpoint": "/api/ingest/agent-logs"}
+
+
 @router.post("/tenants/{slug}/runs", status_code=201)
 def trigger_run_route(slug: str, session: Db, admin: Admin) -> Run:
     tenant = _tenant_or_404(session, slug)
