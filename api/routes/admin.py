@@ -2,6 +2,7 @@
 audit_log row in the same transaction."""
 
 import math
+from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Body, Depends, HTTPException
@@ -241,6 +242,58 @@ def import_yaml(
     counts = import_config(session, tenant, spec)
     write_audit(
         session, tenant_id=tenant.id, actor=admin.user.email, action=f"tenant.import-yaml {slug}"
+    )
+    session.commit()
+    return {"imported": counts, "brand": spec.brand.name}
+
+
+SEEDS_DIR = Path(__file__).resolve().parents[2] / "seeds"
+
+
+def _bundled_seeds() -> dict[str, Path]:
+    """Config files shipped with the app (seeds/*.yaml), by name. Only these
+    can be loaded by name: the name is a lookup key, never a path."""
+    if not SEEDS_DIR.is_dir():
+        return {}
+    return {
+        p.stem: p for p in sorted(SEEDS_DIR.glob("*.yaml"))
+        if not p.stem.endswith(".example") and "example" not in p.stem
+    }
+
+
+@router.get("/seeds")
+def list_seeds(admin: Admin) -> list[dict]:
+    out = []
+    for name, path in _bundled_seeds().items():
+        try:
+            spec = parse_config_yaml(path.read_text(encoding="utf-8"))
+            out.append({"name": name, "brand": spec.brand.name,
+                        "queries": len(spec.queries), "personas": len(spec.personas)})
+        except ConfigImportError:
+            continue  # a broken bundled file is skipped, not offered
+    return out
+
+
+class SeedImport(BaseModel):
+    name: str
+
+
+@router.post("/tenants/{slug}/import-seed")
+def import_seed(slug: str, payload: SeedImport, session: Db, admin: Admin) -> dict:
+    """Load a bundled config by name: no copy-paste, so nothing extra can be
+    pasted in with it. Same REPLACE semantics as import-yaml."""
+    tenant = _tenant_or_404(session, slug)
+    path = _bundled_seeds().get(payload.name)
+    if path is None:
+        raise HTTPException(status_code=404, detail=f"No bundled config named '{payload.name}'")
+    try:
+        spec = parse_config_yaml(path.read_text(encoding="utf-8"))
+    except ConfigImportError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    counts = import_config(session, tenant, spec)
+    write_audit(
+        session, tenant_id=tenant.id, actor=admin.user.email,
+        action=f"tenant.import-seed {slug} <- {payload.name}",
     )
     session.commit()
     return {"imported": counts, "brand": spec.brand.name}

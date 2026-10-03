@@ -106,11 +106,27 @@ class ConfigImportError(ValueError):
     pass
 
 
+def _explain_yaml_error(text: str, exc: yaml.YAMLError) -> str:
+    """Plain-language YAML error: where it broke, what the pasted text starts
+    with, and the usual cause (a partial copy from a web page)."""
+    mark = getattr(exc, "problem_mark", None)
+    where = f" at line {mark.line + 1}" if mark is not None else ""
+    first = next((ln.strip() for ln in text.splitlines() if ln.strip()), "")
+    hint = ""
+    if first and not (first.startswith("#") or first.startswith("---") or ":" in first):
+        hint = (
+            f' The pasted text starts with "{first[:60]}", which isn\'t part of a config '
+            "file: it looks like extra text was copied with it. Copy the file from its raw "
+            "view, or use \"Load a bundled config\" instead."
+        )
+    return f"Not valid YAML{where}.{hint or ' Check the indentation around that line.'}"
+
+
 def parse_config_yaml(text: str) -> TenantConfigSpec:
     try:
         raw = yaml.safe_load(text)
     except yaml.YAMLError as exc:
-        raise ConfigImportError(f"Not valid YAML: {exc}") from exc
+        raise ConfigImportError(_explain_yaml_error(text, exc)) from exc
     if not isinstance(raw, dict):
         raise ConfigImportError("Expected a YAML mapping at the top level")
     try:

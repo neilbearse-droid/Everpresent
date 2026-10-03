@@ -95,6 +95,28 @@ export async function setQueryBranded(
   return { ok: true, message: branded ? "Marked branded." : "Marked competitive." };
 }
 
+export async function importSeed(
+  slug: string,
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const name = String(formData.get("seed") ?? "");
+  const res = await apiFetch<{ imported: Record<string, number>; brand: string }>(
+    `/api/admin/tenants/${slug}/import-seed`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    },
+  );
+  revalidatePath(`/admin/${slug}`);
+  if (!res.ok) return { ok: false, message: res.error ?? "Load failed" };
+  const counts = Object.entries(res.data!.imported)
+    .map(([k, v]) => `${k}: ${v}`)
+    .join(", ");
+  return { ok: true, message: `Loaded ${res.data!.brand}: ${counts}` };
+}
+
 export async function createTenant(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const name = String(formData.get("name") ?? "").trim();
   const slug = String(formData.get("slug") ?? "").trim();

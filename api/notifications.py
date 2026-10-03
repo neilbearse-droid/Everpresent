@@ -32,6 +32,18 @@ def notify_run_complete(session: Session, run: Run, tenant: Tenant) -> bool:
     if run.error:
         lines += ["", f"Note: {run.error}"]
 
+    try:
+        from api.dashboards_service import alerts
+
+        changed = alerts(session, tenant.id)
+    except Exception:  # noqa: BLE001 — the report still goes out without it
+        log.exception("notify.alerts_failed", run_id=run.id)
+        changed = []
+    if changed:
+        marks = {"high": "!!", "medium": "!", "good": "+"}
+        lines += ["", "WHAT CHANGED"]
+        lines += [f"  {marks.get(a['severity'], '-')} {a['text']}" for a in changed]
+
     month_spend = month_spend_usd(session, tenant.id)
     cap = tenant.monthly_spend_cap_usd
     if cap > 0 and month_spend >= CAP_ALERT_THRESHOLD * cap:
@@ -57,7 +69,12 @@ def notify_run_complete(session: Session, run: Run, tenant: Tenant) -> bool:
         ]
         return send_email(
             to=tenant.notify_emails,
-            subject=f"[EverPresent] {tenant.name} — run #{run.id} {run.status}",
+            subject=(
+                f"[EverPresent] {tenant.name}: "
+                + (f"{sum(1 for a in changed if a['severity'] == 'high')} alert(s), "
+                   if any(a["severity"] == "high" for a in changed) else "")
+                + f"run #{run.id} {run.status}"
+            ),
             body="\n".join(lines),
             attachments=attachments,
         )

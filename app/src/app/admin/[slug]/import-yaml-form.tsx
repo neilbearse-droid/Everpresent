@@ -1,34 +1,72 @@
 "use client";
 
 import { useActionState } from "react";
-import { importYaml, type ActionState } from "../actions";
+import { importSeed, importYaml, type ActionState } from "../actions";
 
-export function ImportYamlForm({ slug }: { slug: string }) {
+export type BundledSeed = { name: string; brand: string; queries: number; personas: number };
+
+export function ImportYamlForm({ slug, seeds = [] }: { slug: string; seeds?: BundledSeed[] }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(
     importYaml.bind(null, slug),
     null,
   );
+  const [seedState, seedAction, seedPending] = useActionState<ActionState, FormData>(
+    importSeed.bind(null, slug),
+    null,
+  );
   return (
-    <form action={action} className="flex flex-col gap-3">
-      <textarea
-        name="yaml"
-        rows={10}
-        required
-        placeholder={"brand:\n  name: …\npersonas:\n  - name: …\nqueries:\n  - text: …"}
-        className="rounded-md border border-[var(--border)] bg-[var(--inset)] px-3 py-2 font-mono text-xs"
-      />
-      <button
-        type="submit"
-        disabled={pending}
-        className="self-start rounded-md bg-[var(--ink)] px-4 py-2 text-sm font-medium text-[var(--ink-text)] hover:bg-[var(--ink-hover)] disabled:opacity-50"
-      >
-        {pending ? "Importing…" : "Import"}
-      </button>
-      {state && (
-        <p className={`text-sm ${state.ok ? "text-[var(--pos)]" : "text-[var(--neg)]"}`}>
-          {state.message}
-        </p>
+    <div className="flex flex-col gap-5">
+      {seeds.length > 0 && (
+        <form action={seedAction} className="flex flex-col gap-2">
+          <label className="text-xs text-[var(--text-2)]">
+            Load a bundled config (no copy-paste). Replaces this tenant&apos;s brand,
+            competitors, personas, questions and engines.
+          </label>
+          <div className="flex gap-2">
+            <select name="seed" className="field px-2 py-1.5 text-[12px]" defaultValue={seeds[0].name}>
+              {seeds.map((s) => (
+                <option key={s.name} value={s.name}>
+                  {s.brand} ({s.queries} questions, {s.personas} personas)
+                </option>
+              ))}
+            </select>
+            <button
+              type="submit"
+              disabled={seedPending}
+              className="btn btn-primary px-3 py-1.5 text-[12px]"
+            >
+              {seedPending ? "Loading…" : "Load"}
+            </button>
+          </div>
+          {seedState && (
+            <p className={`text-sm ${seedState.ok ? "text-[var(--pos)]" : "text-[var(--neg)]"}`}>
+              {seedState.message}
+            </p>
+          )}
+        </form>
       )}
-    </form>
+      <form action={action} className="flex flex-col gap-3">
+        <label className="text-xs text-[var(--text-2)]">Or paste a config</label>
+        <textarea
+          name="yaml"
+          rows={10}
+          required
+          placeholder={"brand:\n  name: …\npersonas:\n  - name: …\nqueries:\n  - text: …"}
+          className="rounded-md border border-[var(--border)] bg-[var(--inset)] px-3 py-2 font-mono text-xs"
+        />
+        <button
+          type="submit"
+          disabled={pending}
+          className="self-start rounded-md bg-[var(--ink)] px-4 py-2 text-sm font-medium text-[var(--ink-text)] hover:bg-[var(--ink-hover)] disabled:opacity-50"
+        >
+          {pending ? "Importing…" : "Import"}
+        </button>
+        {state && (
+          <p className={`text-sm ${state.ok ? "text-[var(--pos)]" : "text-[var(--neg)]"}`}>
+            {state.message}
+          </p>
+        )}
+      </form>
+    </div>
   );
 }

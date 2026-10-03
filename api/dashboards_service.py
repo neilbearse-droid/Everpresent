@@ -411,6 +411,7 @@ def overview(
         "aio": aio_summary(session, tenant_id),
         "series_notes": _series_notes(session, tenant_id, [t["date"] for t in trend]),
         "mention_rate": mention_rates(session, tenant_id, start, end)["overall"],
+        "alerts": alerts(session, tenant_id),
     }
 
 
@@ -1599,6 +1600,58 @@ def mention_rates(
         },
         "engines": engines,
     }
+
+
+def alerts(session: Session, tenant_id: int) -> list[dict]:
+    """What changed that someone should act on, most urgent first. Each item:
+    {severity: high|medium|good, kind, text}. Only REAL changes: visibility
+    moves must clear the noise test; citations lost are compared run to run.
+    Pure reads; feeds the Overview block and the run email."""
+    out: list[dict] = []
+    rates = mention_rates(session, tenant_id)
+    for e in [{**rates["overall"], "label": "Overall"}, *rates["engines"]]:
+        ch = e["change"]
+        if ch["verdict"] == "down":
+            out.append({
+                "severity": "high", "kind": "visibility_drop",
+                "text": f"{e['label']}: mention rate fell {abs(ch['delta'])}pt to "
+                        f"{e['rate']}% ({e['low']}–{e['high']}%). A real change, not noise.",
+            })
+        elif ch["verdict"] == "up":
+            out.append({
+                "severity": "good", "kind": "visibility_gain",
+                "text": f"{e['label']}: mention rate rose {ch['delta']}pt to {e['rate']}% "
+                        f"({e['low']}–{e['high']}%).",
+            })
+    lost = _lost_citations(session, tenant_id)
+    if lost.get("ready"):
+        for item in lost.get("lost", [])[:3]:
+            n = len(item["queries"])
+            out.append({
+                "severity": "medium", "kind": "citation_lost",
+                "text": f"Lost a citation: {item['url']} is no longer cited for {n} "
+                        f"question{'s' if n != 1 else ''}. Refresh its dates, stats and "
+                        "examples.",
+            })
+    latest_run = session.exec(
+        select(func.max(Result.run_id)).where(Result.tenant_id == tenant_id)
+    ).one()
+    if latest_run is not None:
+        wrong = session.exec(
+            select(col(AccuracyFinding.subject), func.count())
+            .join(Result, col(Result.id) == col(AccuracyFinding.result_id))
+            .where(AccuracyFinding.tenant_id == tenant_id, Result.run_id == latest_run)
+            .group_by(col(AccuracyFinding.subject))
+        ).all()
+        for subject, n in sorted(wrong, key=lambda r: -int(r[1]))[:3]:
+            out.append({
+                "severity": "high", "kind": "accuracy",
+                "text": f"AI answers state something wrong about {subject or 'your brand'} "
+                        f"({n} answer{'s' if n != 1 else ''} in the latest run).",
+            })
+    order = {"high": 0, "medium": 1, "good": 2}
+    out.sort(key=lambda a: order.get(a["severity"], 3))
+    return out
 
 
 def kpi_scorecard(

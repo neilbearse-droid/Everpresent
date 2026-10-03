@@ -214,6 +214,8 @@ export type OverviewPayload = {
   series_notes?: { date: string; surface: string; note: string }[];
   /** Pooled mention rate with its 95% range (absent on an older API). */
   mention_rate?: MentionRate;
+  /** What changed that needs action (absent on an older API). */
+  alerts?: { severity: "high" | "medium" | "good"; kind: string; text: string }[];
 };
 
 export type EngineMode = {

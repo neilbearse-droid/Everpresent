@@ -188,3 +188,40 @@ def test_spend_cap_rejects_non_finite_values(client, as_superadmin, db_session):
         headers={"Content-Type": "application/json"},
     )
     assert res.status_code == 422
+
+
+def test_bundled_seeds_are_listed_and_loadable(client, as_superadmin, db_session):
+    from sqlmodel import select
+
+    from api.models import Query, Tenant
+
+    db_session.add(Tenant(name="GD", slug="gd"))
+    db_session.commit()
+    seeds = client.get("/api/admin/seeds").json()
+    assert "godaddy" in {s["name"] for s in seeds}
+    assert all("example" not in s["name"] for s in seeds)
+    res = client.post("/api/admin/tenants/gd/import-seed", json={"name": "godaddy"})
+    assert res.status_code == 200 and res.json()["brand"] == "GoDaddy"
+    assert len(db_session.exec(select(Query)).all()) == 10
+
+
+def test_seed_names_are_lookup_keys_not_paths(client, as_superadmin, db_session):
+    from api.models import Tenant
+
+    db_session.add(Tenant(name="GD", slug="gd"))
+    db_session.commit()
+    for bad in ("../api/config", "/etc/passwd", "godaddy.yaml", "aio_labels.example"):
+        assert client.post("/api/admin/tenants/gd/import-seed",
+                           json={"name": bad}).status_code == 404
+
+
+def test_pasted_page_junk_gets_a_plain_explanation():
+    import pytest
+
+    from api.yaml_import import ConfigImportError, parse_config_yaml
+
+    junk = "Raw\nCopy path\nBlame\n137 lines\nGoDaddy seed\npersonas:\n  - name: x\n"
+    with pytest.raises(ConfigImportError) as exc:
+        parse_config_yaml(junk)
+    msg = str(exc.value)
+    assert "line" in msg and 'starts with "Raw"' in msg and "bundled config" in msg

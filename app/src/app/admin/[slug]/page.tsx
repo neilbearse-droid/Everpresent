@@ -7,7 +7,7 @@ import { BrandFactsPanel, type BrandFact } from "./brand-facts-panel";
 import { ClerkOrgForm } from "./clerk-org-form";
 import { CrawlPagesButton } from "./crawl-pages-button";
 import { Ga4Form } from "./ga4-form";
-import { ImportYamlForm } from "./import-yaml-form";
+import { ImportYamlForm, type BundledSeed } from "./import-yaml-form";
 import { QueriesPanel } from "./queries-panel";
 import { NotifyEmailsForm } from "./notify-emails-form";
 import { PlanForm } from "./plan-form";
@@ -29,13 +29,14 @@ export default async function TenantAdminPage({
     );
   }
 
-  const [detail, schedule, facts, readiness] = await Promise.all([
+  const [detail, schedule, facts, readiness, seeds] = await Promise.all([
     apiFetch<TenantDetail>(`/api/admin/tenants/${slug}`),
     apiFetch<{ cron_expr: string; enabled: boolean; next_run_at: string | null } | null>(
       `/api/admin/tenants/${slug}/schedule`,
     ),
     apiFetch<BrandFact[]>(`/api/admin/tenants/${slug}/brand-facts`),
     apiFetch<ReadinessPayload>(`/api/admin/tenants/${slug}/readiness`),
+    apiFetch<BundledSeed[]>("/api/admin/seeds"),
   ]);
   if (detail.status === 404 || !detail.data) notFound();
   const { tenant, brand_profile, competitors, personas, queries, plans } = detail.data;
@@ -374,7 +375,7 @@ export default async function TenantAdminPage({
             Replace-semantics: brand, competitors, personas, queries, and surface
             enablement are swapped wholesale.
           </p>
-          <ImportYamlForm slug={tenant.slug} />
+          <ImportYamlForm slug={tenant.slug} seeds={seeds.data ?? []} />
         </section>
       </div>
 

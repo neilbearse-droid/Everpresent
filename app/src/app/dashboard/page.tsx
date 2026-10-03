@@ -157,6 +157,34 @@ export default async function OverviewPage({
         </div>
       </section>
 
+      {(data?.alerts?.length ?? 0) > 0 && (
+        <section className="blueprint mb-6 grid-cols-1">
+          <div>
+            <div className="bp-bar">
+              <span>What changed</span>
+              <span>{data!.alerts!.length}</span>
+            </div>
+            <ul>
+              {data!.alerts!.map((a, i) => (
+                <li
+                  key={i}
+                  className="flex items-start gap-3 border-t border-[var(--line)] px-4 py-2.5 text-[13px] first:border-t-0"
+                >
+                  <span
+                    className={`bp-label shrink-0 px-1.5 ${
+                      a.severity === "high" ? "bp-neg" : a.severity === "good" ? "bp-mark" : ""
+                    }`}
+                  >
+                    {a.severity === "high" ? "Act" : a.severity === "good" ? "Win" : "Watch"}
+                  </span>
+                  <span className="text-[var(--text)]">{a.text}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      )}
+
       {modes?.observed && (
         <section className="mb-6">
           <EngineStrip data={modes} />
