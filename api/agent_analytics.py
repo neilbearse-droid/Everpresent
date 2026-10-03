@@ -190,7 +190,8 @@ def agent_analytics(session: Session, tenant_id: int, days: int = 30) -> dict[st
         p = norm.get(path)
         if p is None:
             at_risk.append({"path": path, "cited": n, "reason": "not fetched by AI bots lately"})
-        elif p["errors"] > 0:
+        elif p["errors"] > 0 and p["errors"] >= 0.05 * p["hits"]:
+            # A real error rate, not the odd timeout on a busy page.
             at_risk.append({"path": path, "cited": n,
                             "reason": f"{p['errors']} error responses to AI bots"})
     # Mostly-erroring pages bots keep requesting: a redirect or fix is owed.

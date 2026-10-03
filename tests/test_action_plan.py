@@ -252,9 +252,29 @@ def test_citability_diff_specs_winners_and_flags_your_gaps(db_session):
     assert "quotations" in gaps
     assert "comparison tables" in gaps  # hygiene still flagged, but later
     assert "too thin" in gaps
-    # Tier-1 gaps come before hygiene gaps.
-    assert cit["gaps"].index(next(g for g in cit["gaps"] if "answer capsule" in g)) < \
-        cit["gaps"].index(next(g for g in cit["gaps"] if "comparison tables" in g))
+    # Evidence order: data density before formatting, formatting before hygiene.
+    def at(word: str) -> int:
+        return cit["gaps"].index(next(g for g in cit["gaps"] if word in g))
+    assert at("statistics/data points") < at("answer capsule") < at("comparison tables")
+
+
+def test_citability_puts_explicit_facts_first():
+    from api.dashboards_service import _citability_diff
+    from api.models import PagePresence
+
+    win = {"has_price": True, "has_updated_date": True, "has_rating": True,
+           "latest_year": 2026, "has_answer_capsule": True, "statistic_count": 2,
+           "word_count": 800}
+    winners = [PagePresence(tenant_id=1, url=f"https://w{i}.example", features=dict(win))
+               for i in range(2)]
+    mine = PagePresence(tenant_id=1, url="https://acme.com/p", features={
+        "has_price": False, "has_updated_date": False, "has_rating": False,
+        "latest_year": 2024, "has_answer_capsule": False, "word_count": 800})
+    gaps = _citability_diff(winners, mine)["gaps"]
+    assert "prices" in gaps[0] and "updated" in gaps[1]
+    assert any("2026 facts; your newest is 2024" in g for g in gaps)
+    assert any("rating" in g for g in gaps)
+    assert "answer capsule" in gaps[-1]
 
 
 def test_citability_handles_no_owned_page_and_uncrawled_winners(db_session):

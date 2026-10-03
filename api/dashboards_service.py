@@ -6,6 +6,7 @@ import re
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 from typing import Any
+from urllib.parse import urlsplit
 
 from sqlalchemy import case
 from sqlmodel import Session, col, func, select
@@ -2105,6 +2106,20 @@ def _contestability(session: Session, tenant_id: int, query_texts: set[str]) -> 
     return out
 
 
+def _page_url(url: str, owned: list[str]) -> str | None:
+    """The brand page a citation points at, normalized so tracking variants
+    (?utm_source=chatgpt.com, #fragments, trailing slashes) count as one page.
+    None when the link's own host isn't a brand domain: engines like Gemini
+    cite through redirect URLs labelled with the brand's domain, which can't
+    be refreshed or diffed as pages."""
+    parts = urlsplit(url or "")
+    host = (parts.hostname or "").lower()
+    if not host or not domain_is_owned(host, owned):
+        return None
+    path = parts.path.rstrip("/") or "/"
+    return f"{parts.scheme or 'https'}://{host}{path}"
+
+
 def _lost_citations(session: Session, tenant_id: int) -> dict:
     """Lost-Citation Radar (§focus-group #4): run-over-run diff of the brand's
     OWN cited pages. Losing a citation is the earliest actionable decay signal,
@@ -2114,6 +2129,7 @@ def _lost_citations(session: Session, tenant_id: int) -> dict:
     # or not they produced brand citations: a run that lost EVERY brand
     # citation is exactly the one this radar exists to catch.
     branded = _branded_query_texts(session, tenant_id)
+    owned = _owned_domains(session, tenant_id)
     base: list[Any] = [
         Result.tenant_id == tenant_id,
         Result.variant == ResultVariant.search,
@@ -2150,9 +2166,12 @@ def _lost_citations(session: Session, tenant_id: int) -> dict:
         ctx = result_ctx.get(c.result_id)
         if ctx is None:
             continue
+        url = _page_url(c.url, owned)
+        if url is None:
+            continue  # a redirect wrapper (e.g. Gemini grounding), not a brand page
         run_id, query_text = ctx
-        by_run[run_id].add((c.url, query_text))
-        domain_of[c.url] = c.domain
+        by_run[run_id].add((url, query_text))
+        domain_of[url] = c.domain
 
     run_ids = sorted(measured)
     if len(run_ids) < 2:
@@ -2190,9 +2209,13 @@ _MAX_DIFF_WINNERS = 3
 def _citability_diff(
     winners: list[PagePresence], your_page: PagePresence | None
 ) -> dict:
-    """Citability fingerprint diff (§focus-group #3): the structural spec the
-    winning cited pages share, and where your page falls short of it. Turns a
-    '$4k rewrite' into a '$400 edit': add the 3 features every winner has."""
+    """Citability fingerprint diff (§focus-group #3): what the winning cited
+    pages share, and where your page falls short — ordered by the 2026
+    evidence. Explicit facts (prices, update dates, ratings, current-year
+    information) and evidence density come first: controlled studies show they
+    change whether a page is cited. Formatting (answer capsules, front-loading,
+    quotations) comes after: it shifts credit among pages already retrieved,
+    so it can't rescue a page the engine never picks up. Markup is hygiene."""
     if not winners:
         return {"ready": False}
     half = len(winners) / 2
@@ -2205,11 +2228,18 @@ def _citability_diff(
         return vals[len(vals) // 2]
 
     spec = {
-        # Tier-1 evidence-based levers.
-        "quotations": common("quotation_count"),
+        # Explicit facts (strongest controlled evidence).
+        "has_price": common("has_price"),
+        "has_updated_date": common("has_updated_date"),
+        "has_rating": common("has_rating"),
+        "latest_year": median("latest_year"),
+        # Evidence density.
         "statistic_count": median("statistic_count"),
+        "word_count": median("word_count"),
+        # Second-order formatting.
         "has_answer_capsule": common("has_answer_capsule"),
         "front_loaded": common("front_loaded"),
+        "quotations": common("quotation_count"),
         "citation_count": median("citation_count"),
         "promotional_tone_score": median("promotional_tone_score"),
         # Hygiene (entity legibility, not citation levers).
@@ -2217,66 +2247,97 @@ def _citability_diff(
         "faq_schema": common("faq_schema"),
         "has_tables": common("has_tables"),
         "recent_year_mentions": median("recent_year_mentions"),
-        "word_count": median("word_count"),
     }
 
     gaps: list[str] = []
     if your_page is None:
         gaps.append(
-            "None of your pages is cited on this query — build one to the winning spec"
+            "None of your pages is cited on this query. First make sure one answers it "
+            "AND the sub-questions engines search for it (see the brief), then build one "
+            "to the winning spec below"
         )
     else:
         yf = your_page.features or {}
-        # Tier-1 levers first — these are what actually move citation.
-        if spec["has_answer_capsule"] and not yf.get("has_answer_capsule"):
+        # 1. Explicit facts.
+        if spec["has_price"] and not yf.get("has_price"):
             gaps.append(
-                "Winning pages open each section with a 40–60 word direct answer under a "
-                "question heading; yours has none — add answer capsules (the single "
-                "highest-correlation citation feature)"
+                "Winning pages state prices outright; yours doesn't. Put current plan "
+                "prices on the page as text (explicit prices raised citation odds in a "
+                "252,000-trial 2026 study)"
             )
+        if spec["has_updated_date"] and not yf.get("has_updated_date"):
+            gaps.append(
+                "Winning pages show when they were last updated; yours doesn't. Add a "
+                "visible 'Updated <month year>' plus dateModified, and keep it honest "
+                "(recent timestamps raised citation odds in controlled tests)"
+            )
+        your_year = yf.get("latest_year", 0)
+        if spec["latest_year"] and your_year and your_year < spec["latest_year"]:
+            gaps.append(
+                f"Winning pages cite {spec['latest_year']} facts; your newest is "
+                f"{your_year}. Refresh the numbers, examples and dates (most cited pages "
+                f"were updated in the past year)"
+            )
+        if spec["has_rating"] and not yf.get("has_rating"):
+            gaps.append(
+                "Winning pages show ratings or review scores; yours doesn't. Surface your "
+                "real review rating and where it comes from (small rating gaps flipped "
+                "AI recommendations in a 2026 controlled test)"
+            )
+        # 2. Evidence density.
         if spec["statistic_count"] >= 5 and yf.get("statistic_count", 0) < max(
             3, spec["statistic_count"] // 2
         ):
             gaps.append(
-                f"Winning pages carry ~{spec['statistic_count']} statistics/data points "
-                f"(data-rich pages earn 2–3× the citations); yours has "
-                f"{yf.get('statistic_count', 0)} — add verifiable figures"
+                f"Winning pages carry ~{spec['statistic_count']} statistics/data points; "
+                f"yours has {yf.get('statistic_count', 0)}. Add specific, verifiable "
+                f"figures: engines lean hardest on pages with numbers, definitions and "
+                f"comparisons"
+            )
+        if yf.get("word_count", 0) < spec["word_count"] * 0.5:
+            gaps.append(
+                f"Winning pages run ~{spec['word_count']} words; yours is "
+                f"{yf.get('word_count', 0)}. It's likely too thin to cite"
+            )
+        # 3. Second-order formatting: helps once retrieved.
+        if spec["has_answer_capsule"] and not yf.get("has_answer_capsule"):
+            gaps.append(
+                "Winning pages open sections with a short direct answer under a question "
+                "heading (an answer capsule); yours doesn't. Worth adding, but it only "
+                "helps once the page is retrieved"
+            )
+        if spec["front_loaded"] and not yf.get("front_loaded"):
+            gaps.append(
+                "Winning pages put the core answer near the top; yours buries it. Move "
+                "the answer and key numbers up"
             )
         if spec["quotations"] and not yf.get("quotation_count"):
             gaps.append(
-                "Winning pages quote credible named sources (the top Princeton-validated "
-                "lever, ~41% lift); yours has none — add attributed quotations"
+                "Winning pages quote named, credible sources; yours has no quotations. "
+                "Add attributed quotes (a lab-tested lever, not yet proven on live engines)"
             )
         if spec["citation_count"] >= 3 and yf.get("citation_count", 0) < max(
             2, spec["citation_count"] // 2
         ):
             gaps.append(
-                f"Winning pages cite ~{spec['citation_count']} outbound sources; yours "
-                f"cites {yf.get('citation_count', 0)} — cite your sources by name"
-            )
-        if spec["front_loaded"] and not yf.get("front_loaded"):
-            gaps.append(
-                "Winning pages front-load the answer (44% of citations come from the first "
-                "third); yours buries it — move the core answer and key stats to the top"
+                f"Winning pages cite ~{spec['citation_count']} outside sources; yours "
+                f"cites {yf.get('citation_count', 0)}. Link the sources behind your claims"
             )
         if yf.get("promotional_tone_score", 0) > max(6.0, spec["promotional_tone_score"] * 2):
             gaps.append(
-                "Your page reads promotional; AI engines penalize marketing voice (~−26%) — "
-                "strip the sales language from anything you want cited"
+                "Your page reads like an ad. Answers lift neutral, factual sentences; "
+                "cut the sales language from anything you want cited"
             )
-        if yf.get("word_count", 0) < spec["word_count"] * 0.5:
-            gaps.append(
-                f"Winning pages run ~{spec['word_count']} words; yours is "
-                f"{yf.get('word_count', 0)} — likely too thin to cite"
-            )
-        # Hygiene (secondary — legibility, not a citation lever).
+        # 4. Hygiene.
         if spec["json_ld"] and not yf.get("json_ld"):
-            gaps.append("Add JSON-LD structured data (entity-legibility hygiene)")
+            gaps.append("Add JSON-LD structured data (entity hygiene, not a ranking lever)")
         if spec["has_tables"] and not yf.get("has_tables"):
             gaps.append("Winning pages use comparison tables; yours has none")
         if not gaps:
-            gaps.append("Your page matches the winning fingerprint — the gap is likely "
-                        "authority/recency, not structure")
+            gaps.append(
+                "Your page matches the winning fingerprint. The gap is likely retrieval "
+                "(sub-query coverage) or third-party proof (reviews, mentions), not the page"
+            )
 
     return {
         "ready": True,
@@ -2364,6 +2425,7 @@ def action_plan(session: Session, tenant_id: int) -> dict:
             "surfaces": sorted(d["surfaces"]),
             "competitor_assoc": d["competitor_assoc"],
             "already_citing_you": d["brand_assoc"] > 0,
+            "brand_assoc": d["brand_assoc"],
             "example_url": d["example_url"],
         }
         # Prime targets first: cite rivals, don't yet cite you.
@@ -2520,10 +2582,12 @@ def _spam_risk(query: str) -> dict | None:
         "level": "high",
         "note": (
             "Don't answer this with your own ranked 'best X' list or an "
-            "'alternatives' page: Google's 2026 spam policy targets self-promotional "
-            "listicles. Earn a place on the third-party pages engines already cite "
-            "(target sources), and publish an honest comparison that says where "
-            "competitors fit better."
+            "'alternatives' page. It barely works and it's risky: in September 2026 "
+            "tests, third-party lists drove ~86% of brand mentions and brands' own lists "
+            "14%, and Google's August and September 2026 spam updates target "
+            "self-promotional listicles and attempts to steer AI answers. Earn a place "
+            "on the third-party pages engines already cite (target sources), and "
+            "publish an honest comparison that says where competitors fit better."
         ),
     }
 
@@ -2531,20 +2595,33 @@ def _spam_risk(query: str) -> dict | None:
 def _brief_outline(
     query: str, brand: str, competitors: list[str], subtopics: list[str]
 ) -> list[str]:
-    """A pragmatic content outline for a piece that answers this query in a way
-    AI answer engines can cite. Deterministic scaffolding, not prose."""
+    """A content outline in 2026 evidence order: answer the query and the
+    sub-questions engines actually search (retrieval first), state hard facts
+    explicitly, back them with evidence, then keep it fresh. Deterministic
+    scaffolding, not prose."""
     outline = [
-        f"H1: A direct, factual answer to “{query}” in the first 100 words",
-        f"H2: Why {brand} — specific, verifiable differentiators (stats, outcomes, dates)",
+        f"H1 + first 100 words: a direct, factual answer to “{query}”",
     ]
+    for sub in subtopics[:4]:
+        outline.append(f"H2: {sub[0].upper() + sub[1:]} (a sub-question engines search)")
+    outline.append(
+        f"H2: The facts, stated plainly: {brand}'s current prices, plans, limits and "
+        "specs as text (not only in images or behind a click), with the date checked"
+    )
     if competitors:
         outline.append(
-            f"H2: Honest comparison vs {', '.join(competitors[:3])} — where {brand} fits best"
+            f"H2: Honest comparison table vs {', '.join(competitors[:3])}: where each "
+            f"fits best, including where {brand} isn't the right pick"
         )
-    for sub in subtopics[:3]:
-        outline.append(f"H2: {sub[0].upper() + sub[1:]}")
-    outline.append("H2: FAQ — concise Q&A pairs (the format AI answers lift verbatim)")
-    outline.append("Include: citable data points, a clear publish date, and structured markup")
+    outline.append(
+        "H2: Proof: your real review rating and source, original numbers or customer "
+        "data, and named sources for every claim"
+    )
+    outline.append(
+        "Show a visible 'Updated <month year>' and re-check the facts every quarter; "
+        "after each update, request a recrawl (IndexNow for Bing/Copilot/ChatGPT, "
+        "Search Console for Google)"
+    )
     return outline
 
 

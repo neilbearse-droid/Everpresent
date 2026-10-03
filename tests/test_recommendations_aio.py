@@ -172,8 +172,8 @@ def test_gap_close_resolves_and_hand_statuses_survive(
     for rec in db_session.exec(select(Recommendation)).all():
         if rec.id == dismissed.id:
             assert rec.status == "dismissed"  # human decisions survive
-        else:
-            assert rec.status == "resolved"
+        elif rec.branch in ("web_search", "training", "aio"):
+            assert rec.status == "resolved"  # the query gaps closed
 
 
 def test_recommendations_endpoint_and_isolation(
@@ -190,7 +190,10 @@ def test_recommendations_endpoint_and_isolation(
 
     login(member, org_id="org_acme")
     recs = client.get("/api/tenant/recommendations").json()
-    assert len(recs) == 4
+    # 4 query gaps + the "connect your logs" setup play, highest priority first.
+    assert len(recs) == 5
+    assert [r["priority"] for r in recs] == sorted((r["priority"] for r in recs), reverse=True)
+    assert recs[-1]["branch"] == "connect_logs" and recs[0]["steps"] and recs[0]["why"]
     rec_id = recs[0]["id"]
     patched = client.patch(f"/api/tenant/recommendations/{rec_id}", json={"status": "in_progress"})
     assert patched.status_code == 200 and patched.json()["status"] == "in_progress"

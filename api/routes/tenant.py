@@ -5,7 +5,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel
-from sqlmodel import Session, func, select
+from sqlmodel import Session, col, func, select
 
 from api import dashboards_service
 from api.db import get_session
@@ -320,7 +320,10 @@ def recommendations(ctx: Ctx, session: Db) -> list[Recommendation]:
         session.exec(
             select(Recommendation)
             .where(Recommendation.tenant_id == ctx.tenant_id)
-            .order_by(Recommendation.status, Recommendation.branch, Recommendation.gap_ref)  # pyright: ignore[reportArgumentType]
+            .order_by(
+                col(Recommendation.priority).desc(),
+                col(Recommendation.gap_ref),
+            )
         ).all()
     )
 

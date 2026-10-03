@@ -13,6 +13,7 @@ presence" agree on what counts as a mention.
 """
 
 import re
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -25,14 +26,40 @@ BROWSER_UA = (
     "(KHTML, like Gecko) Chrome/126.0 Safari/537.36"
 )
 MAX_HTML_BYTES = 1_500_000  # a cited article, not a tarpit
-_RECENT_YEARS = ("2024", "2025", "2026")
+# --- Citability signals, ranked by the 2026 evidence ------------------------
+# Controlled 2026 studies (252k-trial factorial test, arXiv 2605.25517; the
+# CITECHOICE causal replay, 2609.15164) agree: a page must be RETRIEVED first
+# (topical match to the sub-queries engines run), then EXPLICIT FACTS — prices,
+# recent dates, ratings — raise citation odds, and evidence density (numbers,
+# definitions, comparisons, steps) decides how much of the page the answer
+# uses. Formatting (answer capsules, front-loading, schema) only shifts credit
+# among pages already retrieved: second-order. Quotations come from the 2024
+# lab GEO study and have not been shown on live engines.
 
-# --- Tier-1 citability signals (§AEO-plan M5) ------------------------------
-# The peer-reviewed GEO study (Aggarwal et al., KDD 2024) + Semrush/Indig data
-# rank these as the levers that actually move citation, well above schema:
-# quotations (~41%), statistics/data density (~30-40%), an answer capsule under
-# a question heading, front-loading, cited sources — and promotional tone is
-# penalized (~-26%).
+
+def _recent_years(now: datetime | None = None) -> tuple[str, ...]:
+    """This year and last: what "recent" means to an engine today."""
+    year = (now or datetime.now(UTC)).year
+    return (str(year - 1), str(year))
+
+
+_YEAR_RE = re.compile(r"\b(20[0-9]{2})\b")
+# An explicit price: currency symbol or code with an amount, optionally per period.
+_PRICE_RE = re.compile(
+    r"(?:[$€£¥]\s?\d[\d,]*(?:\.\d{1,2})?|\b\d[\d,]*(?:\.\d{1,2})?\s?(?:usd|eur|gbp)\b)",
+    re.IGNORECASE,
+)
+# A visible or machine-readable "last updated" date.
+_UPDATED_RE = re.compile(
+    r"(?:\"datemodified\"|<time[^>]+datetime=|\b(?:last\s+)?(?:updated|reviewed|modified)"
+    r"\s*(?:on|:)?\s*(?:[a-z]{3,9}\.?\s+\d{1,2},?\s+)?(?:[a-z]{3,9}\s+)?20\d{2})",
+    re.IGNORECASE,
+)
+# A rating: schema.org aggregateRating, or "4.6 out of 5" / "4.6 stars" / "4.6/5".
+_RATING_RE = re.compile(
+    r"aggregaterating|\b[0-5](?:\.\d)?\s?(?:out of 5|/\s?5\b|stars?\b)",
+    re.IGNORECASE,
+)
 
 # Currency, percentages, scaled numbers, and any multi-digit figure — a proxy
 # for "data-rich" (pages with 19+ data points earn 2-3x citations).
@@ -114,11 +141,11 @@ def detect_presence(
 
 
 def extract_features(html: str) -> dict[str, Any]:
-    """Citability fingerprint. Two layers: the Tier-1 evidence-based levers that
-    actually move citation (quotations, statistics/data density, an answer
-    capsule, front-loading, cited sources; promotional tone is a penalty), and
-    the machine-legibility *hygiene* signals (JSON-LD, FAQ schema, tables,
-    recency) — useful for entity disambiguation, but not citation levers."""
+    """Citability fingerprint in evidence order: explicit facts (price, update
+    date, rating, latest year named) and evidence density first; then the
+    second-order formatting signals (answer capsule, front-loading, quotations,
+    cited sources, promotional tone); then machine-legibility hygiene (JSON-LD,
+    FAQ schema, tables)."""
     lower = html.lower()
     text, _ = extract_text_and_links(html, ())
     word_count = len(text.split())
@@ -129,8 +156,14 @@ def extract_features(html: str) -> dict[str, Any]:
     promo_hits = sum(lower.count(p) for p in _PROMO_PHRASES)
     promotional_tone_score = round(1000.0 * promo_hits / max(word_count, 1), 1)
 
+    years = [int(y) for y in _YEAR_RE.findall(text) if int(y) <= datetime.now(UTC).year]
     return {
-        # Tier-1 levers (evidence-based).
+        # Explicit facts (controlled 2026 evidence: raise citation odds).
+        "has_price": bool(_PRICE_RE.search(text)),
+        "has_updated_date": bool(_UPDATED_RE.search(html)),
+        "has_rating": bool(_RATING_RE.search(html)),
+        "latest_year": max(years) if years else 0,
+        # Evidence density and second-order formatting.
         "quotation_count": quotation_count,
         "statistic_count": statistic_count,
         "data_point_density": round(statistic_count / max(word_count, 1), 4),
@@ -142,7 +175,7 @@ def extract_features(html: str) -> dict[str, Any]:
         "json_ld": "application/ld+json" in lower,
         "faq_schema": "faqpage" in lower,
         "has_tables": "<table" in lower,
-        "recent_year_mentions": sum(len(re.findall(y, text)) for y in _RECENT_YEARS),
+        "recent_year_mentions": sum(len(re.findall(y, text)) for y in _recent_years()),
         "word_count": word_count,
     }
 

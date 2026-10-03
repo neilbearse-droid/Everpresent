@@ -3,6 +3,28 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M30–M31 — Agent Analytics and the evidence-graded playbook (2026-10-03)
+
+1. **Recommendations follow the 2026 evidence order.** Controlled studies
+   (252k-trial factorial test; CITECHOICE causal replay) show retrieval
+   (sub-query coverage) and explicit facts (prices, dates, ratings) change
+   whether a page is cited; formatting only shifts credit among retrieved
+   pages. Briefs, the citability diff and the playbook rank plays that way,
+   and every play carries an evidence grade (official / strong / moderate /
+   emerging) and a one-line source statement.
+2. **A query is a gap when the brand is named on fewer than a third of the
+   engines**, not only when it is named on none: missing on 8 of 9 engines is
+   not a win. Text names the engines on each side.
+3. **Similar plays are grouped** (one per query for sub-questions, one for
+   dead pages, one for read-not-cited pages) so the list stays workable.
+4. **Engine-specific advice.** ChatGPT's August 2026 shift to in-site
+   searches (Reddit citations down ~86%) makes help/docs/pricing pages the
+   ChatGPT play; community plays are scoped to Google and Perplexity.
+5. **A failing signal never blocks the rest.** Each play source is isolated
+   and logged on failure; run processing never fails on recommendations.
+6. **Lost-citation diffs use normalized brand URLs** and skip redirect
+   wrappers (Gemini grounding links), which can't be refreshed as pages.
+
 ## M26–M29 — measurement credibility (2026-10-01)
 
 Driven by the Sept 2026 AEO research (repeated-sampling studies, API-vs-UI

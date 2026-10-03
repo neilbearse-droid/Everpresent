@@ -611,8 +611,19 @@ class Recommendation(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     tenant_id: int = Field(foreign_key="tenants.id", index=True)
     gap_ref: str = Field(index=True)
-    branch: str = ""  # web_search | training | aio
+    # Kind of play: web_search | training | aio (per-query gaps) | accuracy |
+    # crawler_access | broken_page | refresh | subquery | reviews | earned | owned |
+    # community | reference | read_not_cited | connect_logs | strategy
+    branch: str = ""
     action_text: str
+    # Playbook fields (m31), refreshed on every regeneration while open.
+    title: str = ""
+    priority: int = 50  # 0-100; the list is sorted by this
+    evidence: str = ""  # official | strong | moderate | emerging
+    why: str = ""  # one-line evidence statement behind the play
+    steps: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    query_text: str = ""
+    link: str = ""  # in-app page with the supporting data
     status: RecommendationStatus = Field(default=RecommendationStatus.open, index=True)
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)

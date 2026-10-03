@@ -309,8 +309,15 @@ export type CitationsPayload = {
 export type Recommendation = {
   id: number;
   gap_ref: string;
-  branch: "web_search" | "training" | "aio";
+  branch: string;
+  title: string;
   action_text: string;
+  priority: number;
+  evidence: "official" | "strong" | "moderate" | "emerging" | "";
+  why: string;
+  steps: string[] | null;
+  query_text: string;
+  link: string;
   status: "open" | "in_progress" | "done" | "dismissed" | "resolved";
   updated_at: string;
 };

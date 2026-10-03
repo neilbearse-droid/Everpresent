@@ -203,7 +203,9 @@ def test_job_stores_results_citations_and_raw(db_session, job_env, fake_retrieve
         "citations_categorized": 8,
         "accuracy_findings": 0,  # no brand facts on file → nothing to contradict
         "untracked_mentions": 0,  # extraction opt-in, off for this tenant
-        "recommendations": 0,  # brand mentioned everywhere: no gaps (§6.4)
+        # Brand mentioned everywhere: no query gaps (§6.4); the one open play is
+        # the "connect your server logs" setup step.
+        "recommendations": 1,
     }
     assert run.cost_usd > 0
     assert run.started_at is not None and run.finished_at is not None
