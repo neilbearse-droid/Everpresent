@@ -91,7 +91,7 @@ export default async function RecommendationsPage() {
   const closed = items.filter((r) => !isActive(r));
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-10 sm:px-8">
+    <main className="mx-auto max-w-5xl px-6 pb-16">
       <DashNav active="Recommendations" isSuperadmin={me.data?.is_superadmin} />
       <p className="mb-6 max-w-3xl text-sm text-[var(--text-2)]">
         Your playbook, ranked. Every play comes from your own measurements and is graded by how
@@ -191,8 +191,9 @@ function PlayCard({ rec, rank }: { rec: Recommendation; rank: number }) {
           <EvidenceTag evidence={rec.evidence} />
         </div>
         <div className="p-4">
-          <h3 className="mb-1 text-[15px] font-semibold">
-            {BAD_KINDS.has(rec.branch) ? <span className="bp-neg">{rec.title}</span> : rec.title || kind}
+          <h3 className="mb-1 flex flex-wrap items-baseline gap-2 text-[16px] font-semibold">
+            {BAD_KINDS.has(rec.branch) && <span className="bp-neg text-[11px]">Fix</span>}
+            <span>{rec.title || kind}</span>
           </h3>
           <p className="mb-3 text-sm leading-relaxed text-[var(--text)]">{rec.action_text}</p>
           <Steps steps={rec.steps} />

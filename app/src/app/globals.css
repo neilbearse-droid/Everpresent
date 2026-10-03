@@ -1,104 +1,97 @@
 @import "tailwindcss";
 
 /* ------------------------------------------------------------------ *
- * Typefaces — self-hosted, same-origin, no external fetch.
- * JetBrains Mono (700/800) is the structural voice: headers, labels,
- * metrics, tabs, buttons. IBM Plex Sans carries body copy. Both OFL.
+ * Typefaces — self-hosted, same-origin, no external fetch. All OFL.
+ * Geist carries the interface; Geist Mono is for small labels and
+ * figures; Instrument Serif is the editorial voice for display moments.
  * ------------------------------------------------------------------ */
-@font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/jetbrains-mono-400.woff2") format("woff2"); }
-@font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 500; font-display: swap; src: url("/fonts/jetbrains-mono-500.woff2") format("woff2"); }
-@font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/jetbrains-mono-700.woff2") format("woff2"); }
-@font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 800; font-display: swap; src: url("/fonts/jetbrains-mono-800.woff2") format("woff2"); }
-@font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/ibm-plex-sans-400.woff2") format("woff2"); }
-@font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 500; font-display: swap; src: url("/fonts/ibm-plex-sans-500.woff2") format("woff2"); }
-@font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 600; font-display: swap; src: url("/fonts/ibm-plex-sans-600.woff2") format("woff2"); }
+@font-face { font-family: "Geist"; font-style: normal; font-weight: 100 900; font-display: swap; src: url("/fonts/geist-variable.woff2") format("woff2"); }
+@font-face { font-family: "Geist Mono"; font-style: normal; font-weight: 100 900; font-display: swap; src: url("/fonts/geist-mono-variable.woff2") format("woff2"); }
+@font-face { font-family: "Instrument Serif"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/instrument-serif-400.woff2") format("woff2"); }
+@font-face { font-family: "Instrument Serif"; font-style: italic; font-weight: 400; font-display: swap; src: url("/fonts/instrument-serif-400-italic.woff2") format("woff2"); }
 
 @theme {
-  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "JetBrains Mono", ui-monospace, monospace;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-display: "Instrument Serif", ui-serif, Georgia, serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 /* ------------------------------------------------------------------ *
- * EverPresent design system — "Blueprint."
+ * EverPresent design system — "Studio."
  *
- * Neo-brutalist. Raw off-white ground, white cells, obsidian structure.
- * Every division is a visible line; every raised element casts a hard
- * offset block, never a blur. Zero radius. ONE accent — industrial
- * orange — reserved for primary actions and critical numbers (the
- * brand's own series, misses, losses). Everything else is black on white.
+ * Quiet, precise, a little editorial. Warm paper ground, white cards
+ * with soft corners and hairline dividers, soft layered shadows. Type
+ * does the work: Geist for the interface, an Instrument Serif display
+ * for the big moments. ONE accent — EverPresent orange — for the brand
+ * itself and good news only. Bad news is an inverted ink pill, never
+ * the accent.
  * ------------------------------------------------------------------ */
 
 :root {
   color-scheme: light;
 
-  --radius-xs: 0px;
-  --radius-sm: 0px;
-  --radius-md: 0px;
-  --radius-lg: 0px;
-  --radius-xl: 0px;
-  --radius-2xl: 0px;
-  --radius-3xl: 0px;
-  --radius: 0px;
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-3xl: 28px;
+  --radius: 14px;
 
-  --plane: #f4f4f0;       /* raw ground */
-  --plane-2: #ebebe5;
-  --surface: #ffffff;     /* cells */
-  --surface-2: #ebebe5;   /* header rows, tracks */
-  --inset: #f4f4f0;
+  --plane: #f6f5f2;       /* warm paper ground */
+  --plane-2: #efede8;
+  --surface: #ffffff;     /* cards */
+  --surface-2: #f6f5f2;   /* table heads, tracks, hovers */
+  --inset: #f9f8f6;
 
-  --line: #0d0d0d;        /* all structure */
-  --border: #0d0d0d;
-  --border-strong: #0d0d0d;
-  --bar: #0d0d0d;         /* utility bars */
-  --bar-text: #f4f4f0;
+  --line: #e7e5df;        /* hairline dividers */
+  --border: #e4e2dc;
+  --border-strong: #d3d0c8;
+  --bar: #ffffff;
+  --bar-text: #18181a;
 
-  --text: #0d0d0d;
-  --text-2: #3b3b37;
-  --text-3: #6b6b64;
+  --text: #141413;
+  --text-2: #57554f;
+  --text-3: #8d8a82;
 
-  /* The one accent: the brand colour. It marks the tenant's own brand,
-     primary actions and highlights — NEVER bad news. */
+  /* The one accent: the brand colour. The tenant's own brand, primary
+     highlights and good news — NEVER bad news. */
   --accent: #ff5a1f;
-  --accent-2: #ff5a1f;
-  --accent-soft: #ebebe5; /* no pastel accent: neutral fill */
-  /* Diagonal hatch for flagged rows: a texture, not a tint. */
-  --hatch: repeating-linear-gradient(-45deg, transparent 0 7px, rgba(13, 13, 13, 0.09) 7px 8.5px);
-  --accent-ring: #ff5a1f;
-  --accent-ink: #0d0d0d;
+  --accent-2: #e84a12;
+  --accent-soft: #fff0e8;
+  --accent-ring: rgba(255, 90, 31, 0.28);
+  --accent-ink: #ffffff;
+  --hatch: repeating-linear-gradient(-45deg, transparent 0 6px, rgba(20, 20, 19, 0.05) 6px 7px);
 
-  --ink: #0d0d0d;
-  --ink-hover: #0d0d0d;
-  --ink-text: #f4f4f0;
+  --ink: #141413;
+  --ink-hover: #2b2a27;
+  --ink-text: #ffffff;
 
-  /* Semantics stay in black and white so the accent never reads as a
-     warning. Good is plain ink; bad is ink too, rendered as an inverted
-     block (see the --neg rule below) with its ▼ / ✗ marker. */
-  --good: #0d0d0d;
-  --pos: #0d0d0d;
-  --warn: #3b3b37;
-  --warn-t: #3b3b37;
-  --danger: #0d0d0d;
-  --neg: #0d0d0d;
+  --good: #141413;
+  --pos: #141413;
+  --warn: #57554f;
+  --warn-t: #57554f;
+  --danger: #141413;
+  --neg: #141413;
 
-  --mode-recall: #0d0d0d;
-  --mode-recall-soft: #ebebe5;
-  --mode-mixed: #0d0d0d;
-  --mode-mixed-soft: #ebebe5;
+  --mode-recall: #57554f;
+  --mode-recall-soft: #f1efea;
+  --mode-mixed: #57554f;
+  --mode-mixed-soft: #f1efea;
 
-  --glow-1: transparent;
+  --glow-1: rgba(255, 90, 31, 0.10);
   --glow-2: transparent;
 
-  /* Hard offset blocks only. */
-  --hard: 4px 4px 0 0 var(--line);
-  --hard-lg: 6px 6px 0 0 var(--line);
-  --shadow-1: none;
-  --shadow-2: var(--hard);
-  --shadow-3: var(--hard);
+  --shadow-1: 0 1px 2px rgba(20, 20, 19, 0.04);
+  --shadow-2: 0 1px 2px rgba(20, 20, 19, 0.04), 0 8px 24px -12px rgba(20, 20, 19, 0.10);
+  --shadow-3: 0 2px 4px rgba(20, 20, 19, 0.04), 0 24px 48px -20px rgba(20, 20, 19, 0.18);
+  --hard: var(--shadow-2);
+  --hard-lg: var(--shadow-2);
 
-  --blur: none;
-  --scrim: var(--plane);
-  --ease: steps(2, end);
+  --blur: saturate(160%) blur(14px);
+  --scrim: rgba(246, 245, 242, 0.78);
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
 
   --background: var(--plane);
   --foreground: var(--text);
@@ -107,38 +100,46 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  --plane: #0d0d0d;
-  --plane-2: #151515;
-  --surface: #141414;
-  --surface-2: #222220;
-  --inset: #0d0d0d;
+  --plane: #0c0c0b;
+  --plane-2: #121211;
+  --surface: #151514;
+  --surface-2: #1c1c1a;
+  --inset: #111110;
 
-  --line: #f4f4f0;
-  --border: #f4f4f0;
-  --border-strong: #f4f4f0;
-  --bar: #f4f4f0;
-  --bar-text: #0d0d0d;
+  --line: #262624;
+  --border: #2a2a27;
+  --border-strong: #3a3a36;
+  --bar: #151514;
+  --bar-text: #eeede9;
 
-  --text: #f4f4f0;
-  --text-2: #c9c9c1;
-  --text-3: #8f8f87;
+  --text: #eeede9;
+  --text-2: #a8a69f;
+  --text-3: #74726b;
 
-  --accent-soft: #222220;
-  --hatch: repeating-linear-gradient(-45deg, transparent 0 7px, rgba(244, 244, 240, 0.12) 7px 8.5px);
+  --accent-soft: rgba(255, 90, 31, 0.12);
+  --accent-ink: #ffffff;
+  --hatch: repeating-linear-gradient(-45deg, transparent 0 6px, rgba(238, 237, 233, 0.06) 6px 7px);
 
-  --ink: #f4f4f0;
-  --ink-hover: #f4f4f0;
-  --ink-text: #0d0d0d;
+  --ink: #eeede9;
+  --ink-hover: #ffffff;
+  --ink-text: #0c0c0b;
 
-  --good: #f4f4f0;
-  --pos: #f4f4f0;
-  --warn: #c9c9c1;
-  --warn-t: #c9c9c1;
-  --danger: #f4f4f0;
-  --neg: #f4f4f0;
+  --good: #eeede9;
+  --pos: #eeede9;
+  --warn: #a8a69f;
+  --warn-t: #a8a69f;
+  --danger: #eeede9;
+  --neg: #eeede9;
 
-  --mode-recall: #f4f4f0;
-  --mode-mixed: #f4f4f0;
+  --mode-recall: #a8a69f;
+  --mode-recall-soft: #1c1c1a;
+  --mode-mixed: #a8a69f;
+  --mode-mixed-soft: #1c1c1a;
+
+  --shadow-1: 0 1px 0 rgba(255, 255, 255, 0.03) inset;
+  --shadow-2: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 12px 32px -16px rgba(0, 0, 0, 0.6);
+  --shadow-3: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 24px 56px -20px rgba(0, 0, 0, 0.7);
+  --scrim: rgba(12, 12, 11, 0.78);
 }
 
 html {
@@ -149,8 +150,10 @@ body {
   background: var(--plane);
   color: var(--text);
   font-family: var(--font-sans);
+  font-feature-settings: "ss01", "cv11";
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  letter-spacing: -0.006em;
 }
 
 .tabular-nums,
@@ -160,60 +163,60 @@ table {
 }
 
 h1, h2, h3, h4 {
-  font-family: var(--font-mono);
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: -0.01em;
-  line-height: 1.1;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  text-wrap: balance;
 }
 h1 { letter-spacing: -0.03em; }
 
-/* Large figures anywhere render as machine readouts. */
-[class*="text-2xl"],
+/* Large figures: tight, tabular, a touch lighter than headings. */
 [class*="text-3xl"],
 [class*="text-4xl"],
 [class*="text-5xl"],
 [class*="text-6xl"] {
-  font-family: var(--font-mono);
-  font-weight: 800;
-  letter-spacing: -0.045em;
-}
-
-/* Zero radius is structural, not a preference: override every rounded-*
-   utility, including the circles. (Unlayered, so it beats utilities.) */
-[class*="rounded"] {
-  border-radius: 0 !important;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
 }
 
 ::selection {
-  background: var(--accent);
-  color: var(--accent-ink);
+  background: var(--accent-soft);
+  color: var(--text);
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--line) transparent;
+  scrollbar-color: var(--border-strong) transparent;
 }
 
-/* --- Blueprint grid ------------------------------------------------- *
- * A container whose 2px gaps show the black ground through: every cell
- * boundary is an exact, visible line. Cells are white. */
+/* Room for the dashboard sidebar on wide screens. */
+@media (min-width: 1024px) {
+  body:has(.ep-side) {
+    padding-left: 248px;
+  }
+}
+
+/* --- Panels ------------------------------------------------------- *
+ * .blueprint is a rounded card whose children are cells divided by 1px
+ * hairlines (the grid gap shows the line colour through). */
 .blueprint {
   display: grid;
-  gap: 2px;
+  gap: 1px;
   background: var(--line);
-  border: 2px solid var(--line);
-  box-shadow: var(--hard-lg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-2);
+  overflow: hidden;
 }
 .blueprint > * {
   background: var(--surface);
   min-width: 0;
 }
-/* A nested stack of cells inside a blueprint cell: its gaps are lines too. */
 .blueprint > .bp-stack,
 .bp-stack {
   display: grid;
-  gap: 2px;
+  gap: 1px;
   background: var(--line);
 }
 .bp-stack > * {
@@ -221,129 +224,146 @@ h1 { letter-spacing: -0.03em; }
   min-width: 0;
 }
 
-/* Full-width bleed for bars inside a centred column. */
 .bp-bleed {
-  width: 100vw;
-  margin-left: calc(50% - 50vw);
+  width: 100%;
 }
 
-/* Black header bar on top of a cell. */
+/* Panel header: a quiet title row, not a black bar. */
 .bp-bar {
   display: flex;
+  align-items: baseline;
   justify-content: space-between;
   gap: 1rem;
-  background: var(--bar);
-  color: var(--bar-text);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  padding: 6px 12px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--line);
+}
+.bp-bar > :not(:first-child) {
+  color: var(--text-3);
+  font-weight: 450;
+  font-size: 12px;
 }
 
-.bp-label,
+/* Small labels: quiet sentence case. The mono kicker (.eyebrow) is kept
+   for the occasional section opener only. */
+.bp-label {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: -0.003em;
+  color: var(--text-3);
+}
 .eyebrow {
   font-family: var(--font-mono);
   font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.07em;
+  font-weight: 500;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text-2);
+  color: var(--text-3);
 }
 
 .bp-head {
-  font-family: var(--font-mono);
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: -0.01em;
-  line-height: 1.1;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
 }
 
+/* Display: the editorial serif, for the one big moment per page. */
 .bp-display {
-  font-family: var(--font-mono);
-  font-weight: 800;
-  text-transform: uppercase;
-  font-size: clamp(40px, 6.5vw, 88px);
-  line-height: 1;
-  letter-spacing: -0.05em;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: clamp(40px, 6vw, 76px);
+  line-height: 0.98;
+  letter-spacing: -0.025em;
+}
+.bp-display em,
+.serif {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: -0.01em;
 }
 
 .bp-metric {
-  font-family: var(--font-mono);
-  font-weight: 800;
+  font-family: var(--font-sans);
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.05em;
+  letter-spacing: -0.04em;
   line-height: 1;
 }
 
 /* Critical number: the accent, at display size only. */
 .bp-critical {
   color: var(--accent);
-  -webkit-text-stroke: 1px var(--line);
 }
 
 /* Accent highlight — positive emphasis only (brand, headline). */
 .bp-mark {
-  background: var(--accent);
-  color: var(--accent-ink);
-  font-weight: 700;
-  padding: 0 0.3em;
+  background: var(--accent-soft);
+  color: var(--accent-2);
+  font-weight: 600;
+  padding: 0.05em 0.4em;
+  border-radius: 6px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+:root[data-theme="dark"] .bp-mark {
+  color: var(--accent);
 }
 
-/* Bad news: an inverted ink block. Every text-[var(--neg)] element gets the
-   same treatment (exact class token, so hover: variants are untouched), so losses read instantly without borrowing the brand
-   colour. */
+/* Bad news: an inverted ink pill. Every text-[var(--neg)] element gets the
+   same treatment (exact class token, so hover: variants are untouched), so
+   losses read instantly without borrowing the brand colour. */
 .bp-neg,
 [class~="text-[var(--neg)]"] {
-  background: var(--line);
-  color: var(--plane) !important;
-  font-weight: 700;
-  padding: 0 0.3em;
+  background: var(--ink);
+  color: var(--ink-text) !important;
+  font-weight: 600;
+  padding: 0.05em 0.4em;
+  border-radius: 6px;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
 }
 
-/* Links: ink text, thick accent underline. The accent means "act here". */
+/* Links: ink text, accent underline. The accent means "act here". */
 [class~="text-[var(--accent)]"] {
   color: var(--text) !important;
   text-decoration: underline;
   text-decoration-color: var(--accent);
-  text-decoration-thickness: 2px;
+  text-decoration-thickness: 1.5px;
   text-underline-offset: 3px;
+  font-weight: 500;
 }
 
 .bp-link {
-  font-family: var(--font-mono);
-  font-weight: 700;
+  font-weight: 500;
   text-decoration: underline;
-  text-decoration-thickness: 2px;
+  text-decoration-color: var(--accent);
+  text-decoration-thickness: 1.5px;
   text-underline-offset: 3px;
+  transition: color 150ms var(--ease);
 }
 .bp-link:hover {
-  background: var(--accent);
-  color: var(--accent-ink);
+  color: var(--accent-2);
 }
 
 .bp-cell-link {
   background: var(--surface);
   min-height: 44px;
+  transition: background 150ms var(--ease);
 }
 .bp-cell-link:hover {
-  background: var(--accent);
-}
-.bp-cell-link:hover .bp-label {
-  color: var(--accent-ink);
+  background: var(--surface-2);
 }
 
-/* --- Tables: explicit headers, visible cell lines ------------------- */
+/* --- Tables: quiet header, hairline rows ---------------------------- */
 table thead th {
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--text);
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text-3);
 }
 .bp-table {
   border-collapse: collapse;
@@ -351,42 +371,49 @@ table thead th {
 }
 .bp-table th {
   background: var(--surface-2);
-  border-bottom: 2px solid var(--line);
-  padding: 7px 12px;
+  border-bottom: 1px solid var(--line);
+  padding: 8px 16px;
   text-align: left;
 }
 .bp-table td {
   border-top: 1px solid var(--line);
-  padding: 7px 12px;
+  padding: 9px 16px;
 }
-.bp-table th + th,
-.bp-table td + td {
-  border-left: 1px solid var(--line);
+.bp-table tbody tr:first-child td {
+  border-top: 0;
+}
+.bp-table tbody tr {
+  transition: background 120ms var(--ease);
+}
+.bp-table tbody tr:hover {
+  background: var(--inset);
 }
 
 /* --- Primitives ----------------------------------------------------- */
 
 .card {
   background: var(--surface);
-  border: 2px solid var(--line);
-  border-radius: 0;
-  box-shadow: var(--hard);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-2);
 }
 
 a.card,
 .card-hover {
-  transition: transform 80ms linear, box-shadow 80ms linear;
+  transition: transform 200ms var(--ease), box-shadow 200ms var(--ease),
+    border-color 200ms var(--ease);
 }
 a.card:hover,
 .card-hover:hover {
-  transform: translate(4px, 4px);
-  box-shadow: none;
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-3);
+  border-color: var(--border-strong);
 }
 
 .card-inset {
   background: var(--inset);
-  border: 2px solid var(--line);
-  border-radius: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
 }
 
 .field,
@@ -394,10 +421,11 @@ input.field,
 textarea.field,
 select.field {
   background: var(--surface);
-  border: 2px solid var(--line);
-  border-radius: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
   color: var(--text);
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
+  transition: border-color 150ms var(--ease), box-shadow 150ms var(--ease);
 }
 .field::placeholder {
   color: var(--text-3);
@@ -405,69 +433,110 @@ select.field {
 .field:focus,
 .field:focus-visible {
   outline: none;
-  box-shadow: 4px 4px 0 0 var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
 }
 
 .chip {
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
-  border: 1.5px solid var(--line);
-  border-radius: 0;
-  padding: 0.05rem 0.4rem;
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.1rem 0.55rem;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text-2);
   background: var(--surface);
 }
 
-/* Buttons are physical: a hard block under them, and on hover they press
-   down into it. */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  border: 2px solid var(--line);
-  border-radius: 0;
-  box-shadow: var(--hard);
-  font-family: var(--font-mono);
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  transition: transform 80ms linear, box-shadow 80ms linear;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-1);
+  font-size: 13px;
+  font-weight: 550;
+  letter-spacing: -0.01em;
+  transition: background 150ms var(--ease), border-color 150ms var(--ease),
+    transform 150ms var(--ease), box-shadow 150ms var(--ease);
 }
-.btn:hover,
+.btn:hover {
+  border-color: var(--border-strong);
+}
 .btn:active {
-  transform: translate(4px, 4px);
-  box-shadow: none;
+  transform: translateY(1px);
 }
 .btn:focus-visible {
-  outline: 3px solid var(--accent);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-ring);
 }
 .btn:disabled {
+  opacity: 0.5;
   transform: none;
-  box-shadow: var(--hard);
 }
 
+/* Primary: solid ink. The orange stays for the brand and good news. */
 .btn-primary {
-  background: var(--accent);
-  color: var(--accent-ink);
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--ink-text);
+}
+.btn-primary:hover {
+  background: var(--ink-hover);
+  border-color: var(--ink-hover);
 }
 
 .btn-ghost {
   background: var(--surface);
   color: var(--text);
 }
+.btn-ghost:hover {
+  background: var(--surface-2);
+}
 
 .focus-ring:focus-visible {
-  outline: 3px solid var(--accent);
-  outline-offset: 2px;
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
+/* --- Sidebar navigation ------------------------------------------- */
+.ep-side {
+  background: var(--plane);
+  border-right: 1px solid var(--line);
+}
+.ep-navlink {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 13.5px;
+  color: var(--text-2);
+  transition: background 120ms var(--ease), color 120ms var(--ease);
+}
+.ep-navlink:hover {
+  background: var(--plane-2);
+  color: var(--text);
+}
+.ep-navlink[aria-current="page"] {
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 550;
+  box-shadow: var(--shadow-1), 0 0 0 1px var(--border);
+}
+.ep-navlink[aria-current="page"] .ep-dot {
+  background: var(--accent);
+}
+.ep-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--border-strong);
+  flex-shrink: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -134,8 +134,8 @@ export default async function FanoutPage({
                     className="mt-1.5 inline-flex items-center gap-1 rounded-[4px] px-2 py-0.5 text-[10.5px] font-semibold"
                     style={
                       p.brand_in_answer
-                        ? { background: "var(--surface)", color: "var(--text)", border: "1.5px solid var(--line)" }
-                        : { background: "var(--line)", color: "var(--plane)", border: "1.5px solid var(--line)" }
+                        ? { background: "var(--surface)", color: "var(--text)", border: "1px solid var(--border)" }
+                        : { background: "var(--ink)", color: "var(--ink-text)", border: "1px solid var(--ink)" }
                     }
                   >
                     {p.brand_in_answer ? "✓ in final answer" : "✗ not in final answer"}
@@ -146,7 +146,7 @@ export default async function FanoutPage({
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-left text-[11px] uppercase tracking-wide text-[var(--text-3)]">
+                    <tr className="text-left text-[12px] text-[var(--text-3)]">
                       <th className="pb-2 pr-4 font-semibold">Shard</th>
                       <th className="pb-2 pr-4 font-semibold">Issued by</th>
                       <th className="pb-2 pr-4 font-semibold">Names</th>
@@ -192,7 +192,7 @@ export default async function FanoutPage({
                             {s.names_brand && (
                               <span
                                 className="rounded-[4px] px-2 py-0.5 text-[10.5px] font-semibold"
-                                style={{ background: "var(--accent)", color: "var(--accent-ink)", border: "1.5px solid var(--line)" }}
+                                style={{ background: "var(--accent)", color: "var(--accent-ink)", border: "1px solid var(--accent)" }}
                               >
                                 you
                               </span>
@@ -240,8 +240,8 @@ export default async function FanoutPage({
                               className="rounded-[4px] px-2 py-0.5 text-[10.5px] font-semibold"
                               style={
                                 s.priority === "high"
-                                  ? { background: "var(--line)", color: "var(--plane)", border: "1.5px solid var(--line)" }
-                                  : { background: "var(--surface)", color: "var(--text)", border: "1.5px solid var(--line)" }
+                                  ? { background: "var(--ink)", color: "var(--ink-text)", border: "1px solid var(--ink)" }
+                                  : { background: "var(--surface)", color: "var(--text)", border: "1px solid var(--border)" }
                               }
                             >
                               {s.priority}

@@ -6,7 +6,7 @@ import { surfaceLabel } from "@/lib/viz";
 
 const CATEGORY_STYLES: Record<string, string> = {
   brand: "bg-[var(--accent)] text-[var(--accent-ink)]",
-  competitor: "bg-[var(--line)] text-[var(--surface)]",
+  competitor: "bg-[var(--ink)] text-[var(--ink-text)]",
   other: "bg-[var(--surface-2)] text-[var(--text)]",
 };
 

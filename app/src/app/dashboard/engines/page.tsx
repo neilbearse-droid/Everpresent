@@ -14,7 +14,7 @@ const DIAGNOSIS_STYLE: Record<string, { chip: string; dot: string }> = {
 
 const CELL_STYLE: Record<string, string> = {
   brand: "bg-[var(--accent)] text-[var(--accent-ink)]",
-  competitor: "bg-[var(--line)] text-[var(--surface)]",
+  competitor: "bg-[var(--ink)] text-[var(--ink-text)]",
   absent: "bg-[var(--surface-2)] text-[var(--text-3)]",
 };
 const CELL_LABEL: Record<string, string> = { brand: "You", competitor: "Rival", absent: "—" };
@@ -92,7 +92,7 @@ export default async function EnginesPage({
               items={engines.map((e) => ({
                 label: `${surfaceLabel(e.surface)} · ${e.brand_present}/${e.queries_measured}`,
                 value: e.brand_rate,
-                color: "#0d0d0d",
+                color: "var(--text)",
               }))}
               max={100}
               unit="%"

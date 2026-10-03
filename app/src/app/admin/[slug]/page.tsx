@@ -110,7 +110,7 @@ export default async function TenantAdminPage({
                         : `${ready.system.filter((c) => !c.ok).length} down`}
                     </span>
                   </div>
-                  <div className="grid gap-[2px] bg-[var(--line)] sm:grid-cols-3 lg:grid-cols-5">
+                  <div className="grid gap-px overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--line)] sm:grid-cols-3 lg:grid-cols-5">
                     {ready.system.map((c) => (
                       <div key={c.label} className="bg-[var(--surface)] p-3">
                         <div className="bp-label">{c.ok ? "✓ Up" : "✗ Down"}</div>
@@ -127,7 +127,7 @@ export default async function TenantAdminPage({
                   </div>
                 </>
               )}
-              <div className="grid gap-[2px] bg-[var(--line)] sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid gap-px overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--line)] sm:grid-cols-2 lg:grid-cols-4">
                 {ready.checks.map((c) => (
                   <div key={c.label} className="bg-[var(--surface)] p-3">
                     <div className="bp-label">{c.ok ? "✓ Done" : "✗ To do"}</div>
@@ -160,7 +160,7 @@ export default async function TenantAdminPage({
                       <td className="bp-label">{e.mode}</td>
                       <td>
                         <span
-                          className={`font-mono text-[11px] font-bold uppercase ${
+                          className={`text-[12px] font-medium ${
                             e.verdict === "ready"
                               ? "bp-mark"
                               : ["missing_key", "blocked", "error", "withheld", "outside_plan"].includes(e.verdict)

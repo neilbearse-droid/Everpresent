@@ -98,10 +98,10 @@ export function DateRange() {
                   <button
                     key={p.label}
                     onClick={() => apply(r.from, r.to)}
-                    className={`border-2 border-transparent px-2 py-1.5 text-left font-mono text-[11px] font-bold uppercase ${
+                    className={`rounded-md px-2.5 py-1.5 text-left text-[13px] ${
                       active
-                        ? "border-[var(--line)] bg-[var(--accent)] text-[var(--accent-ink)]"
-                        : "text-[var(--text)] hover:border-[var(--line)]"
+                        ? "bg-[var(--surface-2)] font-medium text-[var(--text)]"
+                        : "text-[var(--text-2)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]"
                     }`}
                   >
                     {p.label}
@@ -110,10 +110,10 @@ export function DateRange() {
               })}
               <button
                 onClick={() => apply("", "")}
-                className={`border-2 border-transparent px-2 py-1.5 text-left font-mono text-[11px] font-bold uppercase ${
+                className={`rounded-md px-2.5 py-1.5 text-left text-[13px] ${
                   !from && !to
-                    ? "border-[var(--line)] bg-[var(--accent)] text-[var(--accent-ink)]"
-                    : "text-[var(--text)] hover:border-[var(--line)]"
+                    ? "bg-[var(--surface-2)] font-medium text-[var(--text)]"
+                    : "text-[var(--text-2)] hover:bg-[var(--surface-2)] hover:text-[var(--text)]"
                 }`}
               >
                 All time

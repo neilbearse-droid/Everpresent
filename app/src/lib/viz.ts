@@ -1,20 +1,20 @@
-// Series palette — Blueprint. The brand is the ONE accent; competitors are
-// black and greys, separated by dash pattern (SERIES_DASHES) rather than hue.
-// Slot order is fixed — never reorder or cycle.
+// Series palette. The brand is the ONE accent; competitors are ink and
+// greys (theme tokens, so they invert in dark mode), separated by dash
+// pattern (SERIES_DASHES) rather than hue. Slot order is fixed.
 export const SERIES_COLORS = [
   "#ff5a1f", // 1 accent — always the brand
-  "#0d0d0d", // 2
-  "#0d0d0d", // 3
-  "#5c5c56", // 4
-  "#5c5c56", // 5
-  "#9a9a92", // 6
+  "var(--text)", // 2
+  "var(--text)", // 3
+  "var(--text-2)", // 4
+  "var(--text-2)", // 5
+  "var(--text-3)", // 6
 ] as const;
 
 // strokeDasharray per slot, aligned with SERIES_COLORS.
 export const SERIES_DASHES = ["", "", "6 3", "", "2 3", "8 3 2 3"] as const;
 
-export const DELTA_UP = "#0d0d0d";
-export const DELTA_DOWN = "#0d0d0d";
+export const DELTA_UP = "var(--text)";
+export const DELTA_DOWN = "var(--text)";
 
 /** Stable entity→color map: brand takes slot 1, competitors take the
  * remaining slots in alphabetical order — color follows the entity, never its
@@ -62,8 +62,8 @@ export const LIKELIHOOD_LABELS: Record<string, string> = {
 // Ordinal grey steps for the web-search-likelihood chips — magnitude of one
 // concept, so one hue stepped, not four hues. Harmonised with --accent.
 export const LIKELIHOOD_COLORS: Record<string, string> = {
-  very_likely: "#0d0d0d",
-  likely: "#3b3b37",
-  possible: "#6b6b64",
-  unlikely: "#9a9a92",
+  very_likely: "var(--text)",
+  likely: "var(--text-2)",
+  possible: "var(--text-3)",
+  unlikely: "var(--border-strong)",
 };

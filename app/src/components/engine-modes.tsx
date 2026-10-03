@@ -1,24 +1,23 @@
 import { AIOTile } from "@/components/aio-tile";
 import type { AIOSummary, EngineMode, EngineModesPayload } from "@/lib/api";
 
-// Mode codes read like machine states. Colour is not used to tell modes apart:
-// the single accent is reserved for the critical number, so modes are named.
+// Modes are named in plain words; colour isn't used to tell them apart (the
+// accent is reserved for the brand and good news).
 const MODE_CODE: Record<EngineMode["mode"], string> = {
-  retrieve: "MODE/RETRIEVE",
-  recall: "MODE/RECALL",
-  mixed: "MODE/MIXED",
+  retrieve: "Searches live",
+  recall: "Answers from memory",
+  mixed: "Mixed",
 };
 
-function EngineCell({ e, index }: { e: EngineMode; index: number }) {
+function EngineCell({ e }: { e: EngineMode }) {
   const whole = Math.round(e.standing_value);
   return (
     <div className="flex flex-col">
-      <div className="bp-label flex justify-between border-b-2 border-[var(--line)] px-3 py-1.5">
-        <span>E{String(index + 1).padStart(2, "0")}</span>
-        <span>{MODE_CODE[e.mode]}</span>
-      </div>
-      <div className="flex flex-1 flex-col p-3">
-        <h3 className="bp-head text-[18px]">{e.label}</h3>
+      <div className="flex flex-1 flex-col p-4">
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="bp-head text-[17px]">{e.label}</h3>
+          <span className="chip shrink-0">{MODE_CODE[e.mode]}</span>
+        </div>
         <p className="mt-1 text-[12px] leading-snug text-[var(--text-2)]">{e.blurb}</p>
         <div className="mt-auto flex items-end justify-between gap-2 pt-4">
           <span className="bp-metric text-[44px]">
@@ -28,8 +27,8 @@ function EngineCell({ e, index }: { e: EngineMode; index: number }) {
           <span className="bp-label pb-1.5 text-right">{e.standing_label}</span>
         </div>
       </div>
-      <p className="border-t-2 border-[var(--line)] px-3 py-2 text-[11.5px] leading-snug">
-        <span className="bp-label mr-1.5">Play</span>
+      <p className="border-t border-[var(--line)] px-4 py-3 text-[12.5px] leading-snug text-[var(--text-2)]">
+        <span className="mr-1.5 font-medium text-[var(--text)]">Play</span>
         {e.play}
       </p>
     </div>
@@ -42,8 +41,8 @@ export function EngineStrip({ data }: { data: EngineModesPayload }) {
   const cols = { 1: "md:grid-cols-1", 2: "md:grid-cols-2", 3: "md:grid-cols-3", 4: "md:grid-cols-4" }[n];
   return (
     <div className={`blueprint grid-cols-1 ${cols}`}>
-      {data.engines.map((e, i) => (
-        <EngineCell key={e.surface} e={e} index={i} />
+      {data.engines.map((e) => (
+        <EngineCell key={e.surface} e={e} />
       ))}
     </div>
   );

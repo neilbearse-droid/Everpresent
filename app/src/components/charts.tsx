@@ -15,7 +15,7 @@ import { SERIES_DASHES } from "@/lib/viz";
 const GRID = "var(--line)";
 const AXIS_LINE = "var(--line)";
 const AXIS_TEXT = "var(--text)";
-const MONO = "JetBrains Mono, ui-monospace, monospace";
+const MONO = "Geist Mono, ui-monospace, monospace";
 
 /** Dash pattern for a series by its slot (brand first, then competitors in
  * the same order entityColors assigns), so same-grey competitors stay
@@ -41,7 +41,7 @@ export function TrendChart({
       {series.length > 1 && (
         <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1">
           {series.map((s) => (
-            <span key={s.name} className="flex items-center gap-1.5 font-mono text-[11px] font-bold uppercase text-[var(--text)]">
+            <span key={s.name} className="flex items-center gap-1.5 text-[12px] font-medium text-[var(--text-2)]">
               <svg width="22" height="8" aria-hidden>
                 <line
                   x1="0" y1="4" x2="22" y2="4"
@@ -61,7 +61,7 @@ export function TrendChart({
           <XAxis
             dataKey="date"
             tick={{ fill: AXIS_TEXT, fontSize: 10.5, fontFamily: MONO }}
-            axisLine={{ stroke: AXIS_LINE, strokeWidth: 2 }}
+            axisLine={{ stroke: AXIS_LINE, strokeWidth: 1 }}
             tickLine={false}
             dy={4}
           />
@@ -69,22 +69,22 @@ export function TrendChart({
             domain={[0, 100]}
             width={34}
             tick={{ fill: AXIS_TEXT, fontSize: 10.5, fontFamily: MONO }}
-            axisLine={{ stroke: AXIS_LINE, strokeWidth: 2 }}
+            axisLine={{ stroke: AXIS_LINE, strokeWidth: 1 }}
             tickLine={false}
           />
           <Tooltip
-            cursor={{ stroke: AXIS_LINE, strokeWidth: 2 }}
+            cursor={{ stroke: "var(--border-strong)", strokeWidth: 1 }}
             contentStyle={{
               background: "var(--surface)",
-              border: "2px solid var(--line)",
-              borderRadius: 0,
+              border: "1px solid var(--border)",
+              borderRadius: 10,
               fontSize: 12,
               fontFamily: MONO,
-              boxShadow: "4px 4px 0 0 var(--line)",
+              boxShadow: "var(--shadow-3)",
               color: "var(--text)",
               padding: "8px 12px",
             }}
-            labelStyle={{ color: "var(--text)", fontWeight: 800, marginBottom: 2 }}
+            labelStyle={{ color: "var(--text)", fontWeight: 600, marginBottom: 2 }}
             itemStyle={{ color: "var(--text-2)" }}
             formatter={(value: number | string, name: string) => [value, name]}
           />
@@ -95,25 +95,24 @@ export function TrendChart({
               dataKey={s.name}
               stroke={s.color}
               // The brand (first series) is the heavy accent line.
-              strokeWidth={seriesIndex === 0 ? 3.5 : 1.75}
+              strokeWidth={seriesIndex === 0 ? 2.5 : 1.5}
               strokeDasharray={dashFor(seriesIndex)}
               dot={(props: { index?: number; cx?: number; cy?: number }) =>
                 props.index === last && props.cx != null && props.cy != null ? (
-                  <rect
+                  <circle
                     key={`${s.name}-end`}
-                    x={props.cx - 4}
-                    y={props.cy - 4}
-                    width={8}
-                    height={8}
+                    cx={props.cx}
+                    cy={props.cy}
+                    r={4}
                     fill={s.color}
-                    stroke="var(--line)"
-                    strokeWidth={1.5}
+                    stroke="var(--surface)"
+                    strokeWidth={2}
                   />
                 ) : (
                   <g key={`${s.name}-${props.index}`} />
                 )
               }
-              activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--line)" }}
+              activeDot={{ r: 4, strokeWidth: 2, stroke: "var(--surface)" }}
               isAnimationActive={false}
             />
           ))}
@@ -143,14 +142,14 @@ export function HBars({
       {items.map((item) => (
         <li key={item.label} className="group" title={`${item.label}: ${item.value}${unit}`}>
           <div className="mb-1 flex items-baseline justify-between gap-3 text-xs">
-            <span className="flex min-w-0 items-center gap-1.5 font-mono text-[11px] font-bold uppercase text-[var(--text)]">
+            <span className="flex min-w-0 items-center gap-1.5 text-[12px] font-medium text-[var(--text-2)]">
               <span
                 className="inline-block h-2.5 w-2.5 shrink-0 border border-[var(--line)]"
                 style={{ background: item.color }}
               />
               <span className="truncate">{item.label}</span>
             </span>
-            <span className="font-mono font-bold tabular-nums text-[var(--text)]">
+            <span className="font-semibold tabular-nums text-[var(--text)]">
               {item.value}
               {unit}
             </span>

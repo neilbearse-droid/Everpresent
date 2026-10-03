@@ -25,10 +25,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       publishableKey={publishableKey}
       appearance={{
         variables: {
-          colorPrimary: "#0d0d0d",
-          colorText: "#0d0d0d",
-          borderRadius: "0px",
-          fontFamily: "IBM Plex Sans, ui-sans-serif, system-ui, sans-serif",
+          colorPrimary: "#141413",
+          colorText: "#141413",
+          borderRadius: "10px",
+          fontFamily: "Geist, ui-sans-serif, system-ui, sans-serif",
         },
       }}
     >

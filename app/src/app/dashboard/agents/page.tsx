@@ -41,7 +41,7 @@ export default async function AgentsPage() {
     <main className="mx-auto max-w-[1400px] px-6 pb-16">
       <DashNav active="AI Agents" isSuperadmin={me.data?.is_superadmin} />
 
-      <section className="blueprint mb-6 grid-cols-1 md:grid-cols-[1fr_auto]">
+      <section className="blueprint mb-6 grid-cols-1 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
         <div className="p-5">
           <div className="bp-label mb-2">AI Agents / who reads your site</div>
           <h1 className="text-2xl font-semibold tracking-tight">Which AI bots read your pages</h1>

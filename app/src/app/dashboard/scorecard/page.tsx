@@ -216,7 +216,7 @@ export default async function ScorecardPage({
               style={
                 acc.data.error_count === 0
                   ? undefined
-                  : { background: "var(--line)", color: "var(--plane)" }
+                  : { background: "var(--ink)", color: "var(--ink-text)" }
               }
             >
               {acc.data.error_count === 0
@@ -268,7 +268,7 @@ export default async function ScorecardPage({
           <HBars
             items={[
               { label: "Leads the answer (1st)", value: pd.leads, color: "#ff5a1f" },
-              { label: "Second", value: pd.second, color: "#0d0d0d" },
+              { label: "Second", value: pd.second, color: "var(--text)" },
               { label: "Third or later", value: pd.third_plus, color: "#9a9a92" },
             ]}
             max={Math.max(pd.leads, pd.second, pd.third_plus, 1)}
@@ -292,7 +292,7 @@ export default async function ScorecardPage({
           {[...d.sentiment.examples.negative, ...d.sentiment.examples.positive]
             .slice(0, 3)
             .map((ex, i) => (
-              <blockquote key={i} className="mb-2 border-l-2 border-[var(--border)] pl-3 text-xs text-[var(--text-2)]">
+              <blockquote key={i} className="mb-2 border-l border-[var(--border)] pl-3 text-xs text-[var(--text-2)]">
                 "{ex.snippet}"
                 <span className="mt-0.5 block text-[var(--text-3)]">
                   {ex.query} · {surfaceLabel(ex.surface)}
