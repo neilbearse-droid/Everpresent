@@ -656,9 +656,19 @@ export type EngineReadiness = {
   needs: string[];
   verdict:
     | "ready" | "unavailable" | "off" | "outside_plan" | "not_run_yet"
-    | "missing_key" | "blocked" | "error" | "withheld";
+    | "missing_key" | "blocked" | "error" | "withheld"
+    | "check_ok" | "check_failed" | "check_parse";
   hint: string;
   last_run: { run_id: number | null; at: string | null; ok: number; blocked: number; error: number };
+  /** Latest live engine check (absent on an older API). */
+  check?: {
+    status: string;
+    at: string;
+    latency_ms: number;
+    model: string;
+    citations: number;
+    detail: string;
+  } | null;
 };
 
 export type ReadinessPayload = {
@@ -797,4 +807,23 @@ export type OwnPages = {
 export type FirstPartySummary = {
   available: Record<string, string>;
   sources: { source: string; label: string; metric: string; total: number; from: string | null; to: string | null; rows: number }[];
+};
+
+export type SamplePlan = {
+  runs_per_week: number;
+  target_change_pts: number;
+  window_days: number;
+  summary: string;
+  engines: {
+    surface: string;
+    label: string;
+    baseline_rate: number;
+    answers_per_run: number;
+    answers_per_half_window: number;
+    needed_per_half_window: number;
+    detectable_change_pts: number | null;
+    can_detect_target: boolean;
+    ready_by: string | null;
+    more_answers_needed_x: number | null;
+  }[];
 };

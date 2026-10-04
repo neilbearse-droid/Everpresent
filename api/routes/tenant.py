@@ -121,6 +121,14 @@ def answer_shape_route(ctx: Ctx, session: Db, days: int = 60) -> dict:
     return answer_shape(session, ctx.tenant_id, days=max(7, min(days, 180)))
 
 
+@router.get("/sample-plan")
+def sample_plan_route(ctx: Ctx, session: Db) -> dict:
+    """What size of change the current setup can detect, per engine, and when."""
+    from api.sample_plan_service import sample_plan
+
+    return sample_plan(session, ctx.tenant_id)
+
+
 @router.get("/own-pages")
 def own_pages_route(ctx: Ctx, session: Db, days: int = 30) -> dict:
     """The brand's own pages AI answers use, and whether each is fit for it."""

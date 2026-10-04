@@ -25,6 +25,19 @@ export async function crawlPowerPages(
   };
 }
 
+export async function runEngineCheck(
+  slug: string,
+  _prev: ActionState,
+  _formData: FormData,
+): Promise<ActionState> {
+  const res = await apiFetch(`/api/admin/tenants/${slug}/engine-check`, { method: "POST" });
+  if (!res.ok) return { ok: false, message: res.error ?? "Could not queue the engine check" };
+  return {
+    ok: true,
+    message: "Engine check queued. Results appear in this table in 1–5 minutes; refresh to see them.",
+  };
+}
+
 export async function runAccessAudit(
   slug: string,
   _prev: AuditState,

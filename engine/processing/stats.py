@@ -65,3 +65,35 @@ def change_verdict(k_before: int, n_before: int, k_after: int, n_after: int) -> 
     else:
         verdict = "no real change"
     return {"verdict": verdict, "delta": delta, "p_value": round(p, 4)}
+
+
+Z_POWER80 = 0.8416  # one-sided z for 80% power
+
+
+def answers_needed(
+    p: float, delta: float, *, z_alpha: float = Z95, z_beta: float = Z_POWER80
+) -> int:
+    """Answers needed on EACH side of a before/after comparison to detect a
+    change of `delta` (as a fraction, e.g. 0.10) from baseline rate `p` with
+    a two-sided 5% test at 80% power (two-proportion formula). Clamped to
+    [MIN_ANSWERS_FOR_CHANGE, 100000]."""
+    p1 = min(max(p, 0.01), 0.99)
+    p2 = min(max(p1 + delta, 0.01), 0.99)
+    if p2 == p1:
+        return 100_000
+    pbar = (p1 + p2) / 2
+    num = (z_alpha * math.sqrt(2 * pbar * (1 - pbar))
+           + z_beta * math.sqrt(p1 * (1 - p1) + p2 * (1 - p2))) ** 2
+    n = math.ceil(num / (p2 - p1) ** 2)
+    return max(MIN_ANSWERS_FOR_CHANGE, min(n, 100_000))
+
+
+def detectable_change(p: float, n_per_side: int) -> float | None:
+    """Smallest change (percentage points) detectable with n answers per side
+    at 80% power, or None when there's too little data to say."""
+    if n_per_side < MIN_ANSWERS_FOR_CHANGE:
+        return None
+    for pts in range(1, 101):
+        if answers_needed(p, pts / 100) <= n_per_side:
+            return float(pts)
+    return None

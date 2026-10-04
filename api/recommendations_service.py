@@ -66,84 +66,86 @@ class Play:
 
 # Evidence statements, one per kind of play. Kept here so every play of a kind
 # cites the same, dated, honestly-graded finding.
+# Evidence statements, one per kind of play. Policy: say what kind of
+# evidence backs the play and where it comes from, but don't quote a figure
+# that hasn't been checked against its original source (most 2026 industry
+# numbers circulate second-hand). Official guidance is cited as such.
 WHY = {
     "subquery": (
-        "Engines answer by running several sub-searches (Gemini 3 averages ~10.7 per "
-        "prompt), and only ~38% of AI Overview citations rank in Google's top 10 for the "
-        "main query. Pages that rank for the sub-searches were 161% more likely to be "
-        "cited (Seer, Ahrefs, Surfer; 2026)."
+        "Engines answer by running several sub-searches and citing pages that answer "
+        "those, often pages that don't rank for the main query (2026 industry studies; "
+        "consistent across vendors)."
     ),
     "facts": (
-        "In a 252,000-trial controlled study across six models (2026), topical relevance, "
-        "explicit prices and recent dates raised citation odds; formatting alone did not."
+        "In a large 2026 controlled study across several models, topical relevance, "
+        "explicit prices and recent dates raised citation odds; formatting alone did not "
+        "(peer-reviewed preprint)."
     ),
     "earned": (
-        "AI search draws most citations from third-party sources: 82% earned media in "
-        "one 2025 audit versus 45% for Google search."
+        "AI answers lean heavily on third-party sources (reviews, publishers, lists) rather "
+        "than brands' own pages for comparison questions (2025–2026 audits)."
     ),
     "reviews": (
-        "In a 2026 controlled test, a rival's rating lead of under 0.1 stars erased a "
-        "well-known brand's advantage. Brands with active review profiles were cited far "
-        "more often in an 800K-answer study (sponsored, correlational)."
+        "In a 2026 controlled test, a small rating advantage was enough to change which "
+        "brand an AI recommended; brands with active review profiles are cited more often "
+        "(controlled preprint; sponsored correlational study)."
     ),
     "community": (
-        "Reddit, YouTube and forums are among the most-cited domains in Perplexity and "
-        "Google's AI answers (Semrush, Search Engine Land; 2026). Evidence is "
-        "correlational; astroturfing gets removed and can backfire."
+        "Reddit, YouTube and forums are frequently cited by Google's AI answers and "
+        "Perplexity; ChatGPT cut back on them in 2026 (vendor tracking, correlational). "
+        "Astroturfing gets removed and can backfire."
     ),
     "reference": (
-        "Wikipedia is ChatGPT's single most-cited domain (~7.8% of citations, 2026), and "
-        "reference entries feed both live answers and future training data."
+        "Wikipedia is among the most-cited sources in ChatGPT answers, and reference "
+        "entries feed both live answers and future model training (industry tracking)."
     ),
     "accuracy": (
-        "Most wrong facts in search-backed answers trace to a wrong or stale page the "
-        "engine cited, not to the model itself (vendor analysis, 2026). Fix the source, "
-        "trigger a recrawl, and re-check over several runs."
+        "Wrong facts in search-backed answers usually trace to a wrong or stale page the "
+        "engine cited, so fix the source, trigger a recrawl, and re-check over several runs "
+        "(vendor analysis; consistent with how retrieval works)."
     ),
     "crawler": (
-        "Official: ChatGPT search only shows sites OAI-SearchBot can crawl; Copilot and "
-        "ChatGPT lean on Bing's index; Google's AI features need normal Googlebot "
-        "indexing. A blocked bot means zero chance on that engine."
+        "Official: ChatGPT search only shows sites OAI-SearchBot can crawl; Copilot uses "
+        "Bing's index; Google's AI features need normal Googlebot indexing. A blocked bot "
+        "means no chance on that engine."
     ),
     "refresh": (
-        "Cited pages skew fresh: 72% had been updated in the past year (Seer, 2026). "
-        "Losing a citation is the earliest decay signal, and a refresh is cheap."
+        "Cited pages skew recently updated (industry studies, 2026). Losing a citation is "
+        "the earliest decay signal, and a refresh is cheap."
     ),
     "broken": (
-        "Bots that hit errors drop or downgrade pages; a cited URL that 404s can't be "
-        "cited again until it's fixed or redirected."
+        "A page that errors for bots can't be quoted; a cited URL that 404s stays lost "
+        "until it's fixed or redirected."
     ),
     "read_not_cited": (
-        "AI search is reading these pages and choosing other sources: they're retrieved "
-        "but lose on evidence. That's the cheapest gap to close (2026 absorption study)."
+        "AI search reads these pages and picks other sources: they're retrieved but lose "
+        "on evidence, the cheapest gap to close."
     ),
     "training": (
         "Answers from model memory change only when a new model is trained. Brands with "
-        "strong third-party coverage are named more; there's no fast lever here."
+        "strong third-party coverage are named more often; there's no fast lever here."
     ),
     "aio": (
-        "Google says AI Overviews and AI Mode need no special markup, just indexable, "
-        "snippet-eligible pages (official, 2026). They cite mostly pages that answer the "
-        "sub-searches, many outside the top 10."
+        "Official: Google says AI Overviews and AI Mode need no special markup, only "
+        "indexable, snippet-eligible pages. They often cite pages that answer the "
+        "sub-searches, not only top-ranked ones."
     ),
     "logs": (
         "Only server logs show whether ChatGPT, Perplexity, Claude and Google's AI bots "
         "can actually reach your pages, and which pages they read."
     ),
     "own_pages": (
-        "Newer ChatGPT models send most of their searches to the brand's own site "
-        "(83% on GPT-6 Astra, Writesonic, Oct 2026, vendor data): what your pricing and "
-        "help pages say is what the answer says."
+        "Newer ChatGPT models send much of their searching to the brand's own site (2026 "
+        "vendor studies): what your pricing and help pages say is what the answer says."
     ),
     "model_change": (
-        "A new model changes how often an engine searches and what it cites, overnight "
-        "(GPT-6 Astra ran ~40% fewer searches than GPT-5.6; vendor data). Compare before "
-        "and after the change, not across it."
+        "A new model can change how often an engine searches and what it cites overnight. "
+        "Compare before and after the change, not across it."
     ),
     "strategy": (
-        "A 37,000-run 2026 audit found ~half of specialist brands never surfaced, while "
-        "mid-market brands surfaced but were rarely recommended; leading brands faced "
-        "more fabricated facts. The right play depends on where you start."
+        "Large 2026 audits found specialist brands often never surface, mid-market brands "
+        "surface but are rarely recommended, and leading brands face more fabricated "
+        "facts. The right play depends on where you start."
     ),
 }
 
@@ -649,8 +651,8 @@ def _source_plays(plan: dict) -> list[Play]:
         plays.append(Play(
             "sources:publisher", "earned", f"Get onto {_join(doms, 3)}",
             f"These pages are cited alongside rivals for your queries "
-            f"({len(doms)} publishers in all). Third-party lists drove ~86% of brand "
-            "mentions in a September 2026 test; brands' own lists drove 14%.",
+            f"({len(doms)} publishers in all). Placement on third-party lists drives far "
+            "more AI mentions than a brand's own list pages (2026 experiments).",
             70, "moderate", WHY["earned"],
             ["Check whether each page lists rivals and not you; pitch an update with "
              "current facts, original data or an expert quote",
@@ -662,8 +664,8 @@ def _source_plays(plan: dict) -> list[Play]:
         plays.append(Play(
             "sources:community", "community", f"Show up where people discuss: {_join(doms, 3)}",
             f"{_join(doms, 4)} are cited for your queries alongside rivals. These matter "
-            "most for Google's AI answers and Perplexity; ChatGPT cut Reddit citations "
-            "~86% in August 2026.",
+            "most for Google's AI answers and Perplexity; ChatGPT sharply cut its Reddit "
+            "citations in August 2026.",
             52, "emerging", WHY["community"],
             ["Answer real threads as a disclosed company account; no sock puppets",
              "On YouTube, publish genuine how-to and comparison videos with clear titles",
@@ -707,12 +709,12 @@ def _owned_docs_play(session: Session, tenant_id: int, plan: dict) -> list[Play]
         "Make your help, docs and pricing pages ChatGPT-ready",
         ("None" if share == 0 else f"Only {round(100 * share)}%")
         + " of ChatGPT's citations on your queries point at your own site. Since "
-        "August 2026 ChatGPT searches inside brand sites far more "
-        "(site: searches rose from 0.4% to ~17%), favouring help centers and docs.",
+        "August 2026 ChatGPT searches inside brand sites far more often, favouring help "
+        "centers and product docs.",
         72, "moderate",
-        "ChatGPT's in-site searches jumped in August 2026 while its Reddit citations fell "
-        "~86%; help centers and product docs took the slots (Otterly, Peec; 2026, "
-        "vendor data).",
+        "In August 2026 ChatGPT began searching inside brand sites much more often while "
+        "citing Reddit far less; help centers and product docs took those slots (vendor "
+        "tracking, 2026).",
         ["Make sure help-center, docs and pricing pages are public, crawlable HTML",
          "One page per real customer question, answer first, facts explicit",
          "Keep plan names, prices and limits identical across pricing, docs and help"],

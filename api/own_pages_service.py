@@ -1,6 +1,6 @@
 """Your Pages (m33): the brand's own pages that AI answers use, and whether
 each one is fit for it. Newer engines check facts on the brand's own site
-(GPT-6 sends most of its searches there), so a stale price or an error on
+(2026 vendor studies saw ChatGPT send much of its searching there), so a stale price or an error on
 the help center now lands directly in the answer.
 
 One row per own page, joining:

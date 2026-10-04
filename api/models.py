@@ -738,3 +738,25 @@ class FirstPartyDaily(SQLModel, table=True):
     metric: str = ""  # impressions | clicks | citations | requests | sessions | …
     value: float = 0.0
     imported_at: datetime = Field(default_factory=utcnow)
+
+
+class EngineCheck(SQLModel, table=True):
+    """Engine smoke test (m34): one cheap live call per surface, so a broken
+    key, a blocked browser capture or a changed response format shows up
+    before a full run, not during the demo. Latest row per surface wins."""
+
+    __tablename__ = "engine_checks"  # pyright: ignore[reportAssignmentType]
+
+    id: int | None = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenants.id", index=True)
+    surface: str = Field(index=True)
+    # ok | failed | blocked | not_configured | parse_problem | running
+    status: str = ""
+    latency_ms: int = 0
+    served_model: str = ""
+    text_chars: int = 0
+    citations: int = 0
+    searches: int = 0
+    cost_usd: float = 0.0
+    detail: str = ""  # what went wrong, or a short sample of the answer
+    checked_at: datetime = Field(default_factory=utcnow, index=True)

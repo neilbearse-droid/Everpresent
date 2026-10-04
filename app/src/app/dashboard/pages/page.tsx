@@ -43,8 +43,8 @@ export default async function YourPagesPage() {
         <p className="eyebrow mb-2">The pages AI answers check</p>
         <h1 className="text-[28px] font-semibold tracking-tight">Your Pages</h1>
         <p className="mt-2 max-w-3xl text-sm text-[var(--text-2)]">
-          Newer engines verify facts on your own site: most of GPT-6&apos;s searches go to the
-          brand&apos;s pages. A stale price or an erroring help page now lands straight in the
+          Newer engines check facts on your own site: 2026 studies found ChatGPT sending much of
+          its searching to brands&apos; own pages. A stale price or an erroring help page now lands straight in the
           answer. Each page AI answers use, checked for reachability, freshness and agreement with
           your fact sheet, next to what Google and Bing report.
         </p>

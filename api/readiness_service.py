@@ -12,6 +12,7 @@ from sqlmodel import Session, select
 
 from api.config import get_settings
 from api.models import (
+    EngineCheck,
     Result,
     ResultVariant,
     Run,
@@ -66,7 +67,28 @@ _HINTS = {
     "blocked": "Blocked by an anti-bot wall. Set a residential proxy on the worker.",
     "error": "Calls failed. Open the last run to read the error.",
     "withheld": "Withheld by the monthly spend cap. Raise the cap and re-run.",
+    "check_ok": "Verified by a live test call (engine check).",
+    "check_failed": "The live test call failed. Read the check detail below.",
+    "check_parse": "The live test answered, but sources or text didn't parse: the "
+                   "engine's response format may have changed.",
 }
+
+# Engine-check status → readiness verdict when the check is the newest evidence.
+_CHECK_VERDICT = {
+    "ok": "check_ok", "failed": "check_failed", "blocked": "blocked",
+    "not_configured": "missing_key", "parse_problem": "check_parse",
+}
+
+
+def latest_checks(session: Session, tenant_id: int) -> dict[str, EngineCheck]:
+    out: dict[str, EngineCheck] = {}
+    for row in session.exec(
+        select(EngineCheck).where(EngineCheck.tenant_id == tenant_id)
+        .order_by(EngineCheck.checked_at.desc())  # pyright: ignore[reportAttributeAccessIssue]
+        .limit(200)
+    ).all():
+        out.setdefault(row.surface, row)
+    return out
 
 
 def _mode(code: str) -> str:
@@ -107,6 +129,7 @@ def engine_readiness(session: Session, tenant: Tenant) -> dict:
         for code in run.surface_set or []:
             latest_run.setdefault(code, run)
 
+    checks = latest_checks(session, tenant.id)
     engines = []
     for code in (str(c) for c in SurfaceCode):
         is_on = bool(enabled.get(code)) and code in approved
@@ -152,7 +175,22 @@ def engine_readiness(session: Session, tenant: Tenant) -> dict:
                 verdict = "withheld"
             else:
                 verdict = "not_run_yet"
+        check = checks.get(code)
+        check_out = None
+        if check is not None:
+            check_out = {
+                "status": check.status, "at": check.checked_at.isoformat(),
+                "latency_ms": check.latency_ms, "model": check.served_model,
+                "citations": check.citations, "detail": check.detail,
+            }
+            # A check newer than the last run is the freshest evidence.
+            run_at = evidence.get("at")
+            if is_on and code in will_dispatch and (
+                run_at is None or check.checked_at.isoformat() > run_at
+            ) and check.status in _CHECK_VERDICT:
+                verdict = _CHECK_VERDICT[check.status]
         engines.append({
+            "check": check_out,
             "code": code,
             "label": _LABELS.get(code, code),
             "mode": _mode(code),

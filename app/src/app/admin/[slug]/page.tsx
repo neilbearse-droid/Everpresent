@@ -6,6 +6,7 @@ import { AccessAuditPanel } from "./access-audit-panel";
 import { BrandFactsPanel, type BrandFact } from "./brand-facts-panel";
 import { ClerkOrgForm } from "./clerk-org-form";
 import { CrawlPagesButton } from "./crawl-pages-button";
+import { EngineCheckButton } from "./engine-check-button";
 import { Ga4Form } from "./ga4-form";
 import { ImportYamlForm, type BundledSeed } from "./import-yaml-form";
 import { AgentTokenForm } from "./agent-token-form";
@@ -96,7 +97,7 @@ export default async function TenantAdminPage({
               <div className="bp-bar">
                 <span>Engine readiness</span>
                 <span>
-                  {ready.engines.filter((e) => e.verdict === "ready").length} /{" "}
+                  {ready.engines.filter((e) => e.verdict === "ready" || e.verdict === "check_ok").length} /{" "}
                   {ready.engines.filter((e) => e.available).length} verified
                 </span>
               </div>
@@ -138,6 +139,7 @@ export default async function TenantAdminPage({
                   </div>
                 ))}
               </div>
+              <EngineCheckButton slug={tenant.slug} />
               <div className="overflow-x-auto"><table className="bp-table w-full min-w-[680px]">
                 <thead>
                   <tr>
@@ -161,17 +163,35 @@ export default async function TenantAdminPage({
                       <td>
                         <span
                           className={`text-[12px] font-medium ${
-                            e.verdict === "ready"
+                            e.verdict === "ready" || e.verdict === "check_ok"
                               ? "bp-mark"
-                              : ["missing_key", "blocked", "error", "withheld", "outside_plan"].includes(e.verdict)
+                              : ["missing_key", "blocked", "error", "withheld", "outside_plan",
+                                 "check_failed", "check_parse"].includes(e.verdict)
                                 ? "bp-neg"
                                 : ""
                           }`}
                         >
-                          {e.verdict.replaceAll("_", " ")}
+                          {e.verdict === "check_ok"
+                            ? "verified live"
+                            : e.verdict === "check_failed"
+                              ? "live check failed"
+                              : e.verdict === "check_parse"
+                                ? "parse problem"
+                                : e.verdict.replaceAll("_", " ")}
                         </span>
                       </td>
-                      <td className="text-[12px]">{e.hint}</td>
+                      <td className="text-[12px]">
+                        {e.hint}
+                        {e.check && (
+                          <div className="mt-1 text-[11.5px] text-[var(--text-3)]">
+                            Live check {new Date(e.check.at).toLocaleString()}: {e.check.status.replaceAll("_", " ")}
+                            {e.check.latency_ms ? ` · ${(e.check.latency_ms / 1000).toFixed(1)}s` : ""}
+                            {e.check.model ? ` · ${e.check.model}` : ""}
+                            {e.check.citations ? ` · ${e.check.citations} sources` : ""}
+                            {e.check.detail && <div className="mt-0.5 break-words">{e.check.detail}</div>}
+                          </div>
+                        )}
+                      </td>
                       <td className="text-[11.5px] text-[var(--text-2)]">
                         {e.needs.length ? e.needs.map((n) => <div key={n}>{n}</div>) : "—"}
                       </td>

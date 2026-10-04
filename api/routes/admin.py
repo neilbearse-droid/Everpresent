@@ -317,6 +317,27 @@ def rotate_agent_log_token(slug: str, session: Db, admin: Admin) -> dict:
     return {"token": token, "endpoint": "/api/ingest/agent-logs"}
 
 
+@router.post("/tenants/{slug}/engine-check", status_code=202)
+def engine_check(slug: str, session: Db, admin: Admin) -> dict:
+    """One cheap live call per enabled engine (cents in total) to prove keys,
+    browser captures and parsing work before a full run."""
+    from api.queue import enqueue_engine_check
+
+    tenant = _tenant_or_404(session, slug)
+    if tenant.status == TenantStatus.archived:
+        raise HTTPException(status_code=409, detail="Tenant is archived")
+    assert tenant.id is not None
+    try:
+        enqueue_engine_check(tenant.id)
+    except Exception as exc:  # noqa: BLE001 — Redis down is a user-facing message
+        raise HTTPException(status_code=503,
+                            detail="Could not queue the check (is the worker's Redis up?)") from exc
+    write_audit(session, tenant_id=tenant.id, actor=admin.user.email,
+                action=f"engine-check queued {slug}")
+    session.commit()
+    return {"queued": True}
+
+
 @router.post("/tenants/{slug}/runs", status_code=201)
 def trigger_run_route(slug: str, session: Db, admin: Admin) -> Run:
     tenant = _tenant_or_404(session, slug)

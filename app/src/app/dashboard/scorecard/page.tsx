@@ -3,6 +3,7 @@ import {
   rangeQuery,
   type AccuracyReport,
   type KpiScorecard,
+  type SamplePlan,
   type Me,
   type MentionRates,
   type RateChange,
@@ -44,6 +45,63 @@ function ChangeBadge({ change }: { change: RateChange }) {
     <span className="chip text-[var(--text-3)]">
       {change.verdict === "no real change" ? "no real change" : "not enough data yet"}
     </span>
+  );
+}
+
+/** How big a change the current setup can see, per engine: turns "not enough
+ * data yet" into a number and a next step. */
+function SamplePlanPanel({ p }: { p: SamplePlan }) {
+  return (
+    <section className="blueprint mb-6 grid-cols-1">
+      <div>
+        <div className="bp-bar">
+          <span>How big a change can we see?</span>
+          <span>
+            {p.window_days}-day window · {p.runs_per_week ? `${p.runs_per_week} runs/week` : "no schedule"}
+          </span>
+        </div>
+        <p className="px-4 pt-3 text-sm text-[var(--text-2)]">{p.summary}</p>
+        <div className="overflow-x-auto">
+          <table className="bp-table mt-2 w-full min-w-[640px]">
+            <thead>
+              <tr>
+                <th>Engine</th>
+                <th className="text-right">Answers / 2 weeks</th>
+                <th className="text-right">Needed for a {p.target_change_pts}-pt change</th>
+                <th className="text-right">Smallest change we can see now</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {p.engines.map((e) => (
+                <tr key={e.surface}>
+                  <td className="font-medium">{e.label}</td>
+                  <td className="text-right tabular-nums">{e.answers_per_half_window}</td>
+                  <td className="text-right tabular-nums">{e.needed_per_half_window}</td>
+                  <td className="text-right tabular-nums">
+                    {e.detectable_change_pts ? `±${e.detectable_change_pts} pts` : "—"}
+                  </td>
+                  <td className="text-[12.5px]">
+                    {e.can_detect_target ? (
+                      <span className="bp-mark">ready{e.ready_by ? ` from ${e.ready_by}` : ""}</span>
+                    ) : e.more_answers_needed_x ? (
+                      <span className="text-[var(--text-2)]">needs {e.more_answers_needed_x}× more answers</span>
+                    ) : (
+                      <span className="text-[var(--text-3)]">needs a schedule</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="px-4 pb-3 pt-2 text-xs text-[var(--text-3)]">
+          A change counts as real when the second half of the window differs from the first beyond
+          the noise (two-sided 5% test, 80% power). Google captures give one answer per question
+          per run, so they need the most repeats.
+        </p>
+      </div>
+    </section>
   );
 }
 
@@ -115,10 +173,11 @@ export default async function ScorecardPage({
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
   const { from, to } = await searchParams;
-  const [me, sc, acc] = await Promise.all([
+  const [me, sc, acc, plan] = await Promise.all([
     apiFetch<Me>("/api/me"),
     apiFetch<KpiScorecard>(`/api/tenant/kpi-scorecard${rangeQuery(from, to)}`),
     apiFetch<AccuracyReport>(`/api/tenant/accuracy${rangeQuery(from, to)}`),
+    apiFetch<SamplePlan>("/api/tenant/sample-plan"),
   ]);
   if (sc.status === 403) {
     return <NoOrgNotice active="Scorecard" isSuperadmin={me.data?.is_superadmin} detail={sc.error} />;
@@ -157,6 +216,7 @@ export default async function ScorecardPage({
       {d.mention_rates && d.mention_rates.overall.answers > 0 && (
         <MentionRatePanel m={d.mention_rates} brand={d.brand_name} />
       )}
+      {plan.data && plan.data.engines.length > 0 && <SamplePlanPanel p={plan.data} />}
 
       {/* Prominence-weighted share: useful, but rank is noisy run to run. */}
       <section className="card mb-6 p-4">

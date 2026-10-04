@@ -2278,7 +2278,7 @@ def _citability_diff(
             gaps.append(
                 "Winning pages state prices outright; yours doesn't. Put current plan "
                 "prices on the page as text (explicit prices raised citation odds in a "
-                "252,000-trial 2026 study)"
+                "large 2026 controlled study)"
             )
         if spec["has_updated_date"] and not yf.get("has_updated_date"):
             gaps.append(
@@ -2597,9 +2597,9 @@ def _spam_risk(query: str) -> dict | None:
         "level": "high",
         "note": (
             "Don't answer this with your own ranked 'best X' list or an "
-            "'alternatives' page. It barely works and it's risky: in September 2026 "
-            "tests, third-party lists drove ~86% of brand mentions and brands' own lists "
-            "14%, and Google's August and September 2026 spam updates target "
+            "'alternatives' page. It barely works and it's risky: in 2026 experiments, "
+            "placement on third-party lists drove far more AI mentions than brands' own "
+            "lists, and Google's August and September 2026 spam updates target "
             "self-promotional listicles and attempts to steer AI answers. Earn a place "
             "on the third-party pages engines already cite (target sources), and "
             "publish an honest comparison that says where competitors fit better."

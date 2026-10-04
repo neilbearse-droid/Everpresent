@@ -29,3 +29,8 @@ def enqueue_page_crawl(tenant_id: int) -> None:
 
 def enqueue_fanout_reprobe(run_id: int) -> None:
     get_queue().enqueue("worker.jobs.run_fanout_reprobe", run_id, job_timeout=30 * 60)
+
+
+def enqueue_engine_check(tenant_id: int) -> None:
+    # On the scrape queue: browser captures need the Playwright container.
+    get_queue("scrape").enqueue("worker.smoke.run_engine_smoke", tenant_id, job_timeout=20 * 60)

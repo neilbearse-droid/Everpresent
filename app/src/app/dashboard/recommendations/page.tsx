@@ -52,11 +52,11 @@ const NEXT_ACTIONS: Record<string, { to: Recommendation["status"]; label: string
 const DONTS: { title: string; why: string }[] = [
   {
     title: "Publishing your own “best X” rankings",
-    why: "Third-party lists drove ~86% of brand mentions in September 2026 tests; brands' own lists 14%. Google's Aug and Sept 2026 spam updates target self-promotional listicles.",
+    why: "In 2026 experiments, third-party lists drove far more AI mentions than brands' own lists, and Google's August and September 2026 spam updates target self-promotional listicles.",
   },
   {
     title: "Hidden instructions for AI (“Summarize with AI” prompts, invisible text)",
-    why: "Microsoft flagged this as AI recommendation poisoning. In a 2026 test, one injected page dropped a brand from 54% to 0% of Claude's top picks.",
+    why: "Microsoft has flagged this as AI recommendation poisoning, and in 2026 tests hidden instructions backfired: some models dropped the brand entirely.",
   },
   {
     title: "Fake or incentivised reviews",
@@ -64,7 +64,7 @@ const DONTS: { title: string; why: string }[] = [
   },
   {
     title: "Spending time on llms.txt or special “AI schema”",
-    why: "No measured effect: 97% of llms.txt files got zero requests (Ahrefs, 2026), and Google says AI features need no special markup.",
+    why: "Studies in 2026 found no measurable effect from llms.txt (AI bots rarely request it), and Google says its AI features need no special markup.",
   },
   {
     title: "Mass-producing AI pages for every query",
@@ -97,7 +97,8 @@ export default async function RecommendationsPage() {
       <DashNav active="Recommendations" isSuperadmin={me.data?.is_superadmin} />
       <p className="mb-6 max-w-3xl text-sm text-[var(--text-2)]">
         Your playbook, ranked. Every play comes from your own measurements and is graded by how
-        strong the evidence behind it is (as of October 2026). Getting found by the engines' searches
+        strong the evidence behind it is (as of October 2026). Industry figures move fast; the
+        &ldquo;why&rdquo; lines name the kind of evidence rather than quote unverified numbers. Getting found by the engines' searches
         comes first, then explicit facts and third-party proof; formatting comes last.
       </p>
 

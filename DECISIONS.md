@@ -3,6 +3,24 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M34 — Demo-proofing: engine check, honest copy, sample-size planner (2026-10-04)
+
+1. **Engine smoke test.** Admin "Test every engine" makes one short live call
+   per enabled engine through the real adapters (cents, recorded in the spend
+   ledger) and checks the parts dashboards depend on: answer text, sources or
+   searches, served model. The newest check feeds the readiness table, so a
+   bad key, a missing browser or a changed response format shows before a run.
+   Common failures are explained in plain words.
+2. **No unverified figures in product copy.** Industry numbers circulate
+   second-hand; the playbook, briefs and page intros now name the kind of
+   evidence (official guidance, controlled study, vendor tracking) instead of
+   quoting figures we couldn't check against the original source.
+3. **Sample-size planner.** The headline change test compares the halves of a
+   fixed 28-day window, so waiting longer doesn't help a thin engine; the
+   answers per two weeks must grow. Per engine: answers per half-window, the
+   answers a 10-point change needs (two-sided 5%, 80% power), the smallest
+   change detectable now, and how many times more data is needed.
+
 ## M33 — Answer shape, memory vs search, your pages, first-party data (2026-10-04)
 
 Driven by the October research ("Future proofing AEO beyond citations"):

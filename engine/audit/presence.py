@@ -147,7 +147,7 @@ _CAPSULE_WINDOW = 6000  # how far after a heading to look for its answer
 
 def _has_answer_capsule(html: str) -> bool:
     """A ~40-60 word direct answer immediately under a question-format heading —
-    72% of cited blog posts have one. Detected on HTML structure (robust to
+    Common on cited pages (industry studies). Detected on HTML structure (robust to
     source line-wrapping): a question heading followed by a paragraph of
     answer-capsule length."""
     for i, m in enumerate(_HEADING_RE.finditer(html)):
@@ -164,7 +164,7 @@ def _has_answer_capsule(html: str) -> bool:
 
 
 def _front_loaded(text: str) -> bool:
-    """Does substance (a statistic) appear in the first 30% of the page? 44% of
+    """Does substance (a statistic) appear in the first 30% of the page? Much of
     ChatGPT citations come from the first third."""
     if len(text.split()) < 60:
         return False
