@@ -3,6 +3,24 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M40 — Vendor capture import (2026-10-04)
+
+1. **We import signed-in answers; we don't log in.** Automating signed-in
+   consumer accounts breaks those services' terms, so signed-in (and any
+   other outside) captures come from a vendor as JSON. Admin uploads the
+   file; each import becomes a run with trigger "import" and is processed
+   like our own: mentions, citations, accuracy, sponsored units.
+2. **Format.** `{source, captures: [{surface, query, answer_html | answer,
+   citations, captured_at, logged_in, model, persona, location}]}`. HTML is
+   preferred because ads are cut from it before counting. The capture date
+   becomes the result date, so imports land on the right day in trends.
+3. **Safety.** Superadmin only, 25 MB and 5,000 captures per file, known
+   surface codes only, http(s) citations only, no future dates (10 minutes
+   of clock slack), no empty answers. One bad capture rejects the whole
+   file, so nothing half-imports.
+4. **Idempotent.** A capture with the same surface, query and answer text
+   already on file is skipped, and a file with nothing new leaves no run.
+
 ## M39 — Ads kept out of organic visibility (2026-10-04, migration m35)
 
 1. **Cut before counting.** Every browser capture goes through

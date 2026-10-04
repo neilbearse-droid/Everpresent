@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  // Admin imports (vendor captures) post files through server actions.
+  experimental: { serverActions: { bodySizeLimit: "25mb" } },
   async rewrites() {
     // In production Caddy routes /api to the FastAPI service; this rewrite
     // covers local dev (`next dev` + `uvicorn api.main:app`).

@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
@@ -267,6 +267,43 @@ def draft_config_route(slug: str, payload: ConfigDraftRequest, session: Db, admi
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     write_audit(session, tenant_id=tenant.id, actor=admin.user.email,
                 action=f"tenant.draft-config {slug} <- {out['domain']}")
+    session.commit()
+    return out
+
+
+@router.post("/tenants/{slug}/import-captures")
+async def import_captures_route(slug: str, request: Request, session: Db, admin: Admin) -> dict:
+    """Answers captured by a vendor (e.g. signed-in ChatGPT), measured like
+    our own. See api/capture_import_service.py for the format."""
+    import json
+
+    from pydantic import ValidationError
+    from starlette.concurrency import run_in_threadpool
+
+    from api.capture_import_service import MAX_BYTES, CaptureImport, import_captures
+
+    tenant = _tenant_or_404(session, slug)
+    body = bytearray()
+    async for chunk in request.stream():
+        body.extend(chunk)
+        if len(body) > MAX_BYTES:
+            raise HTTPException(status_code=413, detail="import too large (max 25 MB)")
+    try:
+        spec = CaptureImport.model_validate(json.loads(bytes(body) or b"null"))
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=422, detail=f"not valid JSON: {exc.msg}") from exc
+    except ValidationError as exc:
+        first = exc.errors()[0]
+        where = ".".join(str(p) for p in first["loc"]) or "body"
+        raise HTTPException(status_code=422, detail=f"{where}: {first['msg']}") from exc
+    try:
+        out = await run_in_threadpool(import_captures, session, tenant, spec,
+                                      admin.user.email)
+    except ValueError as exc:
+        session.rollback()
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    write_audit(session, tenant_id=tenant.id, actor=admin.user.email,
+                action=f"tenant.import-captures {slug} <- {spec.source}: {out['imported']}")
     session.commit()
     return out
 

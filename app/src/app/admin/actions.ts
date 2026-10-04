@@ -375,3 +375,30 @@ export async function draftConfig(
     warnings: res.data.warnings,
   };
 }
+
+export async function importCaptures(
+  slug: string,
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    return { ok: false, message: "Choose a JSON file first." };
+  }
+  const res = await apiFetch<{ imported: number; skipped_duplicates: number; run_id: number | null }>(
+    `/api/admin/tenants/${slug}/import-captures`,
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: await file.text() },
+  );
+  revalidatePath(`/admin/${slug}`);
+  if (!res.ok || !res.data) return { ok: false, message: res.error ?? "Import failed" };
+  const d = res.data;
+  if (d.run_id === null) {
+    return { ok: true, message: `Nothing new: all ${d.skipped_duplicates} answers were already imported.` };
+  }
+  return {
+    ok: true,
+    message: `Imported ${d.imported} answers as run #${d.run_id}${
+      d.skipped_duplicates ? ` (${d.skipped_duplicates} duplicates skipped)` : ""
+    }. They now count in every dashboard.`,
+  };
+}
