@@ -13,6 +13,8 @@ const KIND_LABELS: Record<string, string> = {
   reviews: "Reviews",
   earned: "Earned media",
   owned: "Your site",
+  own_page: "Your page",
+  model_change: "Model change",
   community: "Community",
   reference: "Reference",
   web_search: "Query gap",
@@ -23,7 +25,7 @@ const KIND_LABELS: Record<string, string> = {
   strategy: "Focus",
 };
 // Bad news kinds get the inverted block; everything else stays neutral.
-const BAD_KINDS = new Set(["accuracy", "crawler_access", "broken_page", "refresh"]);
+const BAD_KINDS = new Set(["accuracy", "crawler_access", "broken_page", "refresh", "own_page"]);
 
 const EVIDENCE: Record<string, { label: string; help: string }> = {
   official: { label: "Official", help: "the platform's own documentation" },

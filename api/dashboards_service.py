@@ -450,7 +450,17 @@ def _series_notes(session: Session, tenant_id: int, dates: list[str]) -> list[di
         ).one()
         if measured:
             notes.append({"date": date, "surface": str(surface), "note": note})
-    return notes
+    # Observed model changes (the provider started serving a different model):
+    # a break in the series even when nobody announced it.
+    from api.answer_shape_service import model_timeline
+
+    seen = {(n["date"], n["surface"]) for n in notes}
+    for ch in model_timeline(session, tenant_id):
+        if lo < ch["since"] <= hi and (ch["since"], ch["surface"]) not in seen:
+            notes.append({"date": ch["since"], "surface": ch["surface"],
+                          "note": f"{ch['label']} started answering with {ch['model']}; "
+                                  "compare before and after with care."})
+    return sorted(notes, key=lambda n: n["date"])
 
 
 def personas(

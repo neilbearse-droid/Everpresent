@@ -715,3 +715,86 @@ export type AgentAnalytics =
       broken_pages: AgentPage[];
       pages_tracked: number;
     };
+
+export type RateSummary = { rate: number; low: number; high: number; answers: number; mentioned: number };
+
+export type AnswerShape =
+  | { has_data: false; days: number }
+  | {
+      has_data: true;
+      days: number;
+      engines: {
+        surface: string;
+        label: string;
+        model: string;
+        answers: number;
+        logged_in: boolean | null;
+        first_seen: string;
+        last_seen: string;
+        search_rate: number;
+        search_rate_source: string;
+        citations_per_answer: number;
+        inline_share: number;
+        own_share: number;
+        third_party_share: number;
+        rival_share: number;
+        mention: RateSummary;
+        mentioned_unlinked_share: number;
+        model_note: string;
+      }[];
+      model_changes: { surface: string; label: string; model: string; since: string }[];
+      current_models: Record<string, string>;
+      memory_vs_search: {
+        surface: string;
+        label: string;
+        memory: RateSummary | null;
+        search: RateSummary | null;
+        verdict: string;
+      }[];
+      perception: {
+        sentences: number;
+        themes: {
+          theme: string;
+          mentions: number;
+          objections: number;
+          memory: number;
+          search: number;
+          examples: string[];
+        }[];
+      };
+    };
+
+export type OwnPages = {
+  days: number;
+  domains: string[];
+  has_logs: boolean;
+  has_first_party: boolean;
+  pages_total: number;
+  flagged: number;
+  pages: {
+    path: string;
+    url: string | null;
+    cited: number;
+    inline: number;
+    engines: string[];
+    crawl: {
+      status: string;
+      http_status: number | null;
+      checked: string | null;
+      has_updated_date: boolean;
+      latest_year: number;
+      has_price: boolean;
+    } | null;
+    fact_conflicts: { subject: string; expected: string; stated: string; snippet: string }[];
+    bot_reads: number;
+    bot_errors: number;
+    first_party: Record<string, number>;
+    flags: string[];
+  }[];
+  in_ai_features_not_sampled: { path: string; first_party: Record<string, number> }[];
+};
+
+export type FirstPartySummary = {
+  available: Record<string, string>;
+  sources: { source: string; label: string; metric: string; total: number; from: string | null; to: string | null; rows: number }[];
+};

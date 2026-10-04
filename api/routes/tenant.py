@@ -112,6 +112,67 @@ def agent_analytics(ctx: Ctx, session: Db, days: int = 30) -> dict:
     return _report(session, ctx.tenant_id, days=max(1, min(days, 365)))
 
 
+@router.get("/answer-shape")
+def answer_shape_route(ctx: Ctx, session: Db, days: int = 60) -> dict:
+    """How answers are built per engine and served model, model changes,
+    memory vs search, and the themes/objections around the brand."""
+    from api.answer_shape_service import answer_shape
+
+    return answer_shape(session, ctx.tenant_id, days=max(7, min(days, 180)))
+
+
+@router.get("/own-pages")
+def own_pages_route(ctx: Ctx, session: Db, days: int = 30) -> dict:
+    """The brand's own pages AI answers use, and whether each is fit for it."""
+    from api.own_pages_service import own_pages
+
+    return own_pages(session, ctx.tenant_id, days=max(7, min(days, 180)))
+
+
+@router.get("/first-party")
+def first_party_route(ctx: Ctx, session: Db) -> dict:
+    from api.first_party_service import SOURCES, first_party_summary
+
+    return {**first_party_summary(session, ctx.tenant_id), "available": SOURCES}
+
+
+@router.post("/first-party")
+async def import_first_party(request: Request, ctx: Ctx, session: Db, source: str) -> dict:
+    """Import a CSV/TSV export from Search Console, Bing Webmaster Tools,
+    Merchant Center, Cloudflare or GA4. Columns are mapped by name."""
+    from starlette.concurrency import run_in_threadpool
+
+    from api.first_party_service import MAX_BYTES, ImportError_, import_export
+
+    body = bytearray()
+    async for chunk in request.stream():
+        body.extend(chunk)
+        if len(body) > MAX_BYTES:
+            raise HTTPException(status_code=413, detail="export too large (max 20 MB)")
+    try:
+        summary = await run_in_threadpool(import_export, session, ctx.tenant_id, source,
+                                          bytes(body))
+    except ImportError_ as exc:
+        session.rollback()
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    session.commit()
+    return summary
+
+
+@router.delete("/first-party")
+def clear_first_party(ctx: Ctx, session: Db, source: str) -> dict:
+    from sqlmodel import delete
+
+    from api.models import FirstPartyDaily
+
+    res = session.exec(delete(FirstPartyDaily).where(  # pyright: ignore[reportCallIssue,reportArgumentType]
+        FirstPartyDaily.tenant_id == ctx.tenant_id,  # pyright: ignore[reportArgumentType]
+        FirstPartyDaily.source == source,  # pyright: ignore[reportArgumentType]
+    ))
+    session.commit()
+    return {"deleted": res.rowcount}  # pyright: ignore[reportAttributeAccessIssue]
+
+
 @router.get("/overview")
 def overview(ctx: Ctx, session: Db, start: str | None = None, end: str | None = None) -> dict:
     return dashboards_service.overview(session, ctx.tenant_id, start, end)

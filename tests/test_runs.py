@@ -213,6 +213,8 @@ def test_job_stores_results_citations_and_raw(db_session, job_env, fake_retrieve
     results = db_session.exec(select(Result).where(Result.run_id == run_id)).all()
     assert len(results) == 6
     assert sum(1 for r in results if r.variant == "nosearch") == 2
+    # The model the provider actually served is stamped on every API answer.
+    assert {r.served_model for r in results} == {"gpt-4o-2024-08-06"}
     for result in results:
         assert result.tenant_id == tenant.id
         assert result.response_hash and result.latency_ms == 42

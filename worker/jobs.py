@@ -52,6 +52,7 @@ from engine.costs import (
     estimate_openai_cost_usd,
     estimate_perplexity_cost_usd,
 )
+from engine.processing.answer_shape import link_kind
 from engine.retrievers import (
     chatgpt_web,
     claude_api,
@@ -174,6 +175,9 @@ A_ADAPTERS: dict[str, _AAdapter] = {
     ),
 }
 
+
+# Captured consumer web UIs (signed out), as opposed to SERP captures.
+_BROWSER_SURFACES = frozenset({"chatgpt_web", "perplexity_web", "copilot_web"})
 
 # surface code -> (adapter module, model label, rate attr, timeout attr).
 # The module's `retrieve` is resolved at call time. Adding a Mode B surface =
@@ -763,6 +767,9 @@ async def _run_mode_a(run_id: int) -> None:
                 result.latency_ms = outcome.latency_ms
                 result.web_search_calls = outcome.parsed.web_search_calls
                 result.fanout_queries = list(outcome.parsed.fanout_queries)
+                # The model the provider actually served (it can differ from
+                # the configured one: aliases, defaults, silent upgrades).
+                result.served_model = (outcome.parsed.model or "")[:120]
                 result.response_hash = hashlib.sha256(
                     outcome.parsed.text.encode("utf-8")
                 ).hexdigest()
@@ -1128,6 +1135,9 @@ async def _run_mode_b(run_id: int) -> None:
             else:
                 counts["completed"] = counts.get("completed", 0) + 1
                 result.latency_ms = outcome.latency_ms
+                # Browser captures run signed out (no memory, no ads shown to
+                # signed-in users); SERP captures have no account at all.
+                result.logged_in = False if wi.surface in _BROWSER_SURFACES else None
                 result.response_hash = hashlib.sha256(parsed_text.encode("utf-8")).hexdigest()
                 result.raw_uri = write_raw_envelope(
                     tenant_slug,
@@ -1159,6 +1169,11 @@ async def _run_mode_b(run_id: int) -> None:
                             tenant_id=tenant_id,
                             url=citation.url,
                             domain=citation.domain,
+                            link_kind=(
+                                link_kind(getattr(citation, "title", ""), citation.url)
+                                if wi.surface in _BROWSER_SURFACES
+                                else "source"
+                            ),
                         )
                     )
             run = session.get(Run, run_id)

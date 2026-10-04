@@ -3,6 +3,28 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M33 — Answer shape, memory vs search, your pages, first-party data (2026-10-04)
+
+Driven by the October research ("Future proofing AEO beyond citations"):
+newer ChatGPT models search less and cite fewer third-party sites, but still
+cite, mostly the brand's own pages, with inline brand links since May 2026.
+Citation counts are the wrong scoreboard, so:
+
+1. **Every answer records its shape.** The served model (from the API
+   response), signed-in state for web captures, and per-citation link kind
+   (inline brand link vs source chip; inline = brand name linking the
+   homepage). Observed model switches become series notes and a playbook card.
+2. **Memory vs search is a headline split**, from the existing no-search twin
+   plus unforced probes, with 95% ranges. Themes/objections come from stored
+   mention sentences that name the brand (deterministic lexicon, no LLM spend).
+3. **Your Pages** audits the brand's own cited pages: crawl status, update
+   date, fact-sheet conflicts (crawler checks visible text), AI bot reads.
+   A 403 to our checker while AI bots read the page is "blocks our checker",
+   not "unreachable".
+4. **First-party data is imported as CSV** (Search Console, Bing, Merchant
+   Center, Cloudflare, GA4) with name-based column mapping; re-imports replace
+   cells. Only Cloudflare/GA4 have usable APIs today; connectors can follow.
+
 ## M32 — October sweep hardening (2026-10-03)
 
 1. **Log input is hostile by default.** Anyone can make a request to a

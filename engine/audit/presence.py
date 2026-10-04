@@ -70,7 +70,7 @@ _RATING_MARKUP = "aggregaterating"
 _NON_VISIBLE = ("script", "style", "noscript", "template")
 
 
-def _visible_html(html: str) -> str:
+def visible_html(html: str) -> str:
     """The HTML without <script>/<style>/<noscript>/<template> blocks, in one
     linear pass (a regex with a lazy body would go quadratic on unclosed
     tags). Feature checks for prices, ratings and dates read only what a
@@ -199,7 +199,7 @@ def extract_features(html: str) -> dict[str, Any]:
     cited sources, promotional tone); then machine-legibility hygiene (JSON-LD,
     FAQ schema, tables)."""
     lower = html.lower()
-    visible = _visible_html(html)
+    visible = visible_html(html)
     text, _ = extract_text_and_links(visible, ())
     word_count = len(text.split())
 
@@ -249,3 +249,4 @@ def crawl_page(client: httpx.Client, url: str) -> dict[str, Any]:
             return {"html": html, "http_status": resp.status_code}
     except httpx.HTTPError as exc:
         return {"error": f"{type(exc).__name__}: {exc}"[:300], "http_status": None}
+_visible_html = visible_html  # backwards-compatible name

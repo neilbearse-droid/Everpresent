@@ -13,13 +13,17 @@ from sqlmodel import Session, select
 
 from api.config import get_settings
 from api.dashboards_service import citations_intel
-from api.models import BrandProfile, Competitor, PagePresence, Tenant, utcnow
-from engine.audit.presence import crawl_page, detect_presence, extract_features
+from api.models import BrandFact, BrandProfile, Competitor, PagePresence, Tenant, utcnow
+from engine.audit.presence import crawl_page, detect_presence, extract_features, visible_html
 from engine.netguard import guard_public_request
+from engine.processing.accuracy import FactSpec, check_text
+from engine.processing.citations import domain_is_owned
+from engine.retrievers.html_extract import extract_text_and_links
 
 log = structlog.get_logger()
 
 MAX_PAGES = 20
+MAX_OWN_PAGES = 15  # the brand's own cited pages, on top of MAX_PAGES
 TIMEOUT_S = 10.0
 
 # Power pages are the cited sources — Reddit threads, affiliate/review pages —
@@ -52,10 +56,23 @@ def crawl_power_pages(tenant_id: int) -> int:
                 select(Competitor).where(Competitor.tenant_id == tenant_id)
             ).all()
         ]
-        pages = [
-            p for p in citations_intel(session, tenant_id)["power_pages"]
-            if p["category"] != "competitor"
-        ][:MAX_PAGES]
+        power = citations_intel(session, tenant_id)["power_pages"]
+        # The brand's own cited pages first (ChatGPT now checks facts on
+        # them, m33), then the third-party pages, up to the crawl budget.
+        own = [p for p in power if p["category"] == "brand"][:MAX_OWN_PAGES]
+        others = [p for p in power if p["category"] not in ("competitor", "brand")]
+        pages = (own + others)[:MAX_PAGES + MAX_OWN_PAGES]
+        owned_domains = [d.lower().removeprefix("www.") for d in (brand.domains if brand else [])]
+        facts = [
+            FactSpec(id=f.id, category=f.category, label=f.label, subject=f.subject,
+                     aliases=list(f.aliases or []), kind=f.kind, expected=f.expected)
+            for f in session.exec(
+                select(BrandFact).where(
+                    BrandFact.tenant_id == tenant_id, BrandFact.active == True  # noqa: E712
+                )
+            ).all()
+            if f.id is not None
+        ]
 
     if not pages:
         log.info("page_crawl.done", tenant=tenant_slug, pages=0)
@@ -88,6 +105,10 @@ def crawl_power_pages(tenant_id: int) -> int:
                 row_data["brand_found"] = presence["brand_found"]
                 row_data["competitors_found"] = presence["competitors_found"]
                 row_data["features"] = extract_features(html)
+                if domain_is_owned(page["domain"], owned_domains):
+                    # Own page: does it agree with the brand's fact sheet?
+                    row_data["features"]["owned"] = True
+                    row_data["features"]["fact_conflicts"] = _fact_conflicts(html, facts)
             parsed.append(row_data)
 
     # Phase 3 — persist with a fresh connection.
@@ -115,6 +136,20 @@ def crawl_power_pages(tenant_id: int) -> int:
             crawled += 1
     log.info("page_crawl.done", tenant=tenant_slug, pages=crawled)
     return crawled
+
+
+def _fact_conflicts(html: str, facts: list[FactSpec]) -> list[dict]:
+    """Statements on the brand's own page that contradict its fact sheet
+    (visible text only). Flagged as possible conflicts for a human to check:
+    a pricing page lists several prices, and the detector reads sentences."""
+    if not facts:
+        return []
+    text, _links = extract_text_and_links(visible_html(html), ())
+    return [
+        {"fact_id": h.fact_id, "subject": h.subject, "expected": h.expected,
+         "stated": h.stated, "snippet": h.snippet[:240]}
+        for h in check_text(text, facts)
+    ][:10]
 
 
 def _engine():

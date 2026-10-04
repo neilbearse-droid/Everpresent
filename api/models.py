@@ -305,6 +305,12 @@ class Result(SQLModel, table=True):
     raw_uri: str = ""
     response_hash: str = ""
     latency_ms: int = 0
+    # Answer shape (m33): the model the provider actually served (API
+    # surfaces report it; web UIs don't, so it stays ""), and whether the
+    # capture was signed in (False for the logged-out web captures, None
+    # where the idea doesn't apply, e.g. APIs).
+    served_model: str = Field(default="", index=True)
+    logged_in: bool | None = None
     created_at: datetime = Field(default_factory=utcnow)
 
 
@@ -321,6 +327,10 @@ class Citation(SQLModel, table=True):
     # The exact snippet the engine quoted from this source, where the surface
     # exposes it (Claude ≤150 chars) (§AEO-plan M6). Empty otherwise.
     cited_text: str = ""
+    # How the link was shown (m33): "inline" (a link in the answer text, e.g.
+    # ChatGPT's brand-name links since May 2026), "source" (a footnote or
+    # source chip), or "" when the surface doesn't tell us (APIs).
+    link_kind: str = ""
 
 
 class ConsultedSource(SQLModel, table=True):
@@ -704,3 +714,27 @@ class AuditLog(SQLModel, table=True):
     actor: str  # email of the acting user
     action: str
     at: datetime = Field(default_factory=utcnow)
+
+
+class FirstPartyDaily(SQLModel, table=True):
+    """First-party AI visibility data the tenant imports (m33): Google Search
+    Console's AI report, Bing Webmaster Tools AI Performance, Merchant
+    Center AI insights, Cloudflare AI Crawl Control, GA4 AI referrals. One
+    row per (source, date, page, query, metric); a re-import of the same
+    cells replaces them (exports are snapshots, not increments)."""
+
+    __tablename__ = "first_party_daily"  # pyright: ignore[reportAssignmentType]
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "source", "date", "page", "query", "metric",
+                         name="uq_first_party_cell"),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenants.id", index=True)
+    source: str = Field(index=True)  # gsc | bing | merchant | cloudflare | ga4 | other
+    date: str = Field(index=True)  # YYYY-MM-DD, "" when the export has no date
+    page: str = ""  # path on the brand's site, "" when not per page
+    query: str = ""
+    metric: str = ""  # impressions | clicks | citations | requests | sessions | …
+    value: float = 0.0
+    imported_at: datetime = Field(default_factory=utcnow)

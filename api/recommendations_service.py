@@ -24,6 +24,7 @@ reopened gaps come back."""
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
 
 from sqlmodel import Session, col, select
 
@@ -128,6 +129,16 @@ WHY = {
     "logs": (
         "Only server logs show whether ChatGPT, Perplexity, Claude and Google's AI bots "
         "can actually reach your pages, and which pages they read."
+    ),
+    "own_pages": (
+        "Newer ChatGPT models send most of their searches to the brand's own site "
+        "(83% on GPT-6 Astra, Writesonic, Oct 2026, vendor data): what your pricing and "
+        "help pages say is what the answer says."
+    ),
+    "model_change": (
+        "A new model changes how often an engine searches and what it cites, overnight "
+        "(GPT-6 Astra ran ~40% fewer searches than GPT-5.6; vendor data). Compare before "
+        "and after the change, not across it."
     ),
     "strategy": (
         "A 37,000-run 2026 audit found ~half of specialist brands never surfaced, while "
@@ -743,6 +754,63 @@ def _strategy_play(session: Session, tenant_id: int) -> list[Play]:
                  steps, link="/dashboard")]
 
 
+def _own_page_plays(session: Session, tenant_id: int) -> list[Play]:
+    from api.own_pages_service import own_pages
+
+    rep = own_pages(session, tenant_id)
+    plays: list[Play] = []
+    for r in rep["pages"]:
+        if not r["fact_conflicts"]:
+            continue
+        c = r["fact_conflicts"][0]
+        plays.append(Play(
+            f"own_page:facts:{r['path']}", "own_page",
+            f"Your own page contradicts your facts: {r['path']}",
+            f"{r['path']} says {c['subject']} is {c['stated']}; your fact sheet says "
+            f"{c['expected']}. AI answers read this page"
+            + (f" (cited {r['cited']}× lately)." if r["cited"] else "."),
+            93, "moderate", WHY["own_pages"],
+            ["Correct the statement on the page (or the fact sheet, if the page is right)",
+             "Show an 'Updated <month year>' date on the page", _RECRAWL],
+            link="/dashboard/pages"))
+    weak = [r for r in rep["pages"]
+            if {"unreachable", "stale", "errors for AI bots"} & set(r["flags"])]
+    if weak:
+        paths = [r["path"] for r in weak]
+        plays.append(Play(
+            "own_page:health", "own_page",
+            f"Fix {len(weak)} of your own pages AI answers rely on",
+            f"{_join(paths, 4)}" + (f" and {len(paths) - 4} more" if len(paths) > 4 else "")
+            + " are unreachable, erroring for AI bots, or show no sign of being current.",
+            78, "moderate", WHY["own_pages"],
+            ["Fix errors and redirects first: an engine can't quote a page it can't load",
+             "Refresh numbers and examples; add a visible 'Updated <month year>'",
+             "Keep plan names and prices identical across pricing, docs and help pages"],
+            link="/dashboard/pages"))
+    return plays
+
+
+def _model_change_plays(session: Session, tenant_id: int) -> list[Play]:
+    from api.answer_shape_service import model_timeline
+
+    recent = (datetime.now(UTC) - timedelta(days=21)).date().isoformat()
+    plays = []
+    for ch in model_timeline(session, tenant_id):
+        if ch["since"] < recent:
+            continue
+        plays.append(Play(
+            f"model_change:{ch['surface']}:{ch['model']}", "model_change",
+            f"{ch['label']} switched to {ch['model']}",
+            f"Since {ch['since']}, {ch['label']} answers with {ch['model']}. Search and "
+            "citing behaviour can shift overnight with a new model.",
+            62, "strong", WHY["model_change"],
+            ["Open Answer Shape and compare this engine before and after the switch",
+             "Hold off judging content changes shipped around this date until a few "
+             "runs on the new model are in"],
+            link="/dashboard/answers"))
+    return plays
+
+
 class _KeepExisting(Exception):  # noqa: N818 — a signal, not an error
     """Raised by a play source that can't judge its plays right now (data
     missing or stale): its `plays` are added, and the plays it already had
@@ -764,6 +832,8 @@ _SOURCE_BRANCHES = {
     "sources": {"reviews", "earned", "community", "reference"},
     "owned_docs": {"owned"},
     "strategy": {"strategy"},
+    "own_pages": {"own_page"},
+    "model_change": {"model_change"},
 }
 
 
@@ -811,6 +881,8 @@ def generate_recommendations(session: Session, tenant: Tenant) -> int:
         ("sources", lambda: _source_plays(plan_d)),
         ("owned_docs", lambda: _owned_docs_play(session, tenant_id, plan_d)),
         ("strategy", lambda: _strategy_play(session, tenant_id)),
+        ("own_pages", lambda: _own_page_plays(session, tenant_id)),
+        ("model_change", lambda: _model_change_plays(session, tenant_id)),
     ]
     plays: list[Play] = []
     for name, fn in sources:
