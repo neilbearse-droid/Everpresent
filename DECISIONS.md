@@ -3,6 +3,23 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M41 — Signed-in pages in CI, and an honest "API down" state (2026-10-04)
+
+1. **Every signed-in page in CI.** Job `signed-in-pages` migrates a SQLite
+   database, seeds the GoDaddy config with nine synthetic runs (processed
+   normally, plus one logged fix), strips Clerk from the throwaway checkout
+   (`scripts/e2e/strip_clerk.py`), and serves the API with the auth
+   dependency overridden (`scripts/e2e/serve_api.py`). Playwright then loads
+   all 16 dashboard pages and both admin pages, failing on HTTP errors,
+   browser exceptions, error text or the "no organization" state.
+2. **Production code is untouched.** The bypass exists only in scripts/e2e
+   and only runs in that job. The strip script stops the job if Clerk is
+   still imported anywhere, so a new Clerk call can't slip through untested.
+3. **Found while building it:** with the API unreachable, pages fell back to
+   empty states ("No scorecard yet") that read like "no data". Dashboard and
+   admin layouts now check API health once per page and show an "Offline"
+   banner, and the test fails on it.
+
 ## M40 — Vendor capture import (2026-10-04)
 
 1. **We import signed-in answers; we don't log in.** Automating signed-in

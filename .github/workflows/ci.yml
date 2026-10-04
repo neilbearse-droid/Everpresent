@@ -84,3 +84,50 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: E2E
         run: npx playwright test
+
+  signed-in-pages:
+    # Every signed-in page rendered against a seeded API, with Clerk stripped
+    # from this throwaway checkout (scripts/e2e). Catches pages that crash,
+    # show an error or "no organization" state, or throw in the browser.
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: sqlite:///${{ github.workspace }}/e2e.db
+      RAW_STORAGE_DIR: ${{ github.workspace }}/e2e_raw
+      API_ORIGIN: http://127.0.0.1:8011
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: Install
+        run: |
+          pip install -e .
+          cd app && npm ci
+      - name: Migrate and seed
+        run: |
+          alembic upgrade head
+          python scripts/e2e/seed_signed_in.py
+      - name: Strip Clerk and build
+        run: |
+          python scripts/e2e/strip_clerk.py app
+          cd app && npm run build
+      - name: Start the API
+        run: |
+          nohup python scripts/e2e/serve_api.py 8011 > api.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:8011/api/health && exit 0; sleep 1; done
+          cat api.log; exit 1
+      - name: Install Playwright browser
+        working-directory: app
+        run: npx playwright install --with-deps chromium
+      - name: Signed-in pages
+        working-directory: app
+        run: npx playwright test -c playwright.signed-in.config.ts
+      - name: API log on failure
+        if: failure()
+        run: cat api.log
