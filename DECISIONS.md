@@ -3,6 +3,18 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M42 — Dashboard reads split by page (2026-10-04)
+
+1. `api/dashboards_service.py` (about 2,700 lines) is now the package
+   `api/dashboards/`, one module per page: common, overview, citations,
+   engines, fanout, brand, measurement, outcome, action_plan, queries.
+2. **A pure move.** Every function and constant was moved verbatim (checked
+   mechanically against the old file); no behaviour changed. The module
+   graph has no cycles.
+3. **Old imports keep working.** `api.dashboards_service` re-exports every
+   name, private helpers included, so other services and tests are
+   untouched. New code should import from `api.dashboards.<page>`.
+
 ## M41 — Signed-in pages in CI, and an honest "API down" state (2026-10-04)
 
 1. **Every signed-in page in CI.** Job `signed-in-pages` migrates a SQLite
