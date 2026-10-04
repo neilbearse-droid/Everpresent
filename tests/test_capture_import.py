@@ -34,7 +34,11 @@ PAYLOAD = {
 
 
 @pytest.fixture()
-def setup(db_session, client, login):
+def setup(db_session, client, login, monkeypatch, tmp_path):
+    from api.config import get_settings
+
+    # Raw envelopes go to a temp dir: CI runners can't write the default /data.
+    monkeypatch.setattr(get_settings(), "raw_storage_dir", str(tmp_path))
     t = Tenant(name="GoDaddy", slug="gd")
     admin = User(email="a@x.test", clerk_user_id="u_a", is_superadmin=True)
     db_session.add_all([t, admin])
