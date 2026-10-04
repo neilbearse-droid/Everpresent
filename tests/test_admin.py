@@ -74,7 +74,7 @@ def test_godaddy_seed_imports_facts_and_baseline(client, as_superadmin, db_sessi
     resp = client.post("/api/admin/tenants/godaddy/import-yaml", content=yaml_text)
     assert resp.status_code == 200, resp.text
     counts = resp.json()["imported"]
-    assert counts["queries"] == 10
+    assert counts["queries"] == 15  # 10 questions + 5 agent prompts
     assert counts["brand_facts"] == 1
 
     tenant = db_session.exec(select(Tenant).where(Tenant.slug == "godaddy")).one()
@@ -202,7 +202,7 @@ def test_bundled_seeds_are_listed_and_loadable(client, as_superadmin, db_session
     assert all("example" not in s["name"] for s in seeds)
     res = client.post("/api/admin/tenants/gd/import-seed", json={"name": "godaddy"})
     assert res.status_code == 200 and res.json()["brand"] == "GoDaddy"
-    assert len(db_session.exec(select(Query)).all()) == 10
+    assert len(db_session.exec(select(Query)).all()) == 15
 
 
 def test_seed_names_are_lookup_keys_not_paths(client, as_superadmin, db_session):
