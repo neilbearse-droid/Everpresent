@@ -2,6 +2,7 @@
 audit_log row in the same transaction."""
 
 import math
+import re
 from pathlib import Path
 from typing import Annotated
 
@@ -245,6 +246,29 @@ def import_yaml(
     )
     session.commit()
     return {"imported": counts, "brand": spec.brand.name}
+
+
+class ConfigDraftRequest(BaseModel):
+    domain: str
+    country: str = "us"
+
+
+@router.post("/tenants/{slug}/draft-config")
+def draft_config_route(slug: str, payload: ConfigDraftRequest, session: Db, admin: Admin) -> dict:
+    """Draft a config from the brand's domain for review. Imports nothing."""
+    from api.config_draft_service import ConfigDraftError, draft_config
+
+    tenant = _tenant_or_404(session, slug)
+    if not re.fullmatch(r"[a-z]{2}", payload.country):
+        raise HTTPException(status_code=422, detail="country must be a 2-letter code, e.g. us")
+    try:
+        out = draft_config(session, tenant, payload.domain, country=payload.country)
+    except ConfigDraftError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    write_audit(session, tenant_id=tenant.id, actor=admin.user.email,
+                action=f"tenant.draft-config {slug} <- {out['domain']}")
+    session.commit()
+    return out
 
 
 SEEDS_DIR = Path(__file__).resolve().parents[2] / "seeds"

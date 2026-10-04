@@ -3,6 +3,25 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M36 — Draft a config from a domain (2026-10-04)
+
+1. **Draft, never import.** Admin "Draft" reads the brand's homepage (public
+   addresses only, every redirect hop) and asks the draft model for a config
+   in the import format. The draft must pass the same schema as an import,
+   then lands in the paste box for a person to edit. Importing stays a
+   separate click.
+2. **What a draft leaves out.** No brand facts: a wrong fact read off a
+   marketing page would raise false accuracy alerts on every run. No engine
+   switches: a draft never turns surfaces on or off. The geo is set from the
+   request, and the drafted domain is always the first brand domain.
+3. **Checks on the draft.** It warns when there's no generic baseline
+   persona and when a category question names the brand (that would inflate
+   the mention rate).
+4. **Cost and abuse.** Superadmin only, booked in the spend ledger as
+   `config_draft`, held to the monthly cap and 10 drafts an hour per tenant.
+   Homepage text is treated as data in the prompt and can only shape a draft
+   that a person reads.
+
 ## M35 — Weekly briefing and leaner navigation (2026-10-04)
 
 1. **Briefing on the Overview.** Three answers on one screen: are we winning

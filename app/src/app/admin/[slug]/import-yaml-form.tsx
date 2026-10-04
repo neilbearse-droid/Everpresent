@@ -1,7 +1,13 @@
 "use client";
 
-import { useActionState } from "react";
-import { importSeed, importYaml, type ActionState } from "../actions";
+import { useActionState, useEffect, useState } from "react";
+import {
+  draftConfig,
+  importSeed,
+  importYaml,
+  type ActionState,
+  type DraftConfigState,
+} from "../actions";
 
 export type BundledSeed = { name: string; brand: string; queries: number; personas: number };
 
@@ -14,8 +20,47 @@ export function ImportYamlForm({ slug, seeds = [] }: { slug: string; seeds?: Bun
     importSeed.bind(null, slug),
     null,
   );
+  const [draftState, draftAction, draftPending] = useActionState<DraftConfigState, FormData>(
+    draftConfig.bind(null, slug),
+    null,
+  );
+  const [yamlText, setYamlText] = useState("");
+  useEffect(() => {
+    if (draftState?.yaml) setYamlText(draftState.yaml);
+  }, [draftState]);
   return (
     <div className="flex flex-col gap-5">
+      <form action={draftAction} className="flex flex-col gap-2">
+        <label className="text-xs text-[var(--text-2)]">
+          New brand? Draft a config from its domain. Nothing is imported until you review it.
+        </label>
+        <div className="flex gap-2">
+          <input
+            name="domain"
+            required
+            placeholder="example.com"
+            className="field min-w-0 flex-1 px-2 py-1.5 text-[12px]"
+          />
+          <button
+            type="submit"
+            disabled={draftPending}
+            className="btn btn-primary px-3 py-1.5 text-[12px]"
+          >
+            {draftPending ? "Drafting…" : "Draft"}
+          </button>
+        </div>
+        {draftState && (
+          <p className={`text-sm ${draftState.ok ? "text-[var(--text-2)]" : "text-[var(--neg)]"}`}>
+            {draftState.message}
+          </p>
+        )}
+        {draftState?.warnings?.map((w) => (
+          <p key={w} className="text-xs text-[var(--text-2)]">
+            <span className="bp-neg mr-1.5">Check</span>
+            {w}
+          </p>
+        ))}
+      </form>
       {seeds.length > 0 && (
         <form action={seedAction} className="flex flex-col gap-2">
           <label className="text-xs text-[var(--text-2)]">
@@ -49,8 +94,10 @@ export function ImportYamlForm({ slug, seeds = [] }: { slug: string; seeds?: Bun
         <label className="text-xs text-[var(--text-2)]">Or paste a config</label>
         <textarea
           name="yaml"
-          rows={10}
+          rows={draftState?.yaml ? 24 : 10}
           required
+          value={yamlText}
+          onChange={(e) => setYamlText(e.target.value)}
           placeholder={"brand:\n  name: …\npersonas:\n  - name: …\nqueries:\n  - text: …"}
           className="rounded-md border border-[var(--border)] bg-[var(--inset)] px-3 py-2 font-mono text-xs"
         />

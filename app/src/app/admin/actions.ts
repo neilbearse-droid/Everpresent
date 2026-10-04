@@ -343,3 +343,35 @@ export async function toggleSurface(slug: string, code: string, enabled: boolean
   if (!res.ok) throw new Error(res.error ?? "Toggle failed");
   revalidatePath(`/admin/${slug}`);
 }
+
+export type DraftConfigState = {
+  ok: boolean;
+  message: string;
+  yaml?: string;
+  warnings?: string[];
+} | null;
+
+export async function draftConfig(
+  slug: string,
+  _prev: DraftConfigState,
+  formData: FormData,
+): Promise<DraftConfigState> {
+  const domain = String(formData.get("domain") ?? "").trim();
+  const res = await apiFetch<{
+    yaml: string;
+    warnings: string[];
+    summary: { brand: string; competitors: number; personas: number; queries: number };
+  }>(`/api/admin/tenants/${slug}/draft-config`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ domain }),
+  });
+  if (!res.ok || !res.data) return { ok: false, message: res.error ?? "Drafting failed" };
+  const s = res.data.summary;
+  return {
+    ok: true,
+    message: `Drafted ${s.brand}: ${s.competitors} competitors, ${s.personas} personas, ${s.queries} questions. Review it below, then import.`,
+    yaml: res.data.yaml,
+    warnings: res.data.warnings,
+  };
+}
