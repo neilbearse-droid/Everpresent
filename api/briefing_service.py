@@ -52,7 +52,8 @@ def briefing(session: Session, tenant_id: int) -> dict[str, Any]:
                 line += f" You lead share of voice ({mine}% vs {name} {theirs}%)."
 
     reasons: list[dict[str, str]] = []
-    for a in alerts(session, tenant_id)[:3]:
+    top_alerts = alerts(session, tenant_id)[:3]
+    for a in top_alerts:
         reasons.append({"kind": a.get("kind", ""), "tone": a.get("severity", "medium"),
                         "text": a.get("text", "")})
     shape = answer_shape(session, tenant_id)
@@ -75,6 +76,16 @@ def briefing(session: Session, tenant_id: int) -> dict[str, Any]:
                             "tone": "high" if t["objections"] >= 5 else "medium",
                             "text": f"The objection engines raise most about you: "
                                     f"{t['theme'].lower()} ({t['objections']} times).{example}"})
+    from api.agent_picks_service import agent_picks
+
+    picks = agent_picks(session, tenant_id)
+    if picks["has_data"] and picks["overall"]["top_rival"]:
+        mine, rival = picks["overall"]["first_pick"], picks["overall"]["top_rival"]
+        if rival["rate"] > mine["high"]:
+            # Ahead of the softer reasons, so the four-reason cap keeps it.
+            reasons.insert(len(top_alerts), {"kind": "agent_pick", "tone": "high",
+                            "text": f"When asked to do the job, AI picks {rival['name']} first "
+                                    f"in {rival['rate']}% of answers; you {mine['rate']}%."})
     plays = session.exec(
         select(Recommendation).where(
             Recommendation.tenant_id == tenant_id,

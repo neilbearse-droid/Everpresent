@@ -120,6 +120,14 @@ def briefing_route(ctx: Ctx, session: Db) -> dict:
     return briefing(session, ctx.tenant_id)
 
 
+@router.get("/agent-picks")
+def agent_picks_route(ctx: Ctx, session: Db) -> dict:
+    """Task and coding prompts: whose product the AI reaches for first."""
+    from api.agent_picks_service import agent_picks
+
+    return agent_picks(session, ctx.tenant_id)
+
+
 @router.get("/answer-shape")
 def answer_shape_route(ctx: Ctx, session: Db, days: int = 60) -> dict:
     """How answers are built per engine and served model, model changes,

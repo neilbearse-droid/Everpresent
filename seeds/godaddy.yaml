@@ -131,6 +131,18 @@ queries:
     corpus: ai_builder
     paraphrases: ["What does an AI-built website or app cost?", "How expensive is it to make a site or app using AI?"]
     personas: [new_entrepreneur]
+  # Agent picks (M37): "do it for me" and coding prompts. The measure is which
+  # brand the AI reaches for FIRST, not whether it's named. Generic only.
+  - text: "Register a domain for my bakery and set up a matching email address. Pick the provider and tell me the exact steps."
+    corpus: agent_task
+  - text: "I need a website for my plumbing business live this week. Choose the service for me and walk me through it."
+    corpus: agent_task
+  - text: "Buy me a .com domain for a new coffee brand under $20 a year. Which registrar should I use and why?"
+    corpus: agent_task
+  - text: "Write a Python script that checks whether a domain is available and registers it through a registrar's API."
+    corpus: agent_code
+  - text: "Set up DNS records for my Next.js app on a custom domain. Which domain provider's API should I script against? Show the code."
+    corpus: agent_code
 
 brand_facts:
   # Q3 WORKED SPECIMEN — "Is domain privacy free with GoDaddy?"

@@ -851,3 +851,22 @@ export type Briefing = {
   }[];
   focus: string | null;
 };
+
+export type PickSummary = {
+  first_pick: RateSummary;
+  named: RateSummary;
+  no_pick: number;
+  top_rival: { name: string; rate: number } | null;
+  leader: string | null;
+};
+
+export type AgentPicks = {
+  has_prompts: boolean;
+  has_data: boolean;
+  brand: string;
+  days?: number;
+  overall?: PickSummary;
+  kinds: ({ kind: string } & PickSummary)[];
+  engines: ({ surface: string; label: string } & PickSummary)[];
+  prompts: ({ text: string; kind: string } & PickSummary)[];
+};

@@ -3,6 +3,21 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M37 — Agent picks (2026-10-04)
+
+1. **Being chosen, not just named.** Queries tagged `corpus: agent_task`
+   ("register a domain for my bakery") or `corpus: agent_code` ("write a
+   script that registers a domain") are measured for which tracked brand the
+   answer names first (mention rank 1). The rate reads against every answer,
+   with a 95% range; answers that pick no tracked brand count as "no pick".
+2. **No new schema.** The prompt type rides on the existing corpus tag, so
+   configs and imports work unchanged. Agent prompts stay in the normal
+   visibility numbers too; they are real category prompts.
+3. **GoDaddy seed** gains three task and two coding prompts (generic
+   persona only, to keep the cost small).
+4. **Briefing.** When the top rival's first-pick rate sits above the top of
+   the brand's range, the briefing lists it ahead of softer reasons.
+
 ## M36 — Draft a config from a domain (2026-10-04)
 
 1. **Draft, never import.** Admin "Draft" reads the brand's homepage (public

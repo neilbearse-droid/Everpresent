@@ -1,4 +1,5 @@
-import { apiFetch, type AnswerShape, type Me, type RateSummary } from "@/lib/api";
+import { apiFetch, type AgentPicks, type AnswerShape, type Me, type RateSummary } from "@/lib/api";
+import { AgentPicksSection } from "./agent-picks";
 import { DashNav } from "@/components/dash-nav";
 import { NoOrgNotice } from "@/components/no-org-notice";
 
@@ -26,9 +27,10 @@ function Rate({ r }: { r: RateSummary | null }) {
 }
 
 export default async function AnswerShapePage() {
-  const [me, res] = await Promise.all([
+  const [me, res, picks] = await Promise.all([
     apiFetch<Me>("/api/me"),
     apiFetch<AnswerShape>("/api/tenant/answer-shape?days=60"),
+    apiFetch<AgentPicks>("/api/tenant/agent-picks"),
   ]);
   if (res.status === 403) {
     return <NoOrgNotice active="Answer Shape" isSuperadmin={me.data?.is_superadmin} detail={res.error} />;
@@ -232,6 +234,7 @@ export default async function AnswerShapePage() {
           </section>
         </>
       )}
+      {picks.data && <AgentPicksSection d={picks.data} />}
     </main>
   );
 }
