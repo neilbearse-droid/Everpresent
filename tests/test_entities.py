@@ -83,8 +83,8 @@ def test_processing_extracts_untracked_when_enabled(db_session, monkeypatch):
 
     # Answer text comes from the raw envelope; stub it and the API key + router.
     monkeypatch.setattr(
-        "api.processing_service._response_text",
-        lambda result, session: "Try GoDaddy, Wix, Square, or Toast.",
+        "api.processing_service._envelope",
+        lambda result, session: {"parsed_text": "Try GoDaddy, Wix, Square, or Toast."},
     )
     from api.config import get_settings
 
@@ -140,7 +140,8 @@ def test_processing_skips_extraction_when_disabled(db_session, monkeypatch):
 
     monkeypatch.setattr("engine.llm.router.complete", _boom)
     monkeypatch.setattr(
-        "api.processing_service._response_text", lambda result, session: "GoDaddy and Wix"
+        "api.processing_service._envelope",
+        lambda result, session: {"parsed_text": "GoDaddy and Wix"},
     )
     counts = process_run(db_session, run)
     assert counts["untracked_mentions"] == 0

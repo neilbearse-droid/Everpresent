@@ -351,6 +351,14 @@ class InterventionCreate(BaseModel):
     shipped_at: str | None = None  # ISO date; defaults to today
 
 
+@router.get("/ads")
+def ads_route(ctx: Ctx, session: Db) -> dict:
+    """Sponsored units next to AI answers, kept apart from organic share."""
+    from api.ads_service import ads_report
+
+    return ads_report(session, ctx.tenant_id)
+
+
 @router.get("/proof")
 def proof_route(ctx: Ctx, session: Db) -> dict:
     """Each shipped fix: before vs after on every signal, against a control."""

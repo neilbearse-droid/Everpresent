@@ -3,6 +3,24 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M39 — Ads kept out of organic visibility (2026-10-04, migration m35)
+
+1. **Cut before counting.** Every browser capture goes through
+   `split_sponsored_html` before text and links are extracted: a block
+   marked as an ad by its attributes, or the smallest block (up to four
+   levels) holding both a standalone "Sponsored"/"Ad" label and a link, is
+   removed. Prose that uses the word "sponsored" is never cut. So a paid
+   unit can't add a mention, a citation or share of voice.
+2. **Stored apart.** Units go to `sponsored_units` (regenerated on
+   reprocess): from captured answer HTML, the AI Overview block, and the ad
+   blocks SerpApi returns for AI Mode. Each is attributed to the brand or a
+   competitor by name or domain, else to its own domain.
+3. **Reported apart.** Engines shows the share of answers that came with
+   an ad, per engine, and each advertiser's share of units, with the
+   brand's share called out.
+4. **Old captures** keep their stored text; only new captures are cut.
+   Browser engines run signed out, so this is what a logged-out visitor sees.
+
 ## M38 — Proof of results (2026-10-04)
 
 1. **Equal windows, one control each.** Each logged fix is compared over the

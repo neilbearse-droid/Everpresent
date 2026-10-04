@@ -57,8 +57,14 @@ class _ExtractingParser(HTMLParser):
 
 
 def extract_text_and_links(
-    html: str, skip_host_fragments: tuple[str, ...]
+    html: str, skip_host_fragments: tuple[str, ...], *, split_ads: bool = True
 ) -> tuple[str, list[ParsedCitation]]:
+    """Organic text and links. Sponsored blocks are cut out first, so a paid
+    unit never counts as a mention or a citation (see engine/processing/ads)."""
+    if split_ads:
+        from engine.processing.ads import split_sponsored_html
+
+        html, _ = split_sponsored_html(html)
     parser = _ExtractingParser(skip_host_fragments)
     parser.feed(html)
     lines = [line.strip() for line in "".join(parser.parts).split("\n")]

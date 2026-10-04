@@ -23,6 +23,7 @@ from api.models import (
     ResultVariant,
     Run,
     RunStatus,
+    SponsoredUnit,
     SurfaceCode,
     Tenant,
     UntrackedMention,
@@ -53,10 +54,51 @@ from engine.retrievers.google_aio import AIOCaptureSummary
 
 
 def _response_text(result: Result, session: Session) -> str:
+    return _envelope(result, session).get("parsed_text", "")
+
+
+def _envelope(result: Result, session: Session) -> dict:
     if not result.raw_uri:
-        return ""
-    envelope = read_raw_envelope(result.raw_uri, session=session)
-    return (envelope or {}).get("parsed_text", "")
+        return {}
+    return read_raw_envelope(result.raw_uri, session=session) or {}
+
+
+def _sponsored_units(
+    envelope: dict,
+    brand: tuple[str, list[str], list[str]],
+    competitors: list[tuple[int | None, str, list[str], list[str]]],
+) -> list[dict]:
+    """Paid units stored with a capture, attributed to a tracked brand by name
+    (in the unit's title/text) or by domain, else to the unit's own domain."""
+    from engine.processing.ads import split_sponsored_html, sponsored_from_serp
+
+    response = envelope.get("response") or {}
+    if not isinstance(response, dict):
+        return []
+    units = []
+    for key in ("html", "aio_html"):
+        if isinstance(response.get(key), str):
+            units += [u.as_dict() for u in split_sponsored_html(response[key])[1]]
+    units += [u for u in response.get("sponsored") or [] if isinstance(u, dict)]
+    if response.get("ads"):
+        units += [u.as_dict() for u in sponsored_from_serp(response)]
+    name, aliases, domains = brand
+    out = []
+    for u in units:
+        domain = str(u.get("domain") or "")
+        found = detect_mentions(f"{u.get('title', '')}\n{u.get('text', '')}", name, aliases,
+                                [(cid, n, a) for cid, n, a, _d in competitors])
+        if found:
+            adv, kind = found[0].entity_name, found[0].entity_type
+        elif domain and domain_is_owned(domain, domains):
+            adv, kind = name, "brand"
+        else:
+            hit = next((n for _c, n, _a, ds in competitors if domain_is_owned(domain, ds)), None)
+            adv, kind = (hit, "competitor") if hit and domain else (domain or "unknown", "other")
+        out.append({"advertiser": adv, "advertiser_type": kind, "domain": domain,
+                    "title": str(u.get("title") or "")[:200], "url": str(u.get("url") or ""),
+                    "placement": str(u.get("placement") or "")})
+    return out
 
 
 def _extract_untracked(
@@ -180,15 +222,22 @@ def process_run(session: Session, run: Run) -> dict[str, int]:
         session.exec(delete(Mention).where(Mention.result_id.in_(result_ids)))  # pyright: ignore[reportAttributeAccessIssue, reportCallIssue, reportArgumentType]
         session.exec(delete(AccuracyFinding).where(AccuracyFinding.result_id.in_(result_ids)))  # pyright: ignore[reportAttributeAccessIssue, reportCallIssue, reportArgumentType]
         session.exec(delete(UntrackedMention).where(UntrackedMention.result_id.in_(result_ids)))  # pyright: ignore[reportAttributeAccessIssue, reportCallIssue, reportArgumentType]
+        session.exec(delete(SponsoredUnit).where(SponsoredUnit.result_id.in_(result_ids)))  # pyright: ignore[reportAttributeAccessIssue, reportCallIssue, reportArgumentType]
 
     counts = {"mentions": 0, "classified_queries": 0, "citations_categorized": 0,
-              "accuracy_findings": 0}
+              "accuracy_findings": 0, "sponsored_units": 0}
+    ad_brand = (brand_name, brand_aliases, brand_domains)
+    ad_competitors = [(c.id, c.name, c.aliases, c.domains) for c in competitors]
 
     texts: dict[int, str] = {}
     for result in search_results:
         assert result.id is not None
-        text = _response_text(result, session)
+        envelope = _envelope(result, session)
+        text = envelope.get("parsed_text", "")
         texts[result.id] = text
+        for unit in _sponsored_units(envelope, ad_brand, ad_competitors):
+            counts["sponsored_units"] += 1
+            session.add(SponsoredUnit(result_id=result.id, tenant_id=run.tenant_id, **unit))
         for detected in detect_mentions(text, brand_name, brand_aliases, competitor_specs):
             counts["mentions"] += 1
             session.add(

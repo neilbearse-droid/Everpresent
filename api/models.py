@@ -443,6 +443,26 @@ class Mention(SQLModel, table=True):
     detector_version: str = ""
 
 
+class SponsoredUnit(SQLModel, table=True):
+    """A paid unit shown with an AI answer (m35): a ChatGPT "Sponsored" card,
+    an ad inside a Google AI Overview, a SerpApi ad block. Cut out of the
+    answer text before mention detection, so it never counts as organic
+    visibility; kept here for the separate ad share of voice. Regenerated on
+    reprocess like Mention."""
+
+    __tablename__ = "sponsored_units"  # pyright: ignore[reportAssignmentType]
+
+    id: int | None = Field(default=None, primary_key=True)
+    result_id: int = Field(foreign_key="results.id", index=True)
+    tenant_id: int = Field(foreign_key="tenants.id", index=True)
+    advertiser: str = ""  # tracked brand/competitor name, else the domain
+    advertiser_type: str = ""  # brand | competitor | other
+    domain: str = ""
+    title: str = ""
+    url: str = ""
+    placement: str = ""  # in_answer | serp
+
+
 class UntrackedMention(SQLModel, table=True):
     """A product/company the AI answer named that ISN'T the tracked brand or a
     tracked competitor (§step 4 — whitespace). One row per (result, entity);

@@ -1079,7 +1079,8 @@ async def _run_mode_b(run_id: int) -> None:
                 )
                 outcome = ai_mode
                 parsed_text = ai_mode.text
-                response_payload = {"shopping_results": ai_mode.shopping_results}
+                response_payload = {"shopping_results": ai_mode.shopping_results,
+                                    "sponsored": ai_mode.sponsored}
             else:
                 timeout_s = float(getattr(settings, timeout_attr))
                 outcome = await asyncio.wait_for(

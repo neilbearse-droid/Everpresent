@@ -21,6 +21,7 @@ from typing import Any
 
 import httpx
 
+from engine.processing.ads import sponsored_from_serp
 from engine.retrievers.google_aio import _serpapi_block_text, _serpapi_get
 from engine.retrievers.openai_api import ParsedCitation
 
@@ -35,6 +36,8 @@ class AIModeOutcome:
     latency_ms: int = 0
     shopping_results: int = 0
     present: bool = False
+    # Paid units SerpApi reports alongside the answer (kept out of `text`).
+    sponsored: list[dict[str, str]] = field(default_factory=list)
 
 
 def parse_ai_mode_payload(payload: dict[str, Any]) -> AIModeOutcome:
@@ -58,6 +61,7 @@ def parse_ai_mode_payload(payload: dict[str, Any]) -> AIModeOutcome:
         citations=citations,
         shopping_results=len(payload.get("shopping_results") or []),
         present=bool(text or citations),
+        sponsored=[u.as_dict() for u in sponsored_from_serp(payload)],
     )
 
 

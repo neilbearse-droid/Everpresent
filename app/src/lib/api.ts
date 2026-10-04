@@ -904,3 +904,14 @@ export type Proof = {
     signals: ProofSignal[];
   }[];
 };
+
+export type AdsReport = {
+  brand: string;
+  days: number;
+  has_data: boolean;
+  answers: number;
+  units: number;
+  brand_share: number;
+  engines: { surface: string; label: string; answers: number; with_ads: number; ad_rate: number }[];
+  advertisers: { name: string; type: string; units: number; share: number; example: string }[];
+};

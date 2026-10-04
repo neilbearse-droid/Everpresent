@@ -1,4 +1,12 @@
-import { apiFetch, rangeQuery, type EngineScorecard, type Me, type RoutingReport } from "@/lib/api";
+import {
+  apiFetch,
+  rangeQuery,
+  type AdsReport,
+  type EngineScorecard,
+  type Me,
+  type RoutingReport,
+} from "@/lib/api";
+import { AdsSection } from "./ads";
 import { DashNav } from "@/components/dash-nav";
 import { NoOrgNotice } from "@/components/no-org-notice";
 import { HBars } from "@/components/charts";
@@ -27,10 +35,11 @@ export default async function EnginesPage({
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
   const { from, to } = await searchParams;
-  const [me, card, routing] = await Promise.all([
+  const [me, card, routing, ads] = await Promise.all([
     apiFetch<Me>("/api/me"),
     apiFetch<EngineScorecard>(`/api/tenant/engine-scorecard${rangeQuery(from, to)}`),
     apiFetch<RoutingReport>(`/api/tenant/routing${rangeQuery(from, to)}`),
+    apiFetch<AdsReport>("/api/tenant/ads"),
   ]);
   if (card.status === 403) {
     return <NoOrgNotice active="Engines" isSuperadmin={me.data?.is_superadmin} detail={card.error} />;
@@ -218,6 +227,7 @@ export default async function EnginesPage({
           </section>
         </>
       )}
+      {ads.data && <AdsSection d={ads.data} />}
     </main>
   );
 }
