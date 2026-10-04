@@ -351,6 +351,14 @@ class InterventionCreate(BaseModel):
     shipped_at: str | None = None  # ISO date; defaults to today
 
 
+@router.get("/proof")
+def proof_route(ctx: Ctx, session: Db) -> dict:
+    """Each shipped fix: before vs after on every signal, against a control."""
+    from api.proof_service import intervention_proof
+
+    return intervention_proof(session, ctx.tenant_id)
+
+
 @router.get("/interventions")
 def list_interventions(ctx: Ctx, session: Db) -> dict:
     return dashboards_service.interventions_report(session, ctx.tenant_id)

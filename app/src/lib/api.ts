@@ -870,3 +870,37 @@ export type AgentPicks = {
   engines: ({ surface: string; label: string } & PickSummary)[];
   prompts: ({ text: string; kind: string } & PickSummary)[];
 };
+
+export type ProofSignal = {
+  key: string;
+  label: string;
+  kind: "rate" | "count" | "context";
+  before: number | null;
+  after: number | null;
+  before_n?: number;
+  after_n?: number;
+  delta_pts?: number | null;
+  control_delta_pts?: number | null;
+  net_pts?: number | null;
+  change_pct?: number | null;
+  control_change_pct?: number | null;
+  verdict: string;
+  note: string;
+};
+
+export type Proof = {
+  window_days: number;
+  summary: string | null;
+  items: {
+    id: number;
+    query: string;
+    description: string;
+    url: string;
+    path: string;
+    shipped_at: string;
+    window_days: number;
+    status: "proven" | "early" | "no_change" | "worse" | "awaiting";
+    headline: string;
+    signals: ProofSignal[];
+  }[];
+};

@@ -3,6 +3,23 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M38 — Proof of results (2026-10-04)
+
+1. **Equal windows, one control each.** Each logged fix is compared over the
+   same number of days before and after its ship date (up to 28; the ship
+   day itself is excluded), and each signal against its own control: answers
+   on untouched non-branded questions, and every other page for page counts.
+2. **Only the answer change is called real.** Mentions get the
+   two-proportion test plus a difference-in-differences against the control.
+   Bot reads and Search Console/Bing AI impressions are directional counts
+   ("up vs control" needs a 20-point gap over the control's % change). GA4
+   AI referrals are sitewide and labelled context, never proof.
+3. **Statuses.** Measuring (under 7 days after), real lift, early signal
+   (page counts up, answers not yet), no change, down. A fix with no answers
+   before it says there's no baseline instead of inventing one, and a page
+   that only appears in the data after the fix reads "no baseline", not "new".
+4. **Where.** Top of Outcome, shown even before GA4 is connected.
+
 ## M37 — Agent picks (2026-10-04)
 
 1. **Being chosen, not just named.** Queries tagged `corpus: agent_task`
