@@ -8,25 +8,21 @@ type Tab = { href: string; label: string };
 
 // Grouped by the job the user is doing, top to bottom: see where you stand,
 // dig into why, act on it, check the plumbing.
-const GROUPS: { title: string; tabs: Tab[] }[] = [
+const GROUPS: { title: string; tabs: Tab[]; collapsed?: boolean }[] = [
   {
     title: "Overview",
     tabs: [
       { href: "/dashboard", label: "Overview" },
       { href: "/dashboard/scorecard", label: "Scorecard" },
-      { href: "/dashboard/engines", label: "Engines" },
       { href: "/dashboard/answers", label: "Answer Shape" },
-      { href: "/dashboard/personas", label: "Personas" },
     ],
   },
   {
     title: "Visibility",
     tabs: [
-      { href: "/dashboard/brand", label: "Brand" },
+      { href: "/dashboard/engines", label: "Engines" },
       { href: "/dashboard/queries", label: "Queries" },
-      { href: "/dashboard/fanout", label: "Fan-out" },
       { href: "/dashboard/citations", label: "Citations" },
-      { href: "/dashboard/whitespace", label: "Whitespace" },
       { href: "/dashboard/pages", label: "Your Pages" },
       { href: "/dashboard/agents", label: "AI Agents" },
     ],
@@ -35,13 +31,20 @@ const GROUPS: { title: string; tabs: Tab[] }[] = [
     title: "Act",
     tabs: [
       { href: "/dashboard/recommendations", label: "Recommendations" },
-      { href: "/dashboard/action-plan", label: "Action Plan" },
       { href: "/dashboard/outcome", label: "Outcome" },
     ],
   },
   {
-    title: "System",
-    tabs: [{ href: "/dashboard/runs", label: "Runs" }],
+    title: "More",
+    collapsed: true,
+    tabs: [
+      { href: "/dashboard/brand", label: "Brand" },
+      { href: "/dashboard/personas", label: "Personas" },
+      { href: "/dashboard/fanout", label: "Fan-out" },
+      { href: "/dashboard/whitespace", label: "Whitespace" },
+      { href: "/dashboard/action-plan", label: "Action Plan" },
+      { href: "/dashboard/runs", label: "Runs" },
+    ],
   },
 ];
 const TABS: Tab[] = GROUPS.flatMap((g) => g.tabs);
@@ -104,9 +107,8 @@ export function DashNav({
           />
         </div>
         <nav className="flex-1 overflow-y-auto px-3 pb-4">
-          {GROUPS.map((g) => (
-            <div key={g.title} className="mt-4 first:mt-1">
-              <p className="eyebrow mb-1.5 px-2.5">{g.title}</p>
+          {GROUPS.map((g) => {
+            const links = (
               <ul className="space-y-0.5">
                 {g.tabs.map((tab) => (
                   <li key={tab.href}>
@@ -121,8 +123,21 @@ export function DashNav({
                   </li>
                 ))}
               </ul>
-            </div>
-          ))}
+            );
+            return g.collapsed ? (
+              <details key={g.title} className="mt-4" open={group === g.title}>
+                <summary className="eyebrow mb-1.5 cursor-pointer list-none px-2.5">
+                  {g.title} ▾
+                </summary>
+                {links}
+              </details>
+            ) : (
+              <div key={g.title} className="mt-4 first:mt-1">
+                <p className="eyebrow mb-1.5 px-2.5">{g.title}</p>
+                {links}
+              </div>
+            );
+          })}
         </nav>
         <div className="flex items-center justify-between border-t border-[var(--line)] px-4 py-3">
           <UserButton />

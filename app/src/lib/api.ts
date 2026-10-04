@@ -827,3 +827,27 @@ export type SamplePlan = {
     more_answers_needed_x: number | null;
   }[];
 };
+
+export type Briefing = {
+  brand: string;
+  winning: {
+    verdict: "gaining" | "losing" | "holding" | "unknown";
+    line: string;
+    rate: number | null;
+    low: number | null;
+    high: number | null;
+    answers: number;
+    top_rival: { name: string; share: number } | null;
+  };
+  why: { kind: string; tone: string; text: string }[];
+  this_week: {
+    id: number;
+    title: string;
+    kind: string;
+    evidence: string;
+    why: string;
+    link: string;
+    status: string;
+  }[];
+  focus: string | null;
+};

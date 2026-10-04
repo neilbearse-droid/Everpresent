@@ -112,6 +112,14 @@ def agent_analytics(ctx: Ctx, session: Db, days: int = 30) -> dict:
     return _report(session, ctx.tenant_id, days=max(1, min(days, 365)))
 
 
+@router.get("/briefing")
+def briefing_route(ctx: Ctx, session: Db) -> dict:
+    """Are we winning, why, and what to do this week."""
+    from api.briefing_service import briefing
+
+    return briefing(session, ctx.tenant_id)
+
+
 @router.get("/answer-shape")
 def answer_shape_route(ctx: Ctx, session: Db, days: int = 60) -> dict:
     """How answers are built per engine and served model, model changes,

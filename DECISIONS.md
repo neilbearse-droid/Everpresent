@@ -3,6 +3,19 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M35 — Weekly briefing and leaner navigation (2026-10-04)
+
+1. **Briefing on the Overview.** Three answers on one screen: are we winning
+   (mention rate, range, real-change test, top rival by share of voice), why
+   (top alerts, a model switch, memory-vs-search gaps, the top objection) and
+   this week (the top three open plays, strategy excluded). It only composes
+   existing reads, so it can't disagree with the pages it summarises. When
+   the change test lacks data, it says so instead of claiming "no change".
+2. **Navigation.** Three groups for the weekly loop (Overview, Visibility,
+   Act). Brand, Personas, Fan-out, Whitespace, Action Plan and Runs move into
+   a collapsed "More" group that opens when one of them is the current page.
+   No page was removed, and no URL changed.
+
 ## M34 — Demo-proofing: engine check, honest copy, sample-size planner (2026-10-04)
 
 1. **Engine smoke test.** Admin "Test every engine" makes one short live call

@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   apiFetch,
   rangeQuery,
+  type Briefing,
   type EngineModesPayload,
   type Me,
   type OverviewPayload,
@@ -12,6 +13,7 @@ import { EngineStrip, ModeStack } from "@/components/engine-modes";
 import { NoOrgNotice } from "@/components/no-org-notice";
 import { TrendChart, HBars } from "@/components/charts";
 import { entityColors, OTHER_COLOR } from "@/lib/viz";
+import { BriefingBlock } from "./briefing";
 
 export default async function OverviewPage({
   searchParams,
@@ -19,11 +21,12 @@ export default async function OverviewPage({
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
   const { from, to } = await searchParams;
-  const [me, tenant, overview, engineModes] = await Promise.all([
+  const [me, tenant, overview, engineModes, briefing] = await Promise.all([
     apiFetch<Me>("/api/me"),
     apiFetch<TenantSummary>("/api/tenant"),
     apiFetch<OverviewPayload>(`/api/tenant/overview${rangeQuery(from, to)}`),
     apiFetch<EngineModesPayload>(`/api/tenant/engine-modes${rangeQuery(from, to)}`),
+    apiFetch<Briefing>("/api/tenant/briefing"),
   ]);
 
   if (!tenant.data) {
@@ -119,6 +122,8 @@ export default async function OverviewPage({
           ))}
         </div>
       </section>
+
+      {briefing.data && <BriefingBlock b={briefing.data} />}
 
       {/* Status bar: the numbers you read first. */}
       <section className="blueprint mb-6 grid-cols-2 md:grid-cols-4">
