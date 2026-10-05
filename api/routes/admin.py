@@ -248,6 +248,36 @@ def import_yaml(
     return {"imported": counts, "brand": spec.brand.name}
 
 
+class DemoClientRequest(BaseModel):
+    clerk_org_id: str | None = None
+
+
+@router.post("/demo-client", status_code=202)
+def build_demo_client_route(payload: DemoClientRequest, session: Db, admin: Admin) -> dict:
+    """(Re)build the fictional Northpeak demo client on the worker: fake
+    answers, logs and page checks run through the real processing, so its
+    playbook is real. Wipes and rebuilds that tenant's data only."""
+    from api.demo_client import SLUG
+    from api.queue import enqueue_demo_client
+
+    org = (payload.clerk_org_id or "").strip() or None
+    if org and not re.fullmatch(r"org_[A-Za-z0-9]{6,64}", org):
+        raise HTTPException(status_code=422, detail="That doesn't look like a Clerk org ID "
+                            "(org_…)")
+    taken = session.exec(select(Tenant).where(Tenant.clerk_org_id == org)).first() if org else None
+    if taken is not None and taken.slug != SLUG:
+        raise HTTPException(status_code=409,
+                            detail=f"That Clerk org is already linked to {taken.slug}")
+    try:
+        enqueue_demo_client(org)
+    except Exception as exc:  # noqa: BLE001 — Redis down: say so plainly
+        raise HTTPException(status_code=503, detail="Couldn't queue the build; the job "
+                            "queue is unreachable") from exc
+    write_audit(session, tenant_id=None, actor=admin.user.email, action="demo-client.build")
+    session.commit()
+    return {"queued": True, "slug": SLUG}
+
+
 class ConfigDraftRequest(BaseModel):
     domain: str
     country: str = "us"

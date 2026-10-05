@@ -3,6 +3,29 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M44 — A fictional demo client with a real playbook (2026-10-05)
+
+1. **Northpeak**, a made-up website builder on `northpeak.example`, with four
+   made-up rivals. `.example` never resolves, so nothing real is crawled,
+   quoted or accused. Admin → "Build demo client" queues the build on the
+   worker; rebuilding wipes only that tenant's data (not its login link).
+2. **Real pipeline, seeded inputs.** The builder writes raw answers, bot
+   logs, page checks, Search Console rows and one logged fix, then runs the
+   normal processing and playbook. Every play is derived from data a viewer
+   can open. The one shortcut: the web-search classifier needs no-search
+   twin answers, so each question's class is set directly.
+3. **Checked for legitimacy.** Tests assert each story beat produces its play
+   (wrong $19 price traced to /help/plans, missing Claude-SearchBot,
+   PerplexityBot refusals, a lost and erroring cost guide, a dead
+   /old-pricing, a read-but-never-cited page, a ChatGPT model switch, a proven
+   fix) and that no play gives advice the data doesn't support.
+4. **Safety.** Spend cap 0 (no paid runs on a fictional brand), AI processing
+   off, and the nightly page crawl skips it.
+5. **Product fix found on the way.** Page "errors" on AI Agents and Your
+   Pages no longer count refusals (401/403/407/429): a page blocked for one
+   bot is an access problem for that bot's play, not a dead page to redirect
+   or an "erroring" cited page.
+
 ## M43 — "Ledger" design: built like a finance product (2026-10-05)
 
 1. **Replaces "Studio".** The warm paper ground, serif display and soft

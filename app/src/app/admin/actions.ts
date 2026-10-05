@@ -402,3 +402,22 @@ export async function importCaptures(
     }. They now count in every dashboard.`,
   };
 }
+
+export async function buildDemoClient(
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const org = String(formData.get("clerk_org_id") ?? "").trim();
+  const res = await apiFetch<{ queued: boolean; slug: string }>("/api/admin/demo-client", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ clerk_org_id: org || null }),
+  });
+  if (!res.ok) return { ok: false, message: res.error ?? "Could not start the build" };
+  revalidatePath("/admin");
+  return {
+    ok: true,
+    message:
+      "Building the Northpeak demo on the worker. It appears in the tenant list in a minute or two; refresh to see it.",
+  };
+}

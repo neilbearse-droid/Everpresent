@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { apiFetch, type Me, type Tenant } from "@/lib/api";
 import { CreateTenantForm } from "./create-tenant-form";
+import { DemoClientForm } from "./demo-client-form";
 
 export default async function AdminPage() {
   const me = await apiFetch<Me>("/api/me");
@@ -53,10 +54,16 @@ export default async function AdminPage() {
         </tbody>
       </table>
 
-      <section className="mt-12 max-w-md card p-6">
-        <h2 className="mb-4 text-lg font-medium">New tenant</h2>
-        <CreateTenantForm />
-      </section>
+      <div className="mt-12 grid max-w-4xl grid-cols-1 gap-6 md:grid-cols-2">
+        <section className="card p-6">
+          <h2 className="mb-4 text-lg font-medium">New tenant</h2>
+          <CreateTenantForm />
+        </section>
+        <section className="card p-6">
+          <h2 className="mb-4 text-lg font-medium">Demo client</h2>
+          <DemoClientForm />
+        </section>
+      </div>
     </main>
   );
 }

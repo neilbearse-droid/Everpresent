@@ -45,6 +45,12 @@ def crawl_power_pages(tenant_id: int) -> int:
         tenant = session.get(Tenant, tenant_id)
         if tenant is None:
             return 0
+        from api.demo_client import SLUG as DEMO_SLUG
+
+        if tenant.slug == DEMO_SLUG:
+            # The demo client's pages are fictional (.example) and seeded; a
+            # crawl would only overwrite them with "unreachable".
+            return 0
         tenant_slug = tenant.slug
         brand = session.exec(
             select(BrandProfile).where(BrandProfile.tenant_id == tenant_id)

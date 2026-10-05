@@ -217,14 +217,20 @@ def agent_analytics(session: Session, tenant_id: int, days: int = 30) -> dict[st
         b["verified"] += ver
         verified += ver
         path = _norm_path(raw_path)
+        # A page's "errors" are its own faults (404, 410, 5xx); refusals (401,
+        # 403, 407, 429) are an access rule turning a bot away, reported per
+        # bot. Mixing them told people to redirect pages that were only blocked.
         p = pages.setdefault(path, {"path": path, "hits": 0, "user": 0, "search": 0,
-                                    "training": 0, "agent": 0, "errors": 0})
+                                    "training": 0, "agent": 0, "errors": 0, "refused": 0})
         p["hits"] += hits
         p[purpose] = p.get(purpose, 0) + hits
         if status >= 400:
             errors += hits
             b["errors"] += hits
-            p["errors"] += hits
+            if status in _BLOCKED:
+                p["refused"] += hits
+            else:
+                p["errors"] += hits
         if _is_blocked(status):
             b["blocked"] += hits
 

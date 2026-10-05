@@ -20,6 +20,7 @@ from sqlalchemy import func
 from sqlalchemy import select as sa_select
 from sqlmodel import Session, col, select
 
+from api.agent_analytics import _BLOCKED as _REFUSED
 from api.agent_analytics import _norm_path
 from api.models import (
     AgentTrafficDaily,
@@ -130,7 +131,9 @@ def own_pages(session: Session, tenant_id: int, days: int = WINDOW_DAYS) -> dict
         r = pages[path]
         if purpose in ("search", "user"):
             r["bot_reads"] += int(hits or 0)
-        if status >= 400:
+        # Page faults only; a bot refused by an access rule is an access
+        # problem, shown on AI Agents, not a broken page.
+        if status >= 400 and status not in _REFUSED:
             r["bot_errors"] += int(hits or 0)
 
     # First-party numbers: attach to known pages, and surface pages that
