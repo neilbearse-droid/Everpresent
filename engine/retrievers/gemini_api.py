@@ -23,6 +23,43 @@ GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
 RETRYABLE_STATUS = {429, 500, 502, 503, 504, 529}
 
 
+class GeminiQuotaError(RuntimeError):
+    """A Gemini quota that retrying can't fix (free tier at zero, daily cap)."""
+
+
+def _error(resp: httpx.Response) -> dict:
+    try:
+        err = resp.json().get("error")
+    except (ValueError, AttributeError):
+        return {}
+    return err if isinstance(err, dict) else {}
+
+
+def _error_message(resp: httpx.Response) -> str:
+    err = _error(resp)
+    msg = str(err.get("message") or resp.text[:200] or resp.reason_phrase)
+    status = err.get("status")
+    return f"{msg[:300]} [{status}]" if status else msg[:300]
+
+
+def _quota_is_zero(resp: httpx.Response) -> bool:
+    """Google says "limit: 0" (no allowance on this tier) or names a per-day
+    quota: waiting seconds won't help, unlike a per-minute rate limit."""
+    msg = str(_error(resp).get("message") or "").lower()
+    return "limit: 0" in msg or "perday" in msg.replace(" ", "").replace("_", "")
+
+
+def _retry_delay(resp: httpx.Response) -> float | None:
+    """Google's RetryInfo delay ("12s"), capped so a check stays short."""
+    for d in _error(resp).get("details") or []:
+        if isinstance(d, dict) and str(d.get("@type", "")).endswith("RetryInfo"):
+            try:
+                return min(float(str(d.get("retryDelay", "")).rstrip("s")), 20.0)
+            except ValueError:
+                return None
+    return None
+
+
 _REDIRECT_HOST = "vertexaisearch.cloud.google.com"
 
 
@@ -158,8 +195,17 @@ async def retrieve(
                     await asyncio.sleep(2**attempt)
                     continue
                 raise
+            if resp.status_code == 429 and _quota_is_zero(resp):
+                # A hard quota (e.g. no free-tier allowance for this model or
+                # for search grounding): retrying can't help.
+                raise GeminiQuotaError(
+                    f"Google quota for {model} is used up or not available on this "
+                    f"project's tier ({_error_message(resp)}). Turn on billing for the "
+                    "key's project in AI Studio, or set GEMINI_MODEL to a model your "
+                    "tier allows."
+                )
             if resp.status_code in RETRYABLE_STATUS and attempt < max_attempts:
-                await asyncio.sleep(2**attempt)
+                await asyncio.sleep(_retry_delay(resp) or 2**attempt)
                 continue
             if (
                 resp.status_code in _MODEL_GONE_STATUS
@@ -172,7 +218,11 @@ async def retrieve(
                 fallback_reason = f"{model}: HTTP {resp.status_code}: {resp.text[:160]}"
                 model = FALLBACK_MODEL
                 continue
-            resp.raise_for_status()
+            if resp.status_code >= 400:
+                raise httpx.HTTPStatusError(
+                    f"Gemini {resp.status_code}: {_error_message(resp)}",
+                    request=resp.request, response=resp,
+                )
             try:
                 payload = resp.json()
             except ValueError:

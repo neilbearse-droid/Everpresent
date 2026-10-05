@@ -94,7 +94,7 @@ def explain_failure(exc: BaseException) -> str:
     """The raw error plus, when we recognise it, what to do about it."""
     raw = f"{type(exc).__name__}: {exc}"
     hint = next((h for needle, h in _HINTS if needle in raw), "")
-    return (f"{hint} ({raw})" if hint else raw)[:300]
+    return (f"{hint} ({raw})" if hint else raw)[:600]
 
 
 def _verdict(text: str, citations: int, searches: int, needs_sources: bool) -> tuple[str, str]:

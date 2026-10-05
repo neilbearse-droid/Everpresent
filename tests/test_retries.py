@@ -238,3 +238,31 @@ def test_openai_real_rate_limit_retries_then_names_the_cause(monkeypatch):
     assert len(calls) == 3
     msg = explain_failure(exc.value)
     assert "rate_limit_exceeded" in msg and "too many calls" in msg
+
+
+def test_gemini_zero_quota_fails_fast_with_googles_reason(monkeypatch):
+    from engine.retrievers import gemini_api
+    from worker.smoke import explain_failure
+
+    zero = _resp(429, {"error": {"code": 429, "status": "RESOURCE_EXHAUSTED", "message":
+                                 "Quota exceeded for metric: generate_content_free_tier_requests, "
+                                 "limit: 0, model: gemini-3.6-flash"}})
+    calls = _sequence(monkeypatch, "post", [zero, zero, zero, zero])
+    with pytest.raises(gemini_api.GeminiQuotaError) as exc:
+        asyncio.run(gemini_api.retrieve("", "q", api_key="k", model="gemini-3.6-flash"))
+    assert len(calls) == 1
+    msg = explain_failure(exc.value)
+    assert "limit: 0" in msg and "billing" in msg
+
+
+def test_gemini_minute_limit_retries_and_keeps_googles_message(monkeypatch):
+    from engine.retrievers import gemini_api
+
+    busy = _resp(429, {"error": {"status": "RESOURCE_EXHAUSTED",
+                                 "message": "Quota exceeded for requests per minute, limit: 10",
+                                 "details": [{"@type": "type.googleapis.com/google.rpc.RetryInfo",
+                                              "retryDelay": "7s"}]}})
+    calls = _sequence(monkeypatch, "post", [busy] * 5)
+    with pytest.raises(httpx.HTTPStatusError) as exc:
+        asyncio.run(gemini_api.retrieve("", "q", api_key="k", model="gemini-3.6-flash"))
+    assert len(calls) >= 3 and "requests per minute" in str(exc.value)
