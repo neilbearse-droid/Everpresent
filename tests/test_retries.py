@@ -211,3 +211,30 @@ def test_gemini3_grounding_is_billed_per_query():
     assert estimate_gemini_cost_usd("gemini-3.6-flash", 1_000_000, 0, 3) == round(
         1.50 + 3 * 14 / 1000, 6)
     assert estimate_gemini_cost_usd("gemini-3.1-pro-preview", 0, 1_000_000, 0) == 12.0
+
+
+def test_openai_out_of_credits_fails_fast_with_a_clear_reason(monkeypatch):
+    from engine.retrievers import openai_api
+    from worker.smoke import explain_failure
+
+    quota = _resp(429, {"error": {"message": "You exceeded your current quota",
+                                  "type": "insufficient_quota", "code": "insufficient_quota"}})
+    calls = _sequence(monkeypatch, "post", [quota, quota, quota])
+    with pytest.raises(openai_api.OpenAIQuotaError) as exc:
+        asyncio.run(openai_api.retrieve("", "q", api_key="k", model="gpt-4o"))
+    assert len(calls) == 1  # no pointless retries
+    assert "out of credits" in explain_failure(exc.value)
+
+
+def test_openai_real_rate_limit_retries_then_names_the_cause(monkeypatch):
+    from engine.retrievers import openai_api
+    from worker.smoke import explain_failure
+
+    limited = _resp(429, {"error": {"message": "Rate limit reached for requests",
+                                    "type": "requests", "code": "rate_limit_exceeded"}})
+    calls = _sequence(monkeypatch, "post", [limited, limited, limited])
+    with pytest.raises(httpx.HTTPStatusError) as exc:
+        asyncio.run(openai_api.retrieve("", "q", api_key="k", model="gpt-4o"))
+    assert len(calls) == 3
+    msg = explain_failure(exc.value)
+    assert "rate_limit_exceeded" in msg and "too many calls" in msg

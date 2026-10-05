@@ -24,6 +24,37 @@ OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
 RETRYABLE_STATUS = {429, 500, 502, 503, 504, 529}
 
 
+class OpenAIQuotaError(RuntimeError):
+    """The OpenAI account has no credits left (429 insufficient_quota)."""
+
+
+def _error_body(resp: httpx.Response) -> dict:
+    try:
+        err = resp.json().get("error")
+    except ValueError:
+        return {}
+    return err if isinstance(err, dict) else {}
+
+
+def _error_code(resp: httpx.Response) -> str:
+    return str(_error_body(resp).get("code") or _error_body(resp).get("type") or "")
+
+
+def _error_message(resp: httpx.Response) -> str:
+    err = _error_body(resp)
+    code = err.get("code") or err.get("type") or ""
+    msg = str(err.get("message") or resp.text[:200] or resp.reason_phrase)
+    return f"{msg} ({code})" if code else msg
+
+
+def _retry_after(resp: httpx.Response) -> float | None:
+    """Seconds the provider asked us to wait, capped so a check stays short."""
+    try:
+        return min(float(resp.headers.get("retry-after", "")), 20.0)
+    except ValueError:
+        return None
+
+
 @dataclass
 class ParsedCitation:
     url: str
@@ -192,10 +223,22 @@ async def retrieve(
                     await asyncio.sleep(2**attempt)
                     continue
                 raise
+            if resp.status_code == 429 and _error_code(resp) == "insufficient_quota":
+                # Same status as a rate limit, but retrying can't help: the
+                # account has no credits left.
+                raise OpenAIQuotaError(
+                    "OpenAI says the account is out of credits (insufficient_quota). "
+                    "Add credits or raise the monthly budget at "
+                    "platform.openai.com/settings/organization/billing."
+                )
             if resp.status_code in RETRYABLE_STATUS and attempt < max_attempts:
-                await asyncio.sleep(2**attempt)
+                await asyncio.sleep(_retry_after(resp) or 2**attempt)
                 continue
-            resp.raise_for_status()
+            if resp.status_code >= 400:
+                raise httpx.HTTPStatusError(
+                    f"OpenAI {resp.status_code}: {_error_message(resp)}",
+                    request=resp.request, response=resp,
+                )
             try:
                 payload = resp.json()
             except ValueError:

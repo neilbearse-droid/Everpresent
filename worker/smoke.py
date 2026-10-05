@@ -82,7 +82,10 @@ _HINTS = (
     ("407", "The scrape proxy rejected its credentials. Check SCRAPE_PROXY_URL."),
     ("401", "The provider rejected the API key. Check the key on the worker."),
     ("403", "The provider refused the request (key permissions or region)."),
-    ("429", "Rate-limited or out of quota at the provider. Check billing and limits."),
+    ("insufficient_quota", "The provider account is out of credits. Add credits or raise "
+     "the budget in the provider's billing settings."),
+    ("429", "Rate-limited at the provider: too many calls at once. Wait a minute and retry; "
+     "if it keeps happening, check the account's rate limits."),
     ("Timeout", "Timed out. The engine or proxy was too slow; try again, then check the proxy."),
 )
 
