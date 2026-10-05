@@ -3,6 +3,7 @@ import { apiFetch, type FirstPartySummary, type Me, type OwnPages } from "@/lib/
 import { DashNav } from "@/components/dash-nav";
 import { NoOrgNotice } from "@/components/no-org-notice";
 import { ImportFirstParty } from "./import-form";
+import { fmtDate } from "@/lib/viz";
 
 const BAD_FLAGS = new Set(["facts conflict", "unreachable", "errors for AI bots"]);
 const FP_LABEL: Record<string, string> = {
@@ -99,7 +100,10 @@ export default async function YourPagesPage() {
                       {d.pages.map((p) => (
                         <tr key={p.path} className="align-top">
                           <td className="max-w-[280px]">
-                            <div className="break-all font-medium">{p.path}</div>
+                            <div className="font-medium [overflow-wrap:anywhere]">
+                              {/* Break lines after / and -, never mid-word. */}
+                              {p.path.replace(/([/-])/g, "$1\u200b")}
+                            </div>
                             <div className="text-xs text-[var(--text-3)]">{p.engines.join(", ") || "not cited lately"}</div>
                           </td>
                           <td className="text-right tabular-nums">
@@ -111,7 +115,7 @@ export default async function YourPagesPage() {
                               <>
                                 {p.crawl.status === "ok" ? "OK" : `Error ${p.crawl.http_status ?? ""}`}
                                 <div className="text-xs text-[var(--text-3)]">
-                                  {p.crawl.checked} ·{" "}
+                                  {fmtDate(p.crawl.checked)} ·{" "}
                                   {p.crawl.has_updated_date
                                     ? "shows an updated date"
                                     : p.crawl.latest_year
@@ -128,9 +132,22 @@ export default async function YourPagesPage() {
                               <span className="text-[var(--text-3)]">{p.crawl ? "no conflicts" : "—"}</span>
                             ) : (
                               p.fact_conflicts.slice(0, 2).map((c, i) => (
-                                <div key={i}>
-                                  <span className="bp-neg text-xs">says {c.stated}</span>{" "}
-                                  {c.subject}: fact sheet {c.expected}
+                                <div key={i} className="mb-2 last:mb-0">
+                                  <div>
+                                    Page says <b>&ldquo;{c.stated}&rdquo;</b>
+                                  </div>
+                                  <div className="text-xs text-[var(--text-2)]">
+                                    Fact sheet:{" "}
+                                    {c.label ||
+                                      (c.kind === "disallowed"
+                                        ? `never say “${c.expected}”`
+                                        : `${c.subject} is ${c.expected}`)}
+                                  </div>
+                                  {c.snippet && (
+                                    <div className="mt-1 line-clamp-2 text-xs italic text-[var(--text-3)]">
+                                      &ldquo;{c.snippet}&rdquo;
+                                    </div>
+                                  )}
                                 </div>
                               ))
                             )}

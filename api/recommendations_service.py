@@ -765,11 +765,15 @@ def _own_page_plays(session: Session, tenant_id: int) -> list[Play]:
         if not r["fact_conflicts"]:
             continue
         c = r["fact_conflicts"][0]
+        rule = c.get("label") or (
+            f"never say \u201c{c['expected']}\u201d" if _is_disallowed(c)
+            else f"{c['subject']} is {c['expected']}")
+        said = (f"\u201c{c['stated']}\u201d" if _is_disallowed(c)
+                else f"{c['subject']} is {c['stated']}")
         plays.append(Play(
             f"own_page:facts:{r['path']}", "own_page",
             f"Your own page contradicts your facts: {r['path']}",
-            f"{r['path']} says {c['subject']} is {c['stated']}; your fact sheet says "
-            f"{c['expected']}. AI answers read this page"
+            f"{r['path']} says {said}; your fact sheet: {rule}. AI answers read this page"
             + (f" (cited {r['cited']}× lately)." if r["cited"] else "."),
             93, "moderate", WHY["own_pages"],
             ["Correct the statement on the page (or the fact sheet, if the page is right)",
@@ -950,3 +954,11 @@ def generate_recommendations(session: Session, tenant: Tenant) -> int:
         session.add(rec)
     session.commit()
     return open_count
+
+
+def _is_disallowed(c: dict) -> bool:
+    """A conflict with a 'must never say' fact. Older crawl rows carry no
+    kind: they are disallowed when the stated text is the forbidden phrase."""
+    if c.get("kind"):
+        return c["kind"] == "disallowed"
+    return str(c.get("stated", "")).lower() in str(c.get("expected", "")).lower()

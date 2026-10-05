@@ -6,6 +6,7 @@ from datetime import timedelta
 from sqlmodel import select
 
 from api.models import (
+    BrandFact,
     BrandProfile,
     Citation,
     FirstPartyDaily,
@@ -115,6 +116,8 @@ def test_own_pages_flags_conflicts_staleness_and_unsampled(db_session):
                 "https://rival.com/x"):
         db_session.add(Citation(result_id=r.id, tenant_id=t.id, url=url,
                                 domain=url.split("/")[2], link_kind="inline"))
+    db_session.add(BrandFact(tenant_id=t.id, label="Starter is $9.99", subject="starter price",
+                             expected="$9.99", kind="numeric"))
     db_session.add(PagePresence(
         tenant_id=t.id, url="https://acme.com/pricing", domain="acme.com", status="ok",
         features={"has_updated_date": True, "latest_year": utcnow().year,
@@ -144,6 +147,8 @@ def test_own_page_and_model_change_plays(db_session):
     _result(db_session, t.id, model="gpt-6-astra", days_ago=2)
     db_session.add(Citation(result_id=r.id, tenant_id=t.id, url="https://acme.com/pricing",
                             domain="acme.com"))
+    db_session.add(BrandFact(tenant_id=t.id, label="Price is $9", subject="price",
+                             expected="$9", kind="numeric"))
     db_session.add(PagePresence(
         tenant_id=t.id, url="https://acme.com/pricing", domain="acme.com", status="ok",
         features={"fact_conflicts": [{"fact_id": 1, "subject": "price", "expected": "$9",
@@ -234,3 +239,34 @@ def test_checker_blocked_but_bots_read_is_not_unreachable(db_session):
     db_session.commit()
     rep = own_pages(db_session, t.id)
     assert rep["pages"][0]["flags"] == ["blocks our checker"] and rep["flagged"] == 0
+
+
+def test_conflicts_carry_the_rule_and_vanish_when_the_fact_is_switched_off(db_session):
+    from api.own_pages_service import own_pages
+    from api.recommendations_service import generate_recommendations
+
+    t = _tenant(db_session)
+    fact = BrandFact(tenant_id=t.id, label="Domain privacy is a paid add-on",
+                     subject="domain privacy", expected="domain privacy is free",
+                     kind="disallowed")
+    db_session.add(fact)
+    db_session.commit()
+    db_session.add(PagePresence(
+        tenant_id=t.id, url="https://acme.com/privacy", domain="acme.com", status="ok",
+        features={"fact_conflicts": [{"fact_id": fact.id, "subject": "domain privacy",
+                                      "expected": "domain privacy is free",
+                                      "stated": "free domain privacy",
+                                      "snippet": "Every domain includes free domain privacy."}]}))
+    db_session.commit()
+    [c] = own_pages(db_session, t.id)["pages"][0]["fact_conflicts"]
+    assert c["kind"] == "disallowed" and c["label"] == "Domain privacy is a paid add-on"
+    generate_recommendations(db_session, t)
+    rec = db_session.exec(select(Recommendation).where(
+        Recommendation.gap_ref == "own_page:facts:/privacy")).one()
+    assert "says \u201cfree domain privacy\u201d" in rec.action_text
+    assert "your fact sheet: Domain privacy is a paid add-on" in rec.action_text
+
+    fact.active = False
+    db_session.commit()
+    page = own_pages(db_session, t.id)["pages"][0]
+    assert page["fact_conflicts"] == [] and "facts conflict" not in page["flags"]

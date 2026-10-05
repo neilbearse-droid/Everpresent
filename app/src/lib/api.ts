@@ -795,7 +795,14 @@ export type OwnPages = {
       latest_year: number;
       has_price: boolean;
     } | null;
-    fact_conflicts: { subject: string; expected: string; stated: string; snippet: string }[];
+    fact_conflicts: {
+      subject: string;
+      expected: string;
+      stated: string;
+      snippet: string;
+      kind?: string;
+      label?: string;
+    }[];
     bot_reads: number;
     bot_errors: number;
     first_party: Record<string, number>;

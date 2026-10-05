@@ -21,7 +21,14 @@ from sqlalchemy import select as sa_select
 from sqlmodel import Session, col, select
 
 from api.agent_analytics import _norm_path
-from api.models import AgentTrafficDaily, BrandProfile, Citation, PagePresence, Result
+from api.models import (
+    AgentTrafficDaily,
+    BrandFact,
+    BrandProfile,
+    Citation,
+    PagePresence,
+    Result,
+)
 from engine.processing.citations import domain_is_owned
 
 WINDOW_DAYS = 30
@@ -73,6 +80,23 @@ def own_pages(session: Session, tenant_id: int, days: int = WINDOW_DAYS) -> dict
         r["inline"] += int(n) if kind == "inline" else 0
         r["engines"].add(_surface_label(str(surface)))
 
+    # Active facts, so a conflict shows the rule it broke, and one whose fact
+    # was since switched off or deleted disappears without waiting for a
+    # re-crawl.
+    facts = {f.id: f for f in session.exec(
+        select(BrandFact).where(BrandFact.tenant_id == tenant_id,
+                                BrandFact.active == True)  # noqa: E712
+    ).all()}
+
+    def live_conflicts(raw: list[dict]) -> list[dict]:
+        out = []
+        for c in raw:
+            fact = facts.get(c.get("fact_id"))
+            if fact is None:
+                continue
+            out.append({**c, "kind": fact.kind, "label": fact.label})
+        return out
+
     # Latest crawl per own page.
     for pp in session.exec(select(PagePresence).where(PagePresence.tenant_id == tenant_id)).all():
         path = _path_of(pp.url, owned)
@@ -88,7 +112,7 @@ def own_pages(session: Session, tenant_id: int, days: int = WINDOW_DAYS) -> dict
                  "has_price": bool(f.get("has_price"))}
         if r["crawl"] is None or (crawl["checked"] or "") >= (r["crawl"]["checked"] or ""):
             r["crawl"] = crawl
-            r["fact_conflicts"] = list(f.get("fact_conflicts") or [])
+            r["fact_conflicts"] = live_conflicts(list(f.get("fact_conflicts") or []))
 
     # AI bot reads and errors per path (search + live user fetches).
     since_day = since.date().isoformat()

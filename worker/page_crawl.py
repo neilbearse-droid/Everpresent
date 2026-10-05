@@ -145,9 +145,12 @@ def _fact_conflicts(html: str, facts: list[FactSpec]) -> list[dict]:
     if not facts:
         return []
     text, _links = extract_text_and_links(visible_html(html), ())
+    by_id = {f.id: f for f in facts}
     return [
         {"fact_id": h.fact_id, "subject": h.subject, "expected": h.expected,
-         "stated": h.stated, "snippet": h.snippet[:240]}
+         "stated": h.stated, "snippet": h.snippet[:240],
+         "kind": by_id[h.fact_id].kind if h.fact_id in by_id else "",
+         "label": by_id[h.fact_id].label if h.fact_id in by_id else ""}
         for h in check_text(text, facts)
     ][:10]
 
