@@ -608,6 +608,19 @@ select.field {
   font-size: 10.5px;
   letter-spacing: 0.08em;
 }
+/* Clerk's org switcher. Its popover is always white (in both themes), so
+   names there are dark ink; only the label on the navy trigger is white.
+   Plain (unlayered) rules, because Clerk's own styles are unlayered too. */
+.cl-organizationPreviewMainIdentifier {
+  color: #0b1220 !important;
+}
+.cl-organizationPreviewSecondaryIdentifier {
+  color: #475163 !important;
+}
+.ep-side .cl-organizationSwitcherTrigger .cl-organizationPreviewMainIdentifier,
+.ep-side .cl-organizationSwitcherTrigger .cl-organizationPreviewSecondaryIdentifier {
+  color: #ffffff !important;
+}
 .ep-side-foot {
   border-top: 1px solid var(--side-line);
 }
