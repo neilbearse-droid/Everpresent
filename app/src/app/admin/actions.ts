@@ -421,3 +421,16 @@ export async function buildDemoClient(
       "Building the Northpeak demo on the worker. It appears in the tenant list in a minute or two; refresh to see it.",
   };
 }
+
+export async function reprocessTenant(
+  slug: string,
+  _prev: ActionState,
+  _formData: FormData,
+): Promise<ActionState> {
+  const res = await apiFetch(`/api/admin/tenants/${slug}/reprocess`, { method: "POST" });
+  if (!res.ok) return { ok: false, message: res.error ?? "Could not queue it" };
+  return {
+    ok: true,
+    message: "Reprocessing every run on the worker. Dashboards update over the next few minutes.",
+  };
+}

@@ -84,6 +84,14 @@ def parse_claude_payload(payload: dict[str, Any]) -> ParsedResponse:
     usage = payload.get("usage") or {}
     server_tool = usage.get("server_tool_use", {}) or {}
     cited, consulted = _collect_citations(payload)
+    # The searches Claude issued (its fan-out): one server_tool_use block per
+    # web_search call, with the query it searched for.
+    fanout: list[str] = []
+    for block in payload.get("content") or []:
+        if block.get("type") == "server_tool_use" and block.get("name") == "web_search":
+            q = str((block.get("input") or {}).get("query") or "").strip()
+            if q and q not in fanout:
+                fanout.append(q)
     return ParsedResponse(
         text="\n\n".join(t for t in texts if t),
         citations=cited,
@@ -92,6 +100,7 @@ def parse_claude_payload(payload: dict[str, Any]) -> ParsedResponse:
         output_tokens=usage.get("output_tokens", 0),
         model=payload.get("model", ""),
         consulted_sources=consulted,
+        fanout_queries=fanout,
     )
 
 

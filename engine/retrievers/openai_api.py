@@ -111,10 +111,12 @@ def parse_responses_payload(payload: dict[str, Any]) -> ParsedResponse:
         item_type = item.get("type")
         if item_type == "web_search_call":
             web_search_calls += 1
-            # The Responses API carries the issued query on the search action.
-            query = (item.get("action") or {}).get("query")
-            if query:
-                fanout_queries.append(query)
+            # The Responses API carries the issued query on the search action;
+            # newer models can batch several searches into one call (`queries`).
+            action = item.get("action") or {}
+            for query in [action.get("query"), *(action.get("queries") or [])]:
+                if isinstance(query, str) and query.strip() and query not in fanout_queries:
+                    fanout_queries.append(query)
             continue
         if item_type != "message":
             continue

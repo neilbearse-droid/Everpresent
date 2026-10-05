@@ -466,6 +466,24 @@ def list_runs(slug: str, session: Db) -> dict:
     }
 
 
+@router.post("/tenants/{slug}/reprocess", status_code=202)
+def reprocess_tenant(slug: str, session: Db, admin: Admin) -> dict:
+    """Re-run processing over all of a tenant's completed runs on the worker."""
+    from api.queue import enqueue_reprocess
+
+    tenant = _tenant_or_404(session, slug)
+    assert tenant.id is not None
+    try:
+        enqueue_reprocess(tenant.id)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(status_code=503, detail="Couldn't queue it; the job queue is "
+                            "unreachable") from exc
+    write_audit(session, tenant_id=tenant.id, actor=admin.user.email,
+                action=f"tenant.reprocess {slug}")
+    session.commit()
+    return {"queued": True}
+
+
 @router.post("/runs/{run_id}/process")
 def reprocess_run(run_id: int, session: Db, admin: Admin) -> dict:
     """Re-run processing over a stored run — applies detector/classifier

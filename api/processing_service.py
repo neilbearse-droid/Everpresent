@@ -63,6 +63,32 @@ def _envelope(result: Result, session: Session) -> dict:
     return read_raw_envelope(result.raw_uri, session=session) or {}
 
 
+def _backfill_fanout(result: Result, envelope: dict) -> None:
+    """Older captures stored the raw response but not every engine's searches
+    (Claude's were not read before m45; ChatGPT's batched `queries` neither).
+    Re-read them from the stored response so reprocessing a run fills the
+    fan-out without paying for new calls."""
+    response = envelope.get("response")
+    if not isinstance(response, dict) or not response:
+        return
+    surface = str(result.surface)
+    try:
+        if surface == "claude_api":
+            from engine.retrievers.claude_api import parse_claude_payload
+
+            found = parse_claude_payload(response).fanout_queries
+        elif surface == "openai_api":
+            from engine.retrievers.openai_api import parse_responses_payload
+
+            found = parse_responses_payload(response).fanout_queries
+        else:
+            return
+    except Exception:  # noqa: BLE001 — an odd old payload keeps what it had
+        return
+    if found and len(found) > len(result.fanout_queries or []):
+        result.fanout_queries = list(found)
+
+
 def _sponsored_units(
     envelope: dict,
     brand: tuple[str, list[str], list[str]],
@@ -234,6 +260,7 @@ def process_run(session: Session, run: Run) -> dict[str, int]:
         assert result.id is not None
         envelope = _envelope(result, session)
         text = envelope.get("parsed_text", "")
+        _backfill_fanout(result, envelope)
         texts[result.id] = text
         for unit in _sponsored_units(envelope, ad_brand, ad_competitors):
             counts["sponsored_units"] += 1
@@ -607,3 +634,30 @@ def rollup_day(
         rows += 1
     session.commit()
     return rows
+
+
+def reprocess_tenant_job(tenant_id: int) -> dict[str, int]:
+    """Re-run processing over every completed run of a tenant, oldest first
+    (RQ entry point). Applies detector and parser upgrades, such as newly read
+    fan-out searches, to history without paying for new answers."""
+    from api.db import get_engine
+
+    done = failed = 0
+    with Session(get_engine()) as session:
+        run_ids = [r.id for r in session.exec(
+            select(Run).where(Run.tenant_id == tenant_id, Run.status == RunStatus.complete)
+            .order_by(col(Run.id))
+        ).all()]
+        for run_id in run_ids:
+            run = session.get(Run, run_id)
+            if run is None:
+                continue
+            try:
+                run.counts = {**run.counts, **process_run(session, run)}
+                session.add(run)
+                session.commit()
+                done += 1
+            except Exception:  # noqa: BLE001 — one bad run must not stop the rest
+                session.rollback()
+                failed += 1
+    return {"reprocessed": done, "failed": failed}

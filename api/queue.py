@@ -39,3 +39,8 @@ def enqueue_engine_check(tenant_id: int) -> None:
 def enqueue_demo_client(clerk_org_id: str | None) -> None:
     get_queue().enqueue("api.demo_client.build_demo_client_job", clerk_org_id,
                         job_timeout=20 * 60)
+
+
+def enqueue_reprocess(tenant_id: int) -> None:
+    get_queue().enqueue("api.processing_service.reprocess_tenant_job", tenant_id,
+                        job_timeout=60 * 60)

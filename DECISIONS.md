@@ -3,6 +3,19 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M45 — Fan-out from four engines, and reprocess history (2026-10-05)
+
+1. **Who reports their searches.** ChatGPT (the Responses API's search
+   actions, now including batched `queries`), Gemini (grounding
+   `webSearchQueries`), Perplexity (search `queries`) and now Claude
+   (`server_tool_use` web_search blocks, previously ignored). Google AI
+   Overviews, AI Mode and the browser captures don't expose their searches,
+   so they have no fan-out.
+2. **History catches up for free.** Processing re-reads Claude and ChatGPT
+   searches from each stored raw response, and admin → "Reprocess history"
+   re-runs processing over every completed run on the worker. No new answers
+   are bought.
+
 ## M44 — A fictional demo client with a real playbook (2026-10-05)
 
 1. **Northpeak**, a made-up website builder on `northpeak.example`, with four

@@ -6,6 +6,7 @@ import { AccessAuditPanel } from "./access-audit-panel";
 import { BrandFactsPanel, type BrandFact } from "./brand-facts-panel";
 import { ClerkOrgForm } from "./clerk-org-form";
 import { CrawlPagesButton } from "./crawl-pages-button";
+import { ReprocessButton } from "./reprocess-button";
 import { EngineCheckButton } from "./engine-check-button";
 import { Ga4Form } from "./ga4-form";
 import { ImportYamlForm, type BundledSeed } from "./import-yaml-form";
@@ -382,6 +383,14 @@ export default async function TenantAdminPage({
               is actually named on each. Runs nightly; queue one now after a fresh run.
             </p>
             <CrawlPagesButton slug={tenant.slug} />
+          </div>
+          <div className="mt-5 border-t border-[var(--border)] pt-4">
+            <h3 className="mb-1 text-sm font-medium">Reprocess history</h3>
+            <p className="mb-3 text-xs text-[var(--text-2)]">
+              Re-reads every stored answer with the current detectors: new fan-out searches, ads,
+              fact checks. No new answers are bought.
+            </p>
+            <ReprocessButton slug={tenant.slug} />
           </div>
         </section>
 
