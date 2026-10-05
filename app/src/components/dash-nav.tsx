@@ -98,7 +98,7 @@ export function DashNav({
                 // win over Tailwind's layered utilities and keep dark text in
                 // dark mode.
                 organizationSwitcherTrigger:
-                  "w-full justify-between rounded-md border border-[var(--side-line)] bg-white/5! px-2.5 py-1.5 text-white! shadow-none hover:bg-white/10! focus:shadow-none",
+                  "w-full justify-between rounded-md border border-[var(--side-line)] bg-white/5! px-2.5 py-1.5 shadow-none hover:bg-white/10! focus:shadow-none",
                 // Colors live in globals.css: white on the navy trigger, dark
                 // ink in the white popover.
                 organizationPreviewMainIdentifier: "text-[13px] font-semibold",
