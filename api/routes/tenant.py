@@ -489,7 +489,22 @@ def summary_pdf(ctx: Ctx, session: Db) -> Response:
         content=build_summary_pdf(session, ctx.tenant),
         media_type="application/pdf",
         headers={
-            "Content-Disposition": f'attachment; filename="{ctx.tenant.slug}-summary.pdf"'
+            "Content-Disposition":
+                f'attachment; filename="{ctx.tenant.slug}-ai-visibility-report.pdf"'
+        },
+    )
+
+
+@router.get("/reports/report.xlsx")
+def report_xlsx(ctx: Ctx, session: Db) -> Response:
+    from api.report_xlsx import build_workbook
+
+    return Response(
+        content=build_workbook(session, ctx.tenant),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition":
+                f'attachment; filename="{ctx.tenant.slug}-ai-visibility-data.xlsx"'
         },
     )
 

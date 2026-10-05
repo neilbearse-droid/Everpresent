@@ -3,6 +3,26 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M46 — A client report worth handing over, and a data workbook (2026-10-05)
+
+1. **The PDF is HTML rendered by WeasyPrint.** fpdf2 drew plain text lines;
+   designing a report there means hand-placing every box. The report is now a
+   Jinja template (`api/report_assets/report.html`) in the Ledger design:
+   Inter, navy cover, orange for the brand and good news, ink pills for bad
+   news. Charts are inline SVG built in Python (static, since it's print).
+2. **Same sources as the dashboard.** Every section calls the service its
+   page uses (briefing, KPI scorecard, citations, own pages, fan-out, agent
+   picks, playbook, proof), so the PDF never disagrees with the app. Each
+   section is built separately: one failure shows an empty state, not a
+   broken report.
+3. **EverPresent branding only** (the user's call); no agency white-label yet.
+4. **Fallback.** WeasyPrint needs Pango. Both images install it; if the
+   libraries are ever missing, `build_summary_pdf` logs and sends the old
+   one-page summary, so downloads and run emails never fail.
+5. **Excel workbook** (`/reports/report.xlsx`): a tab per dataset, full
+   lists rather than the report's top-N. Cells starting with `=` are forced
+   to text so answer or page text can never run as a formula.
+
 ## M45 — Fan-out from four engines, and reprocess history (2026-10-05)
 
 1. **Who reports their searches.** ChatGPT (the Responses API's search

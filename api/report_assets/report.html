@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{ brand }} · AI answer visibility report</title>
+<style>
+@font-face { font-family: Inter; src: url(inter-variable.woff2) format("woff2"); font-weight: 100 900; }
+
+@page {
+  size: Letter;
+  margin: 0.62in 0.6in 0.7in;
+  @bottom-left { content: "EverPresent · {{ brand }} · AI answer visibility"; font: 500 7.5pt Inter; color: #636c7c; }
+  @bottom-right { content: "Page " counter(page) " of " counter(pages); font: 500 7.5pt Inter; color: #636c7c; }
+}
+@page cover { margin: 0; @bottom-left { content: none; } @bottom-right { content: none; } }
+
+* { box-sizing: border-box; }
+html { font-family: Inter, "DejaVu Sans", sans-serif; font-size: 9pt; color: #0b1220; line-height: 1.45; }
+body { margin: 0; }
+h1, h2, h3, p { margin: 0; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* --- Cover --- */
+.cover { page: cover; height: 11in; position: relative; background: #0b1220; color: #e7ebf3; padding: 0.75in 0.7in;
+         display: flex; flex-direction: column; }
+.wordmark { display: flex; align-items: center; gap: 8px; font-size: 13pt; font-weight: 700; letter-spacing: -0.02em; }
+.mark { width: 18px; height: 18px; border-radius: 5px; background: #ff5a1f; position: relative; }
+.mark::after { content: ""; position: absolute; left: 4.5px; top: 4.5px; width: 5px; height: 5px;
+               border: 2px solid #fff; border-radius: 99px; }
+.cover .kicker { margin-top: 2.1in; font-size: 8.5pt; font-weight: 700; letter-spacing: 0.14em;
+                 text-transform: uppercase; color: #ff7a45; }
+.cover h1 { margin-top: 10px; font-size: 38pt; font-weight: 700; letter-spacing: -0.035em; line-height: 1.04; color: #fff; }
+.cover .period { margin-top: 12px; font-size: 11pt; color: #a3adbf; }
+.cover .verdict { margin-top: 0.55in; padding-top: 18px; border-top: 1px solid #212b3f;
+                  font-size: 15pt; line-height: 1.38; letter-spacing: -0.01em; color: #fff; width: 6.1in; }
+.cover .bottom { position: absolute; left: 0.7in; right: 0.7in; bottom: 0.7in; }
+.cover .tiles { display: flex; gap: 12px; }
+.cover .tile { flex: 1; background: #121a2b; border: 1px solid #212b3f; border-radius: 10px; padding: 14px 16px; }
+.cover .tile .lab { font-size: 7.5pt; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #8a95a9; }
+.cover .tile .val { margin-top: 6px; font-size: 24pt; font-weight: 600; letter-spacing: -0.04em; color: #fff; }
+.cover .tile .val.brand { color: #ff7a45; }
+.cover .tile .sub { margin-top: 2px; font-size: 8pt; color: #a3adbf; }
+.cover .foot { margin-top: 18px; display: flex; justify-content: space-between; font-size: 8pt; color: #8a95a9; }
+
+/* --- Pages --- */
+section.page { break-before: page; }
+.eyebrow { font-size: 7.5pt; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #c2410c; }
+h2 { margin-top: 4px; font-size: 20pt; font-weight: 700; letter-spacing: -0.03em; line-height: 1.12; }
+.lede { margin-top: 6px; font-size: 10pt; color: #475163; width: 6.2in; }
+h3 { font-size: 10.5pt; font-weight: 700; letter-spacing: -0.01em; }
+.card { border: 1px solid #dfe2e8; border-radius: 10px; padding: 14px 16px; background: #fff; break-inside: avoid; }
+.block { margin-top: 18px; }
+.cols { display: flex; gap: 14px; }
+.cols > * { flex: 1; min-width: 0; }
+.muted { color: #636c7c; }
+.small { font-size: 8pt; }
+.empty { color: #636c7c; font-style: normal; padding: 8px 0; }
+
+.kpis { display: flex; gap: 10px; margin-top: 16px; }
+.kpi { flex: 1; border: 1px solid #dfe2e8; border-radius: 10px; padding: 12px 14px; }
+.kpi .lab { font-size: 7.5pt; font-weight: 600; color: #636c7c; }
+.kpi .val { margin-top: 4px; font-size: 20pt; font-weight: 700; letter-spacing: -0.04em; line-height: 1.05; }
+.kpi .val.brand { color: #e8490f; }
+.kpi .val small { font-size: 10pt; font-weight: 600; letter-spacing: -0.01em; }
+.kpi .sub { margin-top: 5px; font-size: 7.8pt; color: #636c7c; }
+
+.pill { display: inline-block; border-radius: 99px; padding: 1.5px 8px 1.5px 7px; font-size: 7.5pt; font-weight: 600;
+        background: #eceef2; color: #475163; white-space: nowrap; }
+.pill::before { content: ""; display: inline-block; width: 5px; height: 5px; border-radius: 9px; background: currentColor;
+                margin-right: 5px; vertical-align: 1px; opacity: .8; }
+.pill-good { background: #fff1ea; color: #c2410c; }
+.pill-bad { background: #0b1220; color: #fff; }
+.pill-bad::before { background: #ff5a1f; opacity: 1; }
+
+table { width: 100%; border-collapse: collapse; }
+th { text-align: left; font-size: 7.5pt; font-weight: 600; color: #636c7c; padding: 0 8px 6px 0; border-bottom: 1px solid #dfe2e8; }
+td { padding: 7px 8px 7px 0; border-bottom: 1px solid #e7e9ee; vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+td.r, th.r { text-align: right; }
+
+.barlist .row { display: flex; align-items: center; gap: 8px; margin-top: 7px; }
+.barlist .name { width: 1.25in; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 8.5pt; }
+.barlist .name.brand { font-weight: 700; }
+.barlist .track { flex: 1; height: 9px; }
+.barlist .bar { height: 9px; border-radius: 0 4px 4px 0; background: #c3cad7; }
+.barlist .bar.brand { background: #ff5a1f; }
+.barlist .v { width: 0.5in; text-align: right; font-size: 8.5pt; font-variant-numeric: tabular-nums; }
+
+.legend { display: flex; gap: 14px; font-size: 7.5pt; color: #636c7c; margin-top: 6px; }
+.legend i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: 2px; margin-right: 5px; }
+
+.why li { margin: 0 0 7px; }
+.why { padding-left: 16px; margin: 8px 0 0; }
+
+.tag { display: inline-block; font-size: 7pt; font-weight: 600; border-radius: 4px; padding: 0.5px 5px; background: #eceef2; color: #475163; }
+.tag.own { background: #fff1ea; color: #c2410c; }
+.tag.comp { background: #0b1220; color: #fff; }
+
+.conflict { display: flex; gap: 14px; padding: 10px 0; border-bottom: 1px solid #e7e9ee; }
+.conflict:last-child { border-bottom: none; }
+.conflict .path { width: 1.6in; font-weight: 700; word-break: break-all; }
+.conflict .said { font-weight: 700; }
+.quote { margin-top: 4px; color: #475163; font-size: 8pt; }
+
+.sub-q { display: flex; justify-content: space-between; gap: 10px; padding: 4px 0; border-bottom: 1px dashed #e7e9ee; font-size: 8.5pt; }
+.sub-q:last-child { border-bottom: none; }
+
+.play { display: flex; gap: 14px; padding: 13px 0; border-bottom: 1px solid #e7e9ee; break-inside: avoid; }
+.play:last-child { border-bottom: none; }
+.play .n { width: 24px; height: 24px; border-radius: 7px; background: #0b1220; color: #fff; font-weight: 700;
+           font-size: 9pt; text-align: center; line-height: 24px; flex: none; }
+.play .n.first { background: #ff5a1f; }
+.play .body { flex: 1; }
+.play .head { overflow: hidden; }
+.play .head .pill { float: right; margin-left: 10px; }
+.play .action { margin-top: 3px; color: #0b1220; }
+.play ol { margin: 6px 0 0; padding-left: 16px; color: #475163; font-size: 8.5pt; }
+.play ol li { margin-bottom: 2px; word-break: break-word; }
+.play .whyline { margin-top: 5px; font-size: 7.8pt; color: #636c7c; }
+
+.proof-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.big-delta { font-size: 16pt; font-weight: 700; letter-spacing: -0.03em; color: #e8490f; }
+
+.method li { margin-bottom: 5px; }
+.method { padding-left: 16px; margin: 8px 0 0; color: #475163; }
+</style>
+</head>
+<body>
+
+{# ============================== COVER ============================== #}
+<div class="cover">
+  <div class="wordmark"><span class="mark"></span>EverPresent</div>
+  <p class="kicker">AI answer visibility report</p>
+  <h1>{{ brand }}</h1>
+  <p class="period">{% if period %}{{ period }}{% endif %}{% if run %} · Run #{{ run.id }}{% endif %}</p>
+  {% if s.verdict and s.verdict.line %}
+  <p class="verdict">{{ s.verdict.line }}</p>
+  {% else %}
+  <p class="verdict">Not enough answers measured yet for a verdict. The first full picture arrives after a few runs.</p>
+  {% endif %}
+  <div class="bottom">
+  <div class="tiles">
+    <div class="tile">
+      <p class="lab">Named in answers</p>
+      <p class="val brand num">{% if s.overall and s.overall.rate is not none %}{{ '%.1f' % s.overall.rate }}%{% else %}–{% endif %}</p>
+      <p class="sub">{% if s.overall and s.overall.answers %}{{ '%.1f' % s.overall.low }}–{{ '%.1f' % s.overall.high }}% · {{ s.overall.answers }} answers{% endif %}</p>
+    </div>
+    <div class="tile">
+      <p class="lab">Share of voice</p>
+      <p class="val num">{% if s.brand_sov is not none %}{{ '%.1f' % s.brand_sov }}%{% else %}–{% endif %}</p>
+      <p class="sub">Of all brand mentions</p>
+    </div>
+    <div class="tile">
+      <p class="lab">Picked first by AI agents</p>
+      <p class="val num">{% if d and d.picks %}{{ '%.1f' % d.picks.overall.first_pick.rate }}%{% else %}–{% endif %}</p>
+      <p class="sub">{% if d and d.picks %}{{ d.picks.overall.leader }} leads{% else %}No agent tests yet{% endif %}</p>
+    </div>
+    <div class="tile">
+      <p class="lab">Plays ready</p>
+      <p class="val num">{{ plays|length }}</p>
+      <p class="sub">Ranked fixes, page 5</p>
+    </div>
+  </div>
+  <div class="foot"><span>Prepared {{ generated }}</span><span>everpresent.io</span></div>
+  </div>
+</div>
+
+{# ============================ SCORECARD ============================ #}
+<section class="page">
+  <p class="eyebrow">01 · Scorecard</p>
+  <h2>Where {{ brand }} stands in AI answers</h2>
+  <p class="lede">How often AI engines name {{ brand }} when people ask the questions you track, and how that compares with the competitors they name instead.</p>
+
+  {% if s %}
+  <div class="kpis">
+    <div class="kpi">
+      <p class="lab">Named in answers</p>
+      <p class="val brand num">{% if s.overall.rate is not none %}{{ '%.1f' % s.overall.rate }}<small>%</small>{% else %}–{% endif %}</p>
+      <p class="sub"><span class="pill {{ s.overall_pill.cls }}">{{ s.overall_pill.text }}</span></p>
+    </div>
+    <div class="kpi">
+      <p class="lab">Answer share</p>
+      <p class="val num">{% if s.answer_share is not none %}{{ '%.1f' % s.answer_share }}<small>%</small>{% else %}–{% endif %}</p>
+      <p class="sub">Your slice of every brand named</p>
+    </div>
+    <div class="kpi">
+      <p class="lab">Leads the answer</p>
+      <p class="val num">{% if s.prominence.lead_rate is not none %}{{ '%.0f' % s.prominence.lead_rate }}<small>%</small>{% else %}–{% endif %}</p>
+      <p class="sub">{% if s.prominence.avg_rank %}Average position {{ '%.1f' % s.prominence.avg_rank }}{% else %}When named{% endif %}</p>
+    </div>
+    <div class="kpi">
+      <p class="lab">Consistency</p>
+      <p class="val num" style="font-size:13pt;padding-top:6px">{{ s.stability.label or '–' }}</p>
+      <p class="sub">{% if s.stability.swing is not none %}Swings {{ '%.0f' % s.stability.swing }} pts run to run{% endif %}</p>
+    </div>
+  </div>
+
+  <div class="card block">
+    <h3>Visibility score over time</h3>
+    <p class="small muted">0–100, per measurement run, with the two strongest competitors</p>
+    <div style="margin-top:10px">{{ s.trend_svg }}</div>
+    {% if not s.trend_svg %}<p class="empty">The trend appears after two measurement runs.</p>{% endif %}
+  </div>
+
+  <div class="cols block">
+    <div class="card">
+      <h3>Share of voice</h3>
+      <p class="small muted">Share of all brand mentions across engines</p>
+      <div class="barlist">
+        {% for b in s.sov_bars %}
+        <div class="row"><span class="name {{ 'brand' if b.brand }}">{{ b.name }}</span>
+          <div class="track"><div class="bar {{ 'brand' if b.brand }}" style="width:{{ '%.1f' % b.pct }}%"></div></div>
+          <span class="v">{{ '%.1f' % b.value }}%</span></div>
+        {% else %}<p class="empty">No mentions measured yet.</p>{% endfor %}
+      </div>
+    </div>
+    <div class="card">
+      <h3>Head to head</h3>
+      <p class="small muted">When both are named, who is named first</p>
+      <table style="margin-top:8px">
+        <tr><th>Competitor</th><th class="r">Answers with both</th><th class="r">{{ brand }} first</th></tr>
+        {% for h in s.head_to_head[:6] %}
+        <tr><td>{{ h.competitor }}</td><td class="r num">{{ h.shared }}</td>
+          <td class="r num"><b>{{ '%.0f' % h.win_rate }}%</b></td></tr>
+        {% else %}<tr><td colspan="3" class="empty">No shared answers yet.</td></tr>{% endfor %}
+      </table>
+    </div>
+  </div>
+  {% else %}<p class="empty block">Scorecard data isn't available.</p>{% endif %}
+</section>
+
+{# ============================= ENGINES ============================= #}
+<section class="page">
+  <p class="eyebrow">02 · Engines and sources</p>
+  <h2>Each engine, and the sites it trusts</h2>
+  <p class="lede">Rates carry a range: with more answers the range narrows. A change is only called up or down when it passes a statistical test.</p>
+
+  <div class="card block">
+    <h3>Named in answers, by engine</h3>
+    <table style="margin-top:8px">
+      <tr><th>Engine</th><th>Rate and range (0–100%)</th><th class="r">Rate</th><th class="r">Answers</th><th class="r">Last four weeks</th></tr>
+      {% for e in (s.engines if s else []) %}
+      <tr><td><b>{{ e.label }}</b></td><td>{{ e.svg }}</td>
+        <td class="r num"><b>{{ '%.1f' % e.rate }}%</b><br><span class="small muted">{{ '%.0f' % e.low }}–{{ '%.0f' % e.high }}%</span></td>
+        <td class="r num">{{ e.answers }}</td>
+        <td class="r"><span class="pill {{ e.pill.cls }}">{{ e.pill.text }}</span></td></tr>
+      {% else %}<tr><td colspan="5" class="empty">No engines measured yet.</td></tr>{% endfor %}
+    </table>
+  </div>
+
+  {% if c %}
+  <div class="cols block">
+    <div class="card">
+      <h3>Most cited sites</h3>
+      <p class="small muted">Citations across all engines</p>
+      <table style="margin-top:8px">
+        <tr><th>Site</th><th>Type</th><th class="r">Citations</th><th class="r">Engines</th></tr>
+        {% for d0 in c.domains %}
+        <tr><td style="word-break:break-all">{{ d0.domain }}</td>
+          <td>{% if d0.category in ('owned', 'brand') %}<span class="tag own">Yours</span>{% elif d0.category == 'competitor' %}<span class="tag comp">Competitor</span>{% else %}<span class="tag">{{ d0.category|replace('_',' ')|capitalize }}</span>{% endif %}</td>
+          <td class="r num">{{ d0.count }}</td><td class="r num">{{ d0.engines }}</td></tr>
+        {% else %}<tr><td colspan="4" class="empty">No citations yet.</td></tr>{% endfor %}
+      </table>
+    </div>
+    <div class="card">
+      <h3>Power pages</h3>
+      <p class="small muted">The single pages engines cite most</p>
+      <table style="margin-top:8px">
+        <tr><th>Page</th><th class="r">Citations</th></tr>
+        {% for p in c.power_pages %}
+        <tr><td style="word-break:break-all;font-size:8pt">{{ p.url|replace('https://','')|replace('http://','') }}
+          {% if p.category in ('owned', 'brand') %}<span class="tag own">Yours</span>{% elif p.category == 'competitor' %}<span class="tag comp">Competitor</span>{% endif %}</td>
+          <td class="r num">{{ p.citations }}</td></tr>
+        {% else %}<tr><td colspan="2" class="empty">No pages cited yet.</td></tr>{% endfor %}
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</section>
+
+{# ============================= DRIVERS ============================= #}
+<section class="page">
+  <p class="eyebrow">03 · What's driving it</p>
+  <h2>Why the numbers look this way</h2>
+
+  {% if s and s.why %}
+  <div class="card block">
+    <h3>What changed and what needs attention</h3>
+    <ul class="why">{% for w in s.why %}<li>{{ w.text }}</li>{% endfor %}</ul>
+  </div>
+  {% endif %}
+
+  {% if d %}
+  <div class="card block">
+    <h3>Wrong facts on your own pages</h3>
+    <p class="small muted">Pages AI engines cite that contradict your fact sheet</p>
+    {% for f in d.conflicts %}
+    <div class="conflict">
+      <div class="path">{{ f.path }}<br><span class="small muted">cited {{ f.cited }} times</span></div>
+      <div style="flex:1">
+        <p>Page says <span class="said">“{{ f.stated }}”</span> · fact sheet says <span class="said">{{ f.label or f.expected }}</span></p>
+        {% if f.snippet %}<p class="quote">“{{ f.snippet }}”</p>{% endif %}
+      </div>
+    </div>
+    {% else %}<p class="empty">No conflicts found on the pages we crawled.</p>{% endfor %}
+  </div>
+
+  <div class="cols block">
+    <div class="card">
+      <h3>Sub-searches engines run</h3>
+      <p class="small muted">Fan-out: what engines searched for before answering</p>
+      {% for p in d.fanout %}
+      <p style="margin-top:10px;font-weight:650">“{{ p.query }}”</p>
+      {% for q in p.subqueries %}
+      <div class="sub-q"><span>{{ q.text }}</span><span class="muted small" style="white-space:nowrap">{{ q.engines|join(', ') }}</span></div>
+      {% endfor %}
+      {% else %}<p class="empty">No sub-searches captured yet.</p>{% endfor %}
+    </div>
+    <div class="card">
+      <h3>When AI agents pick a provider</h3>
+      <p class="small muted">Task and coding prompts where the agent has to choose</p>
+      {% if d.picks %}
+      <table style="margin-top:8px">
+        <tr><th>Prompt type</th><th class="r">Picked first</th><th class="r">Named</th><th>Picked most</th></tr>
+        {% for k in d.picks.kinds %}
+        <tr><td>{{ k.kind }}</td><td class="r num"><b>{{ '%.1f' % k.first_pick.rate }}%</b></td>
+          <td class="r num">{{ '%.1f' % k.named.rate }}%</td><td>{{ k.leader or '–' }}</td></tr>
+        {% endfor %}
+        <tr><td><b>All</b></td><td class="r num"><b>{{ '%.1f' % d.picks.overall.first_pick.rate }}%</b></td>
+          <td class="r num">{{ '%.1f' % d.picks.overall.named.rate }}%</td><td>{{ d.picks.overall.leader or '–' }}</td></tr>
+      </table>
+      <p class="small muted" style="margin-top:8px">“Named” counts any mention; “picked first” is the brand the agent chose.</p>
+      {% else %}<p class="empty">No agent prompts measured yet.</p>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+</section>
+
+{# ============================ PLAYBOOK ============================= #}
+<section class="page">
+  <p class="eyebrow">04 · Playbook</p>
+  <h2>What to do next</h2>
+  <p class="lede">Ranked by expected impact. Each play is graded by its evidence: official (documented by the engine), strong, moderate or emerging.</p>
+  <div class="block">
+    {% for r in plays %}
+    <div class="play">
+      <div class="n {{ 'first' if loop.first }}">{{ loop.index }}</div>
+      <div class="body">
+        <div class="head">{% if r.evidence %}<span class="pill {{ 'pill-good' if r.evidence in ('official','strong') }}">{{ r.evidence|capitalize }} evidence</span>{% endif %}<h3>{{ r.title }}</h3></div>
+        {% if r.action_text %}<p class="action">{{ r.action_text }}</p>{% endif %}
+        {% if r.steps %}<ol>{% for st in r.steps[:3] %}<li>{{ st }}</li>{% endfor %}</ol>{% endif %}
+        {% if r.why %}<p class="whyline">Why: {{ r.why }}</p>{% endif %}
+      </div>
+    </div>
+    {% else %}<p class="empty">No open plays right now.</p>{% endfor %}
+  </div>
+</section>
+
+{# ============================== PROOF ============================== #}
+<section class="page">
+  <p class="eyebrow">05 · Proof</p>
+  <h2>Did the fixes work?</h2>
+  <p class="lede">Each shipped fix is compared before and after against a control: the questions and pages nobody touched. That separates the fix from general market movement.</p>
+
+  {% if proof and proof['items'] %}
+  <p class="block" style="font-size:11pt;font-weight:650">{{ proof.summary }}</p>
+  {% for it in proof['items'][:4] %}
+  <div class="card block">
+    <div class="proof-head">
+      <div><h3>{{ it.description }}</h3>
+        <p class="small muted">Shipped {{ fmt_date(it.shipped_at) }}{% if it.path %} · {{ it.path }}{% endif %}{% if it.query %} · “{{ it.query }}”{% endif %}</p></div>
+      <span class="pill {{ 'pill-good' if it.status == 'proven' }}">{{ it.status|replace('_',' ')|capitalize }}</span>
+    </div>
+    {% if it.headline %}<p style="margin-top:8px">{{ it.headline }}</p>{% endif %}
+    {% if it.signals %}
+    <table style="margin-top:8px">
+      <tr><th>Signal</th><th class="r">Before</th><th class="r">After</th><th class="r">Beyond the control</th><th>Compared with</th></tr>
+      {% for g in it.signals %}
+      <tr><td><b>{{ g.label }}</b></td>
+        {% if g.kind == 'rate' %}
+        <td class="r num">{{ '%.1f' % g.before }}%</td><td class="r num">{{ '%.1f' % g.after }}%</td>
+        <td class="r num">{% if g.net_pts is not none %}<b>{{ '%+.1f' % g.net_pts }} pts</b>{% else %}–{% endif %}</td>
+        {% else %}
+        <td class="r num">{{ '{:,.0f}'.format(g.before) if g.before is not none else '–' }}</td><td class="r num">{{ '{:,.0f}'.format(g.after) if g.after is not none else '–' }}</td>
+        <td class="r num">{% if g.change_pct is not none and g.control_change_pct is not none %}<b>{{ '%+.0f' % (g.change_pct - g.control_change_pct) }}%</b>{% else %}–{% endif %}</td>
+        {% endif %}
+        <td class="small muted">{{ g.note }}</td></tr>
+      {% endfor %}
+    </table>
+    {% endif %}
+  </div>
+  {% endfor %}
+  {% else %}
+  <div class="card block"><p class="empty">No fixes logged yet. Log a fix on the Outcome page when it ships; it's measured here from the next report on.</p></div>
+  {% endif %}
+
+  <div class="card block">
+    <h3>How these numbers are measured</h3>
+    <ul class="method">
+      <li>Each question is asked on every engine several times, with paraphrases, so one lucky answer can't move the score.</li>
+      <li>Rates show a 95% range. “Up” or “down” is only used when the change passes a statistical test.</li>
+      <li>Failed or blocked captures count as missing data, never as “not mentioned”.</li>
+      <li>Sponsored placements are removed from organic numbers and reported separately.</li>
+      {% if s and s.series_notes %}{% for n in s.series_notes[:4] %}<li>{{ fmt_date(n.date) }}: {{ n.note }}</li>{% endfor %}{% endif %}
+    </ul>
+  </div>
+</section>
+
+</body>
+</html>

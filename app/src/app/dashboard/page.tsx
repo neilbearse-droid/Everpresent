@@ -151,7 +151,8 @@ export default async function OverviewPage({
             </p>
             <div className="mt-6 flex flex-wrap gap-2">
               {[
-                ["Summary PDF", "/dashboard/reports/summary.pdf"],
+                ["Client report (PDF)", "/dashboard/reports/summary.pdf"],
+                ["Data workbook (Excel)", "/dashboard/reports/report.xlsx"],
                 ["Results CSV", "/dashboard/reports/results.csv"],
                 ["Visibility CSV", "/dashboard/reports/visibility.csv"],
               ].map(([label, href]) => (

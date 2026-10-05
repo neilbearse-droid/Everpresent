@@ -3,6 +3,10 @@
 FROM python:3.11-slim
 
 WORKDIR /srv
+# Pango for the branded PDF report (WeasyPrint); DejaVu as the fallback font
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libpango-1.0-0 libpangoft2-1.0-0 libharfbuzz-subset0 fonts-dejavu-core \
+    && rm -rf /var/lib/apt/lists/*
 COPY pyproject.toml README.md alembic.ini ./
 COPY api ./api
 COPY engine ./engine

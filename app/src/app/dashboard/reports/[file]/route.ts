@@ -2,7 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { notFound } from "next/navigation";
 
 const API_ORIGIN = process.env.API_ORIGIN ?? "http://localhost:8000";
-const ALLOWED = new Set(["results.csv", "visibility.csv", "summary.pdf"]);
+const ALLOWED = new Set(["results.csv", "visibility.csv", "summary.pdf", "report.xlsx"]);
 
 /** Streams tenant report downloads through the app so the browser never
  * needs the API bearer token. */

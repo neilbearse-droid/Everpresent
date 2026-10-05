@@ -23,6 +23,9 @@ dependencies = [
     "PyYAML>=6.0",
     "croniter>=2.0",
     "fpdf2>=2.7",
+    "weasyprint>=62",
+    "jinja2>=3.1",
+    "openpyxl>=3.1",
 ]
 
 [project.optional-dependencies]
@@ -42,6 +45,9 @@ dev = [
 
 [tool.setuptools]
 packages = ["api", "api.routes", "engine", "engine.llm", "worker"]
+
+[tool.setuptools.package-data]
+api = ["report_assets/*"]
 
 [tool.ruff]
 line-length = 100

@@ -1,8 +1,10 @@
-"""Report export (M5): CSV for the data people, a one-page PDF for the
-inbox. Everything reads Postgres rollups — no provider calls."""
+"""Report export (M5): CSV for the data people and the PDF for the inbox
+(the branded report lives in api/report_pdf.py, the workbook in
+api/report_xlsx.py). Everything reads Postgres rollups — no provider calls."""
 
 import csv
 import io
+import logging
 from collections import Counter
 from datetime import UTC, datetime
 from typing import Any
@@ -23,6 +25,8 @@ from api.models import (
     Tenant,
     VisibilityDaily,
 )
+
+log = logging.getLogger(__name__)
 
 # The built-in PDF fonts only cover Latin-1. Map the common typographic
 # characters that appear in names ("Macy’s", "X — Y") to plain equivalents,
@@ -160,6 +164,19 @@ def build_visibility_csv(session: Session, tenant_id: int) -> str:
 
 
 def build_summary_pdf(session: Session, tenant: Tenant, run: Run | None = None) -> bytes:
+    """The branded client report (api/report_pdf.py). If the PDF renderer's
+    system libraries are missing, fall back to the plain one-page summary so
+    downloads and run emails never fail outright."""
+    try:
+        from api.report_pdf import build_report_pdf
+
+        return build_report_pdf(session, tenant, run)
+    except (ImportError, OSError):
+        log.exception("branded report unavailable; sending the basic summary")
+        return build_basic_pdf(session, tenant, run)
+
+
+def build_basic_pdf(session: Session, tenant: Tenant, run: Run | None = None) -> bytes:
     """One-page visibility summary: headline scores, share of voice, movers,
     per-segment table, query buckets."""
     assert tenant.id is not None
