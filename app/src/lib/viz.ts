@@ -83,3 +83,16 @@ export function humanize(key: string): string {
   words[0] = ACRONYMS[first.toLowerCase()] ? first : first.charAt(0).toUpperCase() + first.slice(1);
   return words.join(" ");
 }
+
+/** "2026-10-04" → "Oct 4, 2026" (date-only strings stay in UTC). */
+export function fmtDate(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso.length === 10 ? `${iso}T00:00:00Z` : iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}

@@ -3,6 +3,24 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M43 — "Ledger" design: built like a finance product (2026-10-05)
+
+1. **Replaces "Studio".** The warm paper ground, serif display and soft
+   shadows read as generic AI-product styling. Ledger uses a cool neutral
+   ground, white panels with crisp 1px rules and almost no shadow, tight
+   corners (10px panels, 6px controls) and a deep navy sidebar that stays
+   dark in both themes.
+2. **Type.** Inter (self-hosted, OFL) everywhere with tabular figures; the
+   serif is gone. Labels and table heads are small uppercase with tracking,
+   as on a statement. Dates read "Oct 4, 2026".
+3. **Overview hero.** A balance-style card: the mention rate as the big
+   figure, its range, a status pill (gaining, losing, holding steady,
+   building baseline) and an area sparkline of the visibility score, with a
+   stat strip under it. Status pills follow the existing colour rule:
+   orange for good news, ink for bad, grey otherwise.
+4. The sample-size planner no longer prints a multiplier for an engine with
+   under 10 answers per half window ("too few answers to plan yet").
+
 ## M42 — Dashboard reads split by page (2026-10-04)
 
 1. `api/dashboards_service.py` (about 2,700 lines) is now the package

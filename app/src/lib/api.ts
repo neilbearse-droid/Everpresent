@@ -825,13 +825,14 @@ export type SamplePlan = {
     can_detect_target: boolean;
     ready_by: string | null;
     more_answers_needed_x: number | null;
+    too_few_to_plan?: boolean;
   }[];
 };
 
 export type Briefing = {
   brand: string;
   winning: {
-    verdict: "gaining" | "losing" | "holding" | "unknown";
+    verdict: "gaining" | "losing" | "holding" | "baseline" | "unknown";
     line: string;
     rate: number | null;
     low: number | null;

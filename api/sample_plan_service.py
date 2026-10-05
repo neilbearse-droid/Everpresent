@@ -82,7 +82,10 @@ def sample_plan(session: Session, tenant_id: int) -> dict[str, Any]:
             if start.tzinfo is None:
                 start = start.replace(tzinfo=UTC)
             ready_by = max(start + timedelta(days=2 * HALF_WINDOW_DAYS), now).date().isoformat()
-        multiplier = round(need / per_half, 1) if per_half and not can else None
+        # Under 10 answers per half window the baseline rate itself is noise
+        # (one answer reads as 0% or 100%), so any multiplier is meaningless.
+        too_few = per_half < 10
+        multiplier = round(need / per_half, 1) if per_half and not can and not too_few else None
         out.append({
             "surface": surface, "label": _surface_label(surface),
             "baseline_rate": round(100 * p, 1),
@@ -93,6 +96,7 @@ def sample_plan(session: Session, tenant_id: int) -> dict[str, Any]:
             "can_detect_target": can,
             "ready_by": ready_by,
             "more_answers_needed_x": multiplier,
+            "too_few_to_plan": too_few,
         })
     detectable = [e["detectable_change_pts"] for e in out if e["detectable_change_pts"]]
     return {

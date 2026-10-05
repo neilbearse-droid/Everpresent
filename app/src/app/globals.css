@@ -1,97 +1,102 @@
 @import "tailwindcss";
 
 /* ------------------------------------------------------------------ *
- * Typefaces — self-hosted, same-origin, no external fetch. All OFL.
- * Geist carries the interface; Geist Mono is for small labels and
- * figures; Instrument Serif is the editorial voice for display moments.
+ * Typefaces: self-hosted, same-origin, no external fetch. All OFL.
+ * Inter carries everything (optical sizes, tabular figures); Geist Mono
+ * is for codes and tiny numeric labels.
  * ------------------------------------------------------------------ */
-@font-face { font-family: "Geist"; font-style: normal; font-weight: 100 900; font-display: swap; src: url("/fonts/geist-variable.woff2") format("woff2"); }
+@font-face { font-family: "Inter"; font-style: normal; font-weight: 100 900; font-display: swap; src: url("/fonts/inter-variable.woff2") format("woff2"); }
 @font-face { font-family: "Geist Mono"; font-style: normal; font-weight: 100 900; font-display: swap; src: url("/fonts/geist-mono-variable.woff2") format("woff2"); }
-@font-face { font-family: "Instrument Serif"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/instrument-serif-400.woff2") format("woff2"); }
-@font-face { font-family: "Instrument Serif"; font-style: italic; font-weight: 400; font-display: swap; src: url("/fonts/instrument-serif-400-italic.woff2") format("woff2"); }
 
 @theme {
-  --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-display: "Instrument Serif", ui-serif, Georgia, serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 /* ------------------------------------------------------------------ *
- * EverPresent design system — "Studio."
+ * EverPresent design system: "Ledger."
  *
- * Quiet, precise, a little editorial. Warm paper ground, white cards
- * with soft corners and hairline dividers, soft layered shadows. Type
- * does the work: Geist for the interface, an Instrument Serif display
- * for the big moments. ONE accent — EverPresent orange — for the brand
- * itself and good news only. Bad news is an inverted ink pill, never
- * the accent.
+ * Built like a finance product: a cool neutral ground, white panels
+ * with crisp 1px rules and almost no shadow, a deep navy sidebar, and
+ * numbers set in tabular Inter at real weight. Corners are tight.
+ * ONE accent, EverPresent orange, for the brand itself and good news
+ * only. Bad news is an inverted ink pill, never the accent.
  * ------------------------------------------------------------------ */
 
 :root {
   color-scheme: light;
 
-  --radius-xs: 4px;
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
-  --radius-2xl: 20px;
-  --radius-3xl: 28px;
-  --radius: 14px;
+  --radius-xs: 3px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 10px;
+  --radius-2xl: 12px;
+  --radius-3xl: 14px;
+  --radius: 10px;
 
-  --plane: #f6f5f2;       /* warm paper ground */
-  --plane-2: #efede8;
-  --surface: #ffffff;     /* cards */
-  --surface-2: #f6f5f2;   /* table heads, tracks, hovers */
-  --inset: #f9f8f6;
+  --plane: #f4f5f7;       /* cool ground */
+  --plane-2: #eceef2;
+  --surface: #ffffff;     /* panels */
+  --surface-2: #f8f9fb;   /* table heads, tracks, hovers */
+  --inset: #f8f9fb;
 
-  --line: #e7e5df;        /* hairline dividers */
-  --border: #e4e2dc;
-  --border-strong: #d3d0c8;
+  --line: #e7e9ee;        /* hairline rules */
+  --border: #dfe2e8;
+  --border-strong: #c9ced8;
   --bar: #ffffff;
-  --bar-text: #18181a;
+  --bar-text: #0b1220;
 
-  --text: #141413;
-  --text-2: #57554f;
-  --text-3: #6f6c65;   /* 4.8:1 on paper: small text stays AA */
+  --text: #0b1220;        /* navy ink */
+  --text-2: #475163;
+  --text-3: #636c7c;      /* 5.2:1 on the ground: small text stays AA */
 
   /* The one accent: the brand colour. The tenant's own brand, primary
-     highlights and good news — NEVER bad news. */
+     highlights and good news, NEVER bad news. */
   --accent: #ff5a1f;
-  --accent-2: #c2410c;  /* orange as text: 4.9:1 on paper */
-  --accent-display: #f04e15;  /* large orange type: 3.3:1 on paper (AA large) */
-  --accent-soft: #fff0e8;
-  --accent-ring: rgba(255, 90, 31, 0.28);
-  --accent-ink: #141413;  /* ink on orange: 5.9:1 (white is only 3.1:1) */
-  --hatch: repeating-linear-gradient(-45deg, transparent 0 6px, rgba(20, 20, 19, 0.05) 6px 7px);
+  --accent-2: #c2410c;        /* orange as text: 5.0:1 on white */
+  --accent-display: #e8490f;  /* large orange figures */
+  --accent-soft: #fff1ea;
+  --accent-ring: rgba(255, 90, 31, 0.25);
+  --accent-ink: #0b1220;
+  --hatch: repeating-linear-gradient(-45deg, transparent 0 5px, rgba(11, 18, 32, 0.05) 5px 6px);
 
-  --ink: #141413;
-  --ink-hover: #2b2a27;
+  --ink: #0b1220;
+  --ink-hover: #1c2538;
   --ink-text: #ffffff;
 
-  --good: #141413;
-  --pos: #141413;
-  --warn: #57554f;
-  --warn-t: #57554f;
-  --danger: #141413;
-  --neg: #141413;
+  --good: #0b1220;
+  --pos: #0b1220;
+  --warn: #475163;
+  --warn-t: #475163;
+  --danger: #0b1220;
+  --neg: #0b1220;
 
-  --mode-recall: #57554f;
-  --mode-recall-soft: #f1efea;
-  --mode-mixed: #57554f;
-  --mode-mixed-soft: #f1efea;
+  --mode-recall: #475163;
+  --mode-recall-soft: #eef0f4;
+  --mode-mixed: #475163;
+  --mode-mixed-soft: #eef0f4;
 
-  --glow-1: rgba(255, 90, 31, 0.10);
+  --glow-1: transparent;
   --glow-2: transparent;
 
-  --shadow-1: 0 1px 2px rgba(20, 20, 19, 0.04);
-  --shadow-2: 0 1px 2px rgba(20, 20, 19, 0.04), 0 8px 24px -12px rgba(20, 20, 19, 0.10);
-  --shadow-3: 0 2px 4px rgba(20, 20, 19, 0.04), 0 24px 48px -20px rgba(20, 20, 19, 0.18);
+  --shadow-1: 0 1px 1px rgba(11, 18, 32, 0.03);
+  --shadow-2: 0 1px 2px rgba(11, 18, 32, 0.04);
+  --shadow-3: 0 1px 2px rgba(11, 18, 32, 0.04), 0 12px 32px -16px rgba(11, 18, 32, 0.18);
   --hard: var(--shadow-2);
   --hard-lg: var(--shadow-2);
 
+  /* The sidebar is always dark navy, in both themes. */
+  --side: #0b1220;
+  --side-line: #1a2336;
+  --side-text: #c3cad7;
+  --side-muted: #7d889b;
+  --side-hover: rgba(255, 255, 255, 0.05);
+  --side-active: rgba(255, 255, 255, 0.09);
+
   --blur: saturate(160%) blur(14px);
-  --scrim: rgba(246, 245, 242, 0.78);
+  --scrim: rgba(244, 245, 247, 0.85);
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
 
   --background: var(--plane);
@@ -101,48 +106,51 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  --plane: #0c0c0b;
-  --plane-2: #121211;
-  --surface: #151514;
-  --surface-2: #1c1c1a;
-  --inset: #111110;
+  --plane: #070b14;
+  --plane-2: #0c1220;
+  --surface: #0d1321;
+  --surface-2: #121a2b;
+  --inset: #0a101c;
 
-  --line: #262624;
-  --border: #2a2a27;
-  --border-strong: #3a3a36;
-  --bar: #151514;
-  --bar-text: #eeede9;
+  --line: #1b2436;
+  --border: #212b3f;
+  --border-strong: #33405a;
+  --bar: #0d1321;
+  --bar-text: #e7ebf3;
 
-  --text: #eeede9;
-  --text-2: #a8a69f;
-  --text-3: #8f8d86;   /* 5.3:1 on the dark ground */
+  --text: #e7ebf3;
+  --text-2: #a3adbf;
+  --text-3: #8a95a9;   /* 6.1:1 on the dark ground */
 
-  --accent-soft: rgba(255, 90, 31, 0.12);
-  --accent-ink: #141413;
-  --accent-2: #ff7a45;  /* orange as text on the dark ground */
+  --accent-soft: rgba(255, 90, 31, 0.13);
+  --accent-ink: #0b1220;
+  --accent-2: #ff7a45;
   --accent-display: #ff5a1f;
-  --hatch: repeating-linear-gradient(-45deg, transparent 0 6px, rgba(238, 237, 233, 0.06) 6px 7px);
+  --hatch: repeating-linear-gradient(-45deg, transparent 0 5px, rgba(231, 235, 243, 0.06) 5px 6px);
 
-  --ink: #eeede9;
+  --ink: #e7ebf3;
   --ink-hover: #ffffff;
-  --ink-text: #0c0c0b;
+  --ink-text: #070b14;
 
-  --good: #eeede9;
-  --pos: #eeede9;
-  --warn: #a8a69f;
-  --warn-t: #a8a69f;
-  --danger: #eeede9;
-  --neg: #eeede9;
+  --good: #e7ebf3;
+  --pos: #e7ebf3;
+  --warn: #a3adbf;
+  --warn-t: #a3adbf;
+  --danger: #e7ebf3;
+  --neg: #e7ebf3;
 
-  --mode-recall: #a8a69f;
-  --mode-recall-soft: #1c1c1a;
-  --mode-mixed: #a8a69f;
-  --mode-mixed-soft: #1c1c1a;
+  --mode-recall: #a3adbf;
+  --mode-recall-soft: #121a2b;
+  --mode-mixed: #a3adbf;
+  --mode-mixed-soft: #121a2b;
 
-  --shadow-1: 0 1px 0 rgba(255, 255, 255, 0.03) inset;
-  --shadow-2: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 12px 32px -16px rgba(0, 0, 0, 0.6);
-  --shadow-3: 0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 24px 56px -20px rgba(0, 0, 0, 0.7);
-  --scrim: rgba(12, 12, 11, 0.78);
+  --side: #050810;
+  --side-line: #141c2c;
+
+  --shadow-1: none;
+  --shadow-2: none;
+  --shadow-3: 0 24px 56px -20px rgba(0, 0, 0, 0.7);
+  --scrim: rgba(7, 11, 20, 0.85);
 }
 
 html {
@@ -153,10 +161,14 @@ body {
   background: var(--plane);
   color: var(--text);
   font-family: var(--font-sans);
-  font-feature-settings: "ss01", "cv11";
+  /* cv11: single-storey a; ss01: open digits; cv05: l with tail; tnum
+     everywhere numbers line up. */
+  font-feature-settings: "cv11", "ss01", "cv05";
+  font-optical-sizing: auto;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  letter-spacing: -0.006em;
+  letter-spacing: -0.011em;
+  font-size: 14px;
 }
 
 .tabular-nums,
@@ -168,19 +180,20 @@ table {
 h1, h2, h3, h4 {
   font-family: var(--font-sans);
   font-weight: 600;
-  letter-spacing: -0.02em;
-  line-height: 1.15;
+  letter-spacing: -0.018em;
+  line-height: 1.2;
   text-wrap: balance;
 }
-h1 { letter-spacing: -0.03em; }
+h1 { letter-spacing: -0.025em; }
 
 /* Large figures: tight, tabular, a touch lighter than headings. */
 [class*="text-3xl"],
 [class*="text-4xl"],
 [class*="text-5xl"],
 [class*="text-6xl"] {
-  letter-spacing: -0.04em;
+  letter-spacing: -0.035em;
   font-variant-numeric: tabular-nums;
+  font-weight: 600;
 }
 
 ::selection {
@@ -234,35 +247,39 @@ h1 { letter-spacing: -0.03em; }
 /* Panel header: a quiet title row, not a black bar. */
 .bp-bar {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 1rem;
+  min-height: 44px;
   color: var(--text);
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 600;
-  letter-spacing: -0.005em;
-  padding: 14px 16px 10px;
+  letter-spacing: -0.01em;
+  padding: 10px 16px;
   border-bottom: 1px solid var(--line);
 }
 .bp-bar > :not(:first-child) {
   color: var(--text-3);
-  font-weight: 450;
+  font-weight: 500;
   font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Small labels: quiet sentence case. The mono kicker (.eyebrow) is kept
    for the occasional section opener only. */
+/* Field labels: small caps-style, the way statements label columns. */
 .bp-label {
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: -0.003em;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
   color: var(--text-3);
 }
 .eyebrow {
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-3);
 }
@@ -274,27 +291,27 @@ h1 { letter-spacing: -0.03em; }
   line-height: 1.15;
 }
 
-/* Display: the editorial serif, for the one big moment per page. */
+/* Display: the one big title per page. Set like a balance, not a poem. */
 .bp-display {
   font-family: var(--font-display);
-  font-weight: 400;
-  font-size: clamp(40px, 6vw, 76px);
-  line-height: 0.98;
-  letter-spacing: -0.025em;
+  font-weight: 650;
+  font-size: clamp(30px, 3.6vw, 44px);
+  line-height: 1.05;
+  letter-spacing: -0.035em;
 }
 .bp-display em,
 .serif {
-  font-family: var(--font-display);
-  font-style: italic;
-  font-weight: 400;
-  letter-spacing: -0.01em;
+  font-style: normal;
+  color: var(--text-2);
 }
 
+/* Figures: tabular, heavy enough to read across a room. */
 .bp-metric {
   font-family: var(--font-sans);
-  font-weight: 500;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.04em;
+  font-feature-settings: "tnum", "cv11", "ss01";
+  letter-spacing: -0.035em;
   line-height: 1;
 }
 
@@ -309,7 +326,7 @@ h1 { letter-spacing: -0.03em; }
   color: var(--accent-2);
   font-weight: 600;
   padding: 0.05em 0.4em;
-  border-radius: 6px;
+  border-radius: 4px;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
 }
@@ -326,7 +343,7 @@ h1 { letter-spacing: -0.03em; }
   color: var(--ink-text) !important;
   font-weight: 600;
   padding: 0.05em 0.4em;
-  border-radius: 6px;
+  border-radius: 4px;
   /* A pill, never a bar: block and flex children must not stretch. */
   width: fit-content;
   max-width: 100%;
@@ -375,8 +392,10 @@ button[class~="text-[var(--accent)]"] {
 
 /* --- Tables: quiet header, hairline rows ---------------------------- */
 table thead th {
-  font-size: 11.5px;
-  font-weight: 500;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
   color: var(--text-3);
 }
 .bp-table {
@@ -386,12 +405,14 @@ table thead th {
 .bp-table th {
   background: var(--surface-2);
   border-bottom: 1px solid var(--line);
-  padding: 8px 16px;
+  padding: 9px 16px;
   text-align: left;
+  white-space: nowrap;
 }
 .bp-table td {
   border-top: 1px solid var(--line);
-  padding: 9px 16px;
+  padding: 11px 16px;
+  font-variant-numeric: tabular-nums;
 }
 .bp-table tbody tr:first-child td {
   border-top: 0;
@@ -404,6 +425,64 @@ table thead th {
 }
 
 /* --- Primitives ----------------------------------------------------- */
+
+/* Status pills, like a payment's status: neutral, good (accent), bad (ink). */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 2px 9px 2px 8px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  background: var(--plane-2);
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.pill::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.8;
+}
+:root[data-theme="dark"] .pill {
+  background: #1b2436;
+  color: var(--text-2);
+}
+.pill-good,
+:root[data-theme="dark"] .pill-good {
+  background: var(--accent-soft);
+  color: var(--accent-2);
+}
+.pill-bad,
+:root[data-theme="dark"] .pill-bad {
+  background: var(--ink);
+  color: var(--ink-text);
+}
+.pill-bad::before {
+  background: var(--accent);
+  opacity: 1;
+}
+
+/* Hero figure: the page's balance. */
+.ep-hero-figure {
+  font-size: clamp(44px, 5.4vw, 64px);
+  font-weight: 650;
+  letter-spacing: -0.045em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.ep-hero-figure small {
+  font-size: 0.5em;
+  font-weight: 600;
+  color: var(--text-3);
+  letter-spacing: -0.02em;
+  margin-left: 2px;
+}
+
 
 .card {
   background: var(--surface);
@@ -419,9 +498,8 @@ a.card,
 }
 a.card:hover,
 .card-hover:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-3);
   border-color: var(--border-strong);
+  box-shadow: var(--shadow-3);
 }
 
 .card-inset {
@@ -456,8 +534,8 @@ select.field {
   align-items: center;
   gap: 0.375rem;
   border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 0.1rem 0.55rem;
+  border-radius: 4px;
+  padding: 0.1rem 0.45rem;
   font-size: 11.5px;
   font-weight: 500;
   color: var(--text-2);
@@ -474,8 +552,9 @@ select.field {
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-1);
   font-size: 13px;
-  font-weight: 550;
+  font-weight: 600;
   letter-spacing: -0.01em;
+  min-height: 32px;
   transition: background 150ms var(--ease), border-color 150ms var(--ease),
     transform 150ms var(--ease), box-shadow 150ms var(--ease);
 }
@@ -518,18 +597,36 @@ select.field {
   box-shadow: 0 0 0 3px var(--accent-ring);
 }
 
-/* --- Sidebar navigation ------------------------------------------- */
+/* --- Sidebar navigation: always dark navy -------------------------- */
 .ep-side {
-  background: var(--plane);
-  border-right: 1px solid var(--line);
+  background: var(--side);
+  border-right: 1px solid var(--side-line);
+  color: var(--side-text);
+}
+.ep-side .eyebrow {
+  color: var(--side-muted);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+}
+.ep-side-foot {
+  border-top: 1px solid var(--side-line);
+}
+.ep-side-btn,
+.ep-side-foot button {
+  color: var(--side-text) !important;
+}
+.ep-side-btn:hover {
+  background: var(--side-hover);
+  color: #ffffff;
 }
 .ep-navlink {
   display: flex;
   align-items: center;
   gap: 10px;
-  border-radius: 8px;
+  border-radius: 6px;
   padding: 6px 10px;
   font-size: 13.5px;
+  font-weight: 500;
   color: var(--text-2);
   transition: background 120ms var(--ease), color 120ms var(--ease);
 }
@@ -540,11 +637,24 @@ select.field {
 .ep-navlink[aria-current="page"] {
   background: var(--surface);
   color: var(--text);
-  font-weight: 550;
-  box-shadow: var(--shadow-1), 0 0 0 1px var(--border);
+  font-weight: 600;
+  box-shadow: 0 0 0 1px var(--border);
+}
+.ep-side .ep-navlink {
+  color: var(--side-text);
+}
+.ep-side .ep-navlink:hover {
+  background: var(--side-hover);
+  color: #ffffff;
+}
+.ep-side .ep-navlink[aria-current="page"] {
+  background: var(--side-active);
+  color: #ffffff;
+  box-shadow: none;
 }
 .ep-navlink[aria-current="page"] .ep-dot {
   background: var(--accent);
+  box-shadow: 0 0 0 3px rgba(255, 90, 31, 0.18);
 }
 .ep-dot {
   width: 6px;
@@ -552,6 +662,15 @@ select.field {
   border-radius: 999px;
   background: var(--border-strong);
   flex-shrink: 0;
+}
+.ep-side .ep-dot {
+  background: #3a465d;
+}
+
+/* Page toolbar: a white strip with a hairline, like a statement header. */
+.ep-toolbar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
 }
 
 @media (prefers-reduced-motion: reduce) {

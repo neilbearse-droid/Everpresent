@@ -12,7 +12,8 @@ import { DashNav } from "@/components/dash-nav";
 import { EngineStrip, ModeStack } from "@/components/engine-modes";
 import { NoOrgNotice } from "@/components/no-org-notice";
 import { TrendChart, HBars } from "@/components/charts";
-import { entityColors, OTHER_COLOR } from "@/lib/viz";
+import { entityColors, fmtDate, OTHER_COLOR } from "@/lib/viz";
+import { Sparkline } from "@/components/sparkline";
 import { BriefingBlock } from "./briefing";
 
 export default async function OverviewPage({
@@ -25,7 +26,9 @@ export default async function OverviewPage({
     apiFetch<Me>("/api/me"),
     apiFetch<TenantSummary>("/api/tenant"),
     apiFetch<OverviewPayload>(`/api/tenant/overview${rangeQuery(from, to)}`),
-    apiFetch<EngineModesPayload>(`/api/tenant/engine-modes${rangeQuery(from, to)}`),
+    apiFetch<EngineModesPayload>(
+      `/api/tenant/engine-modes${rangeQuery(from, to)}`,
+    ),
     apiFetch<Briefing>("/api/tenant/briefing"),
   ]);
 
@@ -86,86 +89,139 @@ export default async function OverviewPage({
 
   const modes = engineModes.data;
   const aio = data?.aio ?? {
-    queries_measured: 0, queries_with_aio: 0, aio_share_pct: 0,
-    brand_cited_in_aio: 0, source_types: {},
+    queries_measured: 0,
+    queries_with_aio: 0,
+    aio_share_pct: 0,
+    brand_cited_in_aio: 0,
+    source_types: {},
   };
   const composite = modes?.composite ?? null;
+  const mr = data?.mention_rate;
 
   return (
     <main className="mx-auto max-w-[1400px] px-6 pb-16">
-      <DashNav active="Overview" isSuperadmin={me.data?.is_superadmin} withDateRange />
+      <DashNav
+        active="Overview"
+        isSuperadmin={me.data?.is_superadmin}
+        withDateRange
+      />
 
-      {/* Header block: title cell + export cells. */}
-      <section className="blueprint mb-6 grid-cols-1 md:grid-cols-[1fr_auto]">
-        <div className="p-5">
-          <div className="bp-label mb-2">Overview / engine behaviour in your category</div>
-          <h1 className="bp-display">{data?.brand_name ?? tenant.data.name}</h1>
-          <p className="mt-3 max-w-2xl text-[13px] leading-relaxed text-[var(--text-2)]">
-            Each engine builds its answers differently, so each needs a different approach. This
-            shows how each one works in your category and where you stand.
-          </p>
+      {/* Hero: the account balance of AI visibility. */}
+      <section className="card mb-6 overflow-hidden">
+        <div className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
+          <div className="p-6">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="bp-label">
+                {data?.brand_name ?? tenant.data.name} · Named in AI answers
+              </span>
+              {mr && mr.answers > 0 && (
+                <span
+                  className={`pill ${
+                    mr.change.verdict === "up"
+                      ? "pill-good"
+                      : mr.change.verdict === "down"
+                        ? "pill-bad"
+                        : ""
+                  }`}
+                >
+                  {mr.change.verdict === "up"
+                    ? `Gaining +${mr.change.delta} pts`
+                    : mr.change.verdict === "down"
+                      ? `Losing ${mr.change.delta} pts`
+                      : mr.change.verdict === "no real change"
+                        ? "Holding steady"
+                        : "Building baseline"}
+                </span>
+              )}
+            </div>
+            <div className="ep-hero-figure mt-4">
+              {mr && mr.answers > 0 ? (
+                <>
+                  {mr.rate}
+                  <small>%</small>
+                </>
+              ) : (
+                "—"
+              )}
+            </div>
+            <p className="mt-3 text-[13px] text-[var(--text-2)]">
+              {mr && mr.answers > 0
+                ? `95% range ${mr.low}–${mr.high}% across ${mr.answers.toLocaleString()} answers`
+                : "Awaiting the first run"}
+            </p>
+            <div className="mt-6 flex flex-wrap gap-2">
+              {[
+                ["Summary PDF", "/dashboard/reports/summary.pdf"],
+                ["Results CSV", "/dashboard/reports/results.csv"],
+                ["Visibility CSV", "/dashboard/reports/visibility.csv"],
+              ].map(([label, href]) => (
+                <a
+                  key={href}
+                  href={href}
+                  className="btn btn-ghost px-3 text-[12.5px]"
+                >
+                  {label} <span aria-hidden>↓</span>
+                </a>
+              ))}
+            </div>
+          </div>
+          <div className="border-t border-[var(--line)] p-6 md:border-l md:border-t-0">
+            <div className="flex items-baseline justify-between">
+              <span className="bp-label">Visibility score</span>
+              <span className="text-xs text-[var(--text-3)]">
+                {trendRows.length > 0
+                  ? `${fmtDate(trendRows[0].date)} – ${fmtDate(trendRows[trendRows.length - 1].date)}`
+                  : ""}
+              </span>
+            </div>
+            <div className="mt-4">
+              <Sparkline
+                values={(data?.trend ?? []).map((t) => t.brand_score)}
+                label="Brand visibility score over time"
+              />
+            </div>
+          </div>
         </div>
-        <div className="bp-stack grid-rows-3">
-          {[
-            ["Summary", "PDF", "/dashboard/reports/summary.pdf"],
-            ["Results", "CSV", "/dashboard/reports/results.csv"],
-            ["Visibility", "CSV", "/dashboard/reports/visibility.csv"],
-          ].map(([label, fmt, href]) => (
-            <a
-              key={href}
-              href={href}
-              className="bp-cell-link flex items-center justify-between gap-6 px-4"
-            >
-              <span className="bp-label text-[var(--text)]">{label}</span>
-              <span className="bp-label">{fmt} ↓</span>
-            </a>
-          ))}
+        <div className="grid grid-cols-2 gap-px border-t border-[var(--line)] bg-[var(--line)] md:grid-cols-4 [&>*]:bg-[var(--surface)]">
+          <div className="px-6 py-4">
+            <div className="bp-label">Composite visibility</div>
+            <div className="bp-metric mt-1.5 text-[26px] text-[var(--accent-display)]">
+              {composite?.score ?? data?.latest?.brand_score ?? "—"}
+            </div>
+          </div>
+          <div className="px-6 py-4">
+            <div className="bp-label">Share of voice</div>
+            <div className="bp-metric mt-1.5 text-[26px]">
+              {data && data.share_of_voice[data.brand_name] !== undefined
+                ? `${data.share_of_voice[data.brand_name]}%`
+                : "—"}
+            </div>
+            <div className="text-[11px] text-[var(--text-3)]">
+              {sovRangeLabel}
+            </div>
+          </div>
+          <div className="px-6 py-4">
+            <div className="bp-label">Top rival</div>
+            <div className="mt-1.5 truncate text-[17px] font-semibold tracking-[-0.02em]">
+              {rivalsByShare[0] ?? "—"}
+            </div>
+            {rivalsByShare[0] && (
+              <div className="text-[11px] tabular-nums text-[var(--text-3)]">
+                {shareOf(rivalsByShare[0])}% share of voice
+              </div>
+            )}
+          </div>
+          <div className="px-6 py-4">
+            <div className="bp-label">Last measured</div>
+            <div className="mt-1.5 text-[17px] font-semibold tracking-[-0.02em]">
+              {fmtDate(composite?.date ?? data?.latest?.date) ||
+                "Awaiting first run"}
+            </div>
+          </div>
         </div>
       </section>
 
       {briefing.data && <BriefingBlock b={briefing.data} />}
-
-      {/* Status bar: the numbers you read first. */}
-      <section className="blueprint mb-6 grid-cols-2 md:grid-cols-4">
-        <div className="p-3">
-          <div className="bp-label">Composite visibility</div>
-          <div className="bp-metric bp-critical mt-1 text-[40px]">
-            {composite?.score ?? data?.latest?.brand_score ?? "N/A"}
-          </div>
-        </div>
-        <div className="p-3">
-          <div className="bp-label">Last measured</div>
-          <div className="bp-metric mt-1 text-[22px]">
-            {composite?.date ?? data?.latest?.date ?? "Awaiting first run"}
-          </div>
-        </div>
-        <div className="p-3">
-          <div className="bp-label">Mention rate (95% range)</div>
-          {data?.mention_rate && data.mention_rate.answers > 0 ? (
-            <>
-              <div className="bp-metric mt-1 text-[22px]">
-                {data.mention_rate.rate}%{" "}
-                <span className="text-[14px] text-[var(--text-2)]">
-                  {data.mention_rate.low}–{data.mention_rate.high}%
-                </span>
-              </div>
-              <div className="text-[11px] text-[var(--text-3)]">
-                {data.mention_rate.answers} answers ·{" "}
-                {data.mention_rate.change.verdict === "up" ||
-                data.mention_rate.change.verdict === "down"
-                  ? `${data.mention_rate.change.delta! > 0 ? "+" : ""}${data.mention_rate.change.delta}pt real change`
-                  : data.mention_rate.change.verdict}
-              </div>
-            </>
-          ) : (
-            <div className="bp-metric mt-1 text-[22px]">N/A</div>
-          )}
-        </div>
-        <div className="p-3">
-          <div className="bp-label">Share-of-voice window</div>
-          <div className="bp-metric mt-1 text-[22px]">{sovRangeLabel}</div>
-        </div>
-      </section>
 
       {(data?.alerts?.length ?? 0) > 0 && (
         <section className="blueprint mb-6 grid-cols-1">
@@ -182,10 +238,18 @@ export default async function OverviewPage({
                 >
                   <span
                     className={`bp-label shrink-0 px-1.5 ${
-                      a.severity === "high" ? "bp-neg" : a.severity === "good" ? "bp-mark" : ""
+                      a.severity === "high"
+                        ? "bp-neg"
+                        : a.severity === "good"
+                          ? "bp-mark"
+                          : ""
                     }`}
                   >
-                    {a.severity === "high" ? "Act" : a.severity === "good" ? "Win" : "Watch"}
+                    {a.severity === "high"
+                      ? "Act"
+                      : a.severity === "good"
+                        ? "Win"
+                        : "Watch"}
                   </span>
                   <span className="text-[var(--text)]">{a.text}</span>
                 </li>
@@ -204,7 +268,9 @@ export default async function OverviewPage({
       {!hasData ? (
         <section className="blueprint">
           <div className="p-5">
-            <h2 className="bp-head mb-2 text-[16px]">No measurement data yet</h2>
+            <h2 className="bp-head mb-2 text-[16px]">
+              No measurement data yet
+            </h2>
             <p className="text-sm text-[var(--text-2)]">
               Visibility appears here after the first completed run.{" "}
               <Link href="/dashboard/runs" className="bp-link">
@@ -231,8 +297,12 @@ export default async function OverviewPage({
                   </p>
                 )}
                 {(data?.series_notes ?? []).map((n) => (
-                  <p key={`${n.surface}-${n.date}`} className="mt-2 text-xs text-[var(--text-3)]">
-                    <span className="bp-label">Series break · {n.date}</span> {n.note}
+                  <p
+                    key={`${n.surface}-${n.date}`}
+                    className="mt-2 text-xs text-[var(--text-3)]"
+                  >
+                    <span className="bp-label">Series break · {n.date}</span>{" "}
+                    {n.note}
                   </p>
                 ))}
               </div>
@@ -256,7 +326,11 @@ export default async function OverviewPage({
                 <span>{sovRangeLabel}</span>
               </div>
               <div className="p-4">
-                <HBars items={sovItems} max={Math.max(...sovItems.map((s) => s.value), 1)} unit="%" />
+                <HBars
+                  items={sovItems}
+                  max={Math.max(...sovItems.map((s) => s.value), 1)}
+                  unit="%"
+                />
               </div>
             </div>
             <div className="lg:col-span-5">
@@ -283,19 +357,25 @@ export default async function OverviewPage({
                     </tr>
                   </thead>
                   <tbody>
-                    {data!.movers.filter((m) => m.delta !== 0).map((mover) => (
-                      <tr key={mover.label}>
-                        <td>{mover.label}</td>
-                        <td
-                          className={`text-right font-mono font-bold ${mover.delta < 0 ? "bp-neg" : ""}`}
-                        >
-                          {mover.delta >= 0 ? "▲ +" : "▼ "}
-                          {mover.delta}
-                        </td>
-                        <td className="text-right font-mono">{mover.before}</td>
-                        <td className="text-right font-mono">{mover.after}</td>
-                      </tr>
-                    ))}
+                    {data!.movers
+                      .filter((m) => m.delta !== 0)
+                      .map((mover) => (
+                        <tr key={mover.label}>
+                          <td>{mover.label}</td>
+                          <td
+                            className={`text-right font-mono font-bold ${mover.delta < 0 ? "bp-neg" : ""}`}
+                          >
+                            {mover.delta >= 0 ? "▲ +" : "▼ "}
+                            {mover.delta}
+                          </td>
+                          <td className="text-right font-mono">
+                            {mover.before}
+                          </td>
+                          <td className="text-right font-mono">
+                            {mover.after}
+                          </td>
+                        </tr>
+                      ))}
                   </tbody>
                 </table>
               )}

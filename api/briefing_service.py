@@ -39,7 +39,7 @@ def briefing(session: Session, tenant_id: int) -> dict[str, Any]:
             verdict, line = "losing", (f"You're named in {o['rate']}% of answers, down "
                                        f"{abs(delta or 0)} points.")
         else:
-            verdict = "holding"
+            verdict = "holding" if ch == "no real change" else "baseline"
             line = (f"You're named in {o['rate']}% of answers ({o['low']}–{o['high']}%), "
                     + ("with no real change in the last four weeks." if ch == "no real change"
                        else "too few answers yet to call a change."))

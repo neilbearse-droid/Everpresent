@@ -52,13 +52,12 @@ const TABS: Tab[] = GROUPS.flatMap((g) => g.tabs);
 export function Wordmark({ inverted = false }: { inverted?: boolean }) {
   return (
     <span className="flex items-center gap-2">
-      <span className="relative block h-[18px] w-[18px]" aria-hidden>
-        <span className="absolute inset-0 rounded-full bg-[var(--accent)]" />
-        <span className="absolute inset-[5px] rounded-full bg-[var(--plane)]" />
+      <span className="relative block h-5 w-5 rounded-[5px] bg-[var(--accent)]" aria-hidden>
+        <span className="absolute inset-[5px] rounded-full border-2 border-white" />
       </span>
       <span
-        className={`text-[15px] font-semibold tracking-[-0.03em] ${
-          inverted ? "text-[var(--bar-text)]" : "text-[var(--text)]"
+        className={`text-[15px] font-semibold tracking-[-0.025em] ${
+          inverted ? "text-white" : "text-[var(--text)]"
         }`}
       >
         EverPresent
@@ -86,7 +85,7 @@ export function DashNav({
       <aside className="ep-side fixed inset-y-0 left-0 z-30 hidden w-[248px] flex-col lg:flex">
         <div className="flex h-14 items-center px-5">
           <Link href="/dashboard">
-            <Wordmark />
+            <Wordmark inverted />
           </Link>
         </div>
         <div className="px-3 pb-3">
@@ -99,9 +98,9 @@ export function DashNav({
                 // win over Tailwind's layered utilities and keep dark text in
                 // dark mode.
                 organizationSwitcherTrigger:
-                  "w-full justify-between rounded-lg border border-[var(--border)] bg-[var(--surface)]! px-2.5 py-1.5 text-[var(--text)]! shadow-none focus:shadow-none",
-                organizationPreviewMainIdentifier: "text-[13px] font-medium text-[var(--text)]!",
-                organizationSwitcherTriggerIcon: "text-[var(--text-3)]!",
+                  "w-full justify-between rounded-md border border-[var(--side-line)] bg-white/5! px-2.5 py-1.5 text-white! shadow-none hover:bg-white/10! focus:shadow-none",
+                organizationPreviewMainIdentifier: "text-[13px] font-semibold text-white!",
+                organizationSwitcherTriggerIcon: "text-[var(--side-muted)]!",
               },
             }}
           />
@@ -139,13 +138,13 @@ export function DashNav({
             );
           })}
         </nav>
-        <div className="flex items-center justify-between border-t border-[var(--line)] px-4 py-3">
+        <div className="ep-side-foot flex items-center justify-between px-4 py-3">
           <UserButton />
           <div className="flex items-center gap-1">
             {isSuperadmin && (
               <Link
                 href="/admin"
-                className="rounded-md px-2 py-1 text-[12.5px] text-[var(--text-2)] hover:bg-[var(--plane-2)] hover:text-[var(--text)]"
+                className="ep-side-btn rounded-md px-2 py-1 text-[12.5px] font-medium"
               >
                 Admin
               </Link>
@@ -186,15 +185,15 @@ export function DashNav({
       </header>
 
       {/* Page toolbar: where you are, and the date range when it applies. */}
-      <div className="mb-6 flex min-h-12 flex-wrap items-center justify-between gap-3 pt-2 lg:pt-5">
-        <p className="text-[13px] text-[var(--text-3)]">
+      <div className="mb-6 flex min-h-12 flex-wrap items-center justify-between gap-3 border-b border-[var(--line)] pb-3 pt-2 lg:pt-5">
+        <p className="text-[13px] font-medium text-[var(--text-3)]">
           {group && group !== active ? (
             <>
-              {group} <span className="px-1 text-[var(--text-3)]">/</span>
-              <span className="text-[var(--text-2)]">{active}</span>
+              {group} <span className="px-1.5 text-[var(--border-strong)]">/</span>
+              <span className="font-semibold text-[var(--text)]">{active}</span>
             </>
           ) : (
-            <span className="text-[var(--text-2)]">{active}</span>
+            <span className="font-semibold text-[var(--text)]">{active}</span>
           )}
         </p>
         {withDateRange && (

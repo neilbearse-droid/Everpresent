@@ -84,6 +84,8 @@ function SamplePlanPanel({ p }: { p: SamplePlan }) {
                   <td className="text-[12.5px]">
                     {e.can_detect_target ? (
                       <span className="bp-mark">ready{e.ready_by ? ` from ${e.ready_by}` : ""}</span>
+                    ) : e.too_few_to_plan ? (
+                      <span className="text-[var(--text-3)]">too few answers to plan yet</span>
                     ) : e.more_answers_needed_x ? (
                       <span className="text-[var(--text-2)]">needs {e.more_answers_needed_x}× more answers</span>
                     ) : (
