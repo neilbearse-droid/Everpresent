@@ -140,7 +140,12 @@ export default async function TenantAdminPage({
                   </div>
                 ))}
               </div>
-              <EngineCheckButton slug={tenant.slug} />
+              <EngineCheckButton
+                slug={tenant.slug}
+                engines={ready.engines
+                  .filter((e) => e.on && e.available && e.verdict !== "outside_plan")
+                  .map((e) => ({ code: e.code, at: e.check?.at ?? null }))}
+              />
               <div className="overflow-x-auto"><table className="bp-table w-full min-w-[680px]">
                 <thead>
                   <tr>

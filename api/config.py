@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from pydantic import Field
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -112,7 +112,10 @@ class Settings(BaseSettings):
     # Google AI Mode (SerpApi engine=google_ai_mode; uses SERPAPI_KEY).
     google_ai_mode_rate_per_min: float = 6.0
     google_ai_mode_timeout_s: float = 120.0
-    serpapi_key: str = ""
+    # SERP_API_KEY is accepted too: it's the spelling people naturally type.
+    serpapi_key: str = Field(
+        default="", validation_alias=AliasChoices("SERPAPI_KEY", "SERP_API_KEY", "serpapi_key")
+    )
 
     # Mode B cost governance (§9): scraping and SerpApi spend the monthly cap
     # governs alongside token spend. Estimates for cap enforcement, not billing
