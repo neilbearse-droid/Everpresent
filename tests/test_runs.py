@@ -328,3 +328,38 @@ def test_double_click_gets_a_clear_409(client, as_superadmin, enqueue_spy, db_se
     second = client.post("/api/admin/tenants/smith/runs")
     assert second.status_code == 409
     assert f"Run #{first.json()['id']}" in second.json()["detail"]
+
+
+def test_run_progress_is_published_while_calls_run(db_session, job_env):
+    """The Runs page shows calls finishing, not 0 until the very end."""
+    import asyncio
+
+    from worker import jobs
+
+    tenant = make_tenant(db_session)
+    run_id = _pending_run(db_session, tenant)
+    run = db_session.get(Run, run_id)
+    assert run is not None
+    run.status = RunStatus.running
+    run.counts = {"planned": 302, "completed": 0, "failed": 0}
+    db_session.add(run)
+    db_session.commit()
+
+    def counts() -> dict:
+        db_session.expire_all()
+        fresh = db_session.get(Run, run_id)
+        assert fresh is not None
+        return fresh.counts
+
+    publish = jobs._progress_publisher(run_id)
+    asyncio.run(publish(40, 2))
+    assert counts() == {"planned": 302, "completed": 40, "failed": 2}
+    asyncio.run(publish(41, 2))  # throttled: within PROGRESS_EVERY_S, skipped
+    assert counts()["completed"] == 40
+
+    # A finished run is never rewritten by a late progress tick.
+    run.status = RunStatus.complete
+    db_session.add(run)
+    db_session.commit()
+    asyncio.run(jobs._progress_publisher(run_id)(99, 0))
+    assert counts()["completed"] == 40

@@ -4,6 +4,7 @@ only place the two meet a database session and a provider key."""
 
 import asyncio
 import hashlib
+import time
 from dataclasses import asdict, dataclass, field, replace
 from datetime import UTC, timedelta
 from typing import Any
@@ -479,6 +480,7 @@ async def _dispatch_all(
     concurrency: int,
     month_spent_before: float,
     cap_usd: float,
+    on_progress: Any = None,
 ) -> tuple[list[dict[str, Any] | None], bool]:
     """Runs the (query × persona × surface) matrix with a concurrency limit,
     routing each item to its provider adapter by surface code. NO database
@@ -491,7 +493,11 @@ async def _dispatch_all(
     # estimate held for in-flight calls. Reserving BEFORE dispatch (§audit H6)
     # closes the race where up to `concurrency` calls all pass a check that
     # only reads post-call `spent` — which let the cap be silently overshot.
-    state = {"spent": 0.0, "reserved": 0.0, "capped": False}
+    state = {"spent": 0.0, "reserved": 0.0, "capped": False, "ok": 0, "failed": 0}
+
+    async def report() -> None:
+        if on_progress is not None:
+            await on_progress(int(state["ok"]), int(state["failed"]))
 
     async def one(item: _AWorkItem) -> dict[str, Any] | None:
         adapter = A_ADAPTERS[item.surface]
@@ -521,6 +527,8 @@ async def _dispatch_all(
             except Exception as exc:  # noqa: BLE001 — a failed call is data, not a crash
                 async with lock:
                     state["reserved"] -= est
+                    state["failed"] += 1
+                await report()
                 return {"item": item, "model": model, "error": f"{type(exc).__name__}: {exc}"[:500]}
             cost = adapter.cost_fn(
                 outcome.parsed.model or model,
@@ -531,6 +539,8 @@ async def _dispatch_all(
             async with lock:
                 state["reserved"] -= est
                 state["spent"] += cost
+                state["ok"] += 1
+            await report()
             return {"item": item, "outcome": outcome, "cost": cost, "model": model}
 
     results = await asyncio.gather(*[one(item) for item in work])
@@ -538,6 +548,37 @@ async def _dispatch_all(
     # cross the cap, still surface the run as capped.
     capped = state["capped"] or (month_spent_before + state["spent"] > cap_usd)
     return list(results), capped
+
+
+PROGRESS_EVERY_S = 5.0
+
+
+def _progress_publisher(run_id: int) -> Any:
+    """An on_progress callback that writes the running completed/failed
+    counts to the run at most every PROGRESS_EVERY_S. Best effort: a failed
+    write is skipped, never fails the run. Phase 3 writes the final counts."""
+    last = {"t": 0.0}
+
+    def write(ok: int, failed: int) -> None:
+        with Session(get_engine()) as session:
+            run = session.get(Run, run_id)
+            if run is None or run.status not in (RunStatus.pending, RunStatus.running):
+                return
+            run.counts = {**(run.counts or {}), "completed": ok, "failed": failed}
+            session.add(run)
+            session.commit()
+
+    async def publish(ok: int, failed: int) -> None:
+        now = time.monotonic()
+        if now - last["t"] < PROGRESS_EVERY_S:
+            return
+        last["t"] = now
+        try:
+            await asyncio.to_thread(write, ok, failed)
+        except Exception:  # noqa: BLE001 — progress is cosmetic
+            pass
+
+    return publish
 
 
 async def _run_mode_a(run_id: int) -> None:
@@ -722,7 +763,9 @@ async def _run_mode_a(run_id: int) -> None:
         session.add(run)
         session.commit()
 
-    # Phase 2 — dispatch the provider calls. NO DB CONNECTION HELD.
+    # Phase 2 — dispatch the provider calls. NO DB CONNECTION HELD, except
+    # a short write every few seconds so the Runs page shows live progress
+    # instead of 0 until the very end.
     outcomes, capped = await _dispatch_all(
         work,
         settings=settings,
@@ -730,6 +773,7 @@ async def _run_mode_a(run_id: int) -> None:
         concurrency=settings.openai_concurrency,
         month_spent_before=month_spent_before,
         cap_usd=cap_usd,
+        on_progress=_progress_publisher(run_id),
     )
 
     # Phase 3 — persist results with a fresh connection.
