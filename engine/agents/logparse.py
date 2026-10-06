@@ -9,7 +9,8 @@
   storage account (JSON lines, fields under "properties")
 - AWS CloudFront standard logs (tab-separated, with a #Fields header)
 - CSV with a header row, e.g. a Log Analytics (AzureDiagnostics) export
-  (TimeGenerated, userAgent_s, requestUri_s, httpStatusCode_s, ...)
+  (TimeGenerated, userAgent_s, requestUri_s, httpStatusCode_s, ...), optionally
+  pre-summarized with a hits/count column so a huge log fits in one upload
 
 Returns a normalized LogHit or None. Pure; no I/O. Lines that aren't AI bots
 are dropped by the caller before anything is stored, so human traffic and
@@ -33,6 +34,7 @@ class LogHit:
     path: str
     status: int
     user_agent: str
+    count: int = 1  # >1 when a pre-summarized row stands for many requests
 
 
 # Real access-log lines are a few hundred bytes; anything far longer is junk
@@ -124,11 +126,14 @@ _CSV_COLUMNS: dict[str, tuple[str, ...]] = {
                "csuristem", "url", "uri", "path", "requestpath"),
     "status": ("httpstatuscode", "statuscode", "status", "scstatus", "edgeresponsestatus",
                "responsestatus"),
-    "ts": ("timegenerated", "timegeneratedutc", "time", "timestamp", "datetime", "date",
+    "ts": ("timegenerated", "timegeneratedutc", "time", "timestamp", "datetime", "date", "day",
            "edgestarttimestamp"),
     "ip": ("clientip", "cip", "clientipaddress", "remoteaddr", "ip"),
     "method": ("httpmethod", "method", "requestmethod", "csmethod", "clientrequestmethod"),
+    # A pre-summarized export (KQL "summarize hits = count() by ...").
+    "count": ("hits", "count", "requests", "requestcount"),
 }
+MAX_ROW_COUNT = 10_000_000  # one summarized row can't plausibly stand for more
 
 
 def _csv_key(name: str) -> str:
@@ -264,9 +269,14 @@ class LogParser:
         ts, ua, target = _parse_ts(cell("ts")), cell("ua"), cell("target")
         if ts is None or not ua or not target:
             return None
+        count = 1
+        if "count" in cols:
+            count = _status_int(cell("count"))  # same "12" / "12.0" handling
+            if not 1 <= count <= MAX_ROW_COUNT:
+                return None
         return LogHit(ts=ts, ip=cell("ip"), method=(cell("method") or "GET").upper(),
                       path=_clean_path(target), status=_http_status(_status_int(cell("status"))),
-                      user_agent=ua)
+                      user_agent=ua, count=count)
 
     def _parse_cloudfront(self, line: str) -> LogHit | None:
         assert self._cf_fields is not None

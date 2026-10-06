@@ -136,6 +136,25 @@ def test_ingest_keeps_only_ai_bots_and_verifies(db_session):
     assert gpt.hits == 3
 
 
+def test_summarized_csv_counts_every_request(db_session):
+    """A huge log (tens of GB) is summarized in Log Analytics first: one row
+    per day/IP/bot/page/status with a hits column."""
+    t = _tenant(db_session)
+    lines = [
+        "day,clientIp_s,userAgent_s,requestUri_s,httpStatusCode_s,hits",
+        f'2026-10-01,20.1.2.3,"{UA_GPT}",https://www.example.com/pricing,200,250',
+        f'2026-10-01,9.9.9.9,"{UA_GPT}",https://www.example.com/pricing,200,50',
+        f'2026-10-01,8.8.8.8,"{UA_HUMAN}",https://www.example.com/pricing,200,9000',
+        f'2026-10-01,20.1.2.3,"{UA_GPT}",https://www.example.com/x,200,-4',  # junk count
+    ]
+    ranges = lambda url: parse_ranges({"prefixes": [{"ipv4Prefix": "20.0.0.0/8"}]})  # noqa: E731
+    out = ingest_lines(db_session, t.id, lines, ranges=ranges)
+    db_session.commit()
+    assert out["ai_hits"] == 300
+    gpt = db_session.exec(select(AgentTrafficDaily).where(AgentTrafficDaily.bot == "GPTBot")).one()
+    assert gpt.hits == 300 and gpt.verified == 250 and gpt.date == "2026-10-01"
+
+
 def test_report_joins_crawls_to_citations(db_session):
     t = _tenant(db_session)
     lines = (

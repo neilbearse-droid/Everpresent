@@ -77,7 +77,8 @@ def _count_hit(
     verify: bool,
     ranges: Callable[[str], list],
 ) -> int:
-    """Aggregate one hit; 1 if it was an AI bot, else 0."""
+    """Aggregate one hit (or a pre-summarized row of hit.count hits); returns
+    how many AI-bot hits it added."""
     bot = classify_user_agent(hit.user_agent)
     if bot is None:
         return 0  # human or non-AI crawler: dropped, never stored
@@ -91,10 +92,11 @@ def _count_hit(
     if verify and bot.ip_list_url and hit.ip:
         verified = 1 if ip_in(hit.ip, ranges(bot.ip_list_url)) else 0
     cell = agg[(hit.ts.date().isoformat(), bot.name, path, hit.status)]
-    cell[0] += 1
-    cell[1] += verified
+    n = getattr(hit, "count", 1)
+    cell[0] += n
+    cell[1] += verified * n
     meta[bot.name] = bot
-    return 1
+    return n
 
 
 _UPSERT_ROWS = 300  # rows per statement (10 params each; well under SQLite's limit)
