@@ -11,8 +11,8 @@ from sqlmodel import Session, col, select
 from api.dashboards.common import (
     _as_utc,
     _brand_name,
-    _branded_query_texts,
     _latest_results_by_variant,
+    _off_score_query_texts,
     _owned_domains,
     _surface_label,
 )
@@ -129,7 +129,7 @@ def _lost_citations(session: Session, tenant_id: int) -> dict:
     # The last two runs that measured anything (competitive queries), whether
     # or not they produced brand citations: a run that lost EVERY brand
     # citation is exactly the one this radar exists to catch.
-    branded = _branded_query_texts(session, tenant_id)
+    branded = _off_score_query_texts(session, tenant_id)
     owned = _owned_domains(session, tenant_id)
     base: list[Any] = [
         Result.tenant_id == tenant_id,

@@ -103,7 +103,7 @@ def _count_signal(label: str, cells: dict[str, dict[str, float]], target: str,
 
 def intervention_proof(session: Session, tenant_id: int, days: int = WINDOW_DAYS,
                        today: date | None = None) -> dict[str, Any]:
-    from api.dashboards_service import _branded_query_texts
+    from api.dashboards.common import _off_score_query_texts
 
     today = today or datetime.now(UTC).date()
     ledger = session.exec(
@@ -134,7 +134,7 @@ def intervention_proof(session: Session, tenant_id: int, days: int = WINDOW_DAYS
     for rid, q, created in rows:
         by_query[q].append((created.date(), rid in named))
     treated = {i.query_text for i in ledger}
-    controls = set(by_query) - treated - _branded_query_texts(session, tenant_id)
+    controls = set(by_query) - treated - _off_score_query_texts(session, tenant_id)
 
     # Page-level counts, keyed by path then date.
     reads: dict[str, dict[str, float]] = defaultdict(lambda: defaultdict(float))

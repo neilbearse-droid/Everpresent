@@ -9,10 +9,10 @@ from sqlmodel import Session, col, select
 from api.dashboards.common import (
     _as_utc,
     _brand_name,
-    _branded_query_texts,
     _clean_date,
     _date_in_range,
     _mean,
+    _off_score_query_texts,
 )
 from api.models import (
     AiReferralDaily,
@@ -161,7 +161,8 @@ def interventions_report(session: Session, tenant_id: int) -> dict:
     # Branded queries name the brand almost always; as controls they'd damp
     # the untouched-query baseline toward zero and flatter the lift.
     control_queries = (
-        {q for (q, _s, _c, _r) in rows} - treated_queries - _branded_query_texts(session, tenant_id)
+        {q for (q, _s, _c, _r) in rows} - treated_queries
+        - _off_score_query_texts(session, tenant_id)
     )
     for item in ledger:
         shipped = _as_utc(item.shipped_at)

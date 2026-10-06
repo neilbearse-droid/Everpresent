@@ -5,6 +5,7 @@ from collections import defaultdict
 from sqlmodel import Session, col, select
 
 from api.dashboards.common import (
+    AGENT_CORPUS_TAGS,
     _brand_and_cited_ids,
     _brand_name,
     _clean_date,
@@ -65,11 +66,12 @@ def engine_scorecard(
     appears (you / competitor / absent), and a per-query 'why you're missing'
     diagnosis from the search-vs-training diff. Pure reads — no LLM, no spend."""
     brand_name = _brand_name(session, tenant_id)
-    # The competitive matrix: branded queries live on the Brand tab.
+    # The competitive matrix: branded queries live on the Brand tab, agent
+    # prompts under Agent picks.
     queries = [
         q
         for q in session.exec(select(Query).where(Query.tenant_id == tenant_id)).all()
-        if not q.branded
+        if not q.branded and q.corpus_tag not in AGENT_CORPUS_TAGS
     ]
 
     lo, hi = _date_window(start, end)

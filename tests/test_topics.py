@@ -32,3 +32,20 @@ def test_topics_split_branded_agent_and_competitive(db_session, monkeypatch, tmp
     # The scorecard carries the split; the headline stays branded-free.
     kpi = kpi_scorecard(db_session, tenant.id)
     assert kpi["by_topic"] and kpi["mention_rates"]["overall"]["rate"] < 95
+
+
+def test_agent_prompts_stay_out_of_the_headline(db_session, monkeypatch, tmp_path):
+    from api.dashboards.common import _off_score_query_texts
+    from api.dashboards.measurement import mention_rates
+    from api.demo_client import SLUG, build_demo_client
+    from api.models import Query
+
+    monkeypatch.setattr(get_settings(), "raw_storage_dir", str(tmp_path))
+    build_demo_client(db_session)
+    tenant = db_session.exec(select(Tenant).where(Tenant.slug == SLUG)).one()
+    queries = db_session.exec(select(Query).where(Query.tenant_id == tenant.id)).all()
+    agent = {q.text for q in queries if q.corpus_tag in ("agent_task", "agent_code")}
+    branded = {q.text for q in queries if q.branded}
+    assert agent and _off_score_query_texts(db_session, tenant.id) == frozenset(agent | branded)
+    competitive = len([q for q in queries if q.text not in agent | branded])
+    assert mention_rates(db_session, tenant.id)["overall"]["prompts"] == competitive

@@ -8,11 +8,11 @@ from sqlmodel import Session, col, func, select
 
 from api.dashboards.common import (
     _brand_name,
-    _branded_query_texts,
     _clean_date,
     _date_in_range,
     _date_window,
     _mean,
+    _off_score_query_texts,
     _utc,
 )
 from api.dashboards.measurement import alerts, mention_rates
@@ -115,7 +115,7 @@ def overview(
         sov_lo, sov_hi = datetime.now(UTC) - timedelta(days=SOV_DAYS), None
     # Share of voice is a competitive metric — exclude branded queries (the
     # brand always appears in them, which would inflate its share).
-    branded = _branded_query_texts(session, tenant_id)
+    branded = _off_score_query_texts(session, tenant_id)
     # Counted in the database: this spans every result in the window.
     sov_conds: list[Any] = [
         Result.tenant_id == tenant_id,

@@ -690,8 +690,9 @@ def _owned_docs_play(session: Session, tenant_id: int, plan: dict) -> list[Play]
     the cheapest lever for that engine."""
     from api.dashboards_service import _latest_results_by_variant
 
+    # Agent coding prompts count here: they are where docs get cited most.
     latest = _latest_results_by_variant(session, tenant_id, ResultVariant.search,
-                                        scope="competitive")
+                                        scope="unbranded")
     ids = [r.id for r in latest.values()
            if r.id is not None and str(r.surface) in _CHATGPT_SURFACES]
     if not ids:

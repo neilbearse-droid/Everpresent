@@ -38,7 +38,8 @@ def _runs_per_week(session: Session, tenant_id: int) -> float:
 
 
 def sample_plan(session: Session, tenant_id: int) -> dict[str, Any]:
-    from api.dashboards_service import _branded_query_texts, _surface_label, mention_rates
+    from api.dashboards.common import _off_score_query_texts
+    from api.dashboards_service import _surface_label, mention_rates
 
     runs = session.exec(
         select(Run).where(Run.tenant_id == tenant_id,
@@ -46,7 +47,7 @@ def sample_plan(session: Session, tenant_id: int) -> dict[str, Any]:
         .order_by(col(Run.id).desc()).limit(LOOKBACK_RUNS)
     ).all()
     run_ids = [r.id for r in runs if r.id is not None]
-    branded = _branded_query_texts(session, tenant_id)
+    branded = _off_score_query_texts(session, tenant_id)
     per_run: dict[str, float] = {}
     if run_ids:
         conds: list[Any] = [col(Result.run_id).in_(run_ids), Result.variant == ResultVariant.search,

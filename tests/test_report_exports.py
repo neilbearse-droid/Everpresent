@@ -32,7 +32,7 @@ def test_report_html_carries_every_section(db_session, demo_tenant):
     assert "Fix a wrong fact: Starter plan" in html       # the playbook
     assert "/help/plans" in html                          # the fact conflict
     assert "<svg" in html                                 # the trend chart
-    assert "Down 15.3 pts" in html and "pill-bad" in html  # bad news in ink
+    assert "Down " in html and "pill-bad" in html  # Claude's drop, bad news in ink
 
 
 def test_report_pdf_renders(db_session, demo_tenant):

@@ -16,7 +16,6 @@ from api.models import (
     Citation,
     Competitor,
     Mention,
-    Query,
     QueryClassification,
     Result,
     ResultStatus,
@@ -531,14 +530,10 @@ def rollup_day(
     # visibility_daily is the competitive-visibility layer, so branded queries
     # (the brand always appears) are excluded — they'd inflate the score and
     # share of voice. They're measured in the Brand-knowledge layer instead.
-    branded = {
-        q.text
-        for q in session.exec(
-            select(Query).where(
-                Query.tenant_id == tenant_id, Query.branded == True  # noqa: E712
-            )
-        ).all()
-    }
+    # Agent prompts are their own category (Agent picks) and are left out too.
+    from api.dashboards.common import _off_score_query_texts
+
+    branded = _off_score_query_texts(session, tenant_id)
     results = [
         r
         for r in session.exec(

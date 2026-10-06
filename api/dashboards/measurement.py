@@ -9,11 +9,12 @@ from sqlmodel import Session, col, func, select
 
 from api.dashboards.action_plan import _lost_citations
 from api.dashboards.common import (
+    AGENT_CORPUS_TAGS,
     _brand_and_cited_ids,
     _brand_name,
-    _branded_query_texts,
     _date_window,
     _latest_results_by_variant,
+    _off_score_query_texts,
     _pct,
     _stdev,
     _surface_label,
@@ -42,7 +43,8 @@ def mention_rates(
     a window, per engine and overall — each with a 95% range — plus whether
     the second half of the window differs from the first by more than noise.
 
-    Every ok search answer to a competitive (non-branded) query counts, across
+    Every ok search answer to a competitive query (not branded, not an agent
+    prompt) counts, across
     all runs in the window: repeated runs are samples, not duplicates. Counted
     in the database, so it stays fast at any history size."""
     lo, hi = _date_window(start, end)
@@ -50,7 +52,7 @@ def mention_rates(
     hi_eff = _utc(hi) if hi is not None else now
     lo_eff = _utc(lo) if lo is not None else hi_eff - timedelta(days=MENTION_WINDOW_DAYS)
     mid = lo_eff + (hi_eff - lo_eff) / 2
-    branded = _branded_query_texts(session, tenant_id)
+    branded = _off_score_query_texts(session, tenant_id)
     conds: list[Any] = [
         Result.tenant_id == tenant_id,
         Result.variant == ResultVariant.search,
@@ -272,7 +274,7 @@ def kpi_scorecard(
     # Stability: brand presence rate across the last few runs (in-window).
     # Competitive queries only, matching presence_rate on the same screen
     # (branded queries name the brand almost always and would inflate it).
-    branded_texts = _branded_query_texts(session, tenant_id)
+    branded_texts = _off_score_query_texts(session, tenant_id)
     st_conds: list[Any] = [
         Result.tenant_id == tenant_id, Result.variant == ResultVariant.search,
         Result.status == "ok",
@@ -358,7 +360,7 @@ def kpi_scorecard(
 # Corpus tags with a fixed meaning get a readable name; any other tag is the
 # client's own topic ("sensitive", "organic") and is shown title-cased.
 TOPIC_NAMES = {"core": "General", "agent_task": "Agent tasks", "agent_code": "Agent coding"}
-AGENT_TOPICS = {"agent_task", "agent_code"}
+AGENT_TOPICS = AGENT_CORPUS_TAGS
 
 
 _ACRONYMS = {"ai", "seo", "crm", "api", "spf", "uv", "diy", "b2b", "b2c", "smb", "llm"}

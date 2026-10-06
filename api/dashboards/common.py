@@ -87,6 +87,22 @@ def _clean_date(value: str | None) -> str | None:
         return None
 
 
+# Agent prompts ("pick a provider and do it for me") are measured as their
+# own category (Agent picks), not in the visibility numbers.
+AGENT_CORPUS_TAGS = frozenset({"agent_task", "agent_code"})
+
+
+def _off_score_query_texts(session: Session, tenant_id: int) -> frozenset[str]:
+    """Query texts kept out of the visibility layer (mention rate, answer
+    share, share of voice, the score): branded questions, which name the
+    brand by design, and agent prompts, which are their own category."""
+    return frozenset(
+        q.text
+        for q in session.exec(select(Query).where(Query.tenant_id == tenant_id)).all()
+        if q.branded or q.corpus_tag in AGENT_CORPUS_TAGS
+    )
+
+
 def _branded_query_texts(session: Session, tenant_id: int) -> frozenset[str]:
     """Query texts flagged branded — probes of what the model says about the
     brand. Matched by value (results snapshot query_text), so a re-import that
@@ -115,10 +131,15 @@ def _latest_results_by_variant(
 
     scope splits the two analysis layers (branded-query feedback):
       "all"          — every query (default; unchanged behaviour)
-      "competitive"  — exclude branded queries (the visibility layer)
+      "competitive"  — exclude branded queries and agent prompts (the visibility layer)
+      "unbranded"    — exclude branded queries only (agent prompts kept)
       "branded"      — only branded queries (the brand-knowledge layer)"""
     branded = (
-        _branded_query_texts(session, tenant_id) if scope != "all" else frozenset()
+        _branded_query_texts(session, tenant_id)
+        if scope in ("branded", "unbranded") else frozenset()
+    )
+    off_score = (
+        _off_score_query_texts(session, tenant_id) if scope == "competitive" else frozenset()
     )
     if scope == "branded" and not branded:
         return {}
@@ -134,7 +155,9 @@ def _latest_results_by_variant(
         conds.append(col(Result.created_at) >= _utc(lo))
     if hi is not None:
         conds.append(col(Result.created_at) < _utc(hi))
-    if scope == "competitive" and branded:
+    if scope == "competitive" and off_score:
+        conds.append(col(Result.query_text).not_in(off_score))
+    if scope == "unbranded" and branded:
         conds.append(col(Result.query_text).not_in(branded))
     if scope == "branded":
         conds.append(col(Result.query_text).in_(branded))
