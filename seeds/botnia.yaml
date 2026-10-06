@@ -1,0 +1,128 @@
+# Botnia Skincare — tenant config.
+#
+# Import is REPLACE-semantics: loading this swaps Botnia's brand, competitors,
+# personas, questions and brand facts wholesale. Past answers are kept (they
+# are stored by question text), so history for unchanged questions continues.
+# Engines are not listed, so Botnia's engine settings stay as they are.
+#
+# CHECK BEFORE LOADING: the competitor list is a starting point (clean and
+# botanical brands, plus the drugstore names AI tends to give for sensitive
+# skin). Swap in the brands Botnia actually loses to.
+
+geo:
+  country: us
+  language: en
+
+brand:
+  name: Botnia Skincare
+  aliases:
+    - Botnia
+  domains:
+    - botniaskincare.com
+
+competitors:
+  # Clean / botanical, esthetician-led
+  - { name: Tata Harper, aliases: [Tata Harper Skincare], domains: [tataharperskincare.com] }
+  - { name: True Botanicals, aliases: [], domains: [truebotanicals.com] }
+  - { name: OSEA, aliases: [OSEA Malibu], domains: [oseamalibu.com] }
+  - { name: Dr. Hauschka, aliases: [Dr Hauschka], domains: [drhauschka.com] }
+  - { name: May Lindstrom, aliases: [May Lindstrom Skin], domains: [maylindstrom.com] }
+  - { name: Pai Skincare, aliases: [Pai], domains: [paiskincare.com] }
+  # What AI usually recommends for sensitive / rosacea / acne-prone skin
+  - { name: La Roche-Posay, aliases: [La Roche Posay], domains: [laroche-posay.us] }
+  - { name: Avène, aliases: [Avene, Eau Thermale Avène], domains: [aveneusa.com] }
+  - { name: CeraVe, aliases: [], domains: [cerave.com] }
+
+personas:
+  # Generic baseline: every question runs once with no persona. Its presence
+  # turns on selective mode, so the personas below run only on the questions
+  # that name them (keeps cost down). Don't reword a persona once it's live:
+  # it breaks the trend line.
+  - name: Generic (baseline)
+    segment: generic
+    prompt: ""
+  - name: Sensitive, reactive skin
+    segment: sensitive_skin
+    prompt: >-
+      I have sensitive skin that gets red and irritated easily, and I think I
+      might have mild rosacea.
+  - name: Acne-prone adult
+    segment: acne_prone
+    prompt: >-
+      I'm in my thirties and still get breakouts, and a lot of products clog my
+      pores.
+  - name: Pregnant or breastfeeding
+    segment: pregnancy
+    prompt: >-
+      I'm pregnant and plan to breastfeed, so I'm rethinking which skincare
+      products are safe to use.
+
+queries:
+  # --- Branded: what AI says about Botnia (kept out of the visibility score)
+  - { text: "Is Botnia Skincare good for acne?", corpus: brand, branded: true }
+  - { text: "Is Botnia Skincare good for sensitive skin?", corpus: brand, branded: true }
+  - { text: "Is Botnia Skincare good for rosacea?", corpus: brand, branded: true }
+  - { text: "Is Botnia Skincare organic?", corpus: brand, branded: true }
+  - { text: "Is Botnia Skincare pregnancy safe?", corpus: brand, branded: true }
+  - { text: "Is Botnia Skincare breastfeeding safe?", corpus: brand, branded: true }
+  - text: "Is Botnia Skincare non-comedogenic?"
+    corpus: brand
+    branded: true
+    # Was a separate question; same meaning, so it's a rotating wording instead.
+    paraphrases: ["Are Botnia products non-comedogenic?"]
+  - { text: "What makes Botnia Skincare different?", corpus: brand, branded: true }
+  - { text: "Where is Botnia Skincare made?", corpus: brand, branded: true }
+  - { text: "What Botnia Skincare products should I use for my skin?", corpus: brand, branded: true }
+  - { text: "How do I build a Botnia skincare routine?", corpus: brand, branded: true }
+  - { text: "How long does Botnia Skincare last?", corpus: brand, branded: true }
+  - { text: "Does Botnia use preservatives?", corpus: brand, branded: true }
+  - { text: "Does Botnia use essential oils?", corpus: brand, branded: true }
+  - { text: "Is Botnia Skincare cruelty free?", corpus: brand, branded: true }
+  - { text: "Is Botnia Skincare vegan?", corpus: brand, branded: true }
+  - { text: "Is Botnia Skincare worth it?", corpus: brand, branded: true }
+  - { text: "What is a Botnia facial?", corpus: brand, branded: true }
+  - { text: "Where can I get a Botnia facial?", corpus: brand, branded: true }
+  - { text: "Where can I buy Botnia Skincare?", corpus: brand, branded: true }
+
+  # --- Competitive: does AI bring up Botnia when nobody names it?
+  - { text: "Why does fresh skincare have a shorter shelf life?", corpus: ingredients }
+  - { text: "Are preservatives bad in skincare?", corpus: ingredients }
+  - text: "Are essential oils bad for sensitive skin?"
+    corpus: ingredients
+    personas: [sensitive_skin]
+  - { text: "Is organic skincare actually better?", corpus: organic }
+  - { text: "Does organic skincare actually work?", corpus: organic }
+  - { text: "What's the difference between natural and organic skincare?", corpus: organic }
+  - text: "Is organic skincare non-comedogenic?"
+    corpus: organic
+    personas: [acne_prone]
+  - text: "Is natural skincare better for sensitive skin?"
+    corpus: sensitive
+    personas: [sensitive_skin]
+  - text: "What is the best skincare for sensitive skin?"
+    corpus: sensitive
+    personas: [sensitive_skin, pregnancy]
+  - text: "Best products for sensitive rosacea acne prone skin?"
+    corpus: sensitive
+    personas: [sensitive_skin, acne_prone]
+  - text: "Can natural skincare help acne?"
+    corpus: acne
+    personas: [acne_prone]
+  - { text: "How do I simplify my skincare routine?", corpus: routine }
+  - { text: "What does holistic skincare actually mean?", corpus: routine }
+
+# Brand facts: EverPresent flags any answer that contradicts these. Fill in
+# Botnia's real answers, then uncomment. Only add what Botnia confirms; a wrong
+# fact here makes correct answers look wrong.
+#
+# brand_facts:
+#   - label: "Botnia is handmade in its own lab in Sausalito, California"
+#     subject: "where Botnia is made"
+#     kind: disallowed          # a phrase that must never appear
+#     expected: "made in China"
+#     category: origin
+#   - label: "Botnia is [vegan / not vegan]"
+#     subject: "vegan"
+#     kind: disallowed
+#     expected: "[the wrong claim, e.g. 'Botnia is not vegan']"
+#     category: ingredients
