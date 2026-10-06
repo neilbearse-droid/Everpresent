@@ -9,6 +9,7 @@ from sqlmodel import Session, col, func, select
 
 from api.dashboards.action_plan import _lost_citations
 from api.dashboards.common import (
+    _brand_and_cited_ids,
     _brand_name,
     _branded_query_texts,
     _date_window,
@@ -21,6 +22,7 @@ from api.dashboards.common import (
 from api.models import (
     AccuracyFinding,
     Mention,
+    Query,
     Result,
     ResultStatus,
     ResultVariant,
@@ -327,6 +329,7 @@ def kpi_scorecard(
     return {
         "brand_name": brand_name,
         "mention_rates": mention_rates(session, tenant_id, start, end),
+        "by_topic": topic_scorecard(session, tenant_id, start, end),
         "answer_share": answer_share,
         "share_breakdown": share_breakdown,
         "prominence": {
@@ -350,3 +353,137 @@ def kpi_scorecard(
             "label": stability_label,
         },
     }
+
+
+# Corpus tags with a fixed meaning get a readable name; any other tag is the
+# client's own topic ("sensitive", "organic") and is shown title-cased.
+TOPIC_NAMES = {"core": "General", "agent_task": "Agent tasks", "agent_code": "Agent coding"}
+AGENT_TOPICS = {"agent_task", "agent_code"}
+
+
+_ACRONYMS = {"ai", "seo", "crm", "api", "spf", "uv", "diy", "b2b", "b2c", "smb", "llm"}
+
+
+def _topic_label(tag: str) -> str:
+    tag = (tag or "core").strip()
+    if tag in TOPIC_NAMES:
+        return TOPIC_NAMES[tag]
+    words = tag.replace("_", " ").replace("-", " ").split()
+    words = [w.upper() if w.lower() in _ACRONYMS else w.lower() for w in words]
+    label = " ".join(words)
+    return label[:1].upper() + label[1:]
+
+
+def topic_scorecard(
+    session: Session, tenant_id: int, start: str | None = None, end: str | None = None
+) -> list[dict]:
+    """The headline metrics per question topic (the query's corpus tag), so a
+    strong topic can't hide a weak one in the overall number.
+
+    Competitive and agent topics get mention rate (pooled over the window,
+    with range and real-change test), answer share, lead rate and the rival
+    taking the most share. Branded questions are one separate row, because
+    they name the brand by design: there the useful numbers are sentiment,
+    how often rivals get named in an answer about you, and how often your own
+    site is cited."""
+    brand_name = _brand_name(session, tenant_id)
+    topic_of: dict[str, tuple[str, str]] = {}  # query text -> (topic, kind)
+    for q in session.exec(select(Query).where(Query.tenant_id == tenant_id)).all():
+        if q.branded:
+            topic_of[q.text] = (f"About {brand_name}", "branded")
+        elif q.corpus_tag in AGENT_TOPICS:
+            topic_of[q.text] = (_topic_label(q.corpus_tag), "agent")
+        else:
+            topic_of[q.text] = (_topic_label(q.corpus_tag), "competitive")
+    if not topic_of:
+        return []
+
+    # Mention rate per topic: every ok search answer in the window, split in
+    # halves for the change test (same rules as mention_rates).
+    lo, hi = _date_window(start, end)
+    hi_eff = _utc(hi) if hi is not None else datetime.now(UTC)
+    lo_eff = _utc(lo) if lo is not None else hi_eff - timedelta(days=MENTION_WINDOW_DAYS)
+    mid = lo_eff + (hi_eff - lo_eff) / 2
+    brand_hits = (
+        select(col(Mention.result_id))
+        .where(Mention.tenant_id == tenant_id, Mention.entity_type == "brand")
+        .distinct()
+        .subquery()
+    )
+    second_half = case((col(Result.created_at) >= mid, 1), else_=0)
+    counts: dict[str, list[int]] = defaultdict(lambda: [0, 0, 0, 0])
+    questions: dict[str, set[str]] = defaultdict(set)
+    for qtext, half, n, k in session.exec(
+        select(col(Result.query_text), second_half,
+               func.count(col(Result.id)), func.count(brand_hits.c.result_id))
+        .outerjoin(brand_hits, brand_hits.c.result_id == col(Result.id))
+        .where(Result.tenant_id == tenant_id, Result.variant == ResultVariant.search,
+               Result.status == ResultStatus.ok,
+               col(Result.created_at) >= lo_eff, col(Result.created_at) < hi_eff)
+        .group_by(col(Result.query_text), second_half)
+    ).all():
+        if qtext not in topic_of:
+            continue  # a question that was since removed
+        topic = topic_of[qtext][0]
+        questions[topic].add(qtext)
+        c = counts[topic]
+        c[2 if half else 0] += int(k)
+        c[3 if half else 1] += int(n)
+
+    # Share, lead rate, sentiment, rivals and citations: the latest answer per
+    # (question, engine) in the window, like the rest of the scorecard.
+    latest = list(_latest_results_by_variant(
+        session, tenant_id, ResultVariant.search, lo, hi, scope="all").values())
+    latest = [r for r in latest if r.query_text in topic_of]
+    ids = [r.id for r in latest if r.id is not None]
+    mentions: dict[int, list[Mention]] = defaultdict(list)
+    for m in (session.exec(select(Mention).where(col(Mention.result_id).in_(ids))).all()
+              if ids else []):
+        mentions[m.result_id].append(m)
+    _brand_ids, cited_ids = _brand_and_cited_ids(session, ids)
+
+    agg: dict[str, dict[str, Any]] = defaultdict(lambda: {
+        "weight": defaultdict(float), "total": 0.0, "present": 0, "leads": 0, "measured": 0,
+        "with_rival": 0, "cited": 0, "sentiment": {"positive": 0, "neutral": 0, "negative": 0},
+    })
+    for r in latest:
+        a = agg[topic_of[r.query_text][0]]
+        a["measured"] += 1
+        ms = mentions.get(r.id or -1, [])
+        for m in ms:
+            w = 1.0 / m.rank if m.rank >= 1 else 0.0
+            a["total"] += w
+            a["weight"][brand_name if m.entity_type == "brand" else m.entity_name] += w
+        if any(m.entity_type != "brand" for m in ms):
+            a["with_rival"] += 1
+        if (r.id or -1) in cited_ids:
+            a["cited"] += 1
+        brand_ms = [m for m in ms if m.entity_type == "brand"]
+        if brand_ms:
+            best = min(brand_ms, key=lambda m: m.rank or 999)
+            a["present"] += 1
+            a["leads"] += best.rank == 1
+            a["sentiment"][best.sentiment] = a["sentiment"].get(best.sentiment, 0) + 1
+
+    kinds = {topic: kind for topic, kind in topic_of.values()}
+    rows: list[dict] = []
+    for topic in set(counts) | set(agg):
+        c, a = counts[topic], agg[topic]
+        rivals = {n: w for n, w in a["weight"].items() if n != brand_name}
+        top = max(rivals, key=lambda n: rivals[n]) if rivals else None
+        rows.append({
+            "topic": topic,
+            "kind": kinds[topic],
+            "questions": len(questions[topic]),
+            **rate_summary(c[0] + c[2], c[1] + c[3]),
+            "change": change_verdict(c[0], c[1], c[2], c[3]),
+            "answer_share": _pct(a["weight"].get(brand_name, 0.0), a["total"]),
+            "lead_rate": _pct(a["leads"], a["present"]),
+            "top_rival": ({"name": top, "share": _pct(rivals[top], a["total"])}
+                          if top else None),
+            "sentiment": a["sentiment"],
+            "rivals_named_rate": _pct(a["with_rival"], a["measured"]),
+            "cited_rate": _pct(a["cited"], a["measured"]),
+        })
+    order = {"competitive": 0, "agent": 1, "branded": 2}
+    return sorted(rows, key=lambda r: (order[r["kind"]], -r["answers"], r["topic"]))

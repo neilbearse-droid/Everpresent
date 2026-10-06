@@ -406,10 +406,25 @@ export type MentionRates = {
   engines: (MentionRate & { surface: string; label: string })[];
 };
 
+/** The headline metrics for one question topic (the query's corpus tag). */
+export type TopicRow = MentionRate & {
+  topic: string;
+  kind: "competitive" | "agent" | "branded";
+  questions: number;
+  answer_share: number;
+  lead_rate: number;
+  top_rival: { name: string; share: number } | null;
+  sentiment: { positive: number; neutral: number; negative: number };
+  rivals_named_rate: number;
+  cited_rate: number;
+};
+
 export type KpiScorecard = {
   brand_name: string;
   /** Headline: pooled mention rate with 95% ranges (absent on an older API). */
   mention_rates?: MentionRates;
+  /** The same metrics split by question topic (absent on an older API). */
+  by_topic?: TopicRow[];
   answer_share: number;
   share_breakdown: { name: string; share: number }[];
   prominence: {

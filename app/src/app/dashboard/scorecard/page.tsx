@@ -6,6 +6,7 @@ import {
   type SamplePlan,
   type Me,
   type MentionRates,
+  type TopicRow,
   type RateChange,
 } from "@/lib/api";
 import { GenerateDraft } from "./generate-draft";
@@ -169,6 +170,95 @@ function MentionRatePanel({ m, brand }: { m: MentionRates; brand: string }) {
   );
 }
 
+/** The headline numbers per question topic, so a strong topic can't hide a
+ * weak one. Branded questions name the brand by design, so they get their own
+ * measures instead of a mention rate. */
+function TopicPanel({ rows, brand }: { rows: TopicRow[]; brand: string }) {
+  const topics = rows.filter((r) => r.kind !== "branded");
+  const branded = rows.find((r) => r.kind === "branded");
+  const sentimentTotal = branded
+    ? branded.sentiment.positive + branded.sentiment.neutral + branded.sentiment.negative
+    : 0;
+  const pct = (n: number) => (sentimentTotal ? Math.round((100 * n) / sentimentTotal) : 0);
+  return (
+    <section className="card mb-6 p-4">
+      <p className="eyebrow mb-1">By topic</p>
+      <p className="mb-4 max-w-2xl text-xs leading-relaxed text-[var(--text-3)]">
+        The same measures for each group of questions. Mention rate pools every answer in the
+        window; answer share, lead rate and the top rival come from the latest answer per
+        question and engine. Questions that name {brand} are scored separately below.
+      </p>
+      {topics.length > 0 && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="text-xs text-[var(--text-3)]">
+                <th className="pb-2 pr-4 font-medium">Topic</th>
+                <th className="pb-2 pr-4 font-medium">Questions</th>
+                <th className="pb-2 pr-4 font-medium">Mention rate</th>
+                <th className="pb-2 pr-4 font-medium">95% range</th>
+                <th className="pb-2 pr-4 font-medium">Answer share</th>
+                <th className="pb-2 pr-4 font-medium">Leads when named</th>
+                <th className="pb-2 pr-4 font-medium">Top rival</th>
+                <th className="pb-2 font-medium">Change</th>
+              </tr>
+            </thead>
+            <tbody>
+              {topics.map((r) => (
+                <tr key={r.topic} className="border-t border-[var(--border)]">
+                  <td className="py-1.5 pr-4">
+                    {r.topic}
+                    {r.kind === "agent" && (
+                      <span className="ml-2 text-xs text-[var(--text-3)]">agent</span>
+                    )}
+                  </td>
+                  <td className="py-1.5 pr-4 tabular-nums text-[var(--text-3)]">{r.questions}</td>
+                  <td className="py-1.5 pr-4 font-medium tabular-nums">{r.rate}%</td>
+                  <td className="py-1.5 pr-4 tabular-nums text-[var(--text-2)]">
+                    {r.low}–{r.high}%
+                  </td>
+                  <td className="py-1.5 pr-4 tabular-nums">{r.answer_share}%</td>
+                  <td className="py-1.5 pr-4 tabular-nums">{r.lead_rate}%</td>
+                  <td className="py-1.5 pr-4 text-[var(--text-2)]">
+                    {r.top_rival ? `${r.top_rival.name} · ${r.top_rival.share}%` : "—"}
+                  </td>
+                  <td className="py-1.5 text-xs">
+                    <ChangeBadge change={r.change} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {branded && branded.answers > 0 && (
+        <div className="mt-5 border-t border-[var(--border)] pt-4">
+          <p className="mb-3 text-sm font-medium">
+            {branded.topic}
+            <span className="ml-2 text-xs font-normal text-[var(--text-3)]">
+              {branded.questions} {branded.questions === 1 ? "question" : "questions"} that name {brand}
+            </span>
+          </p>
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <Tile
+              value={`${pct(branded.sentiment.positive)}%`}
+              label="Positive"
+              sub={`${pct(branded.sentiment.negative)}% negative, the rest neutral`}
+            />
+            <Tile
+              value={`${branded.rivals_named_rate}%`}
+              label="Answers that also name a rival"
+              sub={branded.top_rival ? `Most often ${branded.top_rival.name}` : undefined}
+            />
+            <Tile value={`${branded.cited_rate}%`} label={`Answers citing ${brand}'s site`} />
+            <Tile value={`${branded.lead_rate}%`} label={`${brand} named first`} />
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default async function ScorecardPage({
   searchParams,
 }: {
@@ -218,6 +308,7 @@ export default async function ScorecardPage({
       {d.mention_rates && d.mention_rates.overall.answers > 0 && (
         <MentionRatePanel m={d.mention_rates} brand={d.brand_name} />
       )}
+      {d.by_topic && d.by_topic.length > 0 && <TopicPanel rows={d.by_topic} brand={d.brand_name} />}
       {plan.data && plan.data.engines.length > 0 && <SamplePlanPanel p={plan.data} />}
 
       {/* Prominence-weighted share: useful, but rank is noisy run to run. */}
