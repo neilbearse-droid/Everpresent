@@ -763,6 +763,72 @@ def toggle_surface(slug: str, payload: SurfaceToggle, session: Db, admin: Admin)
     return row
 
 
+MAX_ADD_QUERIES = 200
+
+
+class QueriesAdd(BaseModel):
+    # One question per line; blank lines and duplicates are skipped.
+    text: str
+
+
+# "Botnia Skincare" is also called just "Botnia": a trailing generic word on
+# the brand name is optional when deciding whether a question names the brand.
+_GENERIC_SUFFIX = re.compile(
+    r"\s+(skincare|skin care|cosmetics|beauty|labs?|inc\.?|co\.?|ltd\.?|llc|company|group)$",
+    re.IGNORECASE,
+)
+
+
+def _names_brand(text: str, names: list[str]) -> bool:
+    names = names + [_GENERIC_SUFFIX.sub("", n) for n in names]
+    lowered = text.lower()
+    return any(re.search(rf"\b{re.escape(n.lower())}\b", lowered) for n in names if n.strip())
+
+
+@router.post("/tenants/{slug}/queries", status_code=201)
+def add_queries(slug: str, payload: QueriesAdd, session: Db, admin: Admin) -> dict:
+    """Append questions without a config re-import (which replaces them all).
+    A question that names the brand is filed as branded (brand knowledge, out
+    of the competitive score); the rest are competitive. Toggle per question
+    afterwards if the guess is wrong."""
+    tenant = _tenant_or_404(session, slug)
+    tenant_id = tenant.id
+    assert tenant_id is not None
+    lines = [" ".join(line.split()) for line in payload.text.splitlines()]
+    lines = [line for line in lines if line]
+    if not lines:
+        raise HTTPException(status_code=422, detail="Paste at least one question")
+    if len(lines) > MAX_ADD_QUERIES:
+        raise HTTPException(status_code=422,
+                            detail=f"At most {MAX_ADD_QUERIES} questions at a time")
+    if any(len(line) > 500 for line in lines):
+        raise HTTPException(status_code=422, detail="A question is over 500 characters")
+    brand = session.exec(select(BrandProfile).where(BrandProfile.tenant_id == tenant.id)).first()
+    names = [brand.brand_name, *brand.aliases] if brand else [tenant.name]
+    seen = {q.text.strip().lower() for q in session.exec(
+        select(Query).where(Query.tenant_id == tenant.id)).all()}
+    added: list[Query] = []
+    skipped = 0
+    for line in lines:
+        if line.lower() in seen:
+            skipped += 1
+            continue
+        seen.add(line.lower())
+        branded = _names_brand(line, names)
+        query = Query(tenant_id=tenant_id, text=line, branded=branded,
+                      corpus_tag="brand" if branded else "core")
+        session.add(query)
+        added.append(query)
+    write_audit(session, tenant_id=tenant.id, actor=admin.user.email,
+                action=f"queries.add {slug} +{len(added)}")
+    session.commit()
+    return {
+        "added": len(added),
+        "branded": sum(q.branded for q in added),
+        "skipped_duplicates": skipped,
+    }
+
+
 class QueryBrandedPatch(BaseModel):
     branded: bool
 

@@ -150,3 +150,45 @@ def test_admin_toggle_branded(db_session, client, login):
     assert client.patch(
         "/api/admin/tenants/acme/queries/999999", json={"branded": True}
     ).status_code == 404
+
+
+def test_admin_adds_questions_without_replacing(db_session, client, login):
+    from api.models import BrandProfile, User
+
+    admin = User(email="neil@example.com", clerk_user_id="u_sa3", is_superadmin=True)
+    db_session.add(admin)
+    db_session.commit()
+    db_session.refresh(admin)
+    login(admin)
+    tid = _tenant(db_session)
+    profile = db_session.exec(select(BrandProfile).where(BrandProfile.tenant_id == tid)).first()
+    if profile is None:
+        db_session.add(BrandProfile(tenant_id=tid, brand_name="Acme"))
+        db_session.commit()
+
+    text = "\n".join([
+        "Is Acme good for small teams?",          # names the brand: branded
+        "Does acme integrate with Slack?",        # case-insensitive
+        "",                                       # blank: skipped
+        "best crm",                               # already tracked: skipped
+        "What is the best CRM for startups?",     # competitive
+        "Is Acmeville a real place?",             # "Acme" only as part of a word
+        "What is the best CRM for startups?",     # duplicate within the paste
+    ])
+    resp = client.post("/api/admin/tenants/acme/queries", json={"text": text})
+    assert resp.status_code == 201, resp.text
+    assert resp.json() == {"added": 4, "branded": 2, "skipped_duplicates": 2}
+    texts = {q.text: q for q in db_session.exec(select(Query).where(Query.tenant_id == tid))}
+    assert "best crm" in texts and "Acme review" in texts  # existing ones kept
+    assert texts["Does acme integrate with Slack?"].corpus_tag == "brand"
+    assert texts["Is Acmeville a real place?"].branded is False
+    assert client.post("/api/admin/tenants/acme/queries", json={"text": "  \n "}).status_code == 422
+
+
+def test_brand_match_ignores_generic_suffix():
+    from api.routes.admin import _names_brand
+
+    names = ["Botnia Skincare"]
+    assert _names_brand("Does Botnia use preservatives?", names)
+    assert _names_brand("Is Botnia Skincare vegan?", names)
+    assert not _names_brand("Is organic skincare actually better?", names)

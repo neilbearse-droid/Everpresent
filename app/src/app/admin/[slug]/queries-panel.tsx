@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { setQueryBranded, type ActionState } from "../actions";
+import { addQueries, setQueryBranded, type ActionState } from "../actions";
 
 export type AdminQuery = {
   id: number;
@@ -38,6 +38,41 @@ function BrandedToggle({ slug, query }: { slug: string; query: AdminQuery }) {
   );
 }
 
+function AddQueriesForm({ slug }: { slug: string }) {
+  const [state, action, pending] = useActionState<ActionState, FormData>(
+    addQueries.bind(null, slug),
+    null,
+  );
+  return (
+    <form action={action} className="mb-5 space-y-2">
+      <label className="block text-xs font-medium text-[var(--text-2)]" htmlFor="add-queries">
+        Add questions, one per line
+      </label>
+      <textarea
+        id="add-queries"
+        name="text"
+        rows={5}
+        required
+        placeholder={"Is Botnia Skincare good for sensitive skin?\nWhat is the best skincare for sensitive skin?"}
+        className="w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] p-2 text-sm"
+      />
+      <div className="flex items-center gap-3">
+        <button disabled={pending} className="btn btn-primary px-3 text-[12.5px] disabled:opacity-50">
+          {pending ? "Adding…" : "Add questions"}
+        </button>
+        <span className="text-xs text-[var(--text-3)]">
+          Questions naming the brand are filed as branded. Duplicates are skipped.
+        </span>
+      </div>
+      {state && (
+        <p className={`text-xs ${state.ok ? "text-[var(--text-2)]" : "text-[var(--neg)]"}`}>
+          {state.message}
+        </p>
+      )}
+    </form>
+  );
+}
+
 export function QueriesPanel({ slug, queries }: { slug: string; queries: AdminQuery[] }) {
   const branded = queries.filter((q) => q.branded).length;
   return (
@@ -53,6 +88,7 @@ export function QueriesPanel({ slug, queries }: { slug: string; queries: AdminQu
         layer and excluded from the competitive visibility score. Toggle takes effect on the
         next processed run.
       </p>
+      <AddQueriesForm slug={slug} />
       <ul className="space-y-2">
         {queries.map((q) => (
           <li key={q.id} className="flex items-center justify-between gap-3 text-sm">

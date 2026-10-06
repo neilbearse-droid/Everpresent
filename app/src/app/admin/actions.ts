@@ -91,6 +91,30 @@ export async function deleteBrandFact(
   return { ok: true, message: "Removed." };
 }
 
+export async function addQueries(
+  slug: string,
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const res = await apiFetch<{ added: number; branded: number; skipped_duplicates: number }>(
+    `/api/admin/tenants/${slug}/queries`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text: String(formData.get("text") ?? "") }),
+    },
+  );
+  if (!res.ok || !res.data) return { ok: false, message: res.error ?? "Could not add questions" };
+  revalidatePath(`/admin/${slug}`);
+  const { added, branded, skipped_duplicates: dupes } = res.data;
+  return {
+    ok: true,
+    message:
+      `Added ${added} (${branded} branded, ${added - branded} competitive).` +
+      (dupes ? ` Skipped ${dupes} already tracked.` : ""),
+  };
+}
+
 export async function setQueryBranded(
   slug: string,
   queryId: number,
