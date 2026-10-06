@@ -71,6 +71,32 @@ def test_parser_handles_combined_cloudflare_vercel_and_cloudfront():
     assert p.parse("garbage line") is None
 
 
+def test_parser_handles_azure_front_door_json_and_log_analytics_csv():
+    afd = json.dumps({
+        "time": "2026-10-05T14:02:11.0000000Z", "category": "FrontDoorAccessLog",
+        "operationName": "Microsoft.Cdn/Profiles/AccessLog/Write",
+        "properties": {"trackingReference": "x", "httpMethod": "GET", "httpVersion": "2.0",
+                       "requestUri": "https://www.example.com:443/pricing?ref=1",
+                       "userAgent": UA_GPT, "clientIp": "20.1.2.3", "clientPort": "443",
+                       "httpStatusCode": "403", "cacheStatus": "MISS"}})
+    hit = LogParser().parse(afd)
+    assert hit and hit.path == "/pricing" and hit.status == 403 and hit.ip == "20.1.2.3"
+    assert hit.ts.day == 5 and "GPTBot" in hit.user_agent
+
+    p = LogParser()
+    assert p.parse('TimeGenerated [UTC],Category,httpMethod_s,requestUri_s,'
+                   'httpStatusCode_s,clientIp_s,userAgent_s') is None
+    hit = p.parse(f'"10/5/2026, 9:15:02.123 PM",FrontDoorAccessLog,GET,'
+                  f'https://www.example.com/help/plans,200,4.4.4.4,"{UA_SEARCH}, extra"')
+    assert hit and hit.path == "/help/plans" and hit.status == 200 and hit.ts.hour == 21
+    assert hit.user_agent.endswith(", extra")  # quoted commas stay inside the field
+    # A numeric status column from Log Analytics ("200.0") still reads as 200.
+    p.parse("TimeGenerated,requestUri_s,httpStatusCode_d,userAgent_s")
+    assert p.parse(f"2026-10-05T10:00:00Z,/a,404.0,{UA_GPT}").status == 404
+    # A CSV row before any header is ignored, never misread.
+    assert LogParser().parse(f"2026-10-05T10:00:00Z,/a,404,{UA_GPT}") is None
+
+
 def test_ip_verification():
     nets = parse_ranges({"prefixes": [{"ipv4Prefix": "20.0.0.0/8"},
                                       {"ipv6Prefix": "2001:db8::/32"}]})

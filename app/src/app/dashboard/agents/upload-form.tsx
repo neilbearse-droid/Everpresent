@@ -58,7 +58,7 @@ export function UploadLogs() {
         />
       </label>
       <p className="text-xs text-[var(--text-3)]">
-        Apache/Nginx, Cloudflare Logpush, Vercel, CloudFront or JSON lines; .gz is fine (up to
+        Apache/Nginx, Cloudflare Logpush, Vercel, CloudFront, Azure Front Door (JSON or a Log Analytics CSV) or JSON lines; .gz is fine (up to
         200 MB unzipped). Only AI-bot requests are kept; visitor data is discarded on read.
       </p>
       {msg && (

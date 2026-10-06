@@ -5,13 +5,18 @@
   ClientRequestPath/URI, EdgeResponseStatus, EdgeStartTimestamp), Vercel log
   drains (proxy.userAgent/path/statusCode/clientIp), Fastly/generic JSON with
   common field names
+- Azure Front Door access logs as diagnostic settings write them to a
+  storage account (JSON lines, fields under "properties")
 - AWS CloudFront standard logs (tab-separated, with a #Fields header)
+- CSV with a header row, e.g. a Log Analytics (AzureDiagnostics) export
+  (TimeGenerated, userAgent_s, requestUri_s, httpStatusCode_s, ...)
 
 Returns a normalized LogHit or None. Pure; no I/O. Lines that aren't AI bots
 are dropped by the caller before anything is stored, so human traffic and
 human IPs never leave the parser.
 """
 
+import csv
 import json
 import math
 import re
@@ -87,11 +92,61 @@ def _parse_ts(value: object) -> datetime | None:
             return datetime.strptime(s, fmt).astimezone(UTC)
         except ValueError:
             pass
+    # The Azure portal's CSV export: "10/5/2026, 9:15:02.123 PM", in UTC.
+    for fmt in ("%m/%d/%Y, %I:%M:%S.%f %p", "%m/%d/%Y, %I:%M:%S %p"):
+        try:
+            return datetime.strptime(s, fmt).replace(tzinfo=UTC)
+        except ValueError:
+            pass
     try:
         dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
         return dt.astimezone(UTC) if dt.tzinfo else dt.replace(tzinfo=UTC)
     except ValueError:
         return None
+
+
+def _status_int(value: object) -> int:
+    """"200", 200 or 200.0 (Log Analytics numeric columns) -> 200; else 0."""
+    if value is None or isinstance(value, bool):
+        return 0
+    try:
+        return int(float(str(value).strip()))
+    except (ValueError, OverflowError):
+        return 0
+
+
+# CSV header names, normalized (lowercase, letters and digits only, Log
+# Analytics type suffixes _s/_d dropped), to the field they hold.
+_CSV_COLUMNS: dict[str, tuple[str, ...]] = {
+    "ua": ("useragent", "clientrequestuseragent", "csuseragent", "httpuseragent",
+           "requestuseragent"),
+    "target": ("requesturi", "requesturl", "clientrequesturi", "clientrequestpath",
+               "csuristem", "url", "uri", "path", "requestpath"),
+    "status": ("httpstatuscode", "statuscode", "status", "scstatus", "edgeresponsestatus",
+               "responsestatus"),
+    "ts": ("timegenerated", "timegeneratedutc", "time", "timestamp", "datetime", "date",
+           "edgestarttimestamp"),
+    "ip": ("clientip", "cip", "clientipaddress", "remoteaddr", "ip"),
+    "method": ("httpmethod", "method", "requestmethod", "csmethod", "clientrequestmethod"),
+}
+
+
+def _csv_key(name: str) -> str:
+    name = name.split("[", 1)[0].strip()  # "TimeGenerated [UTC]"
+    name = re.sub(r"_[sdgb]$", "", name)  # Log Analytics: userAgent_s, httpStatusCode_d
+    return re.sub(r"[^a-z0-9]", "", name.lower())
+
+
+def _csv_header(cells: list[str]) -> dict[str, int] | None:
+    """Column index per field if this row is a usable header, else None."""
+    keys = [_csv_key(c) for c in cells]
+    found: dict[str, int] = {}
+    for field, names in _CSV_COLUMNS.items():
+        for name in names:  # earlier names win: "requesturi" before "url"
+            if name in keys:
+                found[field] = keys.index(name)
+                break
+    return found if {"ua", "target", "ts"} <= found.keys() else None
 
 
 def _first(d: dict, *keys: str) -> object:
@@ -118,26 +173,24 @@ def _parse_json(line: str) -> list[LogHit]:
 
 
 def _hit_from_dict(d: dict) -> LogHit | None:
+    # "properties.*" is Azure Front Door (diagnostic settings to storage).
     ua = _first(d, "ClientRequestUserAgent", "proxy.userAgent", "user_agent", "userAgent",
-                "request_user_agent", "http.user_agent", "ua", "request.headers.user-agent")
+                "request_user_agent", "http.user_agent", "ua", "request.headers.user-agent",
+                "properties.userAgent")
     target = _first(d, "ClientRequestPath", "ClientRequestURI", "proxy.path", "path", "url",
-                    "request_uri", "uri", "http.url", "request.url")
+                    "request_uri", "uri", "http.url", "request.url", "properties.requestUri")
     status = _first(d, "EdgeResponseStatus", "OriginResponseStatus", "proxy.statusCode",
                     "status", "statusCode", "status_code", "http.status_code",
-                    "response.status")
+                    "response.status", "properties.httpStatusCode")
     ts = _parse_ts(_first(d, "EdgeStartTimestamp", "timestamp", "time", "ts", "date",
                           "@timestamp", "proxy.timestamp"))
     ip = _first(d, "ClientIP", "proxy.clientIp", "client_ip", "clientIp", "ip",
-                "remote_addr", "http.client_ip")
+                "remote_addr", "http.client_ip", "properties.clientIp")
     method = _first(d, "ClientRequestMethod", "proxy.method", "method", "request_method",
-                    "http.method")
+                    "http.method", "properties.httpMethod")
     if not ua or not target or ts is None:
         return None
-    try:
-        code = int(str(status)) if status is not None else 0
-    except ValueError:
-        code = 0
-    code = _http_status(code)
+    code = _http_status(_status_int(status))
     return LogHit(ts=ts, ip=str(ip or ""), method=str(method or "GET").upper(),
                   path=_clean_path(str(target)), status=code, user_agent=str(ua))
 
@@ -147,6 +200,7 @@ class LogParser:
 
     def __init__(self) -> None:
         self._cf_fields: list[str] | None = None
+        self._csv_cols: dict[str, int] | None = None
 
     def parse(self, line: str) -> LogHit | None:
         """The single hit on this line, or None."""
@@ -178,6 +232,8 @@ class LogParser:
             return hits[0] if hits else None
         if self._cf_fields and "\t" in line:
             return self._parse_cloudfront(line)
+        if "," in line and not _COMBINED.match(line):
+            return self._parse_csv(line)
         m = _COMBINED.match(line)
         if not m:
             return None
@@ -187,6 +243,30 @@ class LogParser:
         return LogHit(ts=ts, ip=m.group("ip"), method=m.group("method"),
                       path=_clean_path(m.group("target")), status=int(m.group("status")),
                       user_agent=m.group("ua") or "")
+
+    def _parse_csv(self, line: str) -> LogHit | None:
+        try:
+            cells = next(csv.reader([line]))
+        except (csv.Error, StopIteration):
+            return None
+        header = _csv_header(cells)
+        if header is not None:  # a header row (also a second file's header)
+            self._csv_cols = header
+            return None
+        cols = self._csv_cols
+        if cols is None:
+            return None
+
+        def cell(field: str) -> str:
+            i = cols.get(field)
+            return cells[i].strip() if i is not None and i < len(cells) else ""
+
+        ts, ua, target = _parse_ts(cell("ts")), cell("ua"), cell("target")
+        if ts is None or not ua or not target:
+            return None
+        return LogHit(ts=ts, ip=cell("ip"), method=(cell("method") or "GET").upper(),
+                      path=_clean_path(target), status=_http_status(_status_int(cell("status"))),
+                      user_agent=ua)
 
     def _parse_cloudfront(self, line: str) -> LogHit | None:
         assert self._cf_fields is not None
