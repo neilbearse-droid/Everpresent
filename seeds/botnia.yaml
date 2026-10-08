@@ -1,13 +1,23 @@
-# Botnia Skincare — tenant config.
+# Botnia Skincare — tenant config, built from botnia-aeo-prompts-import.csv
+# (30 prompts: six topics, each with three category prompts, one competitive
+# and one branded).
 #
 # Import is REPLACE-semantics: loading this swaps Botnia's brand, competitors,
 # personas, questions and brand facts wholesale. Past answers are kept (they
-# are stored by question text), so history for unchanged questions continues.
-# Engines are not listed, so Botnia's engine settings stay as they are.
+# are stored by question text). Engines are not listed, so Botnia's engine
+# settings stay as they are.
 #
-# CHECK BEFORE LOADING: the competitor list is a starting point (clean and
-# botanical brands, plus the drugstore names AI tends to give for sensitive
-# skin). Swap in the brands Botnia actually loses to.
+# How the CSV maps here:
+#   Topic     -> corpus (shows as the topic name on Scorecard > By topic)
+#   Type      -> Category and Competitive prompts count toward the visibility
+#                numbers, EXCEPT the four competitive prompts that name Botnia:
+#                those are branded (a question that names the brand gets the
+#                brand in the answer by design, so it would inflate the
+#                mention rate). They are measured with the branded questions.
+#   Persona   -> each prompt runs once plain (the baseline) and once as its
+#                persona
+#   Region    -> geo: us
+#   Priority, Notes -> comments on each prompt (no field for them)
 
 geo:
   country: us
@@ -21,108 +31,180 @@ brand:
     - botniaskincare.com
 
 competitors:
-  # Clean / botanical, esthetician-led
+  # Named in the CSV. Tata Harper, True Botanicals and Eminence are marked
+  # "rival assumed; review at day 14".
   - { name: Tata Harper, aliases: [Tata Harper Skincare], domains: [tataharperskincare.com] }
   - { name: True Botanicals, aliases: [], domains: [truebotanicals.com] }
+  - { name: Eminence Organics, aliases: [Eminence, Eminence Organic Skin Care], domains: [eminenceorganics.com] }
+  - { name: CeraVe, aliases: [], domains: [cerave.com] }
+  - { name: La Roche-Posay, aliases: [La Roche Posay], domains: [laroche-posay.us] }
+  # Other clean / botanical brands likely to appear in these answers. Check
+  # against "What are some skincare brands like Botnia?" after the first runs.
   - { name: OSEA, aliases: [OSEA Malibu], domains: [oseamalibu.com] }
   - { name: Dr. Hauschka, aliases: [Dr Hauschka], domains: [drhauschka.com] }
   - { name: May Lindstrom, aliases: [May Lindstrom Skin], domains: [maylindstrom.com] }
-  - { name: Pai Skincare, aliases: [Pai], domains: [paiskincare.com] }
-  # What AI usually recommends for sensitive / rosacea / acne-prone skin
-  - { name: La Roche-Posay, aliases: [La Roche Posay], domains: [laroche-posay.us] }
   - { name: Avène, aliases: [Avene, Eau Thermale Avène], domains: [aveneusa.com] }
-  - { name: CeraVe, aliases: [], domains: [cerave.com] }
 
 personas:
-  # Generic baseline: every question runs once with no persona. Its presence
-  # turns on selective mode, so the personas below run only on the questions
-  # that name them (keeps cost down). Don't reword a persona once it's live:
-  # it breaks the trend line.
+  # Generic baseline: every prompt runs once with no persona. Its presence
+  # turns on selective mode, so each persona runs only on the prompts that
+  # name it. Don't reword a persona once it's live: it breaks the trend line.
   - name: Generic (baseline)
     segment: generic
     prompt: ""
-  - name: Sensitive, reactive skin
-    segment: sensitive_skin
+  - name: Reactive skin
+    segment: reactive_skin
     prompt: >-
-      I have sensitive skin that gets red and irritated easily, and I think I
-      might have mild rosacea.
-  - name: Acne-prone adult
-    segment: acne_prone
+      My skin gets red and irritated from most products, and I think I might
+      have mild rosacea.
+  - name: Retinol alternative
+    segment: retinol_alternative
     prompt: >-
-      I'm in my thirties and still get breakouts, and a lot of products clog my
-      pores.
-  - name: Pregnant or breastfeeding
-    segment: pregnancy
+      I'm in my late thirties and want to treat fine lines and dark spots, but
+      I'd rather not use retinol.
+  - name: Routine seeker
+    segment: routine_seeker
     prompt: >-
-      I'm pregnant and plan to breastfeed, so I'm rethinking which skincare
-      products are safe to use.
+      I want a simple skincare routine built on clean, natural products, and
+      I'm not sure where to start.
+  - name: Esthetician
+    segment: esthetician
+    prompt: >-
+      I'm a licensed esthetician with a small solo studio, choosing a
+      professional skincare line to use in facials and sell to my clients.
 
 queries:
-  # --- Branded: what AI says about Botnia (kept out of the visibility score)
-  - { text: "Is Botnia Skincare good for acne?", corpus: brand, branded: true }
-  - { text: "Is Botnia Skincare good for sensitive skin?", corpus: brand, branded: true }
-  - { text: "Is Botnia Skincare good for rosacea?", corpus: brand, branded: true }
-  - { text: "Is Botnia Skincare organic?", corpus: brand, branded: true }
-  - { text: "Is Botnia Skincare pregnancy safe?", corpus: brand, branded: true }
-  - { text: "Is Botnia Skincare breastfeeding safe?", corpus: brand, branded: true }
-  - text: "Is Botnia Skincare non-comedogenic?"
-    corpus: brand
+  # ---------------------------------------------------------------------
+  # Sensitive and reactive skin
+  - text: "What's a gentle plant-based skincare routine for skin that gets red and irritated from most products?"
+    corpus: sensitive_and_reactive_skin
+    personas: [reactive_skin]          # High
+  - text: "Are there natural skincare brands that actually work for rosacea-prone skin?"
+    corpus: sensitive_and_reactive_skin
+    personas: [reactive_skin]          # High
+  - text: "What's the best gentle face cleanser for sensitive skin that also removes makeup?"
+    corpus: sensitive_and_reactive_skin
+    personas: [reactive_skin]          # Medium. Gentle Cleanser hero claim
+  - text: "What are good alternatives to Tata Harper for sensitive skin that cost less?"
+    corpus: sensitive_and_reactive_skin
+    personas: [reactive_skin]          # Medium, competitive. Rival assumed; review at day 14
+  - text: "Is Botnia skincare good for sensitive skin?"
+    corpus: sensitive_and_reactive_skin
     branded: true
-    # Was a separate question; same meaning, so it's a rotating wording instead.
-    paraphrases: ["Are Botnia products non-comedogenic?"]
-  - { text: "What makes Botnia Skincare different?", corpus: brand, branded: true }
-  - { text: "Where is Botnia Skincare made?", corpus: brand, branded: true }
-  - { text: "What Botnia Skincare products should I use for my skin?", corpus: brand, branded: true }
-  - { text: "How do I build a Botnia skincare routine?", corpus: brand, branded: true }
-  - { text: "How long does Botnia Skincare last?", corpus: brand, branded: true }
-  - { text: "Does Botnia use preservatives?", corpus: brand, branded: true }
-  - { text: "Does Botnia use essential oils?", corpus: brand, branded: true }
-  - { text: "Is Botnia Skincare cruelty free?", corpus: brand, branded: true }
-  - { text: "Is Botnia Skincare vegan?", corpus: brand, branded: true }
-  - { text: "Is Botnia Skincare worth it?", corpus: brand, branded: true }
-  - { text: "What is a Botnia facial?", corpus: brand, branded: true }
-  - { text: "Where can I get a Botnia facial?", corpus: brand, branded: true }
-  - { text: "Where can I buy Botnia Skincare?", corpus: brand, branded: true }
+    personas: [reactive_skin]          # High. Accuracy and sentiment check
 
-  # --- Competitive: does AI bring up Botnia when nobody names it?
-  - { text: "Why does fresh skincare have a shorter shelf life?", corpus: ingredients }
-  - { text: "Are preservatives bad in skincare?", corpus: ingredients }
-  - text: "Are essential oils bad for sensitive skin?"
-    corpus: ingredients
-    personas: [sensitive_skin]
-  - { text: "Is organic skincare actually better?", corpus: organic }
-  - { text: "Does organic skincare actually work?", corpus: organic }
-  - { text: "What's the difference between natural and organic skincare?", corpus: organic }
-  - text: "Is organic skincare non-comedogenic?"
-    corpus: organic
-    personas: [acne_prone]
-  - text: "Is natural skincare better for sensitive skin?"
-    corpus: sensitive
-    personas: [sensitive_skin]
-  - text: "What is the best skincare for sensitive skin?"
-    corpus: sensitive
-    personas: [sensitive_skin, pregnancy]
-  - text: "Best products for sensitive rosacea acne prone skin?"
-    corpus: sensitive
-    personas: [sensitive_skin, acne_prone]
-  - text: "Can natural skincare help acne?"
-    corpus: acne
-    personas: [acne_prone]
-  - { text: "How do I simplify my skincare routine?", corpus: routine }
-  - { text: "What does holistic skincare actually mean?", corpus: routine }
+  # ---------------------------------------------------------------------
+  # Retinol alternatives
+  - text: "What's a natural alternative to retinol that actually works for fine lines and dark spots?"
+    corpus: retinol_alternatives
+    personas: [retinol_alternative]    # High. Well Serum entry point
+  - text: "What skincare is safe to use instead of retinol during pregnancy?"
+    corpus: retinol_alternatives
+    personas: [retinol_alternative]    # High. CLAIM RISK: any Botnia content aimed here needs review first
+  - text: "Which works better for hyperpigmentation, bakuchiol or algae-based retinol alternatives?"
+    corpus: retinol_alternatives
+    personas: [retinol_alternative]    # Medium. Ingredient-led
+  - text: "How does Botnia Well Serum compare to other retinol alternative serums?"
+    corpus: retinol_alternatives
+    branded: true                      # CSV: Competitive; names Botnia
+    personas: [retinol_alternative]    # Medium
+  - text: "Does Botnia Well Serum work like retinol?"
+    corpus: retinol_alternatives
+    branded: true
+    personas: [retinol_alternative]    # High. Accuracy check on the hero product
 
-# Brand facts: EverPresent flags any answer that contradicts these. Fill in
-# Botnia's real answers, then uncomment. Only add what Botnia confirms; a wrong
-# fact here makes correct answers look wrong.
+  # ---------------------------------------------------------------------
+  # Clean skincare routines
+  - text: "Can you build me a simple clean skincare routine for combination skin with occasional breakouts?"
+    corpus: clean_skincare_routines
+    personas: [routine_seeker]         # High. The quiz's job
+  - text: "What's a good clean skincare routine for someone in their late 30s starting to see fine lines?"
+    corpus: clean_skincare_routines
+    personas: [routine_seeker]         # Medium
+  - text: "Where can I get a personalized skincare routine from an esthetician online?"
+    corpus: clean_skincare_routines
+    personas: [routine_seeker]         # High. The $15 consult's job
+  - text: "Which is better for an all-natural routine, Botnia or True Botanicals?"
+    corpus: clean_skincare_routines
+    branded: true                      # CSV: Competitive; names Botnia
+    personas: [routine_seeker]         # Medium. Rival assumed; review at day 14
+  - text: "What Botnia products should I start with for combination skin?"
+    corpus: clean_skincare_routines
+    branded: true
+    personas: [routine_seeker]         # Medium. Checks whether engines route to the quiz
+
+  # ---------------------------------------------------------------------
+  # Small-batch and independent skincare
+  - text: "Which skincare brands make their products in small batches so they're fresh?"
+    corpus: small_batch_and_independent_skincare
+    personas: [routine_seeker]         # High. Botnia's clearest differentiator
+  - text: "What are the best independent clean skincare brands that aren't owned by big beauty companies?"
+    corpus: small_batch_and_independent_skincare
+    personas: [routine_seeker]         # High
+  - text: "Which organic skincare brands grow their own ingredients?"
+    corpus: small_batch_and_independent_skincare
+    personas: [routine_seeker]         # Medium. Farm-to-face story
+  - text: "What are some skincare brands like Botnia?"
+    corpus: small_batch_and_independent_skincare
+    branded: true                      # CSV: Competitive; names Botnia
+    personas: [routine_seeker]         # High. Reveals the peer set. Read first.
+  - text: "Is Botnia skincare really made in small batches, and who makes it?"
+    corpus: small_batch_and_independent_skincare
+    branded: true
+    personas: [routine_seeker]         # Medium. Founder and Sausalito lab accuracy
+
+  # ---------------------------------------------------------------------
+  # Skin barrier repair
+  - text: "What plant-based products will help repair a skin barrier damaged from overusing exfoliants?"
+    corpus: skin_barrier_repair
+    personas: [reactive_skin]          # High
+  - text: "What's the best moisturizer for a damaged skin barrier without synthetic fragrance?"
+    corpus: skin_barrier_repair
+    personas: [reactive_skin]          # High
+  - text: "How long does it take to repair a damaged skin barrier, and what routine should I follow?"
+    corpus: skin_barrier_repair
+    personas: [reactive_skin]          # Medium
+  - text: "What are natural alternatives to CeraVe or La Roche-Posay for skin barrier repair?"
+    corpus: skin_barrier_repair
+    personas: [reactive_skin]          # Medium, competitive. Mass-market defaults are the real rivals in barrier answers
+  - text: "Is Botnia good for repairing a damaged skin barrier?"
+    corpus: skin_barrier_repair
+    branded: true
+    personas: [reactive_skin]          # High. Founder teaches barrier masterclasses; check engines know it
+
+  # ---------------------------------------------------------------------
+  # Professional lines for estheticians
+  - text: "What are the best organic professional skincare lines for estheticians offering holistic facials?"
+    corpus: professional_lines_for_estheticians
+    personas: [esthetician]            # High. Wholesale pipeline
+  - text: "Which natural skincare brands have good wholesale terms for small spas and solo estheticians?"
+    corpus: professional_lines_for_estheticians
+    personas: [esthetician]            # High
+  - text: "Which professional skincare brands train estheticians in botanical or herbal skincare?"
+    corpus: professional_lines_for_estheticians
+    personas: [esthetician]            # Medium. Training is a stated differentiator
+  - text: "How does Botnia compare to Eminence Organics as a professional line for estheticians?"
+    corpus: professional_lines_for_estheticians
+    branded: true                      # CSV: Competitive; names Botnia
+    personas: [esthetician]            # High. Rival assumed; review at day 14
+  - text: "How do estheticians become Botnia partners, and what are the minimums?"
+    corpus: professional_lines_for_estheticians
+    branded: true
+    personas: [esthetician]            # High. Wholesale facts accuracy
+
+# Brand facts: EverPresent flags any answer that contradicts these. The CSV's
+# accuracy checks (hero product, founder and Sausalito lab, wholesale terms)
+# need Botnia's confirmed answers first. Fill in, then uncomment. A wrong fact
+# here makes correct answers look wrong.
 #
 # brand_facts:
-#   - label: "Botnia is handmade in its own lab in Sausalito, California"
+#   - label: "Botnia is handmade in small batches in its own lab in Sausalito, California"
 #     subject: "where Botnia is made"
-#     kind: disallowed          # a phrase that must never appear
+#     kind: disallowed          # `expected` is a phrase that must never appear
 #     expected: "made in China"
 #     category: origin
-#   - label: "Botnia is [vegan / not vegan]"
-#     subject: "vegan"
-#     kind: disallowed
-#     expected: "[the wrong claim, e.g. 'Botnia is not vegan']"
-#     category: ingredients
+#   - label: "Partner (wholesale) minimum opening order is $[confirm]"
+#     subject: "partner minimum order"
+#     kind: numeric             # `expected` is the correct number; a different one is flagged
+#     expected: "$[confirm]"
+#     category: wholesale
