@@ -23,6 +23,7 @@ from api.models import (
     Tenant,
     VisibilityDaily,
 )
+from engine.analytics.ga4 import tracking_gaps
 
 
 def outcome(
@@ -59,12 +60,14 @@ def outcome(
             vis_by_date[v.date].append(v.brand_score)
 
     dates = sorted(set(by_date) | set(vis_by_date))
+    gaps = tracking_gaps(dates[0], dates[-1]) if referrals and dates else []
     series = [
         {
             "date": d,
             "sessions": by_date[d]["sessions"] if d in by_date else 0,
             "conversions": by_date[d]["conversions"] if d in by_date else 0,
             "brand_score": _mean(vis_by_date[d]) if d in vis_by_date else None,
+            "tracking_gap": any(g["start"] <= d <= g["end"] for g in gaps),
         }
         for d in dates
     ]
@@ -85,6 +88,7 @@ def outcome(
             for e, vals in sorted(engine_totals.items(), key=lambda kv: -kv[1]["sessions"])
         ],
         "totals": totals,
+        "tracking_gaps": gaps,
     }
 
 

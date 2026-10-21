@@ -374,11 +374,11 @@ td.r, th.r { text-align: right; }
       {% for g in it.signals %}
       <tr><td><b>{{ g.label }}</b></td>
         {% if g.kind == 'rate' %}
-        <td class="r num">{{ '%.1f' % g.before }}%</td><td class="r num">{{ '%.1f' % g.after }}%</td>
+        <td class="r num">{{ '%.1f%%' % g.before if g.before is not none else '–' }}</td><td class="r num">{{ '%.1f%%' % g.after if g.after is not none else '–' }}</td>
         <td class="r num">{% if g.net_pts is not none %}<b>{{ '%+.1f' % g.net_pts }} pts</b>{% else %}–{% endif %}</td>
         {% else %}
         <td class="r num">{{ '{:,.0f}'.format(g.before) if g.before is not none else '–' }}</td><td class="r num">{{ '{:,.0f}'.format(g.after) if g.after is not none else '–' }}</td>
-        <td class="r num">{% if g.change_pct is not none and g.control_change_pct is not none %}<b>{{ '%+.0f' % (g.change_pct - g.control_change_pct) }}%</b>{% else %}–{% endif %}</td>
+        <td class="r num">{% if g.get('change_pct') is not none and g.get('control_change_pct') is not none %}<b>{{ '%+.0f' % (g.change_pct - g.control_change_pct) }}%</b>{% else %}–{% endif %}</td>
         {% endif %}
         <td class="small muted">{{ g.note }}</td></tr>
       {% endfor %}

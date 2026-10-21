@@ -122,9 +122,17 @@ export type OutcomePayload = {
   brand_name: string;
   connected: boolean;
   has_data: boolean;
-  series: { date: string; sessions: number; conversions: number; brand_score: number | null }[];
+  series: {
+    date: string;
+    sessions: number;
+    conversions: number;
+    brand_score: number | null;
+    tracking_gap?: boolean;
+  }[];
   engine_totals: { engine: string; sessions: number; conversions: number }[];
   totals: { sessions: number; conversions: number };
+  /** Known outages in an engine's link tagging that overlap the chart. */
+  tracking_gaps?: { engine: string; start: string; end: string; label: string; note: string }[];
 };
 
 export type Run = {

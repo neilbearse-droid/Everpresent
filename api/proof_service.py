@@ -35,6 +35,7 @@ from api.models import (
     ResultStatus,
     ResultVariant,
 )
+from engine.analytics.ga4 import tracking_gaps
 from engine.processing.stats import change_verdict
 
 WINDOW_DAYS = 28
@@ -204,11 +205,14 @@ def intervention_proof(session: Session, tenant_id: int, days: int = WINDOW_DAYS
                                          "or Bing imports"))
         rb = sum(v for d, v in referrals.items() if b0.isoformat() <= d < a0.isoformat())
         ra = sum(v for d, v in referrals.items() if a0.isoformat() <= d < a1.isoformat())
+        gaps = tracking_gaps(b0.isoformat(), (a1 - timedelta(days=1)).isoformat())
         signals.append({
             "key": "referrals", "label": "AI referral sessions (sitewide)", "kind": "context",
             "before": rb, "after": ra, "change_pct": _pct_change(rb, ra),
             "verdict": "context only" if rb + ra else "no data",
-            "note": "GA4, whole site: can't be tied to one fix",
+            "note": "GA4, whole site: can't be tied to one fix"
+                    + "".join(f". Undercounts {g['engine']} for {g['label']}: its links "
+                              "went untagged, so those visits show as Direct" for g in gaps),
         })
 
         if length < MIN_AFTER_DAYS:

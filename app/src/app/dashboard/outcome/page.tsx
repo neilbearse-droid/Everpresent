@@ -46,6 +46,7 @@ export default async function OutcomePage({
 
   const maxSessions = Math.max(...d.series.map((s) => s.sessions), 1);
   const scored = d.series.filter((s) => s.brand_score !== null);
+  const gaps = d.tracking_gaps ?? [];
 
   return (
     <main className="mx-auto max-w-[1400px] px-6 pb-16">
@@ -89,6 +90,12 @@ export default async function OutcomePage({
           Daily AI-referred sessions (bars), with your brand visibility score above each day a
           run measured it.
         </p>
+        {gaps.map((g) => (
+          <p key={g.start} className="mb-4 max-w-3xl text-sm text-[var(--text-2)]">
+            <span className="font-medium text-[var(--text)]">{g.label}, grey bars:</span>{" "}
+            {g.note} The totals above undercount {g.engine} for those days too.
+          </p>
+        ))}
         <div className="flex gap-1" style={{ height: 140 }}>
           {d.series.map((s) => (
             <div key={s.date} className="flex h-full flex-1 flex-col items-center gap-1">
@@ -98,11 +105,11 @@ export default async function OutcomePage({
               {/* The bar's % height needs a definite-height parent. */}
               <div className="flex w-full flex-1 items-end">
                 <div
-                  className="w-full bg-[var(--accent)]"
+                  className={`w-full ${s.tracking_gap ? "bg-[var(--text-3)] opacity-40" : "bg-[var(--accent)]"}`}
                   style={{ height: `${(s.sessions / maxSessions) * 100}%`, minHeight: s.sessions ? 2 : 0 }}
                   title={`${s.date}: ${s.sessions} sessions, ${s.conversions} key events${
                     s.brand_score !== null ? `, visibility ${s.brand_score}` : ""
-                  }`}
+                  }${s.tracking_gap ? " · tracking outage, undercounted" : ""}`}
                 />
               </div>
             </div>

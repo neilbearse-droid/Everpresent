@@ -3,6 +3,22 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M50 — ChatGPT tracking outage, Oct 8–15 (2026-10-21)
+
+1. **A dated note, not an estimate.** ChatGPT's links went untagged from
+   about 2pm Pacific on Oct 8 until a fix rolled out on Oct 15 (reported by
+   Adobe's Cedric Huesler and by Profound), so GA4 filed those clicks under
+   Direct, permanently. The Outcome chart greys those days and says the dip
+   is missing data. The "AI referral sessions" row under each fix (web, PDF
+   and workbook) says when its window includes the outage. No attempt to
+   estimate the hidden visits.
+2. **One list of known gaps** (`TRACKING_GAPS` in `engine/analytics/ga4.py`),
+   so the next outage is a one-line addition.
+3. **PDF bug found on the way:** the proof table crashed the report for any
+   client with GA4 connected and a fix logged (the referrals row has no
+   control), and for a fix whose question had no answers before it shipped.
+   Both now render a dash (regression test added).
+
 ## M49 — Plain-language pass (2026-10-21)
 
 1. **Copy.** Swept every page, the PDF report, recommendation reasons and

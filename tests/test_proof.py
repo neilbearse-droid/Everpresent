@@ -86,6 +86,7 @@ def test_real_lift_beats_control(db_session):
     assert m["ai_bot_reads"]["verdict"] == "up vs control"
     assert m["search_ai_impressions"]["verdict"] == "no data"
     assert m["referrals"]["kind"] == "context" and m["referrals"]["after"] == 50
+    assert "untagged" not in m["referrals"]["note"]  # window ends before Oct 8
     assert d["summary"].startswith("1 of 1 measured")
 
 
@@ -107,3 +108,17 @@ def test_empty_ledger(db_session):
     db_session.add(t)
     db_session.commit()
     assert intervention_proof(db_session, t.id)["items"] == []
+
+
+def test_referrals_note_the_chatgpt_tagging_outage(db_session):
+    from api.proof_service import intervention_proof
+
+    t = Tenant(name="Acme", slug="acme")
+    db_session.add(t)
+    db_session.commit()
+    db_session.add(Intervention(tenant_id=t.id, query_text=FIXED, description="Fix",
+                                shipped_at=datetime(2026, 10, 1, tzinfo=UTC)))
+    db_session.commit()
+    it = intervention_proof(db_session, t.id, today=date(2026, 10, 21))["items"][0]
+    note = next(s for s in it["signals"] if s["key"] == "referrals")["note"]
+    assert "Undercounts ChatGPT for Oct 8–15" in note

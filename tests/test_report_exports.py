@@ -43,6 +43,27 @@ def test_report_pdf_renders(db_session, demo_tenant):
     assert len(pdf) > 20_000
 
 
+def test_report_renders_ga4_referrals_and_a_fix_without_a_baseline(db_session, demo_tenant):
+    """The proof table used to crash the PDF on the GA4 row (no control) and on
+    a fix whose question had no answers before it shipped."""
+    from datetime import UTC, date, datetime, timedelta
+
+    from api.models import AiReferralDaily, Intervention
+    from api.report_pdf import render_report_html
+
+    today = date.today()
+    for i in range(60):
+        db_session.add(AiReferralDaily(tenant_id=demo_tenant.id, engine="ChatGPT",
+                                       date=(today - timedelta(days=i)).isoformat(),
+                                       sessions=20, conversions=1))
+    db_session.add(Intervention(tenant_id=demo_tenant.id, query_text="never asked before",
+                                description="New FAQ page",
+                                shipped_at=datetime.now(UTC) - timedelta(days=10)))
+    db_session.commit()
+    html = render_report_html(db_session, demo_tenant)
+    assert "AI referral sessions (sitewide)" in html and "New FAQ page" in html
+
+
 def test_report_survives_an_empty_tenant(db_session):
     from api.report_pdf import build_report_pdf
 

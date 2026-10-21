@@ -28,6 +28,28 @@ AI_SOURCE_TOKENS: list[tuple[str, tuple[str, ...]]] = [
 ]
 
 
+# Known outages in an engine's link tagging. Clicks on these days reached GA4
+# as Direct, so a dip there is missing data, not lost visits. Dates are
+# inclusive. ChatGPT's ran from about 2pm Pacific on Oct 8, 2026 until a fix
+# rolled out on Oct 15 (reported by Adobe's Cedric Huesler and by Profound).
+TRACKING_GAPS: list[dict[str, str]] = [
+    {
+        "engine": "ChatGPT",
+        "start": "2026-10-08",
+        "end": "2026-10-15",
+        "label": "Oct 8–15",
+        "note": "ChatGPT stopped tagging its links from Oct 8 until a fix on Oct 15, so "
+                "GA4 counted its visits on those days as Direct. The dip is missing "
+                "data, not lost traffic.",
+    },
+]
+
+
+def tracking_gaps(start: str, end: str) -> list[dict[str, str]]:
+    """Known tagging outages overlapping start..end (ISO dates, inclusive)."""
+    return [g for g in TRACKING_GAPS if g["start"] <= end and g["end"] >= start]
+
+
 def classify_source(source: str) -> str | None:
     """Map a GA4 session source (utm_source or referrer host) to an answer
     engine, or None if it isn't AI traffic."""
