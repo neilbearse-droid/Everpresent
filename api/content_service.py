@@ -137,7 +137,7 @@ def generate_accuracy_draft(session: Session, tenant: Tenant, fact_id: int) -> C
         prompt=build_accuracy_draft_prompt(ctx),
         source_kind="accuracy",
         source_ref=f"fact:{fact_id}",
-        fallback_title=f"Setting the record straight: {fact.subject}",
+        fallback_title=f"The correct facts: {fact.subject}",
     )
 
 
@@ -264,9 +264,10 @@ def generate_shard_draft(session: Session, tenant: Tenant, shard_id: int) -> Con
     assert tenant.id is not None
     shard = session.get(FanoutShard, shard_id)
     if shard is None or shard.tenant_id != tenant.id:
-        raise ContentGenUnavailable("no such shard for this tenant")
+        raise ContentGenUnavailable("no such sub-search for this tenant")
     if shard.source != "reprobed" or shard.brand_present is not False:
-        raise ContentGenUnavailable("only a re-probed shard you're absent from gets a brief")
+        raise ContentGenUnavailable(
+            "only a re-checked sub-search you're absent from gets a brief")
     model, api_key = _require_governed_draft_model(tenant)
 
     ctx = _shard_context(session, tenant, shard)

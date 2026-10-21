@@ -21,7 +21,7 @@ export async function markShipped(
   });
   if (!res.ok) return { ok: false, message: res.error ?? "Could not record the fix" };
   revalidatePath("/dashboard/action-plan");
-  return { ok: true, message: "Shipped — measurement splits at today's date." };
+  return { ok: true, message: "Recorded. Before-and-after results are measured from today." };
 }
 
 export async function unship(

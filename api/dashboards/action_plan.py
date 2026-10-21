@@ -257,9 +257,9 @@ def _citability_diff(
     gaps: list[str] = []
     if your_page is None:
         gaps.append(
-            "None of your pages is cited on this query. First make sure one answers it "
-            "AND the sub-questions engines search for it (see the brief), then build one "
-            "to the winning spec below"
+            "None of your pages is cited for this question. Make sure one page answers it "
+            "and the sub-questions engines search for it (see the brief); if none does, "
+            "build one to the winning spec below"
         )
     else:
         yf = your_page.features or {}
@@ -267,27 +267,27 @@ def _citability_diff(
         if spec["has_price"] and not yf.get("has_price"):
             gaps.append(
                 "Winning pages state prices outright; yours doesn't. Put current plan "
-                "prices on the page as text (explicit prices raised citation odds in a "
-                "large 2026 controlled study)"
+                "prices on the page as text (explicit prices raised citation odds in a May "
+                "2026 controlled study, arXiv 2605.25517)"
             )
         if spec["has_updated_date"] and not yf.get("has_updated_date"):
             gaps.append(
                 "Winning pages show when they were last updated; yours doesn't. Add a "
                 "visible 'Updated <month year>' plus dateModified, and keep it honest "
-                "(recent timestamps raised citation odds in controlled tests)"
+                "(recent dates raised citation odds in the same study)"
             )
         your_year = yf.get("latest_year", 0)
         if spec["latest_year"] and your_year and your_year < spec["latest_year"]:
             gaps.append(
                 f"Winning pages cite {spec['latest_year']} facts; your newest is "
-                f"{your_year}. Refresh the numbers, examples and dates (most cited pages "
-                f"were updated in the past year)"
+                f"{your_year}. Refresh the numbers, examples and dates (AI answers tend to "
+                f"cite recently updated pages)"
             )
         if spec["has_rating"] and not yf.get("has_rating"):
             gaps.append(
-                "Winning pages show ratings or review scores; yours doesn't. Surface your "
-                "real review rating and where it comes from (small rating gaps flipped "
-                "AI recommendations in a 2026 controlled test)"
+                "Winning pages show ratings or review scores; yours doesn't. Show your "
+                "real review rating and where it comes from (a small rating gap changed "
+                "which brand AI recommended in a June 2026 controlled test, arXiv 2606.17443)"
             )
         # 2. Evidence density.
         if spec["statistic_count"] >= 5 and yf.get("statistic_count", 0) < max(
@@ -295,9 +295,8 @@ def _citability_diff(
         ):
             gaps.append(
                 f"Winning pages carry ~{spec['statistic_count']} statistics/data points; "
-                f"yours has {yf.get('statistic_count', 0)}. Add specific, verifiable "
-                f"figures: engines lean hardest on pages with numbers, definitions and "
-                f"comparisons"
+                f"yours has {yf.get('statistic_count', 0)}. Add specific figures a reader "
+                f"can check: pages with numbers, definitions and comparisons get cited more"
             )
         if yf.get("word_count", 0) < spec["word_count"] * 0.5:
             gaps.append(
@@ -308,8 +307,8 @@ def _citability_diff(
         if spec["has_answer_capsule"] and not yf.get("has_answer_capsule"):
             gaps.append(
                 "Winning pages open sections with a short direct answer under a question "
-                "heading (an answer capsule); yours doesn't. Worth adding, but it only "
-                "helps once the page is retrieved"
+                "heading (an answer capsule); yours doesn't. Worth adding, though it only "
+                "helps once engines already find the page"
             )
         if spec["front_loaded"] and not yf.get("front_loaded"):
             gaps.append(
@@ -319,7 +318,7 @@ def _citability_diff(
         if spec["quotations"] and not yf.get("quotation_count"):
             gaps.append(
                 "Winning pages quote named, credible sources; yours has no quotations. "
-                "Add attributed quotes (a lab-tested lever, not yet proven on live engines)"
+                "Add attributed quotes (tested in lab studies; not yet shown on live engines)"
             )
         if spec["citation_count"] >= 3 and yf.get("citation_count", 0) < max(
             2, spec["citation_count"] // 2
@@ -330,18 +329,20 @@ def _citability_diff(
             )
         if yf.get("promotional_tone_score", 0) > max(6.0, spec["promotional_tone_score"] * 2):
             gaps.append(
-                "Your page reads like an ad. Answers lift neutral, factual sentences; "
-                "cut the sales language from anything you want cited"
+                "Your page reads like an ad. Answers tend to quote neutral, factual "
+                "sentences; cut the sales language from anything you want cited"
             )
         # 4. Hygiene.
         if spec["json_ld"] and not yf.get("json_ld"):
-            gaps.append("Add JSON-LD structured data (entity hygiene, not a ranking lever)")
+            gaps.append("Add JSON-LD structured data: it helps engines identify the brand, "
+                        "though it hasn't been shown to raise citations")
         if spec["has_tables"] and not yf.get("has_tables"):
             gaps.append("Winning pages use comparison tables; yours has none")
         if not gaps:
             gaps.append(
-                "Your page matches the winning fingerprint. The gap is likely retrieval "
-                "(sub-query coverage) or third-party proof (reviews, mentions), not the page"
+                "Your page has what the winning pages have. The gap is more likely whether "
+                "engines find it (cover the sub-questions they search) or proof on other "
+                "sites (reviews, mentions)"
             )
 
     return {
@@ -573,9 +574,10 @@ def _spam_risk(query: str) -> dict | None:
         "level": "high",
         "note": (
             "Don't answer this with your own ranked 'best X' list or an "
-            "'alternatives' page. It barely works and it's risky: in 2026 experiments, "
-            "placement on third-party lists drove far more AI mentions than brands' own "
-            "lists, and Google's August and September 2026 spam updates target "
+            "'alternatives' page. These earn few AI mentions and carry spam risk: in "
+            "Search Engine Land's September 2026 experiments, placement on third-party "
+            "lists drove far more AI mentions than brands' own lists, and Google's August "
+            "and September 2026 spam updates target "
             "self-promotional listicles and attempts to steer AI answers. Earn a place "
             "on the third-party pages engines already cite (target sources), and "
             "publish an honest comparison that says where competitors fit better."

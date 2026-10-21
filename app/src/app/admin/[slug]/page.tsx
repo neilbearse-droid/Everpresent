@@ -59,13 +59,19 @@ export default async function TenantAdminPage({
     ["au", "Australia"],
   ];
   if (!countries.some(([code]) => code === country)) countries.push([country, "Current"]);
+  // Plain names for the engine types the readiness API reports.
+  const engineType: Record<string, string> = {
+    API: "API",
+    Browser: "Browser",
+    SERP: "Google results",
+  };
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-10 sm:px-8">
       <header className="mb-8 flex items-center justify-between">
         <div>
           <Link href="/admin" className="text-sm text-[var(--accent)] hover:underline">
-            ← All tenants
+            ← All clients
           </Link>
           <h1 className="mt-1 text-2xl font-semibold tracking-tight">{tenant.name}</h1>
           <p className="text-sm text-[var(--text-2)]">
@@ -73,7 +79,7 @@ export default async function TenantAdminPage({
             <span className="font-medium text-[var(--text)]">
               {plans[tenant.plan]?.label ?? tenant.plan}
             </span>{" "}
-            · brand: {brand_profile?.brand_name ?? "— no config imported —"}
+            · brand: {brand_profile?.brand_name ?? "no config imported"}
           </p>
         </div>
         <Link
@@ -116,10 +122,10 @@ export default async function TenantAdminPage({
                   <div className="grid grid-cols-1 gap-2 p-3 sm:grid-cols-3 lg:grid-cols-5">
                     {ready.system.map((c) => (
                       <div key={c.label} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">
-                        <div className="bp-label">{c.ok ? "✓ Up" : "✗ Down"}</div>
-                        <div className={`mt-1 text-[13px] font-semibold ${c.ok ? "" : "bp-neg"}`}>
+                        <div className={`text-[13px] font-semibold ${c.ok ? "" : "bp-neg"}`}>
                           {c.label}
                         </div>
+                        <div className="mt-0.5 text-[12px] text-[var(--text-3)]">{c.ok ? "Up" : "Down"}</div>
                         <p className="mt-1 text-[11.5px] text-[var(--text-2)]">{c.hint}</p>
                       </div>
                     ))}
@@ -133,10 +139,10 @@ export default async function TenantAdminPage({
               <div className="grid grid-cols-1 gap-2 p-3 sm:grid-cols-2 lg:grid-cols-4">
                 {ready.checks.map((c) => (
                   <div key={c.label} className="rounded-lg border border-[var(--border)] bg-[var(--surface)] p-3">
-                    <div className="bp-label">{c.ok ? "✓ Done" : "✗ To do"}</div>
-                    <div className={`mt-1 text-[13px] font-semibold ${c.ok ? "" : "bp-neg"}`}>
+                    <div className={`text-[13px] font-semibold ${c.ok ? "" : "bp-neg"}`}>
                       {c.label}
                     </div>
+                    <div className="mt-0.5 text-[12px] text-[var(--text-3)]">{c.ok ? "Done" : "To do"}</div>
                     {!c.ok && <p className="mt-1 text-[11.5px] text-[var(--text-2)]">{c.hint}</p>}
                   </div>
                 ))}
@@ -154,9 +160,9 @@ export default async function TenantAdminPage({
                     <th>Type</th>
                     <th>Status</th>
                     <th>What to do</th>
-                    <th>Needs on the deployment</th>
+                    <th>Server settings needed</th>
                     <th>Last run</th>
-                    <th className="text-right">Switch</th>
+                    <th className="text-right">On / off</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -166,7 +172,9 @@ export default async function TenantAdminPage({
                         <div className="font-semibold">{e.label}</div>
                         <div className="text-[11px] text-[var(--text-3)]">{e.code}</div>
                       </td>
-                      <td className="bp-label whitespace-nowrap">{e.mode}</td>
+                      <td className="whitespace-nowrap text-[12px] text-[var(--text-2)]">
+                        {engineType[e.mode] ?? e.mode}
+                      </td>
                       <td>
                         <span
                           className={`text-[12px] font-medium ${
@@ -183,7 +191,7 @@ export default async function TenantAdminPage({
                             : e.verdict === "check_failed"
                               ? "live check failed"
                               : e.verdict === "check_parse"
-                                ? "parse problem"
+                                ? "couldn't read the answer"
                                 : e.verdict.replaceAll("_", " ")}
                         </span>
                       </td>
@@ -212,7 +220,7 @@ export default async function TenantAdminPage({
                         )}
                         {e.last_run.run_id && (
                           <div className="text-[var(--text-2)]">
-                            ok {e.last_run.ok} · blk {e.last_run.blocked} · err {e.last_run.error}
+                            {e.last_run.ok} ok · {e.last_run.blocked} blocked · {e.last_run.error} failed
                           </div>
                         )}
                       </td>
@@ -224,7 +232,7 @@ export default async function TenantAdminPage({
                             </button>
                           </form>
                         ) : (
-                          <span className="bp-label">n/a</span>
+                          <span className="text-[12px] text-[var(--text-3)]">Not available</span>
                         )}
                       </td>
                     </tr>
@@ -239,8 +247,9 @@ export default async function TenantAdminPage({
       <section className="card mb-6 p-5">
         <h2 className="mb-1 font-medium">Plan</h2>
         <p className="mb-4 text-xs text-[var(--text-2)]">
-          Caps the run matrix — prompts, personas, engines — the dual-query diagnosis, and the
-          model tier. Applies on the next run; existing tenants default to Custom (uncapped).
+          Sets how many questions, personas and engines each run covers, whether each question is
+          also asked with web search turned off, and which model of each API engine answers.
+          Takes effect on the next run. Existing clients default to Custom, which has no limits.
         </p>
         <PlanForm slug={tenant.slug} current={tenant.plan} plans={plans} />
       </section>
@@ -249,16 +258,16 @@ export default async function TenantAdminPage({
         <section className="card p-5">
           <h2 className="mb-3 font-medium">Clerk organization</h2>
           <p className="mb-3 text-xs text-[var(--text-2)]">
-            Members of this Clerk org see this tenant's dashboards. Paste the org id
-            (org_…) from the Clerk dashboard.
+            Members of this Clerk organization see this client&apos;s dashboards. Paste the
+            organization ID (it starts with org_) from the Clerk dashboard.
           </p>
           <ClerkOrgForm slug={tenant.slug} orgId={tenant.clerk_org_id ?? ""} />
           <div className="mt-5 border-t border-[var(--border)] pt-4">
-            <h3 className="mb-1 text-sm font-medium">GA4 property (Outcome attribution)</h3>
+            <h3 className="mb-1 text-sm font-medium">GA4 property (for the Outcome page)</h3>
             <p className="mb-3 text-xs text-[var(--text-2)]">
-              Numeric GA4 property id. Grant the EverPresent service account{" "}
-              <span className="font-mono">Viewer</span> on this property, then AI-referral
-              traffic populates the Outcome tab nightly.
+              The GA4 property ID, digits only. Give the EverPresent service account{" "}
+              <span className="font-mono">Viewer</span> access to the property, and visits that
+              come from AI assistants appear on the Outcome page each night.
             </p>
             <Ga4Form slug={tenant.slug} propertyId={tenant.ga4_property_id ?? ""} />
           </div>
@@ -269,7 +278,7 @@ export default async function TenantAdminPage({
           <p className="mb-3 text-sm">
             AI processing:{" "}
             <span className={tenant.ai_processing_approved ? "text-[var(--pos)]" : "text-[var(--warn-t)]"}>
-              {tenant.ai_processing_approved ? "approved" : "gated"}
+              {tenant.ai_processing_approved ? "approved" : "not approved"}
             </span>
           </p>
           <form action={setGovernance.bind(null, tenant.slug, !tenant.ai_processing_approved)}>
@@ -278,8 +287,8 @@ export default async function TenantAdminPage({
             </button>
           </form>
           <p className="mt-3 text-xs text-[var(--text-3)]">
-            Runs for a gated tenant are recorded with status <code>gated</code>, never
-            silently skipped.
+            Runs for a client without approval are still logged, with the status
+            &ldquo;not approved&rdquo;.
           </p>
           <SpendCapForm slug={tenant.slug} cap={tenant.monthly_spend_cap_usd} />
           <div className="mt-5 border-t border-[var(--border)] pt-4">
@@ -314,33 +323,34 @@ export default async function TenantAdminPage({
               </button>
             </form>
             <p className="mt-3 text-xs text-[var(--text-3)]">
-              Powers the Whitespace page (names the AI recommends that you don&apos;t track) and the
-              corrective-content and brief buttons. Uses ANTHROPIC_API_KEY; costs count toward the
-              monthly cap.
+              Needed for the Whitespace page (brands the AI recommends that you don&apos;t track)
+              and the buttons that draft corrections and briefs. Uses the ANTHROPIC_API_KEY
+              setting, and the cost counts toward the monthly cap.
             </p>
           </div>
           <div className="mt-5 border-t border-[var(--border)] pt-4">
             <p className="mb-3 text-sm">
-              Fan-out re-probe:{" "}
+              Re-check sub-searches:{" "}
               <span className={tenant.fanout_reprobe_enabled ? "text-[var(--pos)]" : "text-[var(--text-2)]"}>
                 {tenant.fanout_reprobe_enabled ? "on" : "off"}
               </span>
             </p>
             <form action={setFanoutReprobe.bind(null, tenant.slug, !tenant.fanout_reprobe_enabled)}>
               <button className="rounded-md border border-[var(--border)] px-3 py-2 text-sm hover:bg-[var(--surface-2)]">
-                {tenant.fanout_reprobe_enabled ? "Turn off re-probe" : "Turn on re-probe"}
+                {tenant.fanout_reprobe_enabled ? "Turn off re-checks" : "Turn on re-checks"}
               </button>
             </form>
             <p className="mt-3 text-xs text-[var(--text-3)]">
-              After each run, re-runs the top fan-out sub-queries on the engine that issued them
-              to measure whether the brand appears in each one.{" "}
+              Before answering, an engine may run several web searches of its own
+              (sub-searches). After each run, this repeats the main sub-searches on the engine
+              that ran them, to see whether the brand shows up in each one.{" "}
               {(() => {
                 const lim = plans[tenant.plan];
                 return lim && lim.shard_probes_per_run > 0
-                  ? `This plan allows ${lim.shard_probes_per_prompt} per prompt, ${lim.shard_probes_per_run} per run.`
-                  : "This plan includes the map only — no re-probes.";
+                  ? `This plan allows ${lim.shard_probes_per_prompt} per question and ${lim.shard_probes_per_run} per run.`
+                  : "This plan lists the sub-searches but doesn't re-check them.";
               })()}{" "}
-              Spend counts toward the monthly cap.
+              The cost counts toward the monthly cap.
             </p>
           </div>
         </section>
@@ -348,8 +358,8 @@ export default async function TenantAdminPage({
         <section className="card p-5">
           <h2 className="mb-3 font-medium">Run schedule</h2>
           <p className="mb-3 text-xs text-[var(--text-2)]">
-            Scheduled runs use the tenant's current surfaces and governance state at fire
-            time.
+            Each scheduled run uses the client&apos;s engines and approval status as they are
+            when the run starts.
             {schedule.data?.next_run_at &&
               ` Next run: ${new Date(schedule.data.next_run_at).toLocaleString()} UTC.`}
           </p>
@@ -363,7 +373,8 @@ export default async function TenantAdminPage({
         <section className="card p-5">
           <h2 className="mb-3 font-medium">Notifications</h2>
           <p className="mb-3 text-xs text-[var(--text-2)]">
-            Run-completion reports (PDF + CSV) go to these addresses. Comma-separated.
+            When a run finishes, a report (PDF and CSV) goes to these addresses. Separate them
+            with commas.
           </p>
           <NotifyEmailsForm slug={tenant.slug} emails={tenant.notify_emails.join(", ")} />
         </section>
@@ -371,53 +382,52 @@ export default async function TenantAdminPage({
         <section className="card p-5">
           <h2 className="mb-3 font-medium">AI access audit</h2>
           <p className="mb-3 text-xs text-[var(--text-2)]">
-            Probes the brand's domains the way the answer engines do: robots.txt rules for
-            each AI crawler, CDN bot-blocking, llms.txt, and homepage structured data. A
-            surprising share of visibility gaps are a one-line config fix.
+            Checks the brand&apos;s websites the way AI engines reach them: robots.txt rules for
+            each AI crawler, bot blocking at the CDN, llms.txt, and structured data on the
+            homepage.
           </p>
           <AccessAuditPanel slug={tenant.slug} />
           <div className="mt-5 border-t border-[var(--border)] pt-4">
-            <h3 className="mb-1 text-sm font-medium">Power Pages presence crawl</h3>
+            <h3 className="mb-1 text-sm font-medium">Power pages check</h3>
             <p className="mb-3 text-xs text-[var(--text-2)]">
-              Fetches the top third-party pages the engines cite and checks whether the brand
-              is actually named on each. Runs nightly; queue one now after a fresh run.
+              Opens the third-party pages the engines cite most and checks whether each one
+              names the brand. Runs every night; start one now after a new run.
             </p>
             <CrawlPagesButton slug={tenant.slug} />
           </div>
           <div className="mt-5 border-t border-[var(--border)] pt-4">
             <h3 className="mb-1 text-sm font-medium">Reprocess history</h3>
             <p className="mb-3 text-xs text-[var(--text-2)]">
-              Re-reads every stored answer with the current detectors: new fan-out searches, ads,
-              fact checks. No new answers are bought.
+              Reads every stored answer again with the current checks (sub-searches, ads, fact
+              checks). It doesn&apos;t buy new answers.
             </p>
             <ReprocessButton slug={tenant.slug} />
           </div>
         </section>
 
         <section className="card p-5">
-          <h2 className="mb-3 font-medium">Brand fact sheet — accuracy monitoring</h2>
+          <h2 className="mb-3 font-medium">Brand facts (accuracy checks)</h2>
           <p className="mb-3 text-xs text-[var(--text-2)]">
-            Ground-truth facts the answer engines must get right. Each run checks every answer
-            against these and flags contradictions on the Scorecard — the highest-stakes error
-            for a credentialed or regulated brand. Numeric facts catch wrong figures near the
-            subject; disallowed facts catch a phrase that must never appear.
+            Facts the AI engines need to get right. Each run checks every answer against them
+            and flags contradictions on the Scorecard. A numeric fact catches a wrong figure near
+            its subject term; a disallowed fact catches a phrase that must never appear.
           </p>
           <BrandFactsPanel slug={tenant.slug} facts={facts.data ?? []} />
         </section>
 
         <section className="card p-5">
-          <h2 className="mb-3 font-medium">Import config YAML</h2>
+          <h2 className="mb-3 font-medium">Import a config (YAML)</h2>
           <p className="mb-3 text-xs text-[var(--text-2)]">
-            Replace-semantics: brand, competitors, personas, queries, and surface
-            enablement are swapped wholesale.
+            Importing replaces the client&apos;s brand, competitors, personas, questions and
+            engine settings.
           </p>
           <ImportYamlForm slug={tenant.slug} seeds={seeds.data ?? []} />
           <div className="mt-6 border-t border-[var(--border)] pt-4">
-            <p className="mb-2 text-sm">Vendor captures</p>
+            <p className="mb-2 text-sm">Answers from a capture vendor</p>
             <ImportCapturesForm slug={tenant.slug} />
           </div>
           <div className="mt-6 border-t border-[var(--border)] pt-4">
-            <p className="mb-2 text-sm">AI Agents log push</p>
+            <p className="mb-2 text-sm">AI bot logs (for the AI Agents page)</p>
             <AgentTokenForm slug={tenant.slug} />
           </div>
         </section>

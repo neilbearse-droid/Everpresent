@@ -29,7 +29,7 @@ export default async function PersonasPage({
         <section className="card p-4">
           <h2 className="mb-2 text-lg font-medium">No persona data yet</h2>
           <p className="text-sm text-[var(--text-2)]">
-            Per-segment visibility appears after the first completed run.
+            Visibility by persona appears after the first completed run.
             {personas.error ? ` (${personas.error})` : ""}
           </p>
         </section>
@@ -37,9 +37,9 @@ export default async function PersonasPage({
         <>
           <section className="mb-6 card p-4">
             <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">
-              Brand visibility by persona segment · {data.date}
+              Brand visibility by persona · {data.date}
             </h2>
-            {/* Single measure across segments: one hue, no legend. */}
+            {/* Single measure across personas: one hue, no legend. */}
             <HBars
               items={data.segments.map((s) => ({
                 label: humanize(s.segment),
@@ -51,17 +51,17 @@ export default async function PersonasPage({
 
           <section className="card p-4">
             <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">
-              Segment detail
+              By persona
             </h2>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead className="text-[var(--text-2)]">
                   <tr>
-                    <th className="py-2 pr-4">Segment</th>
+                    <th className="py-2 pr-4">Persona</th>
                     <th className="pr-4">Brand score</th>
                     <th className="pr-4">Mention rate</th>
                     <th className="pr-4">Citation rate</th>
-                    <th className="pr-4">Results</th>
+                    <th className="pr-4">Answers</th>
                     <th>Strongest competitor</th>
                   </tr>
                 </thead>

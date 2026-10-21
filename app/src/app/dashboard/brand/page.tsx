@@ -28,32 +28,29 @@ export default async function BrandPage({
       <DashNav active="Brand" isSuperadmin={me.data?.is_superadmin} withDateRange />
 
       <div className="mb-6">
-        <p className="eyebrow mb-1.5">Brand knowledge</p>
         <h1 className="text-[26px] font-semibold tracking-tight">
           What the models say about {d?.brand_name ?? "your brand"}
         </h1>
         <p className="mt-2 max-w-3xl text-sm text-[var(--text-2)]">
-          Branded queries ask the models directly about you, so they&apos;re kept
-          out of the competitive visibility score (the brand almost always
-          appears) and measured here instead. This is the source of truth for
-          what the model knows: whether it still surfaces you, how it frames you,
-          and where it&apos;s wrong.
+          Branded questions ask the engines about you by name. You&apos;d appear in
+          almost every answer, so they&apos;re kept out of the visibility score and
+          measured here instead: whether the answers name you, how they describe
+          you, and what they get wrong.
         </p>
       </div>
 
       {!d?.observed ? (
         <section className="card p-4">
-          <h2 className="mb-2 text-lg font-medium">No branded queries measured yet</h2>
+          <h2 className="mb-2 text-lg font-medium">No branded questions measured yet</h2>
           <p className="text-sm text-[var(--text-2)]">
-            Flag queries as <code>branded</code> in the tenant config to populate this
-            view. These are the queries that ask what the model knows about the brand.
+            Mark questions as <code>branded</code> in the setup to measure them here.
           </p>
         </section>
       ) : (
         <>
           <div className="mb-6 grid gap-4 sm:grid-cols-3">
             <div className="card p-4">
-              <p className="eyebrow mb-2.5">Brand presence</p>
+              <p className="bp-label mb-2.5">Brand presence</p>
               <div className="text-4xl font-semibold leading-none tabular-nums">
                 {d.presence_rate}%
               </div>
@@ -62,7 +59,7 @@ export default async function BrandPage({
               </p>
             </div>
             <div className="card p-4">
-              <p className="eyebrow mb-2.5">Framing</p>
+              <p className="bp-label mb-2.5">Framing</p>
               <div className="mt-1 flex flex-wrap gap-3 text-sm">
                 {Object.entries(d.sentiment).length === 0 ? (
                   <span className="text-[var(--text-3)]">—</span>
@@ -77,7 +74,7 @@ export default async function BrandPage({
               <p className="mt-2.5 text-xs text-[var(--text-3)]">sentiment of how you&apos;re described</p>
             </div>
             <div className="card p-4">
-              <p className="eyebrow mb-2.5">Accuracy issues</p>
+              <p className="bp-label mb-2.5">Accuracy issues</p>
               <div className="text-4xl font-semibold leading-none tabular-nums"
                    >
                 <span className={d.accuracy_issues > 0 ? "bp-neg" : ""}>{d.accuracy_issues}</span>

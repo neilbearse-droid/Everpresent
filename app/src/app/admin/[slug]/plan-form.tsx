@@ -7,7 +7,7 @@ import { setPlan, type ActionState } from "../actions";
 const ORDER = ["monitor", "diagnose", "command", "custom"];
 
 function cap(v: number | null): string {
-  return v === null ? "∞" : String(v);
+  return v === null ? "unlimited" : String(v);
 }
 
 export function PlanForm({
@@ -53,10 +53,10 @@ export function PlanForm({
                   {p.monthly_price_usd > 0 ? `$${p.monthly_price_usd}/mo` : "custom"}
                 </span>
                 <span className="mt-0.5 block text-xs text-[var(--text-2)]">
-                  {cap(p.max_prompts)} prompts · {cap(p.max_personas)} personas ·{" "}
-                  {cap(p.max_engines)} engines ·{" "}
-                  {p.max_runs_per_day === null ? "∞" : `${p.max_runs_per_day}`}×/day ·{" "}
-                  {p.diagnosis ? "diagnosis" : "no diagnosis"} · {p.model_tier}
+                  {cap(p.max_prompts)} questions · {cap(p.max_personas)} personas ·{" "}
+                  {cap(p.max_engines)} engines · {cap(p.max_runs_per_day)} runs a day ·{" "}
+                  {p.diagnosis ? "also asks without web search" : "doesn't ask without web search"} ·{" "}
+                  {p.model_tier} models
                 </span>
               </span>
             </label>

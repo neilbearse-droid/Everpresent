@@ -53,8 +53,8 @@ function SiteSearchesPanel({ s }: { s: SiteSearches }) {
                 <b className="text-[var(--text)]">your site {s.owned}</b>{" "}
                 {s.owned === 1 ? "time" : "times"} and{" "}
                 <b className="text-[var(--text)]">rivals&apos; sites {s.rivals}</b>{" "}
-                {s.rivals === 1 ? "time" : "times"}. The site they check is the one whose
-                wording ends up in the answer.
+                {s.rivals === 1 ? "time" : "times"}. When an engine checks a site, that
+                site&apos;s wording can end up in the answer.
               </p>
               <ul className="mt-4 space-y-2">
                 {s.targets.map((t) => (
@@ -145,13 +145,13 @@ export default async function YourPagesPage() {
     <main className="mx-auto max-w-[1400px] px-6 pb-16">
       <DashNav active="Your Pages" isSuperadmin={me.data?.is_superadmin} />
       <section className="mb-6">
-        <p className="eyebrow mb-2">The pages AI answers check</p>
         <h1 className="text-[28px] font-semibold tracking-tight">Your Pages</h1>
         <p className="mt-2 max-w-3xl text-sm text-[var(--text-2)]">
-          Newer engines check facts on your own site: 2026 studies found ChatGPT sending much of
-          its searching to brands&apos; own pages. A stale price or an erroring help page now lands straight in the
-          answer. Each page AI answers use, checked for reachability, freshness and agreement with
-          your fact sheet, next to what Google and Bing report.
+          AI engines check facts on brands&apos; own sites. In Ahrefs&apos; October 2026 study of
+          ChatGPT&apos;s sub-searches, most searches limited to a single site went to brand sites, so
+          a stale price or a broken help page can end up in the answer. Every page of yours that
+          AI answers used is listed with whether it loads, how current it looks and whether it
+          agrees with your fact sheet, next to what Google and Bing report.
         </p>
       </section>
 
@@ -266,7 +266,7 @@ export default async function YourPagesPage() {
                           <td>
                             <div className="flex flex-col gap-1">
                               {p.flags.length === 0 ? (
-                                <span className="bp-mark text-xs">fit for AI</span>
+                                <span className="bp-mark text-xs">no issues</span>
                               ) : (
                                 p.flags.map((f) =>
                                   BAD_FLAGS.has(f) ? (
@@ -285,9 +285,9 @@ export default async function YourPagesPage() {
                 </div>
               )}
               <p className="px-4 pb-3 pt-2 text-xs text-[var(--text-3)]">
-                Pages are re-checked nightly. Fact conflicts are possible conflicts for a person to
-                confirm: a pricing page lists several prices. Add facts on the Brand tab&apos;s fact
-                sheet (admin) to check more.
+                Pages are re-checked nightly. A fact conflict needs a person to confirm it: a
+                pricing page, for example, may list several prices. Add facts on the Brand
+                tab&apos;s fact sheet (admin) to check more.
               </p>
             </div>
           </section>

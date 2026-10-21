@@ -63,14 +63,12 @@ export function EngineCheckButton({
         {pending ? "Queuing…" : watching ? "Checking…" : "Test every engine"}
       </button>
       <span className="text-xs text-[var(--text-3)]">
-        One short live call per engine, a few cents in total. Run it after any deploy or key change.
+        One short live call per engine, a few cents in total. Run it after each update or API key
+        change.
       </span>
       {state && !state.ok && <span className="text-sm text-[var(--neg)]">{state.message}</span>}
       {status && (
         <span className="text-sm text-[var(--text-2)]" role="status" aria-live="polite">
-          {watching && (
-            <span className="mr-2 inline-block h-2 w-2 animate-pulse rounded-full bg-[var(--accent)] align-middle" />
-          )}
           {status}
         </span>
       )}

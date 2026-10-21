@@ -18,14 +18,14 @@ export function AIOTile({ aio, bare = true }: { aio: AIOSummary; bare?: boolean 
       <div className="flex items-baseline gap-2">
         <span className="bp-metric text-[34px]">{aio.aio_share_pct}%</span>
         <span className="text-[11.5px] leading-tight text-[var(--text-2)]">
-          of {aio.queries_measured} queries trigger an AI Overview
+          of {aio.queries_measured} questions show an AI Overview
         </span>
       </div>
       <div className="mt-1 text-[12px]">
         {aio.brand_cited_in_aio > 0 ? (
-          <span>Brand cited as a source in {aio.brand_cited_in_aio}</span>
+          <span>Your brand is cited as a source in {aio.brand_cited_in_aio} of them</span>
         ) : (
-          <span className="bp-neg">Brand is never an AIO source</span>
+          <span className="bp-neg">Your brand is never a cited source</span>
         )}
       </div>
     </div>

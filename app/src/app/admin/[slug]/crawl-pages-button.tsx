@@ -14,7 +14,7 @@ export function CrawlPagesButton({ slug }: { slug: string }) {
         disabled={pending}
         className="rounded-md border border-[var(--border)] px-3 py-2 text-sm hover:bg-[var(--surface-2)] disabled:opacity-50"
       >
-        {pending ? "Queuing…" : "Crawl power pages now"}
+        {pending ? "Starting…" : "Check power pages now"}
       </button>
       {state && (
         <span className={`text-sm ${state.ok ? "text-[var(--pos)]" : "text-[var(--neg)]"}`}>

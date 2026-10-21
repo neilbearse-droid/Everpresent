@@ -18,10 +18,10 @@ export async function crawlPowerPages(
   _formData: FormData,
 ): Promise<ActionState> {
   const res = await apiFetch(`/api/admin/tenants/${slug}/crawl-pages`, { method: "POST" });
-  if (!res.ok) return { ok: false, message: res.error ?? "Could not queue the crawl" };
+  if (!res.ok) return { ok: false, message: res.error ?? "Could not start the check" };
   return {
     ok: true,
-    message: "Crawl queued — presence results appear on the Citations tab in a few minutes.",
+    message: "Check started. Results appear on the Citations page in a few minutes.",
   };
 }
 
@@ -74,7 +74,7 @@ export async function addBrandFact(
   });
   if (!res.ok) return { ok: false, message: res.error ?? "Could not add the fact" };
   revalidatePath(`/admin/${slug}`);
-  return { ok: true, message: "Fact added — it applies on the next run." };
+  return { ok: true, message: "Fact added. It applies from the next run." };
 }
 
 export async function deleteBrandFact(
@@ -127,7 +127,7 @@ export async function setQueryBranded(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ branded }),
   });
-  if (!res.ok) return { ok: false, message: res.error ?? "Could not update query" };
+  if (!res.ok) return { ok: false, message: res.error ?? "Could not update the question" };
   revalidatePath(`/admin/${slug}`);
   return { ok: true, message: branded ? "Marked branded." : "Marked competitive." };
 }
@@ -178,7 +178,7 @@ export async function createTenant(_prev: ActionState, formData: FormData): Prom
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name, slug }),
   });
-  if (!res.ok) return { ok: false, message: res.error ?? "Failed to create tenant" };
+  if (!res.ok) return { ok: false, message: res.error ?? "Could not create the client" };
   revalidatePath("/admin");
   redirect(`/admin/${slug}`);
 }
@@ -198,7 +198,7 @@ export async function importYaml(
   const counts = Object.entries(res.data!.imported)
     .map(([k, v]) => `${k}: ${v}`)
     .join(", ");
-  return { ok: true, message: `Imported ${res.data!.brand} — ${counts}` };
+  return { ok: true, message: `Imported ${res.data!.brand}: ${counts}` };
 }
 
 export async function patchTenant(slug: string, patch: Record<string, unknown>): Promise<void> {
@@ -224,7 +224,9 @@ export async function linkClerkOrg(
   }
   return {
     ok: true,
-    message: orgId ? `Saved — org ${orgId} linked to this tenant.` : "Cleared the Clerk org link.",
+    message: orgId
+      ? `Saved. Organization ${orgId} is linked to this client.`
+      : "Removed the Clerk organization link.",
   };
 }
 
@@ -261,7 +263,7 @@ export async function setPlan(
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Save failed" };
   }
-  return { ok: true, message: `Saved — plan set to ${plan}. Applies on the next run.` };
+  return { ok: true, message: `Saved. The plan is now ${plan}, starting with the next run.` };
 }
 
 export async function setGa4Property(
@@ -271,7 +273,7 @@ export async function setGa4Property(
 ): Promise<ActionState> {
   const pid = String(formData.get("ga4_property_id") ?? "").trim();
   if (pid && !/^\d+$/.test(pid)) {
-    return { ok: false, message: "GA4 property id is digits only (e.g. 123456789)." };
+    return { ok: false, message: "A GA4 property ID is digits only (e.g. 123456789)." };
   }
   try {
     await patchTenant(slug, { ga4_property_id: pid });
@@ -280,7 +282,7 @@ export async function setGa4Property(
   }
   return {
     ok: true,
-    message: pid ? `Saved — GA4 property ${pid} linked.` : "Cleared the GA4 property.",
+    message: pid ? `Saved. GA4 property ${pid} is linked.` : "Removed the GA4 property.",
   };
 }
 
@@ -290,7 +292,7 @@ export async function triggerRun(slug: string, _prev: ActionState): Promise<Acti
     { method: "POST" },
   );
   revalidatePath(`/admin/${slug}/runs`);
-  if (!res.ok) return { ok: false, message: res.error ?? "Trigger failed" };
+  if (!res.ok) return { ok: false, message: res.error ?? "Could not start the run" };
   const run = res.data!;
   if (run.status === "gated" || run.status === "failed") {
     return { ok: false, message: `Run #${run.id} recorded as ${run.status}: ${run.error ?? ""}` };
@@ -309,7 +311,7 @@ export async function setSpendCap(
   } catch (e) {
     return { ok: false, message: e instanceof Error ? e.message : "Save failed" };
   }
-  return { ok: true, message: `Saved — monthly spend cap set to $${cap.toFixed(2)}.` };
+  return { ok: true, message: `Saved. The monthly spend cap is now $${cap.toFixed(2)}.` };
 }
 
 export async function putSchedule(
@@ -353,8 +355,8 @@ export async function setNotifyEmails(
   return {
     ok: true,
     message: emails.length
-      ? `Saved — reports go to ${emails.join(", ")}.`
-      : "Saved — no notification recipients set.",
+      ? `Saved. Reports go to ${emails.join(", ")}.`
+      : "Saved. No one will get run reports.",
   };
 }
 
@@ -442,7 +444,7 @@ export async function buildDemoClient(
   return {
     ok: true,
     message:
-      "Building the Northpeak demo on the worker. It appears in the tenant list in a minute or two; refresh to see it.",
+      "Building the Northpeak demo. It appears in the client list in a minute or two; refresh to see it.",
   };
 }
 
@@ -455,6 +457,6 @@ export async function reprocessTenant(
   if (!res.ok) return { ok: false, message: res.error ?? "Could not queue it" };
   return {
     ok: true,
-    message: "Reprocessing every run on the worker. Dashboards update over the next few minutes.",
+    message: "Reprocessing every run. Dashboards update over the next few minutes.",
   };
 }

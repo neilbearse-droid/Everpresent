@@ -22,7 +22,7 @@ export function AccessAuditPanel({ slug }: { slug: string }) {
           disabled={pending}
           className="rounded-md bg-[var(--ink)] px-3 py-2 text-sm font-medium text-[var(--ink-text)] hover:bg-[var(--ink-hover)] disabled:opacity-50"
         >
-          {pending ? "Probing…" : "Run access audit"}
+          {pending ? "Checking…" : "Run access audit"}
         </button>
       </form>
 
@@ -50,7 +50,7 @@ export function AccessAuditPanel({ slug }: { slug: string }) {
                   ? "all AI crawlers allowed"
                   : `${blocked.length} crawler${blocked.length > 1 ? "s" : ""} blocked`}
               </span>
-              <span className="chip">{d.has_json_ld ? "JSON-LD ✓" : "no JSON-LD"}</span>
+              <span className="chip">{d.has_json_ld ? "has JSON-LD" : "no JSON-LD"}</span>
               {d.rendering && (
                 <span
                   className={`chip ${
@@ -63,13 +63,13 @@ export function AccessAuditPanel({ slug }: { slug: string }) {
                   title={d.rendering.reason}
                 >
                   {d.rendering.verdict === "pass"
-                    ? "AI-readable HTML ✓"
+                    ? "readable without JavaScript"
                     : d.rendering.verdict === "warn"
-                      ? "thin raw HTML"
-                      : "JS-only (crawlers see blank)"}
+                      ? "little text without JavaScript"
+                      : "needs JavaScript (crawlers see a blank page)"}
                 </span>
               )}
-              <span className="chip">{d.has_llms_txt ? "llms.txt ✓" : "no llms.txt (optional)"}</span>
+              <span className="chip">{d.has_llms_txt ? "has llms.txt" : "no llms.txt (optional)"}</span>
               {d.entity && (
                 <span
                   className={`chip ${
@@ -79,26 +79,23 @@ export function AccessAuditPanel({ slug }: { slug: string }) {
                   }`}
                 >
                   {d.entity.has_sameas || d.entity.links_wikipedia
-                    ? "entity signals ✓"
-                    : "no entity signals"}
+                    ? "links to Wikipedia or profiles"
+                    : "no Wikipedia or profile links"}
                 </span>
               )}
               {d.ua_blocked && (
-                <span className="chip text-[var(--neg)]">bot UA rejected</span>
+                <span className="chip text-[var(--neg)]">rejects AI bots by user agent</span>
               )}
             </div>
             {d.issues.length > 0 ? (
-              <ul className="space-y-1.5 text-xs text-[var(--text-2)]">
+              <ul className="list-disc space-y-1.5 pl-4 text-xs text-[var(--text-2)]">
                 {d.issues.map((issue, i) => (
-                  <li key={i} className="flex gap-2">
-                    <span aria-hidden className="text-[var(--text-3)]">→</span>
-                    {issue}
-                  </li>
+                  <li key={i}>{issue}</li>
                 ))}
               </ul>
             ) : (
               <p className="text-xs text-[var(--pos)]">
-                Clean — every AI crawler can read this domain, and best practices are in place.
+                No problems found. Every AI crawler can read this domain.
               </p>
             )}
           </div>

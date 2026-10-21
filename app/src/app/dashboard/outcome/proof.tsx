@@ -36,7 +36,7 @@ function SignalRow({ s }: { s: ProofSignal }) {
         {before} → {after}
         {rate && (
           <span className="block text-[11px] text-[var(--text-3)]">
-            n={s.before_n} → {s.after_n}
+            {s.before_n} → {s.after_n} answers
           </span>
         )}
       </td>
@@ -61,7 +61,7 @@ export function ProofSection({ p }: { p: Proof }) {
     <section className="blueprint mb-6 grid-cols-1">
       <div>
         <div className="bp-bar">
-          <span>Proof: did the fixes work?</span>
+          <span>Proof: shipped fixes, before and after</span>
           <span>{p.window_days} days either side of each ship date</span>
         </div>
         {p.items.length === 0 ? (
@@ -80,7 +80,7 @@ export function ProofSection({ p }: { p: Proof }) {
               <div key={it.id} className="border-t border-[var(--line)] first:border-t-0">
                 <div className="flex flex-wrap items-baseline justify-between gap-2 px-4 pt-4">
                   <div>
-                    <span className="mr-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
+                    <span className="mr-2 text-xs font-semibold text-[var(--text-3)]">
                       {STATUS[it.status]}
                     </span>
                     <span className="text-[14px] font-semibold">{it.description || it.query}</span>
@@ -112,8 +112,9 @@ export function ProofSection({ p }: { p: Proof }) {
               </div>
             ))}
             <p className="px-4 pb-3 pt-2 text-xs text-[var(--text-3)]">
-              Only the answer change is tested for significance. Bot reads and search impressions
-              are directional counts; AI referrals are sitewide and shown as context, not proof.
+              Only the change in answers is tested to see whether it&apos;s a real change. Bot reads
+              and search impressions are raw counts that show direction. AI referrals cover the
+              whole site, so read them as background.
             </p>
           </>
         )}

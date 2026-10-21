@@ -3,6 +3,33 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M49 — Plain-language pass (2026-10-21)
+
+1. **Copy.** Swept every page, the PDF report, recommendation reasons and
+   briefing text for generated-sounding writing: "not X, it's Y" reveals,
+   rhetorical questions, filler adverbs, invented labels and stacked em
+   dashes. Internal terms the client never needs ("variant", "tenant",
+   "shard", "forced search" unexplained) are replaced with what they mean.
+   The landing page says what the product does in two short paragraphs.
+2. **No uncredited figures.** A "why" line names its source (the study or
+   vendor and year) or says what kind of evidence backs it. Claims the
+   sources don't support were cut back to what they do say.
+3. **Design.** Removed the all-caps tracked labels and most section
+   eyebrows (labels are sentence case now), the status dots, decorative
+   glows and blur, and the hatched row texture. Pills are 4px rectangles.
+   The colour rules are unchanged: orange for the brand and good news, ink
+   for bad news.
+4. **Cost is admin-only.** Run and answer cost no longer shows on client
+   pages; admins still see it.
+5. **Phones get the client switcher.** The mobile header shows the org
+   switcher the sidebar has on desktop.
+6. **Bug found on the way:** the playbook builder had no fallback entry for
+   the site-search and primary-source plays, so if either raised, run
+   processing failed. Now a failing source keeps its last plays and the
+   rest of the playbook builds (regression test added).
+7. **Features left alone.** Cutting or merging pages is the owner's call;
+   the candidates are listed for a decision, not removed.
+
 ## M48 — Fan-out simulator (2026-10-21)
 
 1. **A replay, not a cartoon.** The simulator on the Fan-out page plays back a

@@ -53,17 +53,17 @@ export default async function CitationsPage({
                 Most-cited pages in your category
               </h2>
               <p className="mb-4 text-xs text-[var(--text-3)]">
-                The individual pages cited most often across engines. Being mentioned on one of
-                these, or outranking it, affects every answer that cites it.
+                The pages cited most often across engines. Getting named on one of these, or
+                outranking it, can change every answer that cites it.
               </p>
               <div className="overflow-x-auto">
-                <div className="overflow-x-auto"><table className="w-full text-left text-sm min-w-[640px]">
+                <table className="w-full text-left text-sm min-w-[640px]">
                   <thead className="text-[var(--text-2)]">
                     <tr>
                       <th className="py-2 pr-4">Page</th>
                       <th className="pr-4">Owner</th>
                       <th className="pr-4">You named?</th>
-                      <th className="pr-4">Queries fed</th>
+                      <th className="pr-4">Queries citing it</th>
                       <th className="pr-4">Citations</th>
                       <th>Engines</th>
                     </tr>
@@ -134,7 +134,7 @@ export default async function CitationsPage({
                       </tr>
                     ))}
                   </tbody>
-                </table></div>
+                </table>
               </div>
             </section>
           )}
@@ -145,9 +145,8 @@ export default async function CitationsPage({
                 Source types cited, by engine
               </h2>
               <p className="mb-4 text-xs text-[var(--text-3)]">
-                Engines draw from different kinds of sources: ChatGPT leans encyclopedia and
-                publishers, Perplexity and AI Overviews lean community (Reddit). Match your
-                earned-media effort to where each engine actually looks.
+                The mix of sites each engine cited in answers to your queries. Aim earned-media
+                work at the source types each engine cites most.
               </p>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {Object.entries(data.source_types_by_engine).map(([surface, types]) => {
@@ -178,9 +177,8 @@ export default async function CitationsPage({
                 Consulted but not cited
               </h2>
               <p className="mb-4 text-xs text-[var(--text-3)]">
-                The engines read these sources on the way to their answers but didn&apos;t
-                cite them. Since they&apos;re already being read, they are good outreach
-                targets.
+                The engines read these sources while answering but didn&apos;t cite them.
+                They&apos;re already being read, which makes them good outreach targets.
               </p>
               <div className="flex flex-wrap gap-2">
                 {data.consulted_domains.slice(0, 20).map((d) => (
@@ -198,8 +196,8 @@ export default async function CitationsPage({
               Domains AI answers cite in this vertical
             </h2>
             <p className="mb-4 text-xs text-[var(--text-3)]">
-              Across all measured surfaces, including Google's AI Overview. Getting your
-              brand into these sources is how you enter the answers.
+              Across every engine we measure, including Google&apos;s AI Overviews. When these
+              sites name your brand, the engines have a source that names you.
             </p>
             {data.domains.length === 0 ? (
               <p className="text-sm text-[var(--text-3)]">No citations captured yet.</p>
@@ -210,7 +208,7 @@ export default async function CitationsPage({
                     <th className="py-2 pr-4">Domain</th>
                     <th className="pr-4">Category</th>
                     <th className="pr-4">Citations</th>
-                    <th>Surfaces</th>
+                    <th>Engines</th>
                   </tr>
                 </thead>
                 <tbody>

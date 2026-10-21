@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   const declared = Number(request.headers.get("content-length") ?? "0");
   if (declared > MAX_WIRE_BYTES) {
     return new Response(
-      JSON.stringify({ detail: "log file too large (max 200 MB); split it" }),
+      JSON.stringify({ detail: "Log file too large (max 200 MB). Split it into smaller files." }),
       { status: 413, headers: { "Content-Type": "application/json" } },
     );
   }

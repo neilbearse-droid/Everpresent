@@ -26,9 +26,9 @@ export default async function AdminRunDetailPage({
         ← Runs
       </Link>
       <h1 className="mt-1 mb-4 text-2xl font-semibold tracking-tight">
-        Run #{runId} — {slug}
+        Run #{runId} for {slug}
       </h1>
-      <RunDetailView detail={detail.data} hrefBase={`/admin/${slug}/runs/${runId}`} />
+      <RunDetailView detail={detail.data} hrefBase={`/admin/${slug}/runs/${runId}`} showCost />
     </main>
   );
 }

@@ -4,17 +4,27 @@ import { surfaceLabel } from "@/lib/viz";
 
 const STATUS_STYLES: Record<Run["status"], string> = {
   pending: "bg-[var(--surface-2)] text-[var(--text)]",
-  running: "border border-[var(--accent)] bg-[var(--accent-soft)] text-[var(--text)]",
+  running: "border border-[var(--border-strong)] bg-[var(--surface-2)] text-[var(--text)]",
   complete: "border border-[var(--border)] bg-[var(--surface)] text-[var(--pos)]",
   failed: "border border-[var(--border)] bg-[var(--surface)] text-[var(--neg)]",
   gated: "border border-[var(--border)] bg-[var(--surface)] text-[var(--warn-t)]",
   capped: "border border-[var(--border)] bg-[var(--surface)] text-[var(--warn-t)]",
 };
 
+// Plain words for the stored status codes.
+const STATUS_LABELS: Record<Run["status"], string> = {
+  pending: "waiting",
+  running: "running",
+  complete: "complete",
+  failed: "failed",
+  gated: "not approved",
+  capped: "spend cap reached",
+};
+
 export function StatusBadge({ status }: { status: Run["status"] }) {
   return (
-    <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[status]}`}>
-      {status}
+    <span className={`whitespace-nowrap rounded px-2 py-0.5 text-xs font-medium ${STATUS_STYLES[status]}`}>
+      {STATUS_LABELS[status] ?? status}
     </span>
   );
 }
@@ -30,9 +40,9 @@ export function RunsTable({ runs, hrefBase }: { runs: Run[]; hrefBase: string })
         <tr>
           <th>Run</th>
           <th>Status</th>
-          <th>Trigger</th>
-          <th>Surfaces</th>
-          <th>Completed / planned</th>
+          <th>Started by</th>
+          <th>Engines</th>
+          <th>Answers done / planned</th>
           <th>Cost</th>
           <th>Started</th>
         </tr>
@@ -56,7 +66,7 @@ export function RunsTable({ runs, hrefBase }: { runs: Run[]; hrefBase: string })
               {run.counts.completed ?? 0} / {run.counts.planned ?? 0}
               {(run.counts.withheld_by_cap ?? 0) > 0 && (
                 <span className="ml-1 text-xs text-[var(--text-3)]">
-                  ({run.counts.withheld_by_cap} capped)
+                  ({run.counts.withheld_by_cap} held back by the spend cap)
                 </span>
               )}
             </td>
@@ -72,14 +82,23 @@ export function RunsTable({ runs, hrefBase }: { runs: Run[]; hrefBase: string })
   );
 }
 
-export function RunDetailView({ detail, hrefBase }: { detail: RunDetail; hrefBase: string }) {
+/** `showCost`: admin only. Run cost is internal (it reveals the margin). */
+export function RunDetailView({
+  detail,
+  hrefBase,
+  showCost = false,
+}: {
+  detail: RunDetail;
+  hrefBase: string;
+  showCost?: boolean;
+}) {
   const { run, results } = detail;
   return (
     <>
       <div className="mb-6 flex flex-wrap items-center gap-3 text-sm text-[var(--text-2)]">
         <StatusBadge status={run.status} />
-        <span>trigger: {run.trigger}</span>
-        <span>cost: ${run.cost_usd.toFixed(4)}</span>
+        <span>started by: {run.trigger}</span>
+        {showCost && <span>cost: ${run.cost_usd.toFixed(4)}</span>}
         <span>citations: {run.counts.citations ?? 0}</span>
         {run.error && <span className="text-[var(--warn-t)]">{run.error}</span>}
       </div>
@@ -87,9 +106,9 @@ export function RunDetailView({ detail, hrefBase }: { detail: RunDetail; hrefBas
       <table className="bp-table w-full min-w-[820px] text-left">
         <thead>
           <tr>
-            <th>Query</th>
+            <th>Question</th>
             <th>Persona</th>
-            <th>Surface</th>
+            <th>Engine</th>
             <th>Status</th>
             <th>Citations</th>
             <th>Latency</th>
@@ -130,7 +149,7 @@ export function RunDetailView({ detail, hrefBase }: { detail: RunDetail; hrefBas
                     href={`${hrefBase}/results/${result.id}`}
                     className="text-[var(--accent)] hover:underline"
                   >
-                    <span className="whitespace-nowrap">view response</span>
+                    <span className="whitespace-nowrap">View answer</span>
                   </Link>
                 )}
               </td>

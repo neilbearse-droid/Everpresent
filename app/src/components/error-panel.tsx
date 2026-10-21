@@ -17,13 +17,12 @@ export function ErrorPanel({
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
       <section className="card p-6">
-        <p className="bp-label mb-2">Something went wrong</p>
-        <h1 className="mb-3 text-xl font-semibold">That didn&apos;t load.</h1>
+        <h1 className="mb-3 text-xl font-semibold">This page didn&apos;t load</h1>
         <p className="mb-5 text-sm text-[var(--text-2)]">
-          The change may not have saved. Try again. If it keeps happening, the API may be
-          restarting, so give it a minute.
+          If you were saving a change, it may not have saved. Try again. If it keeps failing, the
+          server may be restarting, so wait a minute before the next try.
           {error.digest && (
-            <span className="mt-2 block font-mono text-xs">ref: {error.digest}</span>
+            <span className="mt-2 block font-mono text-xs">Error reference: {error.digest}</span>
           )}
         </p>
         <div className="flex gap-3">

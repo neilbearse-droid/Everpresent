@@ -15,7 +15,7 @@ export function TriggerRunButton({ slug }: { slug: string }) {
         disabled={pending}
         className="rounded-md bg-[var(--ink)] px-4 py-2 text-sm font-medium text-[var(--ink-text)] hover:bg-[var(--ink-hover)] disabled:opacity-50"
       >
-        {pending ? "Triggering…" : "Trigger run"}
+        {pending ? "Starting…" : "Start a run"}
       </button>
       {state && (
         <p className={`text-sm ${state.ok ? "text-[var(--pos)]" : "text-[var(--warn-t)]"}`}>

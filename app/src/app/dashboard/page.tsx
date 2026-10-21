@@ -80,7 +80,7 @@ export default async function OverviewPage({
   // range is set).
   const sovRangeLabel =
     from && to
-      ? `${from} → ${to}`
+      ? `${from} to ${to}`
       : from
         ? `since ${from}`
         : to
@@ -275,7 +275,7 @@ export default async function OverviewPage({
             <p className="text-sm text-[var(--text-2)]">
               Visibility appears here after the first completed run.{" "}
               <Link href="/dashboard/runs" className="bp-link">
-                See runs →
+                See runs
               </Link>
             </p>
           </div>
@@ -302,7 +302,9 @@ export default async function OverviewPage({
                     key={`${n.surface}-${n.date}`}
                     className="mt-2 text-xs text-[var(--text-3)]"
                   >
-                    <span className="bp-label">Series break · {n.date}</span>{" "}
+                    <span className="font-medium text-[var(--text-2)]">
+                      Measurement change, {n.date}:
+                    </span>{" "}
                     {n.note}
                   </p>
                 ))}
@@ -351,8 +353,8 @@ export default async function OverviewPage({
                 <table className="bp-table w-full">
                   <thead>
                     <tr>
-                      <th>Entity</th>
-                      <th className="text-right">Δ</th>
+                      <th>Brand</th>
+                      <th className="text-right">Change</th>
                       <th className="text-right">Before</th>
                       <th className="text-right">After</th>
                     </tr>

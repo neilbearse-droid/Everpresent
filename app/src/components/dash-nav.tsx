@@ -118,7 +118,6 @@ export function DashNav({
                       aria-current={active === tab.label ? "page" : undefined}
                       className="ep-navlink"
                     >
-                      <span className="ep-dot" aria-hidden />
                       {tab.label}
                     </Link>
                   </li>
@@ -127,14 +126,14 @@ export function DashNav({
             );
             return g.collapsed ? (
               <details key={g.title} className="mt-4" open={group === g.title}>
-                <summary className="eyebrow mb-1.5 cursor-pointer list-none px-2.5">
-                  {g.title} ▾
+                <summary className="ep-side-group mb-1.5 cursor-pointer list-none px-2.5">
+                  {g.title} <span aria-hidden>▾</span>
                 </summary>
                 {links}
               </details>
             ) : (
               <div key={g.title} className="mt-4 first:mt-1">
-                <p className="eyebrow mb-1.5 px-2.5">{g.title}</p>
+                <p className="ep-side-group mb-1.5 px-2.5">{g.title}</p>
                 {links}
               </div>
             );
@@ -157,7 +156,7 @@ export function DashNav({
       </aside>
 
       {/* Mobile: a compact top bar with scrolling tabs. */}
-      <header className="sticky top-0 z-30 -mx-6 mb-6 border-b border-[var(--line)] bg-[var(--scrim)] backdrop-blur-md lg:hidden">
+      <header className="sticky top-0 z-30 -mx-6 mb-6 border-b border-[var(--line)] bg-[var(--surface)] lg:hidden">
         <div className="flex h-12 items-center justify-between px-4">
           <Link href="/dashboard">
             <Wordmark />
@@ -171,6 +170,21 @@ export function DashNav({
             <ThemeToggle />
             <UserButton />
           </div>
+        </div>
+        {/* The organization menu lives in the desktop sidebar; phones need it
+            too, or "No organization selected" has no way out. */}
+        <div className="px-4 pb-2">
+          <OrganizationSwitcher
+            hidePersonal
+            appearance={{
+              elements: {
+                rootBox: "w-full",
+                organizationSwitcherTrigger:
+                  "w-full justify-between rounded-md border border-[var(--border)] px-2.5 py-1.5 shadow-none focus:shadow-none",
+                organizationPreviewMainIdentifier: "text-[13px] font-semibold text-[var(--text)]",
+              },
+            }}
+          />
         </div>
         <nav className="flex gap-1 overflow-x-auto px-3 pb-2">
           {TABS.map((tab) => (

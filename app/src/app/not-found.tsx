@@ -5,7 +5,7 @@ export default function NotFound() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[var(--plane)] px-6 text-center">
       <Wordmark />
-      <p className="bp-display text-[56px]">Not here.</p>
+      <h1 className="bp-display">Page not found</h1>
       <p className="max-w-[42ch] text-[15px] text-[var(--text-2)]">
         That page doesn&apos;t exist, or it isn&apos;t yours to see. Check the link, or head back
         to your dashboard.

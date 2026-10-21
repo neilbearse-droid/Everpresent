@@ -61,8 +61,9 @@ export function AdsSection({ d }: { d: AdsReport }) {
           <p className="p-4 text-sm text-[var(--text-2)]">Nothing yet.</p>
         )}
         <p className="px-4 pb-3 pt-2 text-xs text-[var(--text-3)]">
-          Paid units are kept out of mention rates, share of voice and citations. Browser engines
-          run signed out, so this shows the ads a logged-out visitor sees.
+          Paid units are kept out of mention rates, share of voice and citations. Answers from the
+          engines&apos; websites are collected signed out, so this shows the ads a signed-out
+          visitor sees.
         </p>
       </div>
     </section>

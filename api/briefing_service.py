@@ -67,7 +67,8 @@ def briefing(session: Session, tenant_id: int) -> dict[str, Any]:
         if gaps:
             reasons.append({"kind": "memory", "tone": "medium",
                             "text": f"{gaps[0]['label']} knows you from memory but names you less "
-                                    "when it searches: fix what search retrieves."})
+                                    "when it searches the web: fix the pages its searches "
+                                    "turn up."})
         themes = [t for t in shape["perception"]["themes"] if t["objections"]]
         if themes:
             t = themes[0]

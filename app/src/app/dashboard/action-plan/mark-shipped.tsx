@@ -22,7 +22,7 @@ export function MarkShipped({
   if (intervention) {
     return (
       <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-[var(--border)] pt-3 text-xs">
-        <span className="chip text-[var(--pos)]">✓ shipped {intervention.shipped_at}</span>
+        <span className="chip text-[var(--pos)]">shipped {intervention.shipped_at}</span>
         {intervention.url && (
           <a
             href={intervention.url}
@@ -34,7 +34,7 @@ export function MarkShipped({
           </a>
         )}
         <span className="text-[var(--text-3)]">
-          Lift appears under Proof as post-ship runs land.
+          Results appear below and on the Outcome tab as runs after this date come in.
         </span>
         <form action={unshipAction}>
           <button

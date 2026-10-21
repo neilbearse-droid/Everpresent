@@ -44,7 +44,7 @@ function ModeLinks({
             href={`/dashboard/runs/${result.run_id}/results/${result.result_id}`}
             className="text-xs text-[var(--accent)] hover:underline"
           >
-            {surfaceLabel(surface)} →
+            {surfaceLabel(surface)}
           </Link>
         ) : (
           // A failed capture is missing data, not bad news about the brand:
@@ -81,26 +81,27 @@ export default async function QueriesPage({
 
       <section className="card p-4">
         <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
-          Query corpus · web-search likelihood · latest answers per surface and mode
+          Tracked queries and latest answers
         </h2>
         <p className="mb-4 text-xs text-[var(--text-3)]">
-          "Web search" is the dual-query diff: how much the AI's answer depends on live
-          retrieval vs training. Mode A = provider API (volume); Mode B = the real consumer
-          web interface (fidelity). Compare shows both answers side by side.
+          Web search is how likely an engine is to search the web for a query instead of
+          answering from memory, judged by comparing its answers with and without search. Answers
+          come from two places: the engines&apos; developer APIs (more answers) and their public
+          websites (closest to what people see). Compare puts the two side by side.
         </p>
         {queries.length === 0 ? (
           <p className="text-sm text-[var(--text-3)]">No queries configured.</p>
         ) : (
           <div className="overflow-x-auto">
-            <div className="overflow-x-auto"><table className="w-full text-left text-sm min-w-[760px]">
+            <table className="w-full text-left text-sm min-w-[760px]">
               <thead className="text-[var(--text-2)]">
                 <tr>
                   <th className="py-2 pr-4">Query</th>
-                  <th className="pr-4">Corpus</th>
+                  <th className="pr-4">Question set</th>
                   <th className="pr-4">Web search</th>
                   <th className="pr-4">Brand in answer</th>
-                  <th className="pr-4">Mode A (API)</th>
-                  <th className="pr-4">Mode B (web)</th>
+                  <th className="pr-4">API answers</th>
+                  <th className="pr-4">Website answers</th>
                   <th>Compare</th>
                 </tr>
               </thead>
@@ -155,7 +156,7 @@ export default async function QueriesPage({
                             }&b=${modeB.find(([, r]) => r.status === "ok")![1].result_id}`}
                             className="text-xs text-[var(--accent)] hover:underline"
                           >
-                            A ⇄ B
+                            API vs website
                           </Link>
                         ) : (
                           <span className="text-xs text-[var(--text-3)]">—</span>
@@ -165,7 +166,7 @@ export default async function QueriesPage({
                   );
                 })}
               </tbody>
-            </table></div>
+            </table>
           </div>
         )}
       </section>

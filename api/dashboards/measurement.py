@@ -207,7 +207,7 @@ def alerts(session: Session, tenant_id: int) -> list[dict]:
             out.append({
                 "severity": "high", "kind": "visibility_drop",
                 "text": f"{e['label']}: mention rate fell {abs(ch['delta'])}pt to "
-                        f"{e['rate']}% ({e['low']}–{e['high']}%). A real change, not noise.",
+                        f"{e['rate']}% ({e['low']}–{e['high']}%), a real change.",
             })
         elif ch["verdict"] == "up":
             out.append({

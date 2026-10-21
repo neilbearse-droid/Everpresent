@@ -57,12 +57,12 @@ export default async function EnginesPage({
       {routing.data?.observed && (
         <section className="mb-6 card p-4">
           <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
-            Do your prompts trigger a search?
+            How often each engine searches the web for your questions
           </h2>
           <p className="mb-4 text-xs text-[var(--text-3)]">
-            Share of your priority prompts that triggered a live search, by engine. Content
-            changes only help on prompts the engine searches; the rest are answered from its
-            training data.
+            Share of your priority questions where the engine searched the web before answering.
+            New or updated pages can only show up in those answers; the rest come from memory
+            (what the model learned in training).
           </p>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {routing.data.engines.map((e) => (
@@ -72,8 +72,8 @@ export default async function EnginesPage({
                 </div>
                 <div className="mt-1 text-sm text-[var(--text-2)]">{surfaceLabel(e.surface)}</div>
                 <div className="text-xs text-[var(--text-3)]">
-                  {e.searched}/{e.measured} prompts searched
-                  {e.from_probe ? " · natural probe" : ""}
+                  {e.searched}/{e.measured} questions searched
+                  {e.from_probe ? " · measured without forced search" : ""}
                 </div>
               </div>
             ))}
@@ -85,8 +85,8 @@ export default async function EnginesPage({
         <section className="card p-4">
           <h2 className="mb-2 text-lg font-medium">No engine data yet</h2>
           <p className="text-sm text-[var(--text-2)]">
-            Cross-engine analysis appears after a completed run. Enable more than one engine
-            in the admin panel to compare them.
+            Engine comparisons appear after a completed run. Turn on more than one engine in
+            the admin panel to compare them.
           </p>
         </section>
       ) : (
@@ -96,9 +96,6 @@ export default async function EnginesPage({
             <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
               Where {data!.brand_name} shows up, by engine
             </h2>
-            <p className="mb-4 text-xs text-[var(--text-3)]">
-              Share of measured queries where your brand appears in the answer, by engine.
-            </p>
             <HBars
               items={engines.map((e) => ({
                 label: `${surfaceLabel(e.surface)} · ${e.brand_present}/${e.queries_measured}`,
@@ -139,8 +136,9 @@ export default async function EnginesPage({
           <section className="mb-6 card p-4">
             <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">Why you're missing</h2>
             <p className="mb-4 text-xs text-[var(--text-3)]">
-              For each query where you&apos;re absent, comparing the search and no-search answers
-              shows the likely cause, which determines the fix.
+              For each query where you&apos;re missing, we compare the answer that searched the
+              web with the no-search answer. Content gap: the engine names you from memory but
+              picks rivals when it searches. Knowledge gap: it doesn&apos;t name you either way.
             </p>
             <div className="flex flex-wrap gap-3">
               {DIAGNOSIS_ORDER.filter((t) => summary[t]).map((t) => (
@@ -215,14 +213,14 @@ export default async function EnginesPage({
               <span className={`rounded px-1.5 py-0.5 font-medium ${CELL_STYLE.competitor}`}>Rival</span>{" "}
               = a competitor named, you absent
               (hover for names) · a dash means neither. The diagnosis uses the no-search answer
-              where available.
+              where there is one.
             </p>
             <p className="mt-2 text-xs text-[var(--text-3)]">
-              <span className="font-medium text-[var(--text-2)]">(API)</span> engines are the
-              provider&apos;s developer API with web search: a close proxy for the consumer app,
-              which adds memory, location, ads and shopping units.{" "}
-              <span className="font-medium text-[var(--text-2)]">(web)</span>, Copilot and the
-              Google surfaces are captured from what a logged-out user actually sees.
+              <span className="font-medium text-[var(--text-2)]">(API)</span> engines are
+              measured through the provider&apos;s developer API with web search. The consumer app
+              can differ: it adds chat memory, location, ads and shopping results.{" "}
+              <span className="font-medium text-[var(--text-2)]">(web)</span> engines, Copilot and
+              Google&apos;s AI answers are collected from what a signed-out visitor sees.
             </p>
           </section>
         </>

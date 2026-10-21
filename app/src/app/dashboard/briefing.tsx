@@ -15,7 +15,7 @@ export function BriefingBlock({ b }: { b: Briefing }) {
   return (
     <section className="blueprint mb-6 grid-cols-1 lg:grid-cols-3">
       <div className="p-5">
-        <div className="bp-label mb-2">Are we winning?</div>
+        <h2 className="mb-2 text-[13.5px] font-semibold">Are we winning?</h2>
         <span
           className={`pill ${v === "losing" ? "pill-bad" : v === "gaining" ? "pill-good" : ""}`}
         >
@@ -31,10 +31,10 @@ export function BriefingBlock({ b }: { b: Briefing }) {
         )}
       </div>
       <div className="p-5">
-        <div className="bp-label mb-2">Why</div>
+        <h2 className="mb-2 text-[13.5px] font-semibold">Why</h2>
         {b.why.length === 0 ? (
           <p className="text-[13px] text-[var(--text-2)]">
-            Nothing unusual in the data this week.
+            Nothing unusual in the latest data.
           </p>
         ) : (
           <ul className="space-y-2">
@@ -50,10 +50,10 @@ export function BriefingBlock({ b }: { b: Briefing }) {
         )}
       </div>
       <div className="p-5">
-        <div className="bp-label mb-2">This week</div>
+        <h2 className="mb-2 text-[13.5px] font-semibold">This week</h2>
         {b.this_week.length === 0 ? (
           <p className="text-[13px] text-[var(--text-2)]">
-            No open plays. Nice.
+            No open recommendations.
           </p>
         ) : (
           <ol className="space-y-3">

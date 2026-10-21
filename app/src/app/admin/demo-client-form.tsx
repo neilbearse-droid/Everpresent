@@ -9,9 +9,9 @@ export function DemoClientForm() {
     <form action={action} className="flex flex-col gap-3">
       <p className="text-sm text-[var(--text-2)]">
         A fictional brand, Northpeak (northpeak.example), with four made-up rivals and a month of
-        answers, bot logs, page checks and one logged fix. Every dashboard and play is produced by
-        the real processing, so the action steps match the data. Rebuilding replaces the demo&apos;s
-        data. Paid runs are disabled for it.
+        answers, bot logs, page checks and one logged fix. The normal processing builds every
+        dashboard and recommendation from that data, so the next steps match the numbers.
+        Rebuilding replaces the demo&apos;s data. Paid runs are turned off for it.
       </p>
       <label className="text-xs text-[var(--text-2)]">
         Clerk organization ID to view it as (optional; you can link it later)

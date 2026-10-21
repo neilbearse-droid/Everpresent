@@ -77,10 +77,10 @@ export function TrendChart({
             contentStyle={{
               background: "var(--surface)",
               border: "1px solid var(--border)",
-              borderRadius: 10,
+              borderRadius: 6,
               fontSize: 12,
               fontFamily: MONO,
-              boxShadow: "var(--shadow-3)",
+              boxShadow: "var(--shadow-2)",
               color: "var(--text)",
               padding: "8px 12px",
             }}

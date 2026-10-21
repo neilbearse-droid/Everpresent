@@ -29,7 +29,7 @@ export default async function AdminRawResultPage({
         ← Run #{runId}
       </Link>
       <h1 className="mt-1 mb-6 text-2xl font-semibold tracking-tight">Result #{resultId}</h1>
-      <RawResponseView envelope={raw.data} />
+      <RawResponseView envelope={raw.data} showCost />
     </main>
   );
 }

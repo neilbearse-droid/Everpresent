@@ -63,19 +63,6 @@ export function DateRange() {
         className="btn btn-ghost gap-2 px-2.5 py-1 text-[11px]"
         aria-expanded={open}
       >
-        <svg
-          width="13"
-          height="13"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          strokeLinecap="square"
-          aria-hidden
-        >
-          <rect x="3" y="5" width="18" height="16" />
-          <path d="M8 3v4M16 3v4M3 10h18" />
-        </svg>
         {label}
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
           <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
@@ -120,7 +107,7 @@ export function DateRange() {
               </button>
             </div>
             <div className="border-t border-[var(--border)] pt-2">
-              <p className="eyebrow mb-1.5">Custom</p>
+              <p className="mb-1.5 text-[12px] font-medium text-[var(--text-2)]">Custom range</p>
               <div className="flex items-center gap-1.5">
                 <input
                   type="date"

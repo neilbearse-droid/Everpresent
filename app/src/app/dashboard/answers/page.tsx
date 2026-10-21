@@ -4,8 +4,8 @@ import { DashNav } from "@/components/dash-nav";
 import { NoOrgNotice } from "@/components/no-org-notice";
 
 const VERDICT_HELP: Record<string, string> = {
-  "known, but losing in search": "The model knows you, but live search finds others. Fix what search retrieves: your pages and the third-party pages it cites.",
-  "found by search, not yet known": "Search finds you; the model's own memory doesn't. Durable third-party coverage builds memory over model releases.",
+  "known, but losing in search": "The model names you from memory, but when it searches the web it finds others. Work on the pages it finds: your own and the third-party pages it cites.",
+  "found by search, not yet known": "Searching the web finds you, but the model doesn't name you from memory. Third-party coverage that stays up can be picked up when models are retrained.",
   consistent: "Memory and search agree within the noise.",
   "needs data": "Not enough answers yet on one side.",
 };
@@ -41,13 +41,12 @@ export default async function AnswerShapePage() {
     <main className="mx-auto max-w-[1400px] px-6 pb-16">
       <DashNav active="Answer Shape" isSuperadmin={me.data?.is_superadmin} />
       <section className="mb-6">
-        <p className="eyebrow mb-2">How the answers are built</p>
-        <h1 className="text-[28px] font-semibold tracking-tight">Answer Shape</h1>
+                <h1 className="text-[28px] font-semibold tracking-tight">Answer Shape</h1>
         <p className="mt-2 max-w-3xl text-sm text-[var(--text-2)]">
-          Engines change how they answer with each model: how often they search, how many sources
-          they link, whether links sit in the text or as footnotes, and whether they point at your
-          site or someone else&apos;s. Citation counts alone misread those shifts; this page shows
-          the shape, per engine and per model, so a change has a date and an explanation.
+          Each new model changes how an engine answers: how often it searches the web, how many
+          sources it links, whether links sit in the text or in footnotes, and whether they point
+          to your site or someone else&apos;s. A drop in citations can be a model switch, so the
+          numbers below are split by engine and model, with the date each model started.
         </p>
       </section>
 
@@ -83,7 +82,7 @@ export default async function AnswerShapePage() {
             <div>
               <div className="bp-bar">
                 <span>Model changes</span>
-                <span>Compare before and after, not across</span>
+                <span>Read before and after separately</span>
               </div>
               {d.model_changes.length === 0 ? (
                 <p className="p-4 text-sm text-[var(--text-2)]">
@@ -155,9 +154,10 @@ export default async function AnswerShapePage() {
                 </table>
               </div>
               <p className="px-4 pb-3 pt-2 text-xs text-[var(--text-3)]">
-                &ldquo;Searched&rdquo; for ChatGPT and Perplexity APIs comes from an unforced probe
-                (the measurement itself always searches). Web captures run signed out: no memory,
-                no ads. A name with no link still counts: being named is the visibility.
+                For ChatGPT and Perplexity&apos;s APIs, &ldquo;Searched&rdquo; comes from a separate
+                check where the engine decides for itself whether to search (the main measurement
+                always searches). Answers collected from the engines&apos; websites are signed out,
+                with no saved chat history. A name with no link still counts as visibility.
               </p>
             </div>
           </section>
@@ -194,8 +194,9 @@ export default async function AnswerShapePage() {
                 </table>
               </div>
               <p className="px-4 pb-3 pt-2 text-xs text-[var(--text-3)]">
-                Memory = answers given without web search: what the model already believes. As
-                engines search less, this share of the answer grows.
+                From memory means answers given without searching the web, so they reflect what
+                the model learned in training. The less often an engine searches, the more these
+                answers count.
               </p>
             </div>
             <div>

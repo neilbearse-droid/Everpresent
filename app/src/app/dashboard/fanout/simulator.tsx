@@ -48,7 +48,7 @@ function caption(step: number, q: string, e: ReplayEngine, brand: string, subs: 
       return `Someone asks ${e.label}: “${q}”`;
     case 1:
       return (
-        `${e.label} doesn't search the question as written. It splits it into ${e.subs.length} smaller ` +
+        `${e.label} breaks the question into ${e.subs.length} smaller ` +
         `search${e.subs.length === 1 ? "" : "es"} and reads what each one finds` +
         (sites.length ? `, ${sites.length === 1 ? "one" : sites.length} of them inside a single website.` : ".")
       );
@@ -73,7 +73,7 @@ function caption(step: number, q: string, e: ReplayEngine, brand: string, subs: 
         : "";
       const fix =
         !e.named && checked.some((s) => s.status === "rivals")
-          ? " To change this answer, win the searches your rivals win."
+          ? " To change this answer, get into the searches where your rivals appear."
           : "";
       return named + cited + fix;
     }
@@ -116,7 +116,6 @@ export function FanoutSimulator({ data }: { data: FanoutReplay }) {
     <section className="card mb-6 p-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="eyebrow mb-1">Fan-out simulator</p>
           <h2 className="text-lg font-semibold tracking-tight">Watch how an AI engine answers one question</h2>
           <p className="mt-1 max-w-2xl text-xs text-[var(--text-3)]">
             A replay of a real answer from your latest runs: the searches it ran, what we found when we
@@ -196,7 +195,7 @@ export function FanoutSimulator({ data }: { data: FanoutReplay }) {
         {/* Engine box sits exactly on the fan's origin (the middle row). */}
         <div className="flex flex-col gap-3 lg:grid lg:min-h-[var(--stage)] lg:grid-rows-[1fr_auto_1fr] lg:gap-0">
           <div className="card-inset p-3 lg:mb-3 lg:self-end">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-3)]">Question</p>
+            <p className="text-xs font-medium text-[var(--text-3)]">Question</p>
             <p className="mt-1 text-sm font-medium">“{prompt.query}”</p>
           </div>
           <div
@@ -204,7 +203,6 @@ export function FanoutSimulator({ data }: { data: FanoutReplay }) {
               step >= 1 ? "border-[var(--text)] bg-[var(--text)] text-[var(--ink-text)]" : "border-[var(--border)]"
             }`}
           >
-            <span className="inline-block h-2 w-2 rounded-full bg-[var(--accent)]" aria-hidden />
             {engine.label}
           </div>
         </div>
@@ -284,9 +282,7 @@ export function FanoutSimulator({ data }: { data: FanoutReplay }) {
               step >= 3 ? "border-[var(--border-strong)] bg-[var(--surface)] opacity-100" : "border-dashed border-[var(--border)] opacity-60"
             }`}
           >
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-3)]">
-              {engine.label}&apos;s answer
-            </p>
+            <p className="text-xs font-medium text-[var(--text-3)]">{engine.label}&apos;s answer</p>
             {step < 3 ? (
               <p className="mt-2 text-sm text-[var(--text-3)]">Written from what the searches find.</p>
             ) : (
@@ -344,9 +340,9 @@ export function FanoutSimulator({ data }: { data: FanoutReplay }) {
                 aria-current={i === step ? "step" : undefined}
                 className={`flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-semibold ${
                   i === step
-                    ? "bg-[var(--accent)] text-white"
+                    ? "bg-[var(--text)] text-[var(--ink-text)]"
                     : i < step
-                      ? "bg-[var(--text)] text-[var(--ink-text)]"
+                      ? "border border-[var(--border-strong)] text-[var(--text)]"
                       : "border border-[var(--border)] text-[var(--text-3)]"
                 }`}
               >

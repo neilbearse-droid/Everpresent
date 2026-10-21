@@ -16,7 +16,7 @@ export function GenerateBrief({ shardId }: { shardId: number }) {
           disabled={pending}
           className="btn btn-ghost px-2.5 py-1 text-[11px] disabled:opacity-50"
         >
-          {pending ? "Drafting…" : "Generate corrective brief"}
+          {pending ? "Drafting…" : "Draft a content brief"}
         </button>
       </form>
 

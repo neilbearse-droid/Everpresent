@@ -20,9 +20,9 @@ export function ScheduleForm({
     <form action={action} className="flex flex-col gap-3">
       <div className="flex flex-wrap items-end gap-2">
         <label className="flex min-w-[220px] flex-1 flex-col text-xs text-[var(--text-2)]">
-          Cron expression (UTC). Recommended: <code>0 13 * * 1,3,5</code> = Mon/Wed/Fri
-          13:00. Three runs a week with repeat samples measures better than a daily single
-          reading, at lower cost.
+          Schedule in cron format, UTC. The default, <code>0 13 * * 1,3,5</code>, runs Monday,
+          Wednesday and Friday at 13:00. Three runs a week with repeat samples costs less than
+          one reading a day and gives steadier numbers.
           <input
             name="cron_expr"
             defaultValue={cronExpr || "0 13 * * 1,3,5"}
@@ -33,7 +33,7 @@ export function ScheduleForm({
         </label>
         <label className="flex items-center gap-2 pb-2 text-sm text-[var(--text-2)]">
           <input type="checkbox" name="enabled" defaultChecked={enabled} />
-          enabled
+          Enabled
         </label>
         <button
           disabled={pending}

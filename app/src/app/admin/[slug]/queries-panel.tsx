@@ -22,8 +22,8 @@ function BrandedToggle({ slug, query }: { slug: string; query: AdminQuery }) {
         disabled={pending}
         title={
           query.branded
-            ? "Branded — measured in the Brand layer, out of the visibility score. Click to make competitive."
-            : "Competitive — counts toward the visibility score. Click to mark branded."
+            ? "Branded: shown on the Brand page, not counted in the visibility score. Click to mark competitive."
+            : "Competitive: counts toward the visibility score. Click to mark branded."
         }
         className={`rounded-[var(--radius-sm)] border px-2 py-1 text-[11px] font-semibold disabled:opacity-50 ${
           query.branded
@@ -78,14 +78,14 @@ export function QueriesPanel({ slug, queries }: { slug: string; queries: AdminQu
   return (
     <section className="card p-5">
       <div className="mb-3 flex items-baseline justify-between">
-        <h2 className="font-medium">Queries ({queries.length})</h2>
+        <h2 className="font-medium">Questions ({queries.length})</h2>
         <span className="text-xs text-[var(--text-3)]">
           {branded} branded · {queries.length - branded} competitive
         </span>
       </div>
       <p className="mb-3 text-xs text-[var(--text-3)]">
-        Branded queries probe what the model says about the brand — measured in the Brand
-        layer and excluded from the competitive visibility score. Toggle takes effect on the
+        Branded questions name the brand and show what the AI says about it. They appear on the
+        Brand page and don&apos;t count toward the visibility score. A change applies from the
         next processed run.
       </p>
       <AddQueriesForm slug={slug} />

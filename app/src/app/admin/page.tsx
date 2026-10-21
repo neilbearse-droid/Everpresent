@@ -10,7 +10,7 @@ export default async function AdminPage() {
       <main className="mx-auto max-w-3xl px-4 py-16 sm:px-8">
         <h1 className="text-xl font-semibold">Not authorized</h1>
         <p className="mt-2 text-sm text-[var(--text-2)]">
-          The admin panel is superadmin-only.
+          Only EverPresent admins can open this page.
         </p>
       </main>
     );
@@ -21,7 +21,7 @@ export default async function AdminPage() {
   return (
     <main className="mx-auto max-w-5xl px-4 py-10 sm:px-8">
       <header className="mb-8 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">Admin — Tenants</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Clients</h1>
         <Link href="/dashboard" className="text-sm text-[var(--accent)] hover:underline">
           ← Dashboard
         </Link>
@@ -30,10 +30,10 @@ export default async function AdminPage() {
       <table className="w-full text-left text-sm">
         <thead className="text-[var(--text-2)]">
           <tr>
-            <th className="py-2">Tenant</th>
-            <th>Slug</th>
+            <th className="py-2">Client</th>
+            <th>URL name</th>
             <th>Status</th>
-            <th>Clerk org</th>
+            <th>Clerk organization</th>
             <th>AI processing</th>
           </tr>
         </thead>
@@ -47,8 +47,8 @@ export default async function AdminPage() {
               </td>
               <td className="text-[var(--text-2)]">{t.slug}</td>
               <td>{t.status}</td>
-              <td className="text-[var(--text-2)]">{t.clerk_org_id ?? "— not linked —"}</td>
-              <td>{t.ai_processing_approved ? "approved" : "gated"}</td>
+              <td className="text-[var(--text-2)]">{t.clerk_org_id ?? "Not linked"}</td>
+              <td>{t.ai_processing_approved ? "Approved" : "Not approved"}</td>
             </tr>
           ))}
         </tbody>
@@ -56,7 +56,7 @@ export default async function AdminPage() {
 
       <div className="mt-12 grid max-w-4xl grid-cols-1 gap-6 md:grid-cols-2">
         <section className="card p-6">
-          <h2 className="mb-4 text-lg font-medium">New tenant</h2>
+          <h2 className="mb-4 text-lg font-medium">New client</h2>
           <CreateTenantForm />
         </section>
         <section className="card p-6">

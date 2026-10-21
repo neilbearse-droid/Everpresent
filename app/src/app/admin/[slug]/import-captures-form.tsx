@@ -13,8 +13,8 @@ export function ImportCapturesForm({ slug }: { slug: string }) {
       <p className="text-xs text-[var(--text-2)]">
         Answers a capture vendor collected (for example signed-in ChatGPT), as JSON:{" "}
         <code>{"{source, captures: [{surface, query, answer_html | answer, citations, captured_at, logged_in}]}"}</code>.
-        Each import becomes a run and is measured like our own. Re-sending the same file skips
-        duplicates.
+        Each import becomes a run and is measured the same way as EverPresent&apos;s own answers.
+        Sending the same file again skips the duplicates.
       </p>
       <div className="flex gap-2">
         <input

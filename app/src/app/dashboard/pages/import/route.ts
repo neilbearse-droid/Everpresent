@@ -20,10 +20,10 @@ export async function POST(request: Request) {
   if (!sameOrigin(request)) return new Response("Cross-site upload refused", { status: 403 });
   const source = new URL(request.url).searchParams.get("source") ?? "";
   if (!SOURCES.has(source)) {
-    return Response.json({ detail: "Pick where the export came from" }, { status: 400 });
+    return Response.json({ detail: "Pick where the export came from." }, { status: 400 });
   }
   if (Number(request.headers.get("content-length") ?? "0") > MAX_BYTES) {
-    return Response.json({ detail: "export too large (max 20 MB)" }, { status: 413 });
+    return Response.json({ detail: "Export too large (max 20 MB)." }, { status: 413 });
   }
   const { getToken } = await auth();
   const token = await getToken();

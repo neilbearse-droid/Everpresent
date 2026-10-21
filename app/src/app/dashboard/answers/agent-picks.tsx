@@ -33,7 +33,7 @@ export function AgentPicksSection({ d }: { d: AgentPicks }) {
         </div>
         {!d.has_prompts ? (
           <p className="p-4 text-sm text-[var(--text-2)]">
-            No task or coding prompts yet. Add queries with <code>corpus: agent_task</code> (&ldquo;register
+            No task or coding prompts yet. Add questions with <code>corpus: agent_task</code> (&ldquo;register
             a domain for my bakery&rdquo;) or <code>corpus: agent_code</code> (&ldquo;write a script that
             registers a domain&rdquo;) to the config to measure which brand gets picked first.
           </p>
@@ -106,8 +106,8 @@ export function AgentPicksSection({ d }: { d: AgentPicks }) {
               ))}
             </ul>
             <p className="px-4 pb-3 pt-2 text-xs text-[var(--text-3)]">
-              The pick is the first tracked brand an answer names. Coding agents choose a vendor by its
-              docs and SDK: clear API docs, copyable examples and an llms.txt help here.
+              The pick is the first tracked brand an answer names. For coding prompts, public API docs
+              with copyable examples give the agent something to work from.
             </p>
           </>
         )}

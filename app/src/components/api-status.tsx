@@ -12,8 +12,8 @@ export async function ApiDownBanner() {
     >
       <p className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm">
         <span className="bp-neg mr-2">Offline</span>
-        Can&apos;t reach the EverPresent API right now, so the numbers on this page may be missing.
-        Refresh in a minute.
+        Can&apos;t reach the EverPresent server right now, so some numbers on this page may be
+        missing. Refresh in a minute.
       </p>
     </div>
   );

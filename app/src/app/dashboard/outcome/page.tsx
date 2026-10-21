@@ -34,13 +34,13 @@ export default async function OutcomePage({
   if (!d || !d.connected) {
     return notReady(
       "Connect Google Analytics",
-      "Add this tenant's GA4 property id in the admin panel and grant the EverPresent service account Viewer access. Once connected, AI-referred traffic (ChatGPT, Perplexity, Claude, Gemini…) is pulled nightly and shown here against your visibility trend.",
+      "Add your GA4 property ID in the admin panel and give the EverPresent service account Viewer access. Traffic from AI engines (ChatGPT, Perplexity, Claude, Gemini and others) is then pulled nightly and shown next to your visibility trend.",
     );
   }
   if (!d.has_data) {
     return notReady(
       "Connected. Waiting for the first data pull",
-      "GA4 is linked. AI-referral traffic appears after the nightly refresh runs (or on the next scheduled pull). Traffic is matched by utm_source and referrer across the major answer engines.",
+      "AI referral traffic appears after the next nightly pull. Visits are matched to answer engines by utm_source and referrer.",
     );
   }
 
@@ -86,9 +86,8 @@ export default async function OutcomePage({
           AI referrals vs. visibility
         </h2>
         <p className="mb-4 text-xs text-[var(--text-3)]">
-          Daily AI-referred sessions (bars) alongside your brand-visibility score (line) for
-          days a run measured it. When visibility rises and referrals follow, that's the story
-          for the boardroom.
+          Daily AI-referred sessions (bars), with your brand visibility score above each day a
+          run measured it.
         </p>
         <div className="flex gap-1" style={{ height: 140 }}>
           {d.series.map((s) => (
@@ -115,7 +114,7 @@ export default async function OutcomePage({
         </div>
         {scored.length < 2 && (
           <p className="mt-3 text-xs text-[var(--text-3)]">
-            The visibility overlay sharpens as more measured days accumulate.
+            Few days have a visibility score yet. More appear as runs complete.
           </p>
         )}
       </section>

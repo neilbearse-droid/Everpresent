@@ -19,7 +19,7 @@ export function NoOrgNotice({
       <section className="card p-6">
         <h2 className="mb-2 text-lg font-medium">No organization selected</h2>
         <p className="text-sm text-[var(--text-2)]">
-          Pick an organization in the switcher above to see its dashboards, or ask your
+          Choose an organization in the organization menu to see its dashboards, or ask your
           EverPresent contact for an invite.
           {detail ? <span className="ml-1 text-[var(--text-3)]">({detail})</span> : null}
         </p>

@@ -29,12 +29,12 @@ export default async function AdminRunsPage({
           <Link href={`/admin/${slug}`} className="text-sm text-[var(--accent)] hover:underline">
             ← {slug}
           </Link>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight">Runs — {slug}</h1>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight">Runs for {slug}</h1>
           <p className="text-sm text-[var(--text-2)]">
-            Month spend: ${payload.data.month_spend_usd.toFixed(2)} / cap $
-            {payload.data.monthly_spend_cap_usd.toFixed(2)}
+            Spent this month: ${payload.data.month_spend_usd.toFixed(2)} of the $
+            {payload.data.monthly_spend_cap_usd.toFixed(2)} cap
             {payload.data.month_spend_usd >= 0.8 * payload.data.monthly_spend_cap_usd && (
-              <span className="ml-2 text-[var(--warn-t)]">▲ over 80% of cap</span>
+              <span className="bp-neg ml-2">Over 80% of the cap</span>
             )}
           </p>
         </div>

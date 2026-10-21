@@ -54,10 +54,10 @@ export default async function ActionPlanPage() {
 
       {targets.length === 0 && briefs.length === 0 ? (
         <section className="card p-4">
-          <h2 className="mb-2 text-lg font-medium">Nothing to action yet</h2>
+          <h2 className="mb-2 text-lg font-medium">Nothing to act on yet</h2>
           <p className="text-sm text-[var(--text-2)]">
-            Once a run finds visibility gaps, this tab turns each one into a source target
-            list and a ready-to-work content brief.
+            When a run finds questions where you&apos;re missing, each one shows up here with
+            the sites to target and a content brief.
           </p>
         </section>
       ) : (
@@ -69,8 +69,8 @@ export default async function ActionPlanPage() {
             </h2>
             <p className="mb-4 text-xs text-[var(--text-3)]">
               Third-party sites that AI answers cite alongside your competitors but not you.
-              Getting {data!.brand_name} covered on these is the most direct way into those
-              answers. Competitor sites and your own domains are excluded.
+              Getting {data!.brand_name} covered on these is a direct route into those answers.
+              Competitor sites and your own domains are left out.
             </p>
             {targets.length === 0 ? (
               <p className="text-sm text-[var(--text-3)]">No third-party source gaps found.</p>
@@ -81,7 +81,7 @@ export default async function ActionPlanPage() {
                     <tr>
                       <th className="py-2 pr-4">Source domain</th>
                       <th className="pr-4">Cites a rival</th>
-                      <th className="pr-4">Queries</th>
+                      <th className="pr-4">Questions</th>
                       <th className="pr-4">Seen on</th>
                       <th>Status</th>
                     </tr>
@@ -127,23 +127,13 @@ export default async function ActionPlanPage() {
               </h2>
               <p className="mb-3 text-xs text-[var(--text-3)]">
                 Changes in citations of your own pages since the previous run. A lost citation
-                is usually the first sign a page is going stale. Updating its dates, figures and
-                examples is typically enough.
+                is often a sign the page looks out of date. Updating its dates, figures and
+                examples can win it back.
               </p>
               <div className="mb-5 grid gap-3 sm:grid-cols-3">
                 <div className="card-inset p-4">
-                  <div className="flex items-baseline gap-2">
-                    <span
-                      aria-hidden
-                      className={`text-xl font-semibold ${
-                        data!.protect.gained > 0 ? "text-[var(--pos)]" : "text-[var(--text-3)]"
-                      }`}
-                    >
-                      ↑
-                    </span>
-                    <span className="text-3xl font-semibold tabular-nums text-[var(--text)]">
-                      {data!.protect.gained}
-                    </span>
+                  <div className="text-3xl font-semibold tabular-nums text-[var(--text)]">
+                    {data!.protect.gained}
                   </div>
                   <div className="mt-1 text-sm text-[var(--text-2)]">Gained</div>
                   <div className="text-xs text-[var(--text-3)]">
@@ -151,34 +141,21 @@ export default async function ActionPlanPage() {
                   </div>
                 </div>
                 <div className="card-inset p-4">
-                  <div className="flex items-baseline gap-2">
-                    <span aria-hidden className="text-xl font-semibold text-[var(--text-3)]">
-                      →
-                    </span>
-                    <span className="text-3xl font-semibold tabular-nums text-[var(--text)]">
-                      {data!.protect.held}
-                    </span>
+                  <div className="text-3xl font-semibold tabular-nums text-[var(--text)]">
+                    {data!.protect.held}
                   </div>
                   <div className="mt-1 text-sm text-[var(--text-2)]">Held</div>
                   <div className="text-xs text-[var(--text-3)]">
-                    citations steady run-over-run
+                    citations kept since the last run
                   </div>
                 </div>
                 <div className="card-inset p-4">
-                  <div className="flex items-baseline gap-2">
-                    <span
-                      aria-hidden
-                      className={`text-xl font-semibold ${
-                        data!.protect.lost.length ? "text-[var(--neg)]" : "text-[var(--text-3)]"
-                      }`}
-                    >
-                      ↓
-                    </span>
-                    <span className="text-3xl font-semibold tabular-nums text-[var(--text)]">
+                  <div className="text-3xl font-semibold tabular-nums text-[var(--text)]">
+                    <span className={data!.protect.lost.length ? "bp-neg" : ""}>
                       {data!.protect.lost.length}
                     </span>
                   </div>
-                  <div className="mt-1 text-sm text-[var(--text-2)]">Losing ground</div>
+                  <div className="mt-1 text-sm text-[var(--text-2)]">Lost</div>
                   <div className="text-xs text-[var(--text-3)]">
                     pages that lost a citation
                   </div>
@@ -217,7 +194,7 @@ export default async function ActionPlanPage() {
                           </td>
                           <td className="tabular-nums text-xs">
                             {entry.still_cited_on > 0 ? (
-                              `${entry.still_cited_on} ${entry.still_cited_on === 1 ? "query" : "queries"}`
+                              `${entry.still_cited_on} ${entry.still_cited_on === 1 ? "question" : "questions"}`
                             ) : (
                               <span className="text-[var(--neg)]">none</span>
                             )}
@@ -237,9 +214,9 @@ export default async function ActionPlanPage() {
               Content briefs
             </h2>
             <p className="mb-3 text-xs text-[var(--text-3)]">
-              One brief per gap query: what to write, who currently appears, which sources to
-              target, and the questions to cover. Ordered by how often the answer changes and
-              how much it depends on search, so the most winnable queries come first.
+              One brief for each question where you&apos;re missing: what to write, who appears
+              now, which sources to target and what to cover. Questions whose answers change often
+              and rely on web search come first, since they&apos;re the easiest to win.
             </p>
             {data!.strike_zone && (
               <div className="mb-4 flex flex-wrap gap-2 text-xs">
@@ -257,9 +234,9 @@ export default async function ActionPlanPage() {
             )}
             {briefs.length === 0 && (
               <p className="card p-5 text-sm text-[var(--text-2)]">
-                No content gaps right now: every tracked query names you somewhere it
-                counts. Briefs appear here when a query loses you. See Recommendations for
-                the full playbook.
+                No content gaps right now: every tracked question names you where it counts. A
+                brief appears here when a question stops naming you. Recommendations has the
+                rest of the playbook.
               </p>
             )}
             <div className="space-y-5">
@@ -277,7 +254,7 @@ export default async function ActionPlanPage() {
                           title={
                             b.contestability.score === null
                               ? "Needs at least two runs of history to score"
-                              : `Answer churn ${b.contestability.volatility} × search-dependence ${b.contestability.dependence}`
+                              : `How often the answer changes ${b.contestability.volatility} × reliance on web search ${b.contestability.dependence}`
                           }
                         >
                           {b.contestability.score !== null && `${b.contestability.score} · `}
@@ -293,7 +270,7 @@ export default async function ActionPlanPage() {
 
                   <div className="grid gap-4 md:grid-cols-2">
                     <div>
-                      <div className="mb-1 text-xs font-medium text-[var(--text-2)]">Why it matters</div>
+                      <div className="mb-1 text-xs font-medium text-[var(--text-2)]">The gap</div>
                       <ul className="space-y-1 text-sm text-[var(--text-2)]">
                         <li>
                           Missing on:{" "}
@@ -330,7 +307,8 @@ export default async function ActionPlanPage() {
                     <div>
                       {b.spam_risk && (
                         <p className="mb-2 text-xs text-[var(--text-2)]">
-                          <span className="bp-label">Spam-policy risk</span> {b.spam_risk.note}
+                          <span className="font-semibold text-[var(--text)]">Spam-policy risk:</span>{" "}
+                          {b.spam_risk.note}
                         </p>
                       )}
                       <div className="mb-1 text-xs font-medium text-[var(--text-2)]">Suggested outline</div>
@@ -347,16 +325,16 @@ export default async function ActionPlanPage() {
                   {b.subtopics.length > 0 && (
                     <div className="mt-4 border-t border-[var(--border)] pt-3">
                       <div className="mb-1.5 flex items-center gap-2 text-xs font-medium text-[var(--text-2)]">
-                        Sub-queries to cover
+                        Sub-searches to cover
                         <span
                           className="chip text-[10px]"
                           title={
                             b.subtopics_source === "observed"
-                              ? "The actual sub-queries engines fanned out into for this prompt"
-                              : "Related prompts in the same set (no engine fan-out observed yet)"
+                              ? "The sub-searches engines ran for this question"
+                              : "Related questions from the same set (no fan-out seen for this question yet)"
                           }
                         >
-                          {b.subtopics_source === "observed" ? "engine fan-out" : "related"}
+                          {b.subtopics_source === "observed" ? "from fan-out" : "related questions"}
                         </span>
                       </div>
                       <div className="flex flex-wrap gap-1.5 text-[11px]">
@@ -367,7 +345,7 @@ export default async function ActionPlanPage() {
                         ))}
                       </div>
                       <p className="mt-1.5 text-[10px] text-[var(--text-3)]">
-                        Each sub-query is answered separately, so each one is worth covering.
+                        Engines search each of these separately, so cover each one.
                       </p>
                     </div>
                   )}
@@ -379,7 +357,7 @@ export default async function ActionPlanPage() {
                       </div>
                       <div className="mb-2 flex flex-wrap gap-1.5 text-[11px]">
                         {b.citability.spec?.has_answer_capsule && (
-                          <span className="chip text-[var(--pos)]">answer capsules</span>
+                          <span className="chip text-[var(--pos)]">short answers under headings</span>
                         )}
                         {(b.citability.spec?.statistic_count ?? 0) >= 5 && (
                           <span className="chip text-[var(--pos)]">
@@ -387,7 +365,7 @@ export default async function ActionPlanPage() {
                           </span>
                         )}
                         {b.citability.spec?.quotations && (
-                          <span className="chip text-[var(--pos)]">source quotations</span>
+                          <span className="chip text-[var(--pos)]">quotes from named sources</span>
                         )}
                         {(b.citability.spec?.citation_count ?? 0) >= 3 && (
                           <span className="chip text-[var(--pos)]">
@@ -395,10 +373,10 @@ export default async function ActionPlanPage() {
                           </span>
                         )}
                         {b.citability.spec?.front_loaded && (
-                          <span className="chip text-[var(--pos)]">front-loaded</span>
+                          <span className="chip text-[var(--pos)]">answer near the top</span>
                         )}
                         <span className="chip">~{b.citability.spec?.word_count} words</span>
-                        {b.citability.spec?.json_ld && <span className="chip">JSON-LD (hygiene)</span>}
+                        {b.citability.spec?.json_ld && <span className="chip">structured data (JSON-LD)</span>}
                         {b.citability.spec?.has_tables && <span className="chip">tables</span>}
                         {b.citability.your_page && (
                           <a
@@ -412,17 +390,14 @@ export default async function ActionPlanPage() {
                           </a>
                         )}
                       </div>
-                      <ul className="space-y-1 text-xs text-[var(--text-2)]">
+                      <ul className="list-disc space-y-1 pl-4 text-xs text-[var(--text-2)]">
                         {b.citability.gaps?.map((gap, i) => (
-                          <li key={i} className="flex gap-2">
-                            <span aria-hidden className="text-[var(--warn-t)]">▲</span>
-                            {gap}
-                          </li>
+                          <li key={i}>{gap}</li>
                         ))}
                       </ul>
                       <p className="mt-1.5 text-[10px] text-[var(--text-3)]">
-                        Spec drawn from {b.citability.winners?.length} crawled winning page
-                        {(b.citability.winners?.length ?? 0) > 1 ? "s" : ""} cited on this query.
+                        Based on {b.citability.winners?.length} winning page
+                        {(b.citability.winners?.length ?? 0) > 1 ? "s" : ""} cited for this question.
                       </p>
                     </div>
                   )}
@@ -440,8 +415,8 @@ export default async function ActionPlanPage() {
                 Results of shipped fixes
               </h2>
               <p className="mb-4 text-xs text-[var(--text-3)]">
-                Brand presence on each fixed query before and after its ship date. Queries that
-                weren&apos;t changed over the same period serve as the comparison.
+                How often each fixed question named you before and after the fix shipped,
+                compared with the questions you didn&apos;t change over the same period.
               </p>
               {proof.data!.aggregate && (
                 <div className="mb-4 flex flex-wrap gap-2 text-xs">
@@ -451,12 +426,12 @@ export default async function ActionPlanPage() {
                   <span
                     className={`chip ${proof.data!.aggregate.avg_delta >= 0 ? "text-[var(--pos)]" : "text-[var(--neg)]"}`}
                   >
-                    fixed queries {proof.data!.aggregate.avg_delta >= 0 ? "+" : ""}
+                    fixed questions {proof.data!.aggregate.avg_delta >= 0 ? "+" : ""}
                     {proof.data!.aggregate.avg_delta} pts
                   </span>
                   {proof.data!.aggregate.avg_control_delta !== null && (
                     <span className="chip">
-                      untouched queries{" "}
+                      untouched questions{" "}
                       {proof.data!.aggregate.avg_control_delta >= 0 ? "+" : ""}
                       {proof.data!.aggregate.avg_control_delta} pts
                     </span>
@@ -467,10 +442,10 @@ export default async function ActionPlanPage() {
                 <table className="w-full text-left text-sm">
                   <thead className="text-[var(--text-2)]">
                     <tr>
-                      <th className="py-2 pr-4">Query</th>
+                      <th className="py-2 pr-4">Question</th>
                       <th className="pr-4">Shipped</th>
                       <th className="pr-4">Presence before → after</th>
-                      <th className="pr-4">Lift vs control</th>
+                      <th className="pr-4">Lift vs untouched</th>
                       <th>Newly visible on</th>
                     </tr>
                   </thead>
@@ -504,7 +479,7 @@ export default async function ActionPlanPage() {
                             </td>
                             <td className="pr-4 text-xs tabular-nums">
                               {iv.delta === null ? (
-                                <span className="text-[var(--text-3)]">no pre-ship baseline</span>
+                                <span className="text-[var(--text-3)]">no data from before the fix</span>
                               ) : (
                                 <span
                                   className={
@@ -519,7 +494,7 @@ export default async function ActionPlanPage() {
                               )}
                               {iv.delta !== null && iv.control_delta !== null && (
                                 <span className="ml-1.5 text-[var(--text-3)]">
-                                  (control {iv.control_delta >= 0 ? "+" : ""}
+                                  (untouched {iv.control_delta >= 0 ? "+" : ""}
                                   {iv.control_delta})
                                 </span>
                               )}

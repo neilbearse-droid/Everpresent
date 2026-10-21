@@ -15,7 +15,7 @@ export function CreateTenantForm() {
       />
       <input
         name="slug"
-        placeholder="slug (e.g. smith)"
+        placeholder="URL name, lowercase (e.g. smith)"
         required
         pattern="[a-z0-9-]+"
         className="rounded-md border border-[var(--border)] bg-[var(--inset)] px-3 py-2 text-sm"
@@ -25,7 +25,7 @@ export function CreateTenantForm() {
         disabled={pending}
         className="rounded-md bg-[var(--ink)] px-4 py-2 text-sm font-medium text-[var(--ink-text)] hover:bg-[var(--ink-hover)] disabled:opacity-50"
       >
-        {pending ? "Creating…" : "Create tenant"}
+        {pending ? "Creating…" : "Create client"}
       </button>
       {state && !state.ok && <p className="text-sm text-[var(--neg)]">{state.message}</p>}
     </form>

@@ -9,7 +9,7 @@ const KIND_LABELS: Record<string, string> = {
   crawler_access: "Bot access",
   broken_page: "Broken page",
   refresh: "Lost citation",
-  subquery: "Sub-question",
+  subquery: "Sub-search",
   reviews: "Reviews",
   earned: "Earned media",
   owned: "Your site",
@@ -17,12 +17,13 @@ const KIND_LABELS: Record<string, string> = {
   model_change: "Model change",
   community: "Community",
   reference: "Reference",
-  web_search: "Query gap",
+  web_search: "Search gap",
   aio: "AI Overview",
   training: "Model memory",
   read_not_cited: "Read, not cited",
   connect_logs: "Setup",
   strategy: "Focus",
+  evidence: "Primary sources",
 };
 // Bad news kinds get the inverted block; everything else stays neutral.
 const BAD_KINDS = new Set(["accuracy", "crawler_access", "broken_page", "refresh", "own_page"]);
@@ -52,23 +53,23 @@ const NEXT_ACTIONS: Record<string, { to: Recommendation["status"]; label: string
 const DONTS: { title: string; why: string }[] = [
   {
     title: "Publishing your own “best X” rankings",
-    why: "In 2026 experiments, third-party lists drove far more AI mentions than brands' own lists, and Google's August and September 2026 spam updates target self-promotional listicles.",
+    why: "A list where you rank yourself first is easy for engines to discount, and Google's August and September 2026 spam updates target self-promotional listicles.",
   },
   {
     title: "Hidden instructions for AI (“Summarize with AI” prompts, invisible text)",
-    why: "Microsoft has flagged this as AI recommendation poisoning, and in 2026 tests hidden instructions backfired: some models dropped the brand entirely.",
+    why: "Microsoft has flagged this as AI recommendation poisoning. An engine that treats it as manipulation can leave the brand out entirely.",
   },
   {
-    title: "Fake or incentivised reviews",
-    why: "Illegal under the FTC's fake-review rule, and review sites remove them. Real rating gaps are what move AI picks.",
+    title: "Fake or incentivized reviews",
+    why: "Illegal under the FTC's fake-review rule, and review sites remove them.",
   },
   {
     title: "Spending time on llms.txt or special “AI schema”",
-    why: "Studies in 2026 found no measurable effect from llms.txt (AI bots rarely request it), and Google says its AI features need no special markup.",
+    why: "AI bots rarely request llms.txt (the AI Agents tab shows whether yours do), and Google says its AI features need no special markup.",
   },
   {
     title: "Mass-producing AI pages for every query",
-    why: "Scaled content is a named spam target, and when every brand copies the same tactic the gain drops to almost zero.",
+    why: "Google's spam policies name scaled content abuse, and once every brand copies the tactic, nobody gains from it.",
   },
 ];
 
@@ -96,10 +97,11 @@ export default async function RecommendationsPage() {
     <main className="mx-auto max-w-5xl px-6 pb-16">
       <DashNav active="Recommendations" isSuperadmin={me.data?.is_superadmin} />
       <p className="mb-6 max-w-3xl text-sm text-[var(--text-2)]">
-        Your playbook, ranked. Every play comes from your own measurements and is graded by how
-        strong the evidence behind it is (as of October 2026). Industry figures move fast; the
-        &ldquo;why&rdquo; lines name the kind of evidence rather than quote unverified numbers. Getting found by the engines' searches
-        comes first, then explicit facts and third-party proof; formatting comes last.
+        Each recommendation comes from your own measurements, ranked by priority and graded by
+        how well the evidence supports it (as of October 2026). The &ldquo;why&rdquo; lines name the
+        kind of evidence instead of quoting industry figures. As a rule, showing up in the
+        engines&apos; searches comes first, then clear facts and third-party proof, and formatting
+        last.
       </p>
 
       {items.length === 0 && (

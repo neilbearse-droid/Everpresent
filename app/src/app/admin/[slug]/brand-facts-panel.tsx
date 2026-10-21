@@ -24,7 +24,7 @@ function DeleteFact({ slug, id }: { slug: string; id: number }) {
         disabled={pending}
         className="text-xs text-[var(--text-3)] underline-offset-2 hover:text-[var(--neg)] hover:underline disabled:opacity-50"
       >
-        remove
+        Remove
       </button>
     </form>
   );
@@ -62,8 +62,8 @@ export function BrandFactsPanel({ slug, facts }: { slug: string; facts: BrandFac
         <input name="subject" placeholder="Subject term to detect (e.g. tuition)" className="field px-2.5 py-1.5 text-sm" />
         <input name="aliases" placeholder="Aliases, comma-separated (optional)" className="field px-2.5 py-1.5 text-sm" />
         <select name="kind" className="field px-2.5 py-1.5 text-sm" defaultValue="numeric">
-          <option value="numeric">numeric — correct value</option>
-          <option value="disallowed">disallowed — forbidden phrase</option>
+          <option value="numeric">Numeric: correct value</option>
+          <option value="disallowed">Disallowed: forbidden phrase</option>
         </select>
         <input name="expected" placeholder="Correct value / forbidden phrase" className="field px-2.5 py-1.5 text-sm" />
         <div className="sm:col-span-2">

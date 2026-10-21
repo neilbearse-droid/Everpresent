@@ -44,8 +44,7 @@ h1, h2, h3, p { margin: 0; }
 
 /* --- Pages --- */
 section.page { break-before: page; }
-.eyebrow { font-size: 7.5pt; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: #c2410c; }
-h2 { margin-top: 4px; font-size: 20pt; font-weight: 700; letter-spacing: -0.03em; line-height: 1.12; }
+h2 { margin-top: 0; font-size: 20pt; font-weight: 700; letter-spacing: -0.03em; line-height: 1.12; }
 .lede { margin-top: 6px; font-size: 10pt; color: #475163; width: 6.2in; }
 h3 { font-size: 10.5pt; font-weight: 700; letter-spacing: -0.01em; }
 .card { border: 1px solid #dfe2e8; border-radius: 10px; padding: 14px 16px; background: #fff; break-inside: avoid; }
@@ -167,7 +166,6 @@ td.r, th.r { text-align: right; }
 
 {# ============================ SCORECARD ============================ #}
 <section class="page">
-  <p class="eyebrow">01 · Scorecard</p>
   <h2>Where {{ brand }} stands in AI answers</h2>
   <p class="lede">How often AI engines name {{ brand }} when people ask the questions you track, and how that compares with the competitors they name instead.</p>
 
@@ -231,9 +229,8 @@ td.r, th.r { text-align: right; }
 
 {# ============================= ENGINES ============================= #}
 <section class="page">
-  <p class="eyebrow">02 · Engines and sources</p>
-  <h2>Each engine, and the sites it trusts</h2>
-  <p class="lede">Rates carry a range: with more answers the range narrows. A change is only called up or down when it passes a statistical test.</p>
+  <h2>Each engine, and the sites it cites</h2>
+  <p class="lede">Each rate has a range, which narrows as more answers come in. A rate is only marked up or down when the change is unlikely to be normal run-to-run variation.</p>
 
   <div class="card block">
     <h3>Named in answers, by engine</h3>
@@ -247,7 +244,7 @@ td.r, th.r { text-align: right; }
         <td class="r"><span class="pill {{ e.pill.cls }}">{{ e.pill.text }}</span></td></tr>
       {% else %}<tr><td colspan="6" class="empty">No engines measured yet.</td></tr>{% endfor %}
     </table>
-    <p class="small muted" style="margin-top:8px">ChatGPT and Perplexity are made to search on every measured answer; most real answers don't search. "Without forced search" uses their unforced answers, closer to what users see.</p>
+    <p class="small muted" style="margin-top:8px">We make ChatGPT and Perplexity search the web on every measured answer, though many everyday answers don't search. "Without forced search" uses answers where they chose for themselves, which is closer to what people see.</p>
   </div>
 
   {% if c %}
@@ -282,7 +279,6 @@ td.r, th.r { text-align: right; }
 
 {# ============================= DRIVERS ============================= #}
 <section class="page">
-  <p class="eyebrow">03 · What's driving it</p>
   <h2>Why the numbers look this way</h2>
 
   {% if s and s.why %}
@@ -310,7 +306,7 @@ td.r, th.r { text-align: right; }
   <div class="cols block">
     <div class="card">
       <h3>Sub-searches engines run</h3>
-      <p class="small muted">Fan-out: what engines searched for before answering</p>
+      <p class="small muted">What engines searched for before answering</p>
       {% for p in d.fanout %}
       <p style="margin-top:10px;font-weight:650">“{{ p.query }}”</p>
       {% for q in p.subqueries %}
@@ -340,7 +336,6 @@ td.r, th.r { text-align: right; }
 
 {# ============================ PLAYBOOK ============================= #}
 <section class="page">
-  <p class="eyebrow">04 · Playbook</p>
   <h2>What to do next</h2>
   <p class="lede">Ranked by expected impact. Each play is graded by its evidence: official (documented by the engine), strong, moderate or emerging.</p>
   <div class="block">
@@ -360,9 +355,8 @@ td.r, th.r { text-align: right; }
 
 {# ============================== PROOF ============================== #}
 <section class="page">
-  <p class="eyebrow">05 · Proof</p>
   <h2>Did the fixes work?</h2>
-  <p class="lede">Each shipped fix is compared before and after against a control: the questions and pages nobody touched. That separates the fix from general market movement.</p>
+  <p class="lede">Each shipped fix is compared before and after against a control: the questions and pages nobody touched. That separates the effect of the fix from movement across the whole market.</p>
 
   {% if proof and proof['items'] %}
   <p class="block" style="font-size:11pt;font-weight:650">{{ proof.summary }}</p>
@@ -400,7 +394,7 @@ td.r, th.r { text-align: right; }
     <h3>How these numbers are measured</h3>
     <ul class="method">
       <li>Each question is asked on every engine several times, with paraphrases, so one lucky answer can't move the score.</li>
-      <li>Rates show a 95% range. “Up” or “down” is only used when the change passes a statistical test.</li>
+      <li>Rates show a 95% range. “Up” or “down” is only used when the change is unlikely to be chance.</li>
       <li>Failed or blocked captures count as missing data, never as “not mentioned”.</li>
       <li>Sponsored placements are removed from organic numbers and reported separately.</li>
       {% if s and s.series_notes %}{% for n in s.series_notes[:4] %}<li>{{ fmt_date(n.date) }}: {{ n.note }}</li>{% endfor %}{% endif %}

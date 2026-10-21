@@ -106,7 +106,8 @@ def build_workbook(session: Session, tenant: Tenant) -> bytes:
     # Engines
     ws = wb.create_sheet("Engines")
     _table(ws, ["Engine", "Named (%)", "Range low (%)", "Range high (%)", "Answers", "Mentioned",
-                "Change", "Change (pts)", "p-value", "Forced to search",
+                "Change", "Change (pts)", "Real-change test (under 0.05 = real)",
+                "Forced to search",
                 "Without forced search (%)", "Searched (% of unforced answers)"],
            [[e.get("label"), e.get("rate"), e.get("low"), e.get("high"), e.get("answers"),
              e.get("mentioned"), (e.get("change") or {}).get("verdict"),

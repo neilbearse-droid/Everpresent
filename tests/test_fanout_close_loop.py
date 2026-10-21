@@ -98,7 +98,7 @@ def test_brief_refused_without_a_measured_miss(db_session, env, monkeypatch):  #
     unresolved = next(s for s in shards.values() if s.source == "unresolved")
     with pytest.raises(ContentGenUnavailable, match="absent"):
         generate_shard_draft(db_session, tenant, unresolved.id)  # type: ignore[arg-type]
-    with pytest.raises(ContentGenUnavailable, match="no such shard"):
+    with pytest.raises(ContentGenUnavailable, match="no such sub-search"):
         generate_shard_draft(db_session, tenant, 999_999)
 
 

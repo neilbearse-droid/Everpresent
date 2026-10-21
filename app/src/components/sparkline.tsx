@@ -1,5 +1,5 @@
 /** A balance-style area sparkline: the brand's line in the accent over a
- * soft fill, three hairline gridlines, no axes. Server-rendered SVG. */
+ * flat soft fill, three hairline gridlines, no axes. Server-rendered SVG. */
 export function Sparkline({
   values,
   height = 132,
@@ -40,12 +40,6 @@ export function Sparkline({
       role="img"
       aria-label={label}
     >
-      <defs>
-        <linearGradient id="spark-fill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.18" />
-          <stop offset="100%" stopColor="var(--accent)" stopOpacity="0" />
-        </linearGradient>
-      </defs>
       {[0.25, 0.5, 0.75].map((f) => (
         <line
           key={f}
@@ -58,7 +52,7 @@ export function Sparkline({
           vectorEffect="non-scaling-stroke"
         />
       ))}
-      <path d={area} fill="url(#spark-fill)" />
+      <path d={area} fill="var(--accent-soft)" />
       <path
         d={line}
         fill="none"

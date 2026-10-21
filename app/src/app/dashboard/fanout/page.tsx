@@ -10,19 +10,19 @@ import { NoOrgNotice } from "@/components/no-org-notice";
 import { GenerateBrief } from "./generate-brief";
 import { FanoutSimulator } from "./simulator";
 
-// Why a shard has no measured presence — shown on hover so no cap is silent.
+// Why a sub-search has no measured presence: shown on hover so no cap is silent.
 function unresolvedReason(status: string): string {
   switch (status) {
     case "dropped_k":
-      return "Not re-probed: outside this plan's per-prompt limit this run";
+      return "Not re-checked: outside this plan's per-question limit for this run";
     case "dropped_ceiling":
-      return "Not re-probed: this run's re-probe limit was reached";
+      return "Not re-checked: this run's re-check limit was reached";
     case "withheld_cap":
-      return "Not re-probed: the monthly spend cap was reached";
+      return "Not re-checked: the monthly spend cap was reached";
     case "error":
-      return "The re-probe call failed";
+      return "The re-check failed";
     default:
-      return "Not re-probed";
+      return "Not re-checked";
   }
 }
 
@@ -47,14 +47,13 @@ export default async function FanoutPage({
       <DashNav active="Fan-out" isSuperadmin={me.data?.is_superadmin} withDateRange />
 
       <div className="mb-5">
-        <p className="eyebrow mb-1.5">Fan-out map</p>
         <h1 className="text-[26px] font-semibold tracking-tight">
-          The sub-queries engines run before answering
+          The sub-searches engines run before answering
         </h1>
         <p className="mt-2 max-w-3xl text-sm text-[var(--text-2)]">
-          Search-based engines don&apos;t search your prompt as written. They split it into several
-          sub-queries and pick sources for each one. This page lists the sub-queries each engine
-          ran, whether you appear in the results, and who does.
+          When an engine searches the web to answer a question, it splits the question into
+          several smaller searches and picks sources from each one. That split is called fan-out.
+          Each sub-search below shows whether you appear in its results and who does.
         </p>
       </div>
 
@@ -62,22 +61,22 @@ export default async function FanoutPage({
 
       <div className="card-inset mb-6 flex gap-3 p-4 text-xs text-[var(--text-2)]">
                 <p className="leading-[1.55]">
-          <span className="font-semibold text-[var(--text)]">What&apos;s measured here.</span>{" "}
-          The shard list and &quot;names you / a competitor&quot; flags come straight from the shard
-          text the engines exposed. Whether you appeared in the <em>final answer</em> is real,
-          from mentions. <span className="font-medium">Per-shard presence</span> is shown only for
-          shards we re-ran as their own query on an engine that issued them (&quot;re-probed&quot;);
-          every other shard is marked unresolved rather than estimated from the full answer.
-          Branded prompts are excluded (they live in the Brand layer).
+          <span className="font-semibold text-[var(--text)]">How this is measured.</span>{" "}
+          The sub-searches and the &ldquo;names you / a competitor&rdquo; flags come straight from
+          the search text the engines reported. Whether you appear in the <em>final answer</em>{" "}
+          comes from the answer itself. Whether you appear in a sub-search&apos;s results is shown
+          only for sub-searches we ran again ourselves on an engine that used them
+          (&ldquo;re-checked&rdquo;); the rest are marked unresolved instead of guessed from the
+          full answer. Branded questions are left out (see the Brand tab).
           {data?.observed && (
             <>
               {" "}
               <span className="font-medium text-[var(--text)]">
-                Coverage: {data.coverage.reprobed} re-probed · {data.coverage.unresolved} unresolved.
+                Coverage: {data.coverage.reprobed} re-checked · {data.coverage.unresolved} unresolved.
               </span>
               {(data.trend.won_back > 0 || data.trend.lost > 0) &&
-                ` Since each shard's previous re-probe: ${data.trend.won_back} won back, ${data.trend.lost} newly lost.`}
-              {!data.reprobe_enabled && " Re-probing is off for this account, so presence is not measured yet."}
+                ` Since each sub-search was last re-checked: ${data.trend.won_back} won back, ${data.trend.lost} newly lost.`}
+              {!data.reprobe_enabled && " Re-checking is off for this account, so presence in sub-searches isn't measured yet."}
             </>
           )}
         </p>
@@ -87,9 +86,9 @@ export default async function FanoutPage({
         <section className="card p-4">
           <h2 className="mb-2 text-lg font-medium">No fan-out captured yet</h2>
           <p className="text-sm text-[var(--text-2)]">
-            Fan-out shows up where an engine exposes the sub-queries it issued (Gemini always;
-            ChatGPT when present). Run a collection with a retrieval engine enabled and it appears
-            here after processing.
+            Fan-out appears when an engine reports the searches it ran (Gemini always does,
+            ChatGPT sometimes). It shows up here after a run that includes an engine that
+            searches the web.
           </p>
         </section>
       ) : (
@@ -116,7 +115,7 @@ export default async function FanoutPage({
                     {p.shards_present + p.shards_absent > 0 && (
                       <span className="text-[11px] font-medium text-[var(--text-2)]">
                         · you&apos;re in {p.shards_present} of {p.shards_present + p.shards_absent}{" "}
-                        re-probed
+                        re-checked
                         {p.high_misses > 0 && (
                           <>
                             {" · "}
@@ -126,9 +125,9 @@ export default async function FanoutPage({
                           </>
                         )}
                         {p.won_back > 0 && (
-                          <span className="text-[var(--pos)]"> · ▲ {p.won_back} won back</span>
+                          <span className="text-[var(--pos)]"> · {p.won_back} won back</span>
                         )}
-                        {p.lost > 0 && <>{" · "}<span className="text-[var(--neg)]">▼ {p.lost} newly lost</span></>}
+                        {p.lost > 0 && <>{" · "}<span className="text-[var(--neg)]">{p.lost} newly lost</span></>}
                       </span>
                     )}
                   </div>
@@ -138,7 +137,8 @@ export default async function FanoutPage({
                     {p.shards_total}
                   </div>
                   <div className="text-[11px] text-[var(--text-3)]">
-                    shards · {p.engines_count} {p.engines_count === 1 ? "engine" : "engines"}
+                    {p.shards_total === 1 ? "sub-search" : "sub-searches"} · {p.engines_count}{" "}
+                    {p.engines_count === 1 ? "engine" : "engines"}
                   </div>
                   <span
                     className="mt-1.5 inline-flex items-center gap-1 rounded-[4px] px-2 py-0.5 text-[10.5px] font-semibold"
@@ -148,7 +148,7 @@ export default async function FanoutPage({
                         : { background: "var(--ink)", color: "var(--ink-text)", border: "1px solid var(--ink)" }
                     }
                   >
-                    {p.brand_in_answer ? "✓ in final answer" : "✗ not in final answer"}
+                    {p.brand_in_answer ? "in final answer" : "not in final answer"}
                   </span>
                 </div>
               </div>
@@ -157,8 +157,8 @@ export default async function FanoutPage({
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-left text-[12px] text-[var(--text-3)]">
-                      <th className="pb-2 pr-4 font-semibold">Shard</th>
-                      <th className="pb-2 pr-4 font-semibold">Issued by</th>
+                      <th className="pb-2 pr-4 font-semibold">Sub-search</th>
+                      <th className="pb-2 pr-4 font-semibold">Run by</th>
                       <th className="pb-2 pr-4 font-semibold">Names</th>
                       <th className="pb-2 pr-4 font-semibold">You</th>
                       <th className="pb-2 pr-4 font-semibold">Who won</th>
@@ -178,7 +178,7 @@ export default async function FanoutPage({
                       >
                         <td className="py-2.5 pr-4 text-[var(--text)]">
                           {s.text}
-                          {/* Close the loop (M25c): a brief that answers the lost shard. */}
+                          {/* Close the loop (M25c): a brief that answers the lost sub-search. */}
                           {s.priority === "high" && s.id !== null && (
                             <div className="mt-2">
                               <GenerateBrief shardId={s.id} />
@@ -225,9 +225,9 @@ export default async function FanoutPage({
                           {s.source === "reprobed" ? (
                             <span
                               className={`text-[12px] font-bold ${s.brand_present ? "" : "bp-neg"}`}
-                              title={`Re-probed on ${s.probe_engine ?? "an issuing engine"}${s.probed_at ? ` · ${s.probed_at.slice(0, 10)}` : ""}`}
+                              title={`Re-checked on ${s.probe_engine ?? "an engine that ran it"}${s.probed_at ? ` · ${s.probed_at.slice(0, 10)}` : ""}`}
                             >
-                              {s.brand_present ? "✓ present" : "✗ absent"}
+                              {s.brand_present ? "present" : "absent"}
                             </span>
                           ) : (
                             <span className="text-[11px] text-[var(--text-3)]" title={unresolvedReason(s.probe_status)}>
@@ -235,10 +235,10 @@ export default async function FanoutPage({
                             </span>
                           )}
                           {s.trend === "won_back" && (
-                            <div className="mt-0.5 text-[10.5px] font-semibold text-[var(--pos)]">▲ won back</div>
+                            <div className="mt-0.5 text-[10.5px] font-semibold text-[var(--pos)]">won back</div>
                           )}
                           {s.trend === "lost" && (
-                            <div className="mt-0.5 text-[10.5px] font-semibold text-[var(--neg)]">▼ newly lost</div>
+                            <div className="mt-0.5 text-[10.5px] font-semibold text-[var(--neg)]">newly lost</div>
                           )}
                         </td>
                         <td className="py-2.5 pr-4 text-[12px] text-[var(--text-2)]">

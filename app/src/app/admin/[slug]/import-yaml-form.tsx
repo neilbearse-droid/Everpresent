@@ -32,7 +32,8 @@ export function ImportYamlForm({ slug, seeds = [] }: { slug: string; seeds?: Bun
     <div className="flex flex-col gap-5">
       <form action={draftAction} className="flex flex-col gap-2">
         <label className="text-xs text-[var(--text-2)]">
-          New brand? Draft a config from its domain. Nothing is imported until you review it.
+          To set up a new brand, draft a config from its website. Nothing is imported until you
+          review it.
         </label>
         <div className="flex gap-2">
           <input
@@ -64,8 +65,8 @@ export function ImportYamlForm({ slug, seeds = [] }: { slug: string; seeds?: Bun
       {seeds.length > 0 && (
         <form action={seedAction} className="flex flex-col gap-2">
           <label className="text-xs text-[var(--text-2)]">
-            Load a bundled config (no copy-paste). Replaces this tenant&apos;s brand,
-            competitors, personas, questions and engines.
+            Load a saved config. This replaces the client&apos;s brand, competitors, personas,
+            questions and engines.
           </label>
           <div className="flex gap-2">
             <select name="seed" className="field min-w-0 flex-1 px-2 py-1.5 text-[12px]" defaultValue={seeds[0].name}>

@@ -30,29 +30,29 @@ from api.models import (
 _DIAGNOSIS = {
     "visible": {
         "label": "Visible",
-        "fix": "You appear in the answer users see. Protect it: keep the cited content fresh.",
+        "fix": "You're named in the answer people see. Keep the cited pages current.",
     },
     "content_gap": {
         "label": "Content gap",
         "fix": (
-            "The AIs know your brand, but when they search the live web they surface "
-            "competitors instead. Publish citable, up-to-date content that answers this "
-            "query directly — this is a GEO/SEO content problem, not an awareness one."
+            "Engines name you when they answer from memory, but name competitors once they "
+            "search the web. Publish current pages that answer this question directly, "
+            "with prices and other facts stated as text."
         ),
     },
     "knowledge_gap": {
         "label": "Knowledge gap",
         "fix": (
-            "The AIs neither recall your brand from training nor find you when they "
-            "search. You need both: authoritative published content AND broader brand "
-            "presence across the web so future model training picks you up."
+            "Engines don't name you from memory or when they search the web. This needs "
+            "pages that answer the question and more coverage on other sites (reviews, "
+            "press, directories), so future models learn the brand."
         ),
     },
     "undetermined": {
         "label": "Absent",
         "fix": (
-            "Absent from the answer. Enable an engine with a training baseline "
-            "(ChatGPT, Claude, or Gemini) to diagnose whether this is a content or a "
+            "You're not in the answer. Turn on ChatGPT, Claude or Gemini, which can also "
+            "answer without web search, to tell whether this is a content gap or a "
             "knowledge gap."
         ),
     },
@@ -279,12 +279,11 @@ _RETRIEVE_AT = 66.0
 _RECALL_AT = 33.0
 
 _MODE_PLAY = {
-    "retrieve": "Publish specific, well-structured pages that answer the sub-queries "
-    "these engines search.",
+    "retrieve": "Publish specific pages that answer the sub-searches these engines run.",
     "recall": "Build mentions in widely read sources (press, directories, reference "
     "sites) so future model versions learn about you.",
-    "mixed": "Combine both: citable pages for searched prompts, and broad coverage "
-    "for prompts answered from memory.",
+    "mixed": "Do both: pages that answer the questions it searches, and coverage on "
+    "widely read sites for the questions it answers from memory.",
 }
 
 
@@ -386,17 +385,18 @@ def engine_modes(
             standing_label = "named in answers"
 
         if mode == "retrieve":
-            blurb = f"Searches on {round(search_rate)}% of your category prompts"
-            blurb += f", splitting each into about {avg_fanout} sub-queries." if avg_fanout else "."
+            blurb = f"Searches the web for {round(search_rate)}% of your category questions"
+            blurb += (f", splitting each into about {avg_fanout} sub-searches."
+                      if avg_fanout else ".")
         elif mode == "recall":
             blurb = (
-                f"Answers {round(100 - search_rate)}% of your category prompts from "
-                "memory, without searching."
+                f"Answers {round(100 - search_rate)}% of your category questions from "
+                "memory, without searching the web."
             )
         else:
             blurb = (
-                f"Searches on {round(search_rate)}% of your category prompts and answers "
-                "the rest from memory."
+                f"Searches the web for {round(search_rate)}% of your category questions and "
+                "answers the rest from memory."
             )
 
         engines.append({

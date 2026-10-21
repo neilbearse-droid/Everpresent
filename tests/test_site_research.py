@@ -133,3 +133,18 @@ def test_demo_client_shows_the_site_search_gap(db_session, monkeypatch, tmp_path
         Recommendation.tenant_id == tenant.id,
         Recommendation.gap_ref == "site_search:rivals")).one()
     assert "Siteforge and Pagecraft" in play.action_text
+
+
+def test_a_failing_play_source_is_skipped_not_fatal(db_session, monkeypatch):
+    """Every play source needs a branch entry: a source that raises must freeze
+    its plays and let the rest of the playbook build (it used to KeyError)."""
+    import api.recommendations_service as recs
+
+    def boom(*_a, **_k):
+        raise RuntimeError("source failed")
+
+    tid = _tenant(db_session)
+    tenant = db_session.get(Tenant, tid)
+    monkeypatch.setattr(recs, "_site_search_play", boom)
+    monkeypatch.setattr(recs, "_research_play", boom)
+    recs.generate_recommendations(db_session, tenant)  # must not raise

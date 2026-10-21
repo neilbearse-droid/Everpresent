@@ -24,22 +24,21 @@ export default async function WhitespacePage({
       <DashNav active="Whitespace" isSuperadmin={me.data?.is_superadmin} withDateRange />
 
       <div className="mb-6">
-        <p className="eyebrow mb-1.5">Category opportunity</p>
         <h1 className="text-[26px] font-semibold tracking-tight">Who else the AI recommends</h1>
         <p className="mt-2 max-w-3xl text-sm text-[var(--text-2)]">
-          Products and companies the AI recommends that aren&apos;t on your tracked list. When an
-          answer names none of your brand or tracked competitors, it points to a category where
-          you aren&apos;t visible.
+          Products and companies named in AI answers that aren&apos;t you or a tracked competitor.
+          An answer that names none of the brands you track points to a part of the category
+          where you aren&apos;t visible yet.
         </p>
       </div>
 
       {!data?.observed ? (
         <section className="card p-4">
-          <h2 className="mb-2 text-lg font-medium">No out-of-list mentions yet</h2>
+          <h2 className="mb-2 text-lg font-medium">No untracked names yet</h2>
           <p className="text-sm text-[var(--text-2)]">
             {data && data.measured > 0
-              ? "The tracked brand and competitors account for every name the answers surfaced in this range."
-              : "No data yet. Untracked names appear here once entity extraction is enabled for this account."}
+              ? "Every name in this date range's answers is your brand or a tracked competitor."
+              : "No data yet. Untracked names appear here once name detection is turned on for this account."}
           </p>
         </section>
       ) : (
@@ -53,7 +52,7 @@ export default async function WhitespacePage({
                 <tr className="text-left text-xs text-[var(--text-3)]">
                   <th className="pb-2 pr-4 font-medium">Name</th>
                   <th className="pb-2 pr-4 font-medium tabular-nums">Mentions</th>
-                  <th className="pb-2 pr-4 font-medium">Surfaced to</th>
+                  <th className="pb-2 pr-4 font-medium">Personas</th>
                   <th className="pb-2 font-medium">Engines</th>
                 </tr>
               </thead>

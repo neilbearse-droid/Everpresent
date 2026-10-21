@@ -26,7 +26,7 @@ def notify_run_complete(session: Session, run: Run, tenant: Tenant) -> bool:
         f"Calls: {counts.get('completed', 0)}/{counts.get('planned', 0)} completed, "
         f"{counts.get('failed', 0)} failed.",
         f"Mentions: {counts.get('mentions', 0)} · citations: {counts.get('citations', 0)} · "
-        f"queries classified: {counts.get('classified_queries', 0)}.",
+        f"questions classified: {counts.get('classified_queries', 0)}.",
         f"Run cost: ${run.cost_usd:.4f}.",
     ]
     if run.error:
@@ -40,9 +40,9 @@ def notify_run_complete(session: Session, run: Run, tenant: Tenant) -> bool:
         log.exception("notify.alerts_failed", run_id=run.id)
         changed = []
     if changed:
-        marks = {"high": "!!", "medium": "!", "good": "+"}
+        marks = {"high": "Urgent: ", "medium": "Watch: ", "good": "Good news: "}
         lines += ["", "WHAT CHANGED"]
-        lines += [f"  {marks.get(a['severity'], '-')} {a['text']}" for a in changed]
+        lines += [f"  - {marks.get(a['severity'], '')}{a['text']}" for a in changed]
 
     month_spend = month_spend_usd(session, tenant.id)
     cap = tenant.monthly_spend_cap_usd

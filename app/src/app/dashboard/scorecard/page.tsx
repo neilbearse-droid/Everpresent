@@ -56,7 +56,7 @@ function SamplePlanPanel({ p }: { p: SamplePlan }) {
     <section className="blueprint mb-6 grid-cols-1">
       <div>
         <div className="bp-bar">
-          <span>How big a change can we see?</span>
+          <span>Smallest change we can detect</span>
           <span>
             {p.window_days}-day window · {p.runs_per_week ? `${p.runs_per_week} runs/week` : "no schedule"}
           </span>
@@ -69,7 +69,7 @@ function SamplePlanPanel({ p }: { p: SamplePlan }) {
                 <th>Engine</th>
                 <th className="text-right">Answers / 2 weeks</th>
                 <th className="text-right">Needed for a {p.target_change_pts}-pt change</th>
-                <th className="text-right">Smallest change we can see now</th>
+                <th className="text-right">Detectable now</th>
                 <th>Status</th>
               </tr>
             </thead>
@@ -99,9 +99,9 @@ function SamplePlanPanel({ p }: { p: SamplePlan }) {
           </table>
         </div>
         <p className="px-4 pb-3 pt-2 text-xs text-[var(--text-3)]">
-          A change counts as real when the second half of the window differs from the first beyond
-          the noise (two-sided 5% test, 80% power). Google captures give one answer per question
-          per run, so they need the most repeats.
+          A change counts as real when the second half of the window differs from the first by
+          more than chance would explain (it passes a standard significance test). Google&apos;s
+          AI answers give one answer per question per run, so they need the most repeats.
         </p>
       </div>
     </section>
@@ -116,7 +116,7 @@ function MentionRatePanel({ m, brand }: { m: MentionRates; brand: string }) {
     <section className="card mb-6 p-4">
       <div className="flex flex-wrap items-start justify-between gap-10">
         <div>
-          <p className="eyebrow mb-2">Mention rate · {brand}</p>
+          <h2 className="mb-2 text-sm font-medium text-[var(--text-2)]">{brand} mention rate</h2>
           <div className="flex items-baseline gap-3">
             <span className="text-6xl font-semibold leading-none tabular-nums text-[var(--text)]">
               {o.rate}%
@@ -128,13 +128,13 @@ function MentionRatePanel({ m, brand }: { m: MentionRates; brand: string }) {
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
             <ChangeBadge change={o.change} />
             <span className="text-[var(--text-3)]">
-              {o.answers} answers · {o.prompts} prompts · {m.window.start} to {m.window.end}
+              {o.answers} answers · {o.prompts} questions · {m.window.start} to {m.window.end}
             </span>
           </div>
           <p className="mt-3 max-w-md text-xs leading-relaxed text-[var(--text-3)]">
-            How often AI answers name you, across every run in the window. The range is the 95%
-            confidence interval. A change is flagged only when the second half of the window
-            differs from the first by more than the noise.
+            How often AI answers name you, across every run in the window. The figure in brackets
+            is the 95% range: the true rate is very likely inside it. A change is flagged only when
+            the second half of the window differs from the first by more than the noise.
           </p>
           {o.unforced && o.unforced.answers > 0 && (
             <div className="mt-4 border-t border-[var(--border)] pt-3">
@@ -146,9 +146,10 @@ function MentionRatePanel({ m, brand }: { m: MentionRates; brand: string }) {
                 </span>
               </div>
               <p className="mt-1 max-w-md text-xs leading-relaxed text-[var(--text-3)]">
-                ChatGPT and Perplexity are made to search the web on every measured answer, but
-                most real answers don&apos;t search. This rate uses their unforced answers
-                instead, so it&apos;s closer to what users actually see.
+                ChatGPT and Perplexity are made to search the web on every measured answer. Left
+                to themselves, they search only some of the time (see the Searched the web
+                column). This rate uses those unforced answers, so it&apos;s closer to what people
+                see.
               </p>
             </div>
           )}
@@ -168,7 +169,7 @@ function MentionRatePanel({ m, brand }: { m: MentionRates; brand: string }) {
                 <th className="pb-2 pr-4 font-medium">Mention rate</th>
                 <th className="pb-2 pr-4 font-medium">95% range</th>
                 <th className="pb-2 pr-4 font-medium">Without forced search</th>
-                <th className="pb-2 pr-4 font-medium">Searches</th>
+                <th className="pb-2 pr-4 font-medium">Searched the web</th>
                 <th className="pb-2 pr-4 font-medium">Answers</th>
                 <th className="pb-2 font-medium">Change</th>
               </tr>
@@ -229,7 +230,7 @@ function TopicPanel({ rows, brand }: { rows: TopicRow[]; brand: string }) {
   const pct = (n: number) => (sentimentTotal ? Math.round((100 * n) / sentimentTotal) : 0);
   return (
     <section className="card mb-6 p-4">
-      <p className="eyebrow mb-1">By topic</p>
+      <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">By topic</h2>
       <p className="mb-4 max-w-2xl text-xs leading-relaxed text-[var(--text-3)]">
         The same measures for each group of questions. Mention rate pools every answer in the
         window; answer share, lead rate and the top rival come from the latest answer per
@@ -329,7 +330,7 @@ export default async function ScorecardPage({
         <section className="card p-4">
           <h2 className="mb-2 text-lg font-medium">No scorecard yet</h2>
           <p className="text-sm text-[var(--text-2)]">
-            The KPI scorecard appears after a completed run.
+            The scorecard appears after the first completed run.
           </p>
         </section>
       </main>
@@ -362,7 +363,7 @@ export default async function ScorecardPage({
       <section className="card mb-6 p-4">
         <div className="flex flex-wrap items-start justify-between gap-10">
           <div>
-            <p className="eyebrow mb-2">Answer share · {d.brand_name} · directional</p>
+            <h2 className="mb-2 text-sm font-medium text-[var(--text-2)]">{d.brand_name} answer share</h2>
             <div className="flex items-baseline gap-2">
               <span className="text-6xl font-semibold leading-none tabular-nums text-[var(--text)]">
                 {d.answer_share}%
@@ -370,7 +371,7 @@ export default async function ScorecardPage({
             </div>
             <p className="mt-3 max-w-md text-xs leading-relaxed text-[var(--text-3)]">
               Your share of AI answers compared with competitors, weighted by prominence. Being
-              named earlier and more often counts for more. Treat it as directional: where a
+              named earlier and more often counts for more. Treat it as a rough guide: where a
               brand is listed varies a lot from one answer to the next.
             </p>
           </div>
@@ -395,7 +396,7 @@ export default async function ScorecardPage({
         <Tile
           value={d.prominence.avg_rank === null ? "—" : `#${d.prominence.avg_rank}`}
           label="Average position when named"
-          sub="directional: order varies run to run"
+          sub="rough guide: order varies run to run"
         />
         <div className="card p-4">
           <div className={`text-3xl font-semibold ${STABILITY_STYLE[d.stability.label] ?? ""}`}>
@@ -429,9 +430,8 @@ export default async function ScorecardPage({
           </div>
           <p className="mb-3 text-xs text-[var(--text-3)]">
             Checked against {acc.data.facts_on_file} fact
-            {acc.data.facts_on_file > 1 ? "s" : ""} on file. Incorrect statements about pricing
-            or accreditation are usually traced to a page the engines cite; correcting that page
-            is the fix.
+            {acc.data.facts_on_file > 1 ? "s" : ""} on file. A wrong price or accreditation often
+            comes from a page the engines cite, so start by correcting that page.
           </p>
           {acc.data.error_count === 0 ? (
             <p className="text-sm text-[var(--pos)]">
@@ -476,10 +476,6 @@ export default async function ScorecardPage({
             ]}
             max={Math.max(pd.leads, pd.second, pd.third_plus, 1)}
           />
-          <p className="mt-3 text-xs text-[var(--text-3)]">
-            Being <em>named</em> isn't the same as being <em>recommended</em>. Leading the
-            answer is what moves buyers.
-          </p>
         </section>
 
         {/* Sentiment / framing */}
@@ -549,7 +545,7 @@ export default async function ScorecardPage({
       {d.stability.series.length >= 2 && (
         <section className="mt-6 card p-4">
           <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">
-            Presence rate over recent runs (durability)
+            Presence rate over recent runs
           </h2>
           <div className="flex gap-2" style={{ height: 120 }}>
             {d.stability.series.map((s) => (

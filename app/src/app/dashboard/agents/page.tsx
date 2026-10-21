@@ -11,10 +11,10 @@ const PURPOSE_LABEL: Record<string, string> = {
 };
 
 const PURPOSE_HELP: Record<string, string> = {
-  search: "Crawling so the engine can cite you later. This is what earns visibility.",
-  user: "Someone asked an AI about this page right now. The closest signal of real demand.",
+  search: "Crawling so the engine can find and cite the page later.",
+  user: "An AI fetched the page while answering someone's question. It's the closest sign of real demand in your logs.",
   agent: "An AI browser acting for a person (shopping, booking, comparing).",
-  training: "Collecting text for future models. No direct visibility payoff.",
+  training: "Collecting text to train future models. It doesn't affect today's citations.",
 };
 
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
@@ -43,11 +43,10 @@ export default async function AgentsPage() {
 
       <section className="blueprint mb-6 grid-cols-1 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
         <div className="p-5">
-          <div className="bp-label mb-2">AI Agents / who reads your site</div>
           <h1 className="text-2xl font-semibold tracking-tight">Which AI bots read your pages</h1>
           <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-[var(--text-2)]">
-            From your server or CDN logs: every AI crawler and agent that fetched your pages,
-            why it came, and whether those pages then get cited in AI answers.
+            From your server or CDN logs: the AI crawlers and agents that fetched your pages, why
+            they came, and whether those pages get cited in AI answers.
           </p>
         </div>
         <div className="p-5">
@@ -69,7 +68,7 @@ export default async function AgentsPage() {
             <Stat
               label="Live user fetches"
               value={d.by_purpose.user.toLocaleString()}
-              sub="someone asked an AI about your page"
+              sub="an AI fetched a page to answer someone"
             />
             <Stat
               label="Verified by IP"
@@ -79,7 +78,7 @@ export default async function AgentsPage() {
             <Stat
               label="Errors served to bots"
               value={`${d.error_rate}%`}
-              sub="4xx/5xx responses"
+              sub="error responses (4xx/5xx)"
             />
           </section>
 
@@ -136,7 +135,7 @@ export default async function AgentsPage() {
               </div>
               {d.read_not_cited.length === 0 ? (
                 <p className="p-4 text-sm text-[var(--text-2)]">
-                  Every page AI engines read is also being cited. Nothing to fix here.
+                  Every page AI engines read is also being cited.
                 </p>
               ) : (
                 <div className="overflow-x-auto"><table className="bp-table w-full min-w-[460px]">
@@ -151,8 +150,8 @@ export default async function AgentsPage() {
                 </table></div>
               )}
               <p className="px-4 pb-3 text-xs text-[var(--text-3)]">
-                Answer engines are considering these pages and choosing other sources. Lead with a
-                direct answer, add current facts and dates, and check they render without JavaScript.
+                Engines read these pages and then cite other sources. Open with a direct answer,
+                add current facts and dates, and check the pages render without JavaScript.
               </p>
             </div>
             <div>

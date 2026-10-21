@@ -65,98 +65,102 @@ class Play:
     link: str = ""
 
 
-# Evidence statements, one per kind of play. Kept here so every play of a kind
-# cites the same, dated, honestly-graded finding.
-# Evidence statements, one per kind of play. Policy: say what kind of
-# evidence backs the play and where it comes from, but don't quote a figure
-# that hasn't been checked against its original source (most 2026 industry
-# numbers circulate second-hand). Official guidance is cited as such.
+# Evidence statements, one per kind of play, so every play of a kind cites the
+# same dated finding. Policy: name the source (see research_notes/ and
+# DECISIONS.md) and the kind of evidence, but don't quote a figure that hasn't
+# been checked against its original source (most 2026 industry numbers
+# circulate second-hand). Official guidance is cited as such.
 WHY = {
     "subquery": (
         "Engines answer by running several sub-searches and citing pages that answer "
-        "those, often pages that don't rank for the main query (2026 industry studies; "
-        "consistent across vendors)."
+        "those, often pages that don't rank for the main question (Ahrefs, BrightEdge and "
+        "Surfer SEO data on Google's AI Overviews, 2025–2026)."
     ),
     "facts": (
-        "In a large 2026 controlled study across several models, topical relevance, "
-        "explicit prices and recent dates raised citation odds; formatting alone did not "
-        "(peer-reviewed preprint)."
+        "In a May 2026 controlled study across several models, topical relevance, explicit "
+        "prices and recent dates raised citation odds; formatting alone did not (arXiv "
+        "preprint 2605.25517)."
     ),
     "earned": (
-        "AI answers lean heavily on third-party sources (reviews, publishers, lists) rather "
-        "than brands' own pages for comparison questions (2025–2026 audits)."
+        "For comparison questions, AI answers cite third-party sources (reviews, "
+        "publishers, lists) far more often than brands' own pages (July 2026 survey of "
+        "GEO research, arXiv 2607.14035)."
     ),
     "reviews": (
-        "In a 2026 controlled test, a small rating advantage was enough to change which "
-        "brand an AI recommended; brands with active review profiles are cited more often "
-        "(controlled preprint; sponsored correlational study)."
+        "In a June 2026 controlled test, a small rating advantage was enough to change which "
+        "brand an AI recommended (arXiv 2606.17443). Brands with active review profiles are "
+        "cited more often (Seer Interactive study sponsored by Trustpilot; correlational)."
     ),
     "community": (
-        "Reddit, YouTube and forums are frequently cited by Google's AI answers and "
-        "Perplexity; ChatGPT cut back on them in 2026 (vendor tracking, correlational). "
-        "Astroturfing gets removed and can backfire."
+        "Google's AI answers and Perplexity often cite Reddit, YouTube and forums. ChatGPT "
+        "cut its citations of them sharply in August 2026 (Otterly and Qwairy tracking; "
+        "correlational). Astroturfing gets removed and can backfire."
     ),
     "reference": (
-        "Wikipedia is among the most-cited sources in ChatGPT answers, and reference "
-        "entries feed both live answers and future model training (industry tracking)."
+        "Wikipedia is among the most-cited sites in ChatGPT answers (Profound citation "
+        "data), and reference entries feed both live answers and future model training."
     ),
     "accuracy": (
-        "Wrong facts in search-backed answers usually trace to a wrong or stale page the "
-        "engine cited, so fix the source, trigger a recrawl, and re-check over several runs "
-        "(vendor analysis; consistent with how retrieval works)."
+        "When an answer that searched the web gets a fact wrong, it is usually repeating a "
+        "wrong or out-of-date page it cited. Fix that page, request a recrawl and re-check "
+        "over several runs."
     ),
     "crawler": (
         "Official: ChatGPT search only shows sites OAI-SearchBot can crawl; Copilot uses "
-        "Bing's index; Google's AI features need normal Googlebot indexing. A blocked bot "
-        "means no chance on that engine."
+        "Bing's index; Google's AI features need normal Googlebot indexing. If the bot is "
+        "blocked, that engine can't show your pages."
     ),
     "refresh": (
-        "Cited pages skew recently updated (industry studies, 2026). Losing a citation is "
-        "the earliest decay signal, and a refresh is cheap."
+        "AI answers tend to cite recently updated pages (Ahrefs citation study, 2025). A "
+        "lost citation is the first sign a page is slipping, and a refresh costs little."
     ),
     "broken": (
         "A page that errors for bots can't be quoted; a cited URL that 404s stays lost "
         "until it's fixed or redirected."
     ),
     "read_not_cited": (
-        "AI search reads these pages and picks other sources: they're retrieved but lose "
-        "on evidence, the cheapest gap to close."
+        "AI search bots already fetch these pages but cite other sources. The engines find "
+        "them, so the fix is on the page itself, which makes this a cheap gap to close."
     ),
     "training": (
-        "Answers from model memory change only when a new model is trained. Brands with "
-        "strong third-party coverage are named more often; there's no fast lever here."
+        "Answers from memory change only when a new model is trained. Brands with strong "
+        "coverage on other sites are named more often, and nothing here moves fast."
     ),
     "aio": (
         "Official: Google says AI Overviews and AI Mode need no special markup, only "
         "indexable, snippet-eligible pages. They often cite pages that answer the "
-        "sub-searches, not only top-ranked ones."
+        "sub-searches as well as top-ranked ones."
     ),
     "logs": (
         "Only server logs show whether ChatGPT, Perplexity, Claude and Google's AI bots "
         "can actually reach your pages, and which pages they read."
     ),
     "site_search": (
-        "Newer ChatGPT models send part of their sub-searches to one site, mostly brands' own "
-        "sites, to check facts at the source (large-scale 2026 analysis of ChatGPT's "
-        "sub-searches). The site it checks is the one whose wording ends up in the answer."
+        "Some of ChatGPT's sub-searches are limited to a single site, and for the most-searched "
+        "domains most of those went to brand sites (Ahrefs' October 2026 study of ChatGPT "
+        "answers). What that site says is likely to be what the answer says."
     ),
     "research": (
         "ChatGPT has shifted toward citing the original source of a fact, such as studies "
-        "and official data, over sites that summarize it (large-scale 2026 citation "
-        "analysis). Retrieval decides most citations, not page wording (2026 preprint)."
+        "and official data, over sites that summarize it (Ahrefs' October 2026 study of "
+        "ChatGPT answers). Reformatting a page mostly shifts credit between sources rather "
+        "than adding citations (CITECHOICE preprint, arXiv 2609.15164)."
     ),
     "own_pages": (
-        "Newer ChatGPT models send much of their searching to the brand's own site (2026 "
-        "vendor studies): what your pricing and help pages say is what the answer says."
+        "Newer ChatGPT models do much of their searching on the brand's own site (Peec AI "
+        "and Writesonic tracking, 2026), so what your pricing and help pages say is likely "
+        "what the answer says."
     ),
     "model_change": (
         "A new model can change how often an engine searches and what it cites overnight. "
-        "Compare before and after the change, not across it."
+        "Compare periods on the same model rather than across the switch."
     ),
     "strategy": (
-        "Large 2026 audits found specialist brands often never surface, mid-market brands "
-        "surface but are rarely recommended, and leading brands face more fabricated "
-        "facts. The right play depends on where you start."
+        "A May 2026 audit found many specialist brands never appear in answers and "
+        "mid-market brands are named far more often than they're recommended (arXiv "
+        "2605.27439, vendor-affiliated). A June 2026 preprint found engines answering from "
+        "memory invent more sources for well-known brands (arXiv 2606.21595). The right "
+        "play depends on where you start."
     ),
 }
 
@@ -177,15 +181,15 @@ def _action_text(branch: str, query_text: str) -> str:
     """Fallback text for a per-query gap with no richer context."""
     if branch == "web_search":
         return (
-            f'AI answers for "{query_text}" use live web search and don\'t name you. '
-            "Answer the query and its sub-questions directly, with explicit facts, and get "
-            "onto the third-party pages those answers already cite."
+            f'AI answers for "{query_text}" search the web and don\'t name you. '
+            "Answer the question and its sub-questions directly, with facts stated plainly, "
+            "and get onto the third-party pages those answers already cite."
         )
     if branch == "training":
         return (
-            f'AI answers for "{query_text}" come from model memory, not live search. '
-            "Build durable third-party coverage (reviews, reference entries, press) so "
-            "future models learn the brand."
+            f'AI answers for "{query_text}" come from the model\'s memory, without a web '
+            "search. Build lasting coverage on other sites (reviews, reference entries, "
+            "press) so future models learn the brand."
         )
     return (
         f'Google\'s AI Overview answers "{query_text}" without citing you. Answer the '
@@ -383,7 +387,7 @@ def _query_plays(session: Session, tenant_id: int, plan: dict) -> list[Play]:
         ref = f"query:{query_text}::branch:{branch}"
         if branch == "web_search":
             priority = 60 + {"winnable now": 20, "contested": 8, "locked in": -15}.get(contest, 0)
-            text = f'AI answers for "{query_text}" use live search and mostly leave you out'
+            text = f'AI answers for "{query_text}" search the web and mostly leave you out'
             text += f"; {_join(rivals)} show up instead." if rivals else "."
             text += where
             steps = []
@@ -396,11 +400,12 @@ def _query_plays(session: Session, tenant_id: int, plan: dict) -> list[Play]:
                 steps.append("Don't answer it with your own ranked 'best X' list (see Don'ts)")
             steps.append("Log the change in Outcome with an untouched control page, then "
                          "judge it after 2–3 weeks of runs")
-            plays.append(Play(ref, branch, f"Win “{query_text}”", text, priority, "strong",
-                              WHY["subquery"], steps, query_text, "/dashboard/action-plan"))
+            plays.append(Play(ref, branch, f"Get named in answers to “{query_text}”", text,
+                              priority, "strong", WHY["subquery"], steps, query_text,
+                              "/dashboard/action-plan"))
         elif branch == "training":
             plays.append(Play(
-                ref, branch, f"Long game: “{query_text}”",
+                ref, branch, f"Get known for “{query_text}” (long term)",
                 f'Engines answer "{query_text}" from memory and mostly leave you out'
                 + (f"; they name {_join(rivals)}." if rivals else ".") + where,
                 30, "emerging", WHY["training"],
@@ -463,8 +468,8 @@ def _accuracy_plays(session: Session, tenant_id: int) -> list[Play]:
                          f"{_join(top, 4)}")
         steps += [f"State the correct {f.subject} ({f.expected}) plainly on your own page, "
                   "with an updated date", _RECRAWL,
-                  "Re-check over the next 2–3 runs; memory-based answers may wait for "
-                  "the next model version"]
+                  "Re-check over the next 2–3 runs; answers from memory may not change "
+                  "until the next model version"]
         plays.append(Play(
             f"accuracy:{fact_id}", "accuracy",
             f"Fix a wrong fact: {f.subject}",
@@ -498,7 +503,7 @@ def _agent_plays(session: Session, tenant_id: int) -> list[Play]:
             "access and page checks are on hold.",
             40, "official", WHY["logs"],
             ["Upload the last 30 days of access logs on the AI Agents tab, or set up "
-             "the automatic push from your CDN so this never goes stale"],
+             "the automatic push from your CDN so the data stays current"],
             link="/dashboard/agents")])
     if not a.get("has_data"):
         return [Play(
@@ -567,7 +572,8 @@ def _agent_plays(session: Session, tenant_id: int) -> list[Play]:
         plays.append(Play(
             "read_not_cited", "read_not_cited",
             f"{len(rnc)} page{'s' if len(rnc) != 1 else ''} AI reads but never cites",
-            f"AI search keeps fetching {_join(paths, 5)}, but no measured answer cites them.",
+            f"AI search keeps fetching {_join(paths, 5)}, but no measured answer cites "
+            f"{'it' if len(rnc) == 1 else 'them'}.",
             50, "moderate", WHY["read_not_cited"],
             ["Check the content is in the HTML (view it with JavaScript off)",
              "Lead with a direct answer; state prices, dates and specs as text",
@@ -585,7 +591,7 @@ def _refresh_plays(plan: dict) -> list[Play]:
             f"This page stopped being cited for {_join([f'“{q}”' for q in queries], 3)}.",
             80, "moderate", WHY["refresh"],
             ["Update the numbers, examples and dates; show 'Updated <month year>'",
-             "Check it still answers those queries directly, near the top",
+             "Check it still answers those questions directly, near the top",
              "Check it loads for bots (AI Agents tab)", _RECRAWL],
             link="/dashboard/action-plan"))
     return plays
@@ -653,7 +659,7 @@ def _source_plays(plan: dict) -> list[Play]:
             f"Answers cite {_join(doms, 4)} when they name rivals, but not you.",
             76, "moderate", WHY["reviews"],
             ["Claim and complete the profile: plans, prices, categories, screenshots",
-             "Ask real customers for reviews after a success moment; never tie incentives "
+             "Ask real customers for reviews after a good experience; never tie incentives "
              "to positive reviews (FTC fake-review rule)",
              "Reply to reviews, especially critical ones; keep facts current"],
             link="/dashboard/action-plan"))
@@ -661,32 +667,36 @@ def _source_plays(plan: dict) -> list[Play]:
         doms = [t["domain"] for t in buckets["publisher"]]
         plays.append(Play(
             "sources:publisher", "earned", f"Get onto {_join(doms, 3)}",
-            f"These pages are cited alongside rivals for your queries "
-            f"({len(doms)} publishers in all). Placement on third-party lists drives far "
-            "more AI mentions than a brand's own list pages (2026 experiments).",
+            f"These pages are cited alongside rivals for your questions "
+            f"({len(doms)} publishers in all). In Search Engine Land's September 2026 "
+            "experiments, placement on third-party lists drove far more AI mentions than a "
+            "brand's own list pages.",
             70, "moderate", WHY["earned"],
             ["Check whether each page lists rivals and not you; pitch an update with "
              "current facts, original data or an expert quote",
              "Disclose any paid placement; undisclosed pay-to-play is a spam risk",
-             "Re-check monthly: about half of cited sources rotate out within 30 days"],
+             "Re-check monthly: in the same experiments, about half of cited sources "
+             "stopped being cited within 30 days"],
             link="/dashboard/action-plan"))
     if buckets.get("community"):
         doms = [t["domain"] for t in buckets["community"]]
         plays.append(Play(
             "sources:community", "community", f"Show up where people discuss: {_join(doms, 3)}",
-            f"{_join(doms, 4)} are cited for your queries alongside rivals. These matter "
+            f"{_join(doms, 4)} are cited for your questions alongside rivals. These matter "
             "most for Google's AI answers and Perplexity; ChatGPT sharply cut its Reddit "
             "citations in August 2026.",
             52, "emerging", WHY["community"],
             ["Answer real threads as a disclosed company account; no sock puppets",
              "On YouTube, publish genuine how-to and comparison videos with clear titles",
-             "Prioritize by engine: this play is for Google and Perplexity, not ChatGPT"],
+             "Start with the threads and videos already cited for your questions "
+             "(Citations tab)"],
             link="/dashboard/citations"))
     if buckets.get("reference"):
         doms = [t["domain"] for t in buckets["reference"]]
         plays.append(Play(
             "sources:reference", "reference", "Check your reference entries",
-            f"{_join(doms)} is cited for your queries alongside rivals.",
+            f"{_join(doms)} {'is' if len(doms) == 1 else 'are'} cited for your questions "
+            "alongside rivals.",
             48, "moderate", WHY["reference"],
             ["Check your Wikipedia and Wikidata entries for accuracy and missing facts",
              "Propose fixes on the article's talk page with independent sources; don't "
@@ -709,7 +719,7 @@ def _site_search_play(session: Session, tenant_id: int) -> list[Play]:
     asks = [a for t in rivals for a in t["top_asks"]][:4]
     return [Play(
         "site_search:rivals", "owned",
-        "Engines look up facts on your rivals' sites, not yours",
+        "Engines check facts on your rivals' sites far more than on yours",
         f"While answering your questions, engines searched inside "
         f"{_join([t['name'] for t in rivals])}'s sites {s['rivals']} times and inside yours "
         f"{s['owned']} "
@@ -749,8 +759,8 @@ def _research_play(session: Session, tenant_id: int) -> list[Play]:
     return [Play(
         "sources:research", "evidence", "Back your claims with primary evidence",
         f"Answers to your questions cite studies and official data: {_join(top, 4)} "
-        f"({n} of {len(domains)} citations). Engines quote the original source of a fact "
-        "over pages that summarize it.",
+        f"({n} of {len(domains)} citations). Engines tend to cite the original source of a "
+        "fact over pages that summarize it.",
         64, "moderate", WHY["research"],
         ["On pages that make a claim (ingredients, results, safety, prices), link the study "
          "or official source behind it, and say what it found in plain words",
@@ -786,13 +796,12 @@ def _owned_docs_play(session: Session, tenant_id: int, plan: dict) -> list[Play]
         "owned:chatgpt_docs", "owned",
         "Make your help, docs and pricing pages ChatGPT-ready",
         ("None" if share == 0 else f"Only {round(100 * share)}%")
-        + " of ChatGPT's citations on your queries point at your own site. Since "
-        "August 2026 ChatGPT searches inside brand sites far more often, favouring help "
-        "centers and product docs.",
+        + " of ChatGPT's citations on your questions point at your own site, and help "
+        "centers and product docs are the brand pages it now cites most.",
         72, "moderate",
         "In August 2026 ChatGPT began searching inside brand sites much more often while "
-        "citing Reddit far less; help centers and product docs took those slots (vendor "
-        "tracking, 2026).",
+        "citing Reddit far less; help centers and product docs took those slots (Otterly "
+        "and Qwairy tracking, August 2026).",
         ["Make sure help-center, docs and pricing pages are public, crawlable HTML",
          "One page per real customer question, answer first, facts explicit",
          "Keep plan names, prices and limits identical across pricing, docs and help"],
@@ -808,8 +817,8 @@ def _strategy_play(session: Session, tenant_id: int) -> list[Play]:
         return []
     if rate < 20:
         title, text, steps = (
-            "Focus: get retrieved at all",
-            f"You're named in {rate}% of answers on your category queries. Engines aren't "
+            "Focus: get found at all",
+            f"You're named in {rate}% of answers on your category questions. Engines aren't "
             "finding you yet, so on-page polish won't move much.",
             ["Prioritize third-party lists, reviews and directories engines already cite",
              "Cover the sub-questions engines search (Fan-out tab)",
@@ -817,9 +826,9 @@ def _strategy_play(session: Session, tenant_id: int) -> list[Play]:
     elif rate < 70:
         title, text, steps = (
             "Focus: turn mentions into recommendations",
-            f"You're named in {rate}% of answers, but naming isn't recommending. The "
-            "gap is in how you're positioned for each buyer.",
-            ["Check which personas and queries name rivals first (Personas tab)",
+            f"You're named in {rate}% of answers. Being named is not the same as being "
+            "recommended, so work on how you're positioned for each type of buyer.",
+            ["Check which personas and questions name rivals first (Personas tab)",
              "Publish honest comparisons that say who you're best for",
              "Close rating gaps on the review sites engines cite"])
     else:
@@ -829,7 +838,7 @@ def _strategy_play(session: Session, tenant_id: int) -> list[Play]:
             "facts wrong or citing stale pages.",
             ["Keep the fact sheet current so accuracy checks catch errors (Brand tab)",
              "Refresh any page that loses a citation within a week",
-             "Watch rivals gaining on the queries you lead"])
+             "Watch for rivals gaining on the questions you lead"])
     return [Play("strategy", "strategy", title, text, 100, "moderate", WHY["strategy"],
                  steps, link="/dashboard")]
 
@@ -850,7 +859,7 @@ def _own_page_plays(session: Session, tenant_id: int) -> list[Play]:
                 else f"{c['subject']} is {c['stated']}")
         plays.append(Play(
             f"own_page:facts:{r['path']}", "own_page",
-            f"Your own page contradicts your facts: {r['path']}",
+            f"Your own page contradicts your fact sheet: {r['path']}",
             f"{r['path']} says {said}; your fact sheet: {rule}. AI answers read this page"
             + (f" (cited {r['cited']}× lately)." if r["cited"] else "."),
             93, "moderate", WHY["own_pages"],
@@ -918,6 +927,8 @@ _SOURCE_BRANCHES = {
     "strategy": {"strategy"},
     "own_pages": {"own_page"},
     "model_change": {"model_change"},
+    "site_search": {"owned"},
+    "research": {"evidence"},
 }
 
 

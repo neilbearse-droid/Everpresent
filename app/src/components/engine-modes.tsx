@@ -4,7 +4,7 @@ import type { AIOSummary, EngineMode, EngineModesPayload } from "@/lib/api";
 // Modes are named in plain words; colour isn't used to tell them apart (the
 // accent is reserved for the brand and good news).
 const MODE_CODE: Record<EngineMode["mode"], string> = {
-  retrieve: "Searches live",
+  retrieve: "Searches the web",
   recall: "Answers from memory",
   mixed: "Mixed",
 };
@@ -28,7 +28,7 @@ function EngineCell({ e }: { e: EngineMode }) {
         </div>
       </div>
       <p className="border-t border-[var(--line)] px-4 py-3 text-[12.5px] leading-snug text-[var(--text-2)]">
-        <span className="mr-1.5 font-medium text-[var(--text)]">Play</span>
+        <span className="mr-1.5 font-medium text-[var(--text)]">What to do:</span>
         {e.play}
       </p>
     </div>
@@ -62,17 +62,17 @@ function ModeCell({
   const recall = kind === "recall";
   return (
     <div className="p-3">
-      <div className="bp-label mb-1">{recall ? "Recall / from memory" : "Retrieval / live search"}</div>
       <h3 className="bp-head text-[14px]">
-        {recall ? "Does the model already know you?" : "Do you appear when it searches?"}
+        {recall ? "Answers from memory" : "Answers that searched the web"}
       </h3>
       <div className="mt-2 flex items-baseline gap-2">
         <span className="bp-metric text-[34px]">
-          {answers > 0 ? `${Math.round(visibility)}%` : "N/A"}
+          {answers > 0 ? `${Math.round(visibility)}%` : "—"}
         </span>
         <span className="text-[11.5px] leading-tight text-[var(--text-2)]">
-          of {recall ? "memory" : "live"} answers name {brand}
-          {answers > 0 ? ` · n=${answers}` : ""}
+          {answers > 0
+            ? `of ${answers} ${answers === 1 ? "answer names" : "answers name"} ${brand}`
+            : "No answers of this kind yet"}
         </span>
       </div>
     </div>

@@ -217,15 +217,16 @@ def intervention_proof(session: Session, tenant_id: int, days: int = WINDOW_DAYS
                         "measured so far. Check back after a week of runs.")
         elif test["verdict"] == "up" and (cdelta is None or delta is None or delta > cdelta):
             status = "proven"
-            headline = (f"Named {delta:+} points on this question since the fix"
-                        + (f", {round(delta - cdelta, 1):+} beyond the control"
+            headline = (f"Mention rate on this question is up {delta} points since the fix"
+                        + (f", {round(delta - cdelta, 1)} more than the control"
                            if delta is not None and cdelta is not None else "") + ".")
         elif any(s.get("verdict") == "up vs control" for s in signals[1:]):
             status = "early"
             headline = "Page signals are up against the control; answers haven't moved yet."
         elif test["verdict"] == "down":
             status = "worse"
-            headline = f"Named {delta:+} points on this question since the fix."
+            headline = (f"Mention rate on this question is down {abs(delta or 0)} points "
+                        "since the fix.")
         elif nb == 0:
             status = "no_change"
             headline = ("No answers were measured on this question before the fix, so "
