@@ -283,3 +283,122 @@ def fanout_scorecard(
         "trend": trend_totals,
         "reprobe_enabled": bool(tenant and tenant.fanout_reprobe_enabled),
     }
+
+
+REPLAY_MAX_PROMPTS = 20
+REPLAY_MAX_SOURCES = 12
+
+
+def fanout_replay(
+    session: Session, tenant_id: int, start: str | None = None, end: str | None = None
+) -> dict:
+    """Data for the fan-out simulator: per question and engine, the latest
+    answer's sub-searches (each with what a re-run of it found, when we have
+    one), the sources the final answer cited, and who it named. Real stored
+    data only; a sub-search we never re-ran is marked unchecked, not guessed."""
+    from api.models import Citation
+    from api.site_search_service import site_targets
+
+    brand_name = _brand_name(session, tenant_id)
+    bp = session.exec(select(BrandProfile).where(BrandProfile.tenant_id == tenant_id)).first()
+    owned_domains = list(bp.domains) if bp else []
+    rival_domains = [(c.name, list(c.domains)) for c in session.exec(
+        select(Competitor).where(Competitor.tenant_id == tenant_id)).all()]
+
+    def site_owner(domain: str) -> tuple[str, str]:
+        def hit(ds: list[str]) -> bool:
+            return any(domain == d.lower().removeprefix("www.")
+                       or domain.endswith("." + d.lower().removeprefix("www.")) for d in ds)
+        if hit(owned_domains):
+            return "you", brand_name
+        rival = next((n for n, ds in rival_domains if hit(ds)), None)
+        return ("rival", rival) if rival else ("other", domain)
+
+    lo, hi = _date_window(start, end)
+    # Branded questions name the brand by design; agent prompts stay (their
+    # sub-searches are some of the most telling).
+    search = _latest_results_by_variant(
+        session, tenant_id, ResultVariant.search, lo, hi, scope="unbranded"
+    )
+    results = [r for r in search.values() if r.id is not None and r.fanout_queries]
+    if not results:
+        return {"brand_name": brand_name, "prompts": []}
+    ids = [r.id for r in results if r.id is not None]
+
+    # Latest re-probe per (question, sub-search).
+    probes: dict[tuple[str, str], FanoutShard] = {}
+    for row in session.exec(
+        select(FanoutShard).where(FanoutShard.tenant_id == tenant_id,
+                                  FanoutShard.source == "reprobed")
+        .order_by(FanoutShard.run_id)  # pyright: ignore[reportArgumentType]
+    ).all():
+        probes[(row.parent_query_text, row.shard_norm)] = row
+
+    mentions: dict[int, list[Mention]] = defaultdict(list)
+    for m in session.exec(select(Mention).where(Mention.result_id.in_(ids))).all():  # pyright: ignore[reportAttributeAccessIssue]
+        mentions[m.result_id].append(m)
+    sources: dict[int, list[Citation]] = defaultdict(list)
+    for c in session.exec(select(Citation).where(Citation.result_id.in_(ids))).all():  # pyright: ignore[reportAttributeAccessIssue]
+        sources[c.result_id].append(c)
+
+    prompts: dict[str, list[dict]] = defaultdict(list)
+    for r in results:
+        assert r.id is not None
+        subs = []
+        seen: set[str] = set()
+        for raw in r.fanout_queries:
+            text = str(raw).strip()
+            norm = shard_norm(text)
+            if not text or norm in seen or norm == shard_norm(r.query_text):
+                continue
+            seen.add(norm)
+            domains, looked_for = site_targets(text)
+            probe = probes.get((r.query_text, norm))
+            if probe is None or probe.brand_present is None:
+                status = "unchecked"
+            elif probe.brand_present:
+                status = "you"
+            else:
+                status = "rivals" if probe.winners else "nobody"
+            site_kind, site_name = site_owner(domains[0]) if domains else (None, None)
+            subs.append({
+                "text": text,
+                "site": domains[0] if domains else None,
+                "site_kind": site_kind,  # you | rival | other: whose site it searched in
+                "site_name": site_name,
+                "looked_for": looked_for if domains else None,
+                "status": status,
+                "winners": list(probe.winners or []) if probe else [],
+            })
+        ms = sorted(mentions.get(r.id, []), key=lambda m: m.rank or 999)
+        brand_m = next((m for m in ms if m.entity_type == "brand"), None)
+        cited: dict[str, dict] = {}
+        for c in sources.get(r.id, []):
+            kind = {"brand": "you", "competitor": "rival"}.get(c.source_category, "other")
+            entry = cited.setdefault(c.domain, {"domain": c.domain, "url": c.url, "kind": kind})
+            if kind != "other":
+                entry["kind"] = kind
+        ordered = sorted(cited.values(), key=lambda s: ({"you": 0, "rival": 1}.get(s["kind"], 2),
+                                                       s["domain"]))
+        surface = str(r.surface)
+        prompts[r.query_text].append({
+            "surface": surface,
+            "label": _surface_label(surface),
+            "date": r.created_at.date().isoformat(),
+            "subs": subs,
+            "named": brand_m is not None,
+            "rank": brand_m.rank if brand_m else None,
+            "snippet": brand_m.context_snippet if brand_m else None,
+            "rivals_named": list(dict.fromkeys(
+                m.entity_name for m in ms if m.entity_type != "brand"))[:5],
+            "sources": ordered[:REPLAY_MAX_SOURCES],
+            "sources_total": len(ordered),
+        })
+
+    out = [
+        {"query": q, "engines": sorted(engines, key=lambda e: (-len(e["subs"]), e["label"]))}
+        for q, engines in prompts.items()
+        if any(e["subs"] for e in engines)
+    ]
+    out.sort(key=lambda p: (-max(len(e["subs"]) for e in p["engines"]), p["query"]))
+    return {"brand_name": brand_name, "prompts": out[:REPLAY_MAX_PROMPTS]}

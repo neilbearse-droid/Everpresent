@@ -3,6 +3,21 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M48 — Fan-out simulator (2026-10-21)
+
+1. **A replay, not a cartoon.** The simulator on the Fan-out page plays back a
+   real answer from the latest runs: the question, the sub-searches the
+   engine reported, what a re-run of each found (you / which rivals / no
+   brand), and the answer (named or not, rank, rivals, cited sources). It
+   teaches what fan-out is with the client's own data.
+2. **No guessing.** A sub-search we never re-ran says "not re-checked yet";
+   `site:` searches say whose site was searched instead of a result.
+3. **Four beats** (question, split, searches, answer) with Play, Step, Reset
+   and clickable step markers; transitions respect reduced motion. On phones
+   it stacks vertically without the connector lines.
+4. Demo client: a second question (bakery) with a mixed fan-out (one won,
+   one lost to Siteforge, one open) so the demo shows all three outcomes.
+
 ## M47 — What users see, where engines check, and primary sources (2026-10-21)
 
 From October research (Ahrefs' 66.6M-answer ChatGPT study, Oct 12; a 2026

@@ -1,7 +1,14 @@
-import { apiFetch, rangeQuery, type FanoutScorecardPayload, type Me } from "@/lib/api";
+import {
+  apiFetch,
+  rangeQuery,
+  type FanoutReplay,
+  type FanoutScorecardPayload,
+  type Me,
+} from "@/lib/api";
 import { DashNav } from "@/components/dash-nav";
 import { NoOrgNotice } from "@/components/no-org-notice";
 import { GenerateBrief } from "./generate-brief";
+import { FanoutSimulator } from "./simulator";
 
 // Why a shard has no measured presence — shown on hover so no cap is silent.
 function unresolvedReason(status: string): string {
@@ -25,9 +32,10 @@ export default async function FanoutPage({
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
   const { from, to } = await searchParams;
-  const [me, report] = await Promise.all([
+  const [me, report, replay] = await Promise.all([
     apiFetch<Me>("/api/me"),
     apiFetch<FanoutScorecardPayload>(`/api/tenant/fanout-scorecard${rangeQuery(from, to)}`),
+    apiFetch<FanoutReplay>(`/api/tenant/fanout-replay${rangeQuery(from, to)}`),
   ]);
   if (report.status === 403) {
     return <NoOrgNotice active="Fan-out" isSuperadmin={me.data?.is_superadmin} detail={report.error} />;
@@ -49,6 +57,8 @@ export default async function FanoutPage({
           ran, whether you appear in the results, and who does.
         </p>
       </div>
+
+      {replay.data && replay.data.prompts.length > 0 && <FanoutSimulator data={replay.data} />}
 
       <div className="card-inset mb-6 flex gap-3 p-4 text-xs text-[var(--text-2)]">
                 <p className="leading-[1.55]">

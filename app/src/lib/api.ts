@@ -813,6 +813,37 @@ export type AnswerShape =
       };
     };
 
+/** One sub-search an engine ran, and what a re-run of it found. */
+export type ReplaySub = {
+  text: string;
+  /** Set when the sub-search was limited to one website (`site:`). */
+  site: string | null;
+  site_kind: "you" | "rival" | "other" | null;
+  site_name: string | null;
+  looked_for: string | null;
+  status: "you" | "rivals" | "nobody" | "unchecked";
+  winners: string[];
+};
+
+/** One engine's latest answer to a question, replayed for the simulator. */
+export type ReplayEngine = {
+  surface: string;
+  label: string;
+  date: string;
+  subs: ReplaySub[];
+  named: boolean;
+  rank: number | null;
+  snippet: string | null;
+  rivals_named: string[];
+  sources: { domain: string; url: string; kind: "you" | "rival" | "other" }[];
+  sources_total: number;
+};
+
+export type FanoutReplay = {
+  brand_name: string;
+  prompts: { query: string; engines: ReplayEngine[] }[];
+};
+
 /** Which websites the engines searched inside (`site:`) while answering. */
 export type SiteSearches = {
   days: number;

@@ -255,6 +255,16 @@ def fanout(ctx: Ctx, session: Db) -> dict:
     return dashboards_service.fanout_report(session, ctx.tenant_id)
 
 
+@router.get("/fanout-replay")
+def fanout_replay(
+    ctx: Ctx, session: Db, start: str | None = None, end: str | None = None
+) -> dict:
+    """Per question and engine: the sub-searches, what each found, and the answer."""
+    from api.dashboards.fanout import fanout_replay as replay
+
+    return replay(session, ctx.tenant_id, start, end)
+
+
 @router.get("/fanout-scorecard")
 def fanout_scorecard(
     ctx: Ctx, session: Db, start: str | None = None, end: str | None = None

@@ -175,6 +175,14 @@ SHARDS = ["cheapest website builder with a free domain",
           "domain and website bundle price comparison",
           "website builder renewal prices after year one"]
 
+# A second question with a mixed fan-out: Northpeak's bakery template page wins
+# one sub-search, Siteforge wins the online-ordering one, nobody owns the third.
+BAKERY_SHARDS = [
+    ("bakery website templates", True, []),
+    ("website builder with online ordering for a bakery", False, ["Siteforge"]),
+    ("how much does a small bakery website cost", False, []),
+]
+
 # ChatGPT checks facts inside a few sites: mostly the rivals', which is the
 # story behind the "engines check rivals' sites" play.
 SITE_SEARCHES = {
@@ -430,6 +438,9 @@ def build_demo_client(session: Session, clerk_org_id: str | None = None) -> dict
                                logged_in=None if surface in API else False,
                                fanout_queries=(SHARDS if q == Q_CHEAP and surface in (
                                    SurfaceCode.openai_api, SurfaceCode.gemini_api) else [])
+                               + ([t for t, _p, _w in BAKERY_SHARDS] if q == Q_BAKERY
+                                  and surface in (SurfaceCode.openai_api,
+                                                  SurfaceCode.gemini_api) else [])
                                + (SITE_SEARCHES.get(q, [])
                                   if surface == SurfaceCode.openai_api else []))
                     r.raw_uri = write_raw_envelope(
@@ -451,6 +462,12 @@ def build_demo_client(session: Session, clerk_org_id: str | None = None) -> dict
                                                     "google_ai_mode"],
                 reach=3, brand_present=False, winners=["Domainly", "Siteforge"],
                 source="reprobed", priority="high"))
+        for shard, present, winners in BAKERY_SHARDS:
+            session.add(FanoutShard(
+                tenant_id=tid, run_id=run.id, parent_query_text=Q_BAKERY, shard_text=shard,
+                shard_norm=shard, issuing_surfaces=["openai_api", "gemini_api"], reach=2,
+                brand_present=present, winners=winners, source="reprobed",
+                priority="" if present else "med"))
         run.counts = {"planned": n, "completed": n, "demo": True}
         session.add(run)
         session.commit()
