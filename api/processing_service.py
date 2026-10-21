@@ -299,6 +299,31 @@ def process_run(session: Session, run: Run) -> dict[str, int]:
                 )
             )
 
+    # Mentions on the measurement-only answers too: the unforced probe (what a
+    # user usually gets) and the no-search twin (what the model knows). Every
+    # score reads search answers only, so these feed the "what users see" and
+    # "named from memory" numbers without touching the headline.
+    other_texts: dict[int, str] = {}
+    for result in results:
+        if result.status != ResultStatus.ok or result.id is None or result.variant not in (
+            ResultVariant.natural, ResultVariant.nosearch
+        ):
+            continue
+        envelope = _envelope(result, session)
+        other_texts[result.id] = envelope.get("parsed_text", "")
+        if result.variant == ResultVariant.natural:
+            _backfill_fanout(result, envelope)
+        for detected in detect_mentions(other_texts[result.id], brand_name, brand_aliases,
+                                        competitor_specs):
+            counts["mentions"] += 1
+            session.add(Mention(
+                result_id=result.id, tenant_id=run.tenant_id,
+                entity_type=detected.entity_type, entity_name=detected.entity_name,
+                competitor_id=detected.competitor_id, position=detected.position,
+                rank=detected.rank, sentiment=detected.sentiment,
+                context_snippet=detected.context_snippet, detector_version=DETECTOR_VERSION,
+            ))
+
     # Open out-of-list entity extraction (§step 4 — the whitespace slide).
     # Governed utility-LLM pass; opt-in, cost-bounded, and a hard no-op for
     # tenants that haven't enabled it, so existing tenants are untouched.
@@ -350,7 +375,8 @@ def process_run(session: Session, run: Run) -> dict[str, int]:
             web_search_calls=twin.web_search_calls,
             citation_count=citation_count,
             divergence=compute_divergence(
-                texts.get(twin.id, ""), _response_text(nosearch, session)
+                texts.get(twin.id, ""),
+                other_texts.get(nosearch.id or -1) or _response_text(nosearch, session)
             ),
         )
         bucket = classify_web_search_likelihood(signals)

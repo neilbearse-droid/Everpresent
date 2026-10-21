@@ -1,6 +1,8 @@
 """End-to-end processing over a configured tenant: mentions, categorized
 citations, dual-query classification, and the visibility_daily rollup."""
 
+from collections import Counter
+
 import pytest
 from sqlmodel import select
 
@@ -9,6 +11,8 @@ from api.models import (
     Competitor,
     Mention,
     QueryClassification,
+    Result,
+    ResultVariant,
     Run,
     VisibilityDaily,
 )
@@ -61,11 +65,17 @@ def test_full_processing_pipeline(db_session, job_env, fake_retrieve, configured
 
     # Mentions: fixture text names Rotman, Smith, and Ivey in that order.
     mentions = db_session.exec(select(Mention)).all()
+    variant_of = {r.id: r.variant for r in db_session.exec(select(Result)).all()}
     per_result = {}
     for m in mentions:
         per_result.setdefault(m.result_id, []).append(m)
-    assert len(per_result) == 4  # each search result
-    for result_mentions in per_result.values():
+    by_variant = Counter(variant_of[rid] for rid in per_result)
+    assert by_variant[ResultVariant.search] == 4  # each search result
+    # The no-search twins are read too (the "named from memory" numbers).
+    assert set(by_variant) <= {ResultVariant.search, ResultVariant.nosearch, ResultVariant.natural}
+    for rid, result_mentions in per_result.items():
+        if variant_of[rid] != ResultVariant.search:
+            continue
         ordered = sorted(result_mentions, key=lambda m: m.rank)
         assert [m.entity_name for m in ordered] == [
             "Rotman School of Management",

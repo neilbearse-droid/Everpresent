@@ -542,6 +542,11 @@ select.field {
   background: var(--surface);
   white-space: nowrap;
 }
+/* A bad-news chip keeps the ink pill: .chip is declared later and would reset
+   the background under the forced white text (white on white). */
+.chip[class~="text-[var(--neg)]"] {
+  background: var(--ink);
+}
 
 .btn {
   display: inline-flex;

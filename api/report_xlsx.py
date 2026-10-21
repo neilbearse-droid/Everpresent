@@ -106,10 +106,13 @@ def build_workbook(session: Session, tenant: Tenant) -> bytes:
     # Engines
     ws = wb.create_sheet("Engines")
     _table(ws, ["Engine", "Named (%)", "Range low (%)", "Range high (%)", "Answers", "Mentioned",
-                "Change", "Change (pts)", "p-value"],
+                "Change", "Change (pts)", "p-value", "Forced to search",
+                "Without forced search (%)", "Searched (% of unforced answers)"],
            [[e.get("label"), e.get("rate"), e.get("low"), e.get("high"), e.get("answers"),
              e.get("mentioned"), (e.get("change") or {}).get("verdict"),
-             (e.get("change") or {}).get("delta"), (e.get("change") or {}).get("p_value")]
+             (e.get("change") or {}).get("delta"), (e.get("change") or {}).get("p_value"),
+             bool(e.get("forced")), (e.get("unforced") or {}).get("rate"),
+             (e.get("unforced") or {}).get("searched_rate")]
             for e in s.get("engines") or []])
 
     # Head to head

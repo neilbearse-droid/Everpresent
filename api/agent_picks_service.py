@@ -21,7 +21,7 @@ from typing import Any
 from sqlalchemy import select as sa_select
 from sqlmodel import Session, col, select
 
-from api.models import Mention, Query, Result, ResultStatus
+from api.models import Mention, Query, Result, ResultStatus, ResultVariant
 from engine.processing.stats import rate_summary
 
 AGENT_CORPORA = {"agent_task": "Task", "agent_code": "Coding"}
@@ -52,6 +52,9 @@ def agent_picks(session: Session, tenant_id: int, days: int = WINDOW_DAYS) -> di
         sa_select(col(Result.id), col(Result.surface), col(Result.query_text)).where(
             col(Result.tenant_id) == tenant_id,
             col(Result.status) == ResultStatus.ok,
+            # The measured answer only: probe and no-search twins are counted
+            # elsewhere and would dilute the pick rate.
+            col(Result.variant) == ResultVariant.search,
             col(Result.created_at) >= since,
             col(Result.query_text).in_(list(kind_of)),
         )

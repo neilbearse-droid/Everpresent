@@ -52,11 +52,12 @@ def test_mirror_ships_new_rows_and_watermarks(processed_run, bq_env):  # noqa: F
     created, inserted = bq_env
 
     counts = mirror_mod.mirror_to_bigquery()
-    # 6 results (4 search + 2 nosearch), 12 mentions, 8 citations, 2 rollups.
+    # 6 results (4 search + 2 nosearch), 16 mentions (12 on search answers, 4 on
+    # the no-search twins), 8 citations, 2 rollups.
     assert counts == {
         "runs_v3": 1,
         "results_v3": 6,
-        "mentions_v3": 12,
+        "mentions_v3": 16,
         "citations_v3": 8,
         "visibility_daily_v3": 2,
     }

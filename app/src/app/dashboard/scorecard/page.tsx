@@ -136,6 +136,29 @@ function MentionRatePanel({ m, brand }: { m: MentionRates; brand: string }) {
             confidence interval. A change is flagged only when the second half of the window
             differs from the first by more than the noise.
           </p>
+          {o.unforced && o.unforced.answers > 0 && (
+            <div className="mt-4 border-t border-[var(--border)] pt-3">
+              <p className="text-xs font-medium text-[var(--text-2)]">Without forced search</p>
+              <div className="mt-1 flex items-baseline gap-2">
+                <span className="text-2xl font-semibold tabular-nums">{o.unforced.rate}%</span>
+                <span className="text-sm tabular-nums text-[var(--text-2)]">
+                  ({o.unforced.low}–{o.unforced.high}%)
+                </span>
+              </div>
+              <p className="mt-1 max-w-md text-xs leading-relaxed text-[var(--text-3)]">
+                ChatGPT and Perplexity are made to search the web on every measured answer, but
+                most real answers don&apos;t search. This rate uses their unforced answers
+                instead, so it&apos;s closer to what users actually see.
+              </p>
+            </div>
+          )}
+          {!o.unforced && (o.unforced_missing ?? []).length > 0 && (
+            <p className="mt-4 max-w-md border-t border-[var(--border)] pt-3 text-xs leading-relaxed text-[var(--text-3)]">
+              {o.unforced_missing!.join(" and ")} {o.unforced_missing!.length === 1 ? "is" : "are"}{" "}
+              made to search on every measured answer. Their unforced answers (closer to what
+              users see) appear here after the next runs.
+            </p>
+          )}
         </div>
         <div className="min-w-72 flex-1 overflow-x-auto">
           <table className="w-full text-left text-sm">
@@ -144,6 +167,8 @@ function MentionRatePanel({ m, brand }: { m: MentionRates; brand: string }) {
                 <th className="pb-2 pr-4 font-medium">Engine</th>
                 <th className="pb-2 pr-4 font-medium">Mention rate</th>
                 <th className="pb-2 pr-4 font-medium">95% range</th>
+                <th className="pb-2 pr-4 font-medium">Without forced search</th>
+                <th className="pb-2 pr-4 font-medium">Searches</th>
                 <th className="pb-2 pr-4 font-medium">Answers</th>
                 <th className="pb-2 font-medium">Change</th>
               </tr>
@@ -151,10 +176,32 @@ function MentionRatePanel({ m, brand }: { m: MentionRates; brand: string }) {
             <tbody>
               {m.engines.map((e) => (
                 <tr key={e.surface} className="border-t border-[var(--border)]">
-                  <td className="py-1.5 pr-4">{surfaceLabel(e.surface)}</td>
+                  <td className="py-1.5 pr-4">
+                    {surfaceLabel(e.surface)}
+                    {e.forced && (
+                      <span className="ml-1.5 text-[11px] text-[var(--text-3)]">forced</span>
+                    )}
+                  </td>
                   <td className="py-1.5 pr-4 font-medium tabular-nums">{e.rate}%</td>
                   <td className="py-1.5 pr-4 tabular-nums text-[var(--text-2)]">
                     {e.low}–{e.high}%
+                  </td>
+                  <td className="py-1.5 pr-4 tabular-nums">
+                    {!e.forced ? (
+                      <span className="text-[var(--text-3)]">same</span>
+                    ) : e.unforced && e.unforced.answers > 0 ? (
+                      <>
+                        <span className="font-medium">{e.unforced.rate}%</span>{" "}
+                        <span className="text-xs text-[var(--text-3)]">
+                          {e.unforced.low}–{e.unforced.high}%
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-xs text-[var(--text-3)]">not measured yet</span>
+                    )}
+                  </td>
+                  <td className="py-1.5 pr-4 tabular-nums text-[var(--text-2)]">
+                    {e.unforced?.searched_rate != null ? `${e.unforced.searched_rate}%` : "—"}
                   </td>
                   <td className="py-1.5 pr-4 tabular-nums text-[var(--text-3)]">{e.answers}</td>
                   <td className="py-1.5 text-xs">

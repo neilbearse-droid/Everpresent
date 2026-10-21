@@ -145,6 +145,14 @@ def sample_plan_route(ctx: Ctx, session: Db) -> dict:
     return sample_plan(session, ctx.tenant_id)
 
 
+@router.get("/site-searches")
+def site_searches_route(ctx: Ctx, session: Db, days: int = 30) -> dict:
+    """Which websites the engines searched inside while answering."""
+    from api.site_search_service import site_searches
+
+    return site_searches(session, ctx.tenant_id, days=max(7, min(days, 180)))
+
+
 @router.get("/own-pages")
 def own_pages_route(ctx: Ctx, session: Db, days: int = 30) -> dict:
     """The brand's own pages AI answers use, and whether each is fit for it."""

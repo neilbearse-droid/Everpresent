@@ -22,6 +22,7 @@ text and priority refresh to the latest data, closed gaps auto-resolve, and
 reopened gaps come back."""
 
 import logging
+from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -133,6 +134,16 @@ WHY = {
     "logs": (
         "Only server logs show whether ChatGPT, Perplexity, Claude and Google's AI bots "
         "can actually reach your pages, and which pages they read."
+    ),
+    "site_search": (
+        "Newer ChatGPT models send part of their sub-searches to one site, mostly brands' own "
+        "sites, to check facts at the source (large-scale 2026 analysis of ChatGPT's "
+        "sub-searches). The site it checks is the one whose wording ends up in the answer."
+    ),
+    "research": (
+        "ChatGPT has shifted toward citing the original source of a fact, such as studies "
+        "and official data, over sites that summarize it (large-scale 2026 citation "
+        "analysis). Retrieval decides most citations, not page wording (2026 preprint)."
     ),
     "own_pages": (
         "Newer ChatGPT models send much of their searching to the brand's own site (2026 "
@@ -684,6 +695,72 @@ def _source_plays(plan: dict) -> list[Play]:
     return plays
 
 
+SITE_SEARCH_MIN = 5  # rival site searches before the gap is worth a play
+
+
+def _site_search_play(session: Session, tenant_id: int) -> list[Play]:
+    """Engines check rivals' sites far more often than yours while answering."""
+    from api.site_search_service import site_searches
+
+    s = site_searches(session, tenant_id)
+    if not s["has_domains"] or s["rivals"] < SITE_SEARCH_MIN or s["rivals"] < 2 * s["owned"]:
+        return []
+    rivals = [t for t in s["targets"] if t["kind"] == "competitor"][:3]
+    asks = [a for t in rivals for a in t["top_asks"]][:4]
+    return [Play(
+        "site_search:rivals", "owned",
+        "Engines look up facts on your rivals' sites, not yours",
+        f"While answering your questions, engines searched inside "
+        f"{_join([t['name'] for t in rivals])}'s sites {s['rivals']} times and inside yours "
+        f"{s['owned']} "
+        f"time{'s' if s['owned'] != 1 else ''} in the last {s['days']} days."
+        + (f" They looked for {_join([f'“{a}”' for a in asks], 4)}." if asks else ""),
+        68, "moderate", WHY["site_search"],
+        ["Check each thing they look up on rivals' sites, and make sure a page on your site "
+         "answers it plainly in the first lines",
+         "Put prices, plans and policies in page text with an updated date, not only in "
+         "images or scripts",
+         "Confirm the AI search bots can reach those pages (AI Agents tab)"],
+        link="/dashboard/pages")]
+
+
+RESEARCH_MIN = 3  # research citations before the play fires
+RESEARCH_SHARE = 0.08  # ...and at least this share of all citations
+
+
+def _research_play(session: Session, tenant_id: int) -> list[Play]:
+    """Studies and official data are a real share of what answers cite here."""
+    from api.dashboards_service import _latest_results_by_variant
+    from engine.processing.citations import classify_source_type
+
+    latest = _latest_results_by_variant(session, tenant_id, ResultVariant.search,
+                                        scope="competitive")
+    ids = [r.id for r in latest.values() if r.id is not None]
+    if not ids:
+        return []
+    domains = session.exec(
+        select(col(Citation.domain)).where(col(Citation.result_id).in_(ids))
+    ).all()
+    research = Counter(d for d in domains if classify_source_type(d) == "research")
+    n = sum(research.values())
+    if n < RESEARCH_MIN or n < RESEARCH_SHARE * len(domains):
+        return []
+    top = [d for d, _c in research.most_common(4)]
+    return [Play(
+        "sources:research", "evidence", "Back your claims with primary evidence",
+        f"Answers to your questions cite studies and official data: {_join(top, 4)} "
+        f"({n} of {len(domains)} citations). Engines quote the original source of a fact "
+        "over pages that summarize it.",
+        64, "moderate", WHY["research"],
+        ["On pages that make a claim (ingredients, results, safety, prices), link the study "
+         "or official source behind it, and say what it found in plain words",
+         "Publish your own data where you have it: tests, surveys, product data, with "
+         "method and date",
+         "Don't overstate what a study shows; health and safety claims need review before "
+         "publishing"],
+        link="/dashboard/citations")]
+
+
 def _owned_docs_play(session: Session, tenant_id: int, plan: dict) -> list[Play]:
     """ChatGPT shifted to searching inside brand sites in August 2026; if its
     answers rarely cite the brand's own pages, the help/docs/pricing pages are
@@ -887,6 +964,8 @@ def generate_recommendations(session: Session, tenant: Tenant) -> int:
         ("subquery", lambda: _subquery_plays(session, tenant_id)),
         ("sources", lambda: _source_plays(plan_d)),
         ("owned_docs", lambda: _owned_docs_play(session, tenant_id, plan_d)),
+        ("site_search", lambda: _site_search_play(session, tenant_id)),
+        ("research", lambda: _research_play(session, tenant_id)),
         ("strategy", lambda: _strategy_play(session, tenant_id)),
         ("own_pages", lambda: _own_page_plays(session, tenant_id)),
         ("model_change", lambda: _model_change_plays(session, tenant_id)),

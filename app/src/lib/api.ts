@@ -400,10 +400,34 @@ export type MentionRate = {
   change: RateChange;
 };
 
+/** The rate from answers a user would actually get: the unforced probe on
+ * engines whose measured answer is forced to search, the measured answer on
+ * the rest. */
+export type UnforcedRate = {
+  rate: number;
+  low: number;
+  high: number;
+  answers: number;
+  mentioned: number;
+  change: RateChange;
+  /** Share of those answers that searched the web; null when unknown. */
+  searched_rate?: number | null;
+};
+
 export type MentionRates = {
   window: { start: string; end: string; split: string };
-  overall: MentionRate;
-  engines: (MentionRate & { surface: string; label: string })[];
+  overall: MentionRate & {
+    unforced?: UnforcedRate | null;
+    /** Forced engines without unforced answers yet (the pooled rate waits). */
+    unforced_missing?: string[];
+  };
+  engines: (MentionRate & {
+    surface: string;
+    label: string;
+    /** The measured answer is forced to search (ChatGPT, Perplexity). */
+    forced?: boolean;
+    unforced?: UnforcedRate | null;
+  })[];
 };
 
 /** The headline metrics for one question topic (the query's corpus tag). */
@@ -788,6 +812,29 @@ export type AnswerShape =
         }[];
       };
     };
+
+/** Which websites the engines searched inside (`site:`) while answering. */
+export type SiteSearches = {
+  days: number;
+  brand: string;
+  has_domains: boolean;
+  sub_searches: number;
+  site_searches: number;
+  owned: number;
+  rivals: number;
+  other: number;
+  owned_share: number;
+  targets: {
+    name: string;
+    kind: "owned" | "competitor" | "other";
+    domains: string[];
+    count: number;
+    engines: Record<string, number>;
+    top_asks: string[];
+  }[];
+  owned_engines: Record<string, number>;
+  looked_for: { text: string; count: number; engines: string[] }[];
+};
 
 export type OwnPages = {
   days: number;

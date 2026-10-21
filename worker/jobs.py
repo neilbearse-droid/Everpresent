@@ -741,7 +741,11 @@ async def _run_mode_a(run_id: int) -> None:
     forced_surfaces = [s for s in configured if A_ADAPTERS[s].forces_search]
     if baseline is not None and probe_frac > 0 and forced_surfaces and queries:
         n_probe = max(1, round(probe_frac * len(queries)))
-        probe_queries = queries[:n_probe]
+        # Rotate the probed slice run to run, so over a few runs every question
+        # gets an unforced answer (the "what users see" rate needs all of them,
+        # not the same first third forever).
+        start = (run_id * n_probe) % len(queries)
+        probe_queries = (queries[start:] + queries[:start])[:n_probe]
         bpid, bpname, bpprompt, bpseg = baseline
         work += [
             _AWorkItem(qid, qtext, bpid, bpname, bpprompt, bpseg, s, ResultVariant.natural)

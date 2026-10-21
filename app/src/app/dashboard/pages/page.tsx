@@ -1,5 +1,11 @@
 import Link from "next/link";
-import { apiFetch, type FirstPartySummary, type Me, type OwnPages } from "@/lib/api";
+import {
+  apiFetch,
+  type FirstPartySummary,
+  type Me,
+  type OwnPages,
+  type SiteSearches,
+} from "@/lib/api";
 import { DashNav } from "@/components/dash-nav";
 import { NoOrgNotice } from "@/components/no-org-notice";
 import { ImportFirstParty } from "./import-form";
@@ -24,11 +30,109 @@ function fpText(fp: Record<string, number>) {
     .join(" · ");
 }
 
+/** Which sites the engines searched inside while answering: yours vs rivals'. */
+function SiteSearchesPanel({ s }: { s: SiteSearches }) {
+  const top = s.targets[0]?.count || 1;
+  return (
+    <section className="blueprint mb-6 grid-cols-1 lg:grid-cols-2">
+      <div>
+        <div className="bp-bar">
+          <span>Sites the engines search inside</span>
+          <span>last {s.days} days</span>
+        </div>
+        <div className="p-4">
+          {s.site_searches === 0 ? (
+            <p className="text-sm text-[var(--text-2)]">
+              No site searches yet. Engines sometimes search inside one website to check a fact
+              (a <code>site:</code> search); they show here as runs record them.
+            </p>
+          ) : (
+            <>
+              <p className="text-sm text-[var(--text-2)]">
+                While answering your questions, engines searched inside{" "}
+                <b className="text-[var(--text)]">your site {s.owned}</b>{" "}
+                {s.owned === 1 ? "time" : "times"} and{" "}
+                <b className="text-[var(--text)]">rivals&apos; sites {s.rivals}</b>{" "}
+                {s.rivals === 1 ? "time" : "times"}. The site they check is the one whose
+                wording ends up in the answer.
+              </p>
+              <ul className="mt-4 space-y-2">
+                {s.targets.map((t) => (
+                  <li key={`${t.kind}:${t.name}`} className="text-sm">
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={`w-36 shrink-0 truncate ${t.kind === "owned" ? "font-semibold" : ""}`}
+                        title={t.domains.join(", ")}
+                      >
+                        {t.kind === "owned" ? `${t.name} (you)` : t.name}
+                      </span>
+                      <span className="h-2 flex-1 rounded-r bg-[var(--surface-2)]">
+                        <span
+                          className="block h-2 rounded-r"
+                          style={{
+                            width: `${Math.max(3, (100 * t.count) / top)}%`,
+                            background:
+                              t.kind === "owned"
+                                ? "var(--accent)"
+                                : t.kind === "competitor"
+                                  ? "var(--border-strong)"
+                                  : "var(--border)",
+                          }}
+                        />
+                      </span>
+                      <span className="w-10 text-right tabular-nums">{t.count}</span>
+                    </div>
+                    {t.kind === "competitor" && t.top_asks.length > 0 && (
+                      <p className="ml-[9.75rem] mt-0.5 text-xs text-[var(--text-3)]">
+                        Looked for: {t.top_asks.map((a) => `“${a}”`).join(", ")}
+                      </p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              {!s.has_domains && (
+                <p className="mt-3 text-xs text-[var(--text-3)]">
+                  Add your domains in the config so searches inside your site are counted.
+                </p>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+      <div>
+        <div className="bp-bar">
+          <span>What they looked for on your site</span>
+          <span>make sure a page answers each</span>
+        </div>
+        {s.looked_for.length === 0 ? (
+          <p className="p-4 text-sm text-[var(--text-2)]">
+            {s.owned === 0
+              ? "No searches inside your site yet."
+              : "The searches inside your site didn't say what they looked for."}
+          </p>
+        ) : (
+          <ul className="divide-y divide-[var(--line)]">
+            {s.looked_for.map((l) => (
+              <li key={l.text} className="flex items-center justify-between gap-3 px-4 py-2 text-sm">
+                <span>“{l.text}”</span>
+                <span className="shrink-0 text-xs text-[var(--text-3)]">
+                  {l.count}× · {l.engines.join(", ")}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </section>
+  );
+}
+
 export default async function YourPagesPage() {
-  const [me, res, fp] = await Promise.all([
+  const [me, res, fp, ss] = await Promise.all([
     apiFetch<Me>("/api/me"),
     apiFetch<OwnPages>("/api/tenant/own-pages?days=30"),
     apiFetch<FirstPartySummary>("/api/tenant/first-party"),
+    apiFetch<SiteSearches>("/api/tenant/site-searches?days=30"),
   ]);
   if (res.status === 403) {
     return <NoOrgNotice active="Your Pages" isSuperadmin={me.data?.is_superadmin} detail={res.error} />;
@@ -187,6 +291,8 @@ export default async function YourPagesPage() {
               </p>
             </div>
           </section>
+
+          {ss.data && <SiteSearchesPanel s={ss.data} />}
 
           <section className="blueprint mb-6 grid-cols-1 lg:grid-cols-2">
             <div>

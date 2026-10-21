@@ -3,6 +3,35 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M47 — What users see, where engines check, and primary sources (2026-10-21)
+
+From October research (Ahrefs' 66.6M-answer ChatGPT study, Oct 12; a 2026
+preprint on what drives citations):
+
+1. **"Without forced search" beside the headline.** ChatGPT and Perplexity
+   are forced to search on every measured answer, but free ChatGPT searched in
+   about one answer in seven in that study. Their unforced probe is now a
+   rate with a range and a search share, per engine and pooled. The pooled
+   figure is withheld until every forced engine has unforced answers, since a
+   partial pool would mislead. The headline itself is unchanged (comparable
+   series). The probed third of questions now rotates per run so all
+   questions get unforced answers.
+2. **Bug fixed: mentions on probe and no-search answers.** Only forced-search
+   answers had mentions extracted, so "named from memory" (Engines) read 0%
+   for forced engines and the training diagnosis never saw the brand. All
+   scores still filter to search answers. Agent picks now filter to search
+   answers too (the extra variants were diluting the pick rate).
+3. **Site searches.** `site:` sub-searches are counted by target: your
+   domains, rivals', others. Shown on Your Pages with what was looked up, and
+   a play when rivals' sites are searched at least twice as often (minimum 5).
+   Branded questions are excluded (they send engines to your site by design).
+4. **Research as a source type** (studies, journals, .gov/.edu, official
+   statistics), with a play when it is a real share of citations (at least 3
+   and 8%). The "get onto these publishers" play no longer suggests government
+   or journal domains.
+5. **Fix:** bad-news chips rendered white on white (`.chip` reset the ink
+   pill background).
+
 ## M46 — A client report worth handing over, and a data workbook (2026-10-05)
 
 1. **The PDF is HTML rendered by WeasyPrint.** fpdf2 drew plain text lines;

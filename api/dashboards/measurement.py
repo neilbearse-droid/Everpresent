@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from sqlalchemy import case
+from sqlalchemy import select as sa_select
 from sqlmodel import Session, col, func, select
 
 from api.dashboards.action_plan import _lost_citations
@@ -36,6 +37,51 @@ STABILITY_RUNS = 8
 MENTION_WINDOW_DAYS = 28
 
 
+# The measured answer is FORCED to search on these engines (kept in sync with
+# worker.jobs.A_ADAPTERS[...].forces_search). Users mostly get an answer that
+# didn't search, so the "what users see" rate reads their unforced probe.
+FORCED_SEARCH_SURFACES = frozenset({"openai_api", "perplexity_api"})
+# Google's AI answers are search features: they always retrieve.
+_ALWAYS_SEARCH_SURFACES = frozenset({"google_aio", "google_ai_mode"})
+# Browser captures report no search count.
+_NO_SEARCH_COUNT_SURFACES = frozenset({"chatgpt_web", "perplexity_web", "copilot_web",
+                                        "gemini_web"})
+
+
+def _unforced_counts(session: Session, base: list[Any], brand_hits: Any,
+                     second_half: Any) -> dict[str, dict]:
+    """Per engine, the answers a user would get: the unforced probe where the
+    measured answer is forced, the measured answer everywhere else. Counts
+    are [k_first, n_first, k_second, n_second] plus how many searched."""
+    searched = case((col(Result.web_search_calls) > 0, 1), else_=0)
+    # sqlalchemy's select: sqlmodel's typed overloads stop at four columns.
+    rows = session.execute(
+        sa_select(col(Result.surface), col(Result.variant), second_half,
+                  func.count(col(Result.id)), func.count(brand_hits.c.result_id),
+                  func.sum(searched))
+        .outerjoin(brand_hits, brand_hits.c.result_id == col(Result.id))
+        .where(*base, col(Result.variant).in_([ResultVariant.search, ResultVariant.natural]))
+        .group_by(col(Result.surface), col(Result.variant), second_half)
+    ).all()
+    out: dict[str, dict] = {}
+    for surface, variant, half, n, k, n_searched in rows:
+        surface = str(getattr(surface, "value", surface))
+        variant = str(getattr(variant, "value", variant))
+        wanted = "natural" if surface in FORCED_SEARCH_SURFACES else "search"
+        if variant != wanted:
+            continue
+        u = out.setdefault(surface, {"c": [0, 0, 0, 0], "searched": 0})
+        u["c"][2 if half else 0] += int(k)
+        u["c"][3 if half else 1] += int(n)
+        if surface in _ALWAYS_SEARCH_SURFACES:
+            u["searched"] += int(n)
+        elif surface in _NO_SEARCH_COUNT_SURFACES:
+            u["searched"] = None
+        elif u["searched"] is not None:
+            u["searched"] += int(n_searched or 0)
+    return out
+
+
 def mention_rates(
     session: Session, tenant_id: int, start: str | None = None, end: str | None = None
 ) -> dict:
@@ -53,15 +99,15 @@ def mention_rates(
     lo_eff = _utc(lo) if lo is not None else hi_eff - timedelta(days=MENTION_WINDOW_DAYS)
     mid = lo_eff + (hi_eff - lo_eff) / 2
     branded = _off_score_query_texts(session, tenant_id)
-    conds: list[Any] = [
+    base: list[Any] = [
         Result.tenant_id == tenant_id,
-        Result.variant == ResultVariant.search,
         Result.status == ResultStatus.ok,
         col(Result.created_at) >= lo_eff,
         col(Result.created_at) < hi_eff,
     ]
     if branded:
-        conds.append(col(Result.query_text).not_in(branded))
+        base.append(col(Result.query_text).not_in(branded))
+    conds: list[Any] = [*base, Result.variant == ResultVariant.search]
     brand_hits = (
         select(col(Mention.result_id))
         .where(Mention.tenant_id == tenant_id, Mention.entity_type == "brand")
@@ -104,19 +150,34 @@ def mention_rates(
             "change": change_verdict(c[0], c[1], c[2], c[3]),
         }
 
+    unforced = _unforced_counts(session, base, brand_hits, second_half)
+
+    def _unforced_entry(u: dict) -> dict:
+        return {
+            **_entry(u["c"]),
+            "searched_rate": (_pct(u["searched"], u["c"][1] + u["c"][3])
+                              if u["searched"] is not None else None),
+        }
+
     total = [sum(c[i] for c in counts.values()) for i in range(4)]
-    engines = sorted(
-        (
-            {
-                "surface": surface,
-                "label": _surface_label(surface),
-                "prompts": prompts.get(surface, 0),
-                **_entry(c),
-            }
-            for surface, c in counts.items()
-        ),
-        key=lambda e: -int(e["answers"]),
-    )
+    engines: list[dict[str, Any]] = [
+        {
+            "surface": surface,
+            "label": _surface_label(surface),
+            "prompts": prompts.get(surface, 0),
+            "forced": surface in FORCED_SEARCH_SURFACES,
+            **_entry(c),
+            "unforced": (_unforced_entry(unforced[surface])
+                         if surface in unforced else None),
+        }
+        for surface, c in counts.items()
+    ]
+    engines.sort(key=lambda e: -sum(counts[e["surface"]][1::2]))  # most answers first
+    uf_total = [sum(u["c"][i] for u in unforced.values()) for i in range(4)]
+    # A pooled "what users see" rate that leaves out ChatGPT or Perplexity would
+    # mislead: withhold it until every forced engine has unforced answers.
+    uf_missing = [_surface_label(s) for s in counts
+                  if s in FORCED_SEARCH_SURFACES and s not in unforced]
     return {
         "window": {"start": lo_eff.date().isoformat(), "end": hi_eff.date().isoformat(),
                    "split": mid.date().isoformat()},
@@ -125,6 +186,9 @@ def mention_rates(
                 select(func.count(func.distinct(col(Result.query_text)))).where(*conds)
             ).one() or 0),
             **_entry(total),
+            "unforced": (_entry(uf_total) if uf_total[1] + uf_total[3] and not uf_missing
+                         else None),
+            "unforced_missing": uf_missing,
         },
         "engines": engines,
     }

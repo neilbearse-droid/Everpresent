@@ -175,6 +175,14 @@ SHARDS = ["cheapest website builder with a free domain",
           "domain and website bundle price comparison",
           "website builder renewal prices after year one"]
 
+# ChatGPT checks facts inside a few sites: mostly the rivals', which is the
+# story behind the "engines check rivals' sites" play.
+SITE_SEARCHES = {
+    Q_CHEAP: ["site:siteforge.example pricing free domain", "site:pagecraft.example plans"],
+    Q_BAKERY: ["site:siteforge.example bakery template", "site:northpeak.example starter plan"],
+    Q_COST: ["site:pagecraft.example renewal price"],
+}
+
 
 def _days_ago(n: int, now: datetime) -> datetime:
     return (now - timedelta(days=n)).replace(hour=13, minute=5, second=0, microsecond=0)
@@ -420,8 +428,10 @@ def build_demo_client(session: Session, clerk_org_id: str | None = None) -> dict
                                created_at=when, served_model=model, latency_ms=4200,
                                web_search_calls=1 if surface in API else 0,
                                logged_in=None if surface in API else False,
-                               fanout_queries=SHARDS if q == Q_CHEAP and surface in (
+                               fanout_queries=(SHARDS if q == Q_CHEAP and surface in (
                                    SurfaceCode.openai_api, SurfaceCode.gemini_api) else [])
+                               + (SITE_SEARCHES.get(q, [])
+                                  if surface == SurfaceCode.openai_api else []))
                     r.raw_uri = write_raw_envelope(
                         SLUG, run.id, f"demo-{n:04d}",
                         {"surface": str(surface), "query": q, "persona": pname,

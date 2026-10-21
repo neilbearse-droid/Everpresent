@@ -35,10 +35,31 @@ _SOURCE_TYPE_PATTERNS: tuple[tuple[str, tuple[str, ...]], ...] = (
 )
 
 
+# Primary sources: research and official data. Engines increasingly cite the
+# original source of a fact over pages that summarize it.
+_RESEARCH_DOMAINS = (
+    "nih.gov", "pubmed.gov", "europepmc.org", "doi.org", "arxiv.org", "biorxiv.org",
+    "medrxiv.org", "ssrn.com", "researchgate.net", "scholar.google.com",
+    "nature.com", "science.org", "sciencedirect.com", "cell.com", "springer.com",
+    "wiley.com", "tandfonline.com", "sagepub.com", "oup.com", "cambridge.org",
+    "jamanetwork.com", "thelancet.com", "nejm.org", "bmj.com", "mdpi.com",
+    "frontiersin.org", "plos.org", "cochranelibrary.com", "who.int", "oecd.org",
+    "worldbank.org", "imf.org", "europa.eu", "gov.uk",
+)
+# Government and academic suffixes (official statistics, regulators, universities).
+_RESEARCH_SUFFIXES = (".gov", ".mil", ".edu", ".ac.uk", ".gov.uk", ".gov.au", ".gc.ca",
+                      ".gouv.fr", ".bund.de", ".edu.au")
+
+
 def classify_source_type(domain: str) -> str:
-    """The kind of source a domain is — encyclopedia / community / video /
-    review / social / publisher. Pattern-based; the long tail is 'publisher'."""
+    """The kind of source a domain is — research / encyclopedia / community /
+    video / review / social / publisher. Pattern-based; the long tail is
+    'publisher'."""
     d = domain.lower().removeprefix("www.")
+    if any(d == p or d.endswith("." + p) for p in _RESEARCH_DOMAINS) or d.endswith(
+        _RESEARCH_SUFFIXES
+    ):
+        return "research"
     for label, patterns in _SOURCE_TYPE_PATTERNS:
         if any(d == p or d.endswith("." + p) for p in patterns):
             return label

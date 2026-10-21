@@ -238,14 +238,16 @@ td.r, th.r { text-align: right; }
   <div class="card block">
     <h3>Named in answers, by engine</h3>
     <table style="margin-top:8px">
-      <tr><th>Engine</th><th>Rate and range (0–100%)</th><th class="r">Rate</th><th class="r">Answers</th><th class="r">Last four weeks</th></tr>
+      <tr><th>Engine</th><th>Rate and range (0–100%)</th><th class="r">Rate</th><th class="r">Without forced search</th><th class="r">Answers</th><th class="r">Last four weeks</th></tr>
       {% for e in (s.engines if s else []) %}
-      <tr><td><b>{{ e.label }}</b></td><td>{{ e.svg }}</td>
+      <tr><td><b>{{ e.label }}</b>{% if e.forced %}<br><span class="small muted">forced to search</span>{% endif %}</td><td>{{ e.svg }}</td>
         <td class="r num"><b>{{ '%.1f' % e.rate }}%</b><br><span class="small muted">{{ '%.0f' % e.low }}–{{ '%.0f' % e.high }}%</span></td>
+        <td class="r num">{% if not e.forced %}<span class="muted">same</span>{% elif e.unforced and e.unforced.answers %}<b>{{ '%.1f' % e.unforced.rate }}%</b><br><span class="small muted">{{ '%.0f' % e.unforced.low }}–{{ '%.0f' % e.unforced.high }}%</span>{% else %}<span class="small muted">not measured</span>{% endif %}</td>
         <td class="r num">{{ e.answers }}</td>
         <td class="r"><span class="pill {{ e.pill.cls }}">{{ e.pill.text }}</span></td></tr>
-      {% else %}<tr><td colspan="5" class="empty">No engines measured yet.</td></tr>{% endfor %}
+      {% else %}<tr><td colspan="6" class="empty">No engines measured yet.</td></tr>{% endfor %}
     </table>
+    <p class="small muted" style="margin-top:8px">ChatGPT and Perplexity are made to search on every measured answer; most real answers don't search. "Without forced search" uses their unforced answers, closer to what users see.</p>
   </div>
 
   {% if c %}
