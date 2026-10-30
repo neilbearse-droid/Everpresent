@@ -24,6 +24,7 @@ const KIND_LABELS: Record<string, string> = {
   connect_logs: "Setup",
   strategy: "Focus",
   evidence: "Primary sources",
+  meta: "Meta AI",
 };
 // Bad news kinds get the inverted block; everything else stays neutral.
 const BAD_KINDS = new Set(["accuracy", "crawler_access", "broken_page", "refresh", "own_page"]);

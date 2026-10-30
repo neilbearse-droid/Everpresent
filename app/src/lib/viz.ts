@@ -44,6 +44,7 @@ export const SURFACE_LABELS: Record<string, string> = {
   perplexity_api: "Perplexity (API)",
   claude_api: "Claude (API)",
   gemini_api: "Gemini (API)",
+  meta_api: "Meta AI (API)",
   chatgpt_web: "ChatGPT (web)",
   perplexity_web: "Perplexity (web)",
   gemini_web: "Gemini (web)",

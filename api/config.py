@@ -53,6 +53,12 @@ class Settings(BaseSettings):
     claude_model: str = "claude-sonnet-4-6"
     claude_timeout_s: float = 90.0
 
+    # Meta AI via the Meta Model API (Muse Spark, the model behind the Meta AI
+    # app). Never a "-contributor" model: those let Meta train on the prompts.
+    meta_api_key: str = ""
+    meta_model: str = "muse-spark-1.3"
+    meta_timeout_s: float = 90.0
+
     # Governed utility-LLM models (engine/llm router). Must be in
     # RUNTIME_LLM_ALLOWLIST and in the tenant's approved_utility_models before a
     # call runs. Extraction uses the cheap bulk model; drafting uses the

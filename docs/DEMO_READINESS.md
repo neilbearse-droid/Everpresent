@@ -17,6 +17,7 @@ fan-out trends need about a week of runs.
 | Claude (API) + Claude features | console.anthropic.com → Billing (add credit) → API keys | `sk-ant-...` → `ANTHROPIC_API_KEY` |
 | Gemini (API) | aistudio.google.com → Get API key → Create key (turn on billing for its Cloud project; free-tier search grounding is rate-limited) | `AIza...` → `GEMINI_API_KEY` |
 | Perplexity (API) | perplexity.ai → Settings → API → add credit → Generate key | `pplx-...` → `PERPLEXITY_API_KEY` |
+| Meta AI (API) | dev.meta.ai → API keys (Meta Model API, public preview; add billing). Never pick a "-contributor" model: Meta trains on those prompts | key → `META_API_KEY` |
 | Google AI Overviews | serpapi.com → Register → Dashboard → Private API Key. Plan: ~10 searches per run, so ~300/month for daily runs plus testing | key → `SERPAPI_KEY` |
 | Copilot, ChatGPT (web), Perplexity (web) | A residential proxy (Bright Data, Oxylabs, Decodo/Smartproxy…) → create a residential zone, country **US** | `http://USER:PASS@HOST:PORT` → `SCRAPE_PROXY_URL` |
 

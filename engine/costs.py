@@ -135,6 +135,26 @@ def estimate_gemini_cost_usd(
     return round(cost, 6)
 
 
+# Meta Model API (Muse Spark). Token prices per 1M; web search per 1k queries.
+# From LiteLLM's price list and OpenRouter (Oct 2026); Meta's own pricing page
+# couldn't be checked, so verify there. "-contributor" models are cheaper but
+# let Meta train on prompts and answers: never used for client questions.
+META_TOKEN_PRICES: dict[str, tuple[float, float]] = {
+    "muse-spark": (1.25, 4.25),
+    "muse-wonder": (4.00, 20.00),
+}
+META_WEB_SEARCH_PER_1K = 2.50
+_META_FALLBACK = (4.00, 20.00)  # unknown model: assume the dearer tier
+
+
+def estimate_meta_cost_usd(
+    model: str, input_tokens: int, output_tokens: int, web_search_calls: int = 0
+) -> float:
+    cost = _token_cost(META_TOKEN_PRICES, _META_FALLBACK, model, input_tokens, output_tokens)
+    cost += web_search_calls * META_WEB_SEARCH_PER_1K / 1_000
+    return round(cost, 6)
+
+
 def estimate_mode_b_cost_usd(
     surface: str,
     *,

@@ -230,7 +230,7 @@ def _surface_label(surface: str) -> str:
     readable if rendered outside the app (e.g. an exported report)."""
     labels = {
         "openai_api": "ChatGPT", "perplexity_api": "Perplexity", "claude_api": "Claude",
-        "gemini_api": "Gemini", "chatgpt_web": "ChatGPT (web)",
+        "gemini_api": "Gemini", "meta_api": "Meta AI", "chatgpt_web": "ChatGPT (web)",
         "perplexity_web": "Perplexity (web)",
         "gemini_web": "Gemini (web)", "copilot_web": "Microsoft Copilot",
         "google_aio": "Google AI Overviews",

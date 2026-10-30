@@ -57,7 +57,8 @@ BOTS: tuple[Bot, ...] = (
     Bot("bingbot", "Bingbot", "Microsoft", "search"),
     # Apple
     Bot("Applebot", "Applebot", "Apple", "search"),
-    # Meta
+    # Meta. meta-webindexer builds the index Meta AI searches when it answers.
+    Bot("meta-webindexer", "Meta-WebIndexer", "Meta", "search"),
     Bot("meta-externalagent", "Meta-ExternalAgent", "Meta", "training"),
     Bot("meta-externalfetcher", "Meta-ExternalFetcher", "Meta", "user"),
     Bot("FacebookBot", "FacebookBot", "Meta", "training"),

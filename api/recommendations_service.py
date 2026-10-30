@@ -140,6 +140,13 @@ WHY = {
         "domains most of those went to brand sites (Ahrefs' October 2026 study of ChatGPT "
         "answers). What that site says is likely to be what the answer says."
     ),
+    "meta": (
+        "Meta AI answers with Meta's Muse Spark model. Besides the web, the app can search "
+        "Facebook, Instagram and Threads posts and product catalogs (Simon Willison's "
+        "review of meta.ai's tools, April 2026), and Meta's crawler documentation lists "
+        "meta-webindexer for Meta AI search. Little is published yet on what makes it "
+        "name one brand over another."
+    ),
     "research": (
         "ChatGPT has shifted toward citing the original source of a fact, such as studies "
         "and official data, over sites that summarize it (Ahrefs' October 2026 study of "
@@ -771,6 +778,36 @@ def _research_play(session: Session, tenant_id: int) -> list[Play]:
         link="/dashboard/citations")]
 
 
+def _meta_play(session: Session, tenant_id: int) -> list[Play]:
+    """Meta AI names the brand less often than the other engines' answers do."""
+    from api.dashboards.measurement import mention_rates
+    from engine.processing.stats import change_verdict
+
+    engines = mention_rates(session, tenant_id)["engines"]
+    meta = next((e for e in engines if e["surface"] == SurfaceCode.meta_api), None)
+    if meta is None:
+        return []
+    # Meta's search isn't forced, so compare it with what users get elsewhere:
+    # the unforced answers of engines that are forced to search.
+    others = [e["unforced"] for e in engines
+              if e["surface"] != SurfaceCode.meta_api and e.get("unforced")]
+    k, n = sum(u["mentioned"] for u in others), sum(u["answers"] for u in others)
+    if change_verdict(k, n, meta["mentioned"], meta["answers"])["verdict"] != "down":
+        return []
+    return [Play(
+        "meta:gap", "meta", "Close the gap on Meta AI",
+        f"Meta AI names you in {meta['rate']}% of its answers ({meta['answers']} answers); "
+        f"the other engines do in {round(100 * k / n, 1)}%.",
+        58, "emerging", WHY["meta"],
+        ["Check robots.txt and your CDN let meta-webindexer crawl the site (AI Agents tab "
+         "shows whether it visits)",
+         "Keep your Facebook and Instagram business pages current: products, prices, "
+         "hours and a link to the matching page on your site",
+         "If you sell online, check your products reach Meta: a catalog in Commerce "
+         "Manager, or the Meta channel in Shopify's Agentic Storefronts"],
+        link="/dashboard/engines")]
+
+
 def _owned_docs_play(session: Session, tenant_id: int, plan: dict) -> list[Play]:
     """ChatGPT shifted to searching inside brand sites in August 2026; if its
     answers rarely cite the brand's own pages, the help/docs/pricing pages are
@@ -929,6 +966,7 @@ _SOURCE_BRANCHES = {
     "model_change": {"model_change"},
     "site_search": {"owned"},
     "research": {"evidence"},
+    "meta": {"meta"},
 }
 
 
@@ -977,6 +1015,7 @@ def generate_recommendations(session: Session, tenant: Tenant) -> int:
         ("owned_docs", lambda: _owned_docs_play(session, tenant_id, plan_d)),
         ("site_search", lambda: _site_search_play(session, tenant_id)),
         ("research", lambda: _research_play(session, tenant_id)),
+        ("meta", lambda: _meta_play(session, tenant_id)),
         ("strategy", lambda: _strategy_play(session, tenant_id)),
         ("own_pages", lambda: _own_page_plays(session, tenant_id)),
         ("model_change", lambda: _model_change_plays(session, tenant_id)),

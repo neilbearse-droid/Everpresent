@@ -44,6 +44,7 @@ AI_AGENTS: list[tuple[str, str, str]] = [
     ("Claude-User", "Claude — live page fetch", "user_fetch"),
     ("Google-Extended", "Gemini / AI Overviews — training", "training"),
     ("Bingbot", "Copilot — search index", "search_index"),
+    ("meta-webindexer", "Meta AI — search index", "search_index"),
     ("Meta-ExternalAgent", "Meta AI — training", "training"),
     ("Bytespider", "ByteDance / TikTok — training", "training"),
     ("CCBot", "Common Crawl — many models' training", "training"),

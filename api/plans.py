@@ -86,7 +86,7 @@ def limits_for(plan: str | None) -> PlanLimits:
 # When several engines must be dropped to fit max_engines, keep them in this
 # canonical order (the most-used answer engines first) rather than alphabetical.
 ENGINE_PRIORITY: list[str] = [
-    "openai_api", "perplexity_api", "claude_api", "gemini_api",
+    "openai_api", "perplexity_api", "claude_api", "gemini_api", "meta_api",
     "chatgpt_web", "perplexity_web", "copilot_web", "google_aio", "google_ai_mode",
     "gemini_web",
 ]
@@ -120,6 +120,9 @@ MODEL_TIERS: dict[str, dict[str, str]] = {
     # announced 2026-09-30 but isn't generally available yet.
     "gemini_api": {"economy": "gemini-3.5-flash-lite", "standard": "gemini-3.6-flash",
                    "premium": "gemini-3.1-pro-preview"},
+    # Muse Spark is the model the Meta AI app serves, so every tier measures it.
+    "meta_api": {"economy": "muse-spark-1.3", "standard": "muse-spark-1.3",
+                 "premium": "muse-spark-1.3"},
 }
 
 

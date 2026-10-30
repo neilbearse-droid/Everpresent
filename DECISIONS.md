@@ -3,6 +3,33 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M51 — Meta AI as a measured engine (2026-10-30)
+
+1. **The model, not the app.** "Meta AI (API)" (`meta_api`) calls Muse Spark,
+   the model the Meta AI app serves, through the Meta Model API
+   (`api.meta.ai/v1/responses`, public preview) with its `web_search` tool.
+   The app can also search Facebook, Instagram and Threads posts and product
+   catalogs, and the Muse shopping agent acts inside WhatsApp; neither is
+   reachable by API, so labels say "API". Scraping meta.ai needs a logged-in
+   account and stays out (no in-house logged-in scraping).
+2. **Search offered, not forced**, like Claude and Gemini: the app decides
+   when to search, and `tool_choice` on this API is undocumented. Its answer
+   is already "what users see", so it gets no separate unforced probe.
+3. **Built without a live call.** This session's network blocked Meta's API
+   and docs, so the request and response follow the documented
+   OpenAI-compatible shape (confirmed by LiteLLM's provider config and price
+   list). A cited answer with no listed search step counts as one search.
+   The engine check on the worker is the first real test.
+4. **Model and price.** `muse-spark-1.3` on every tier, $1.25 / $4.25 per 1M
+   tokens and $2.50 per 1k searches (LiteLLM, OpenRouter). Never a
+   "-contributor" model: Meta trains on those prompts and answers.
+5. **Meta's search crawler** (`meta-webindexer`, listed by Meta for Meta AI
+   search) is now classified in AI Agents and checked in the robots audit.
+6. **Play:** "Close the gap on Meta AI" fires only when Meta names the brand
+   significantly less often than the other engines' unforced answers
+   (two-proportion test, 30+ answers a side). Evidence graded "emerging".
+7. Migration m36 adds the enum value; verified on a blank Postgres.
+
 ## M50 — ChatGPT tracking outage, Oct 8–15 (2026-10-21)
 
 1. **A dated note, not an estimate.** ChatGPT's links went untagged from

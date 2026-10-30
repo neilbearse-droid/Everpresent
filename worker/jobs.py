@@ -49,6 +49,7 @@ from api.storage import read_raw_envelope, write_raw_envelope
 from engine.costs import (
     estimate_anthropic_cost_usd,
     estimate_gemini_cost_usd,
+    estimate_meta_cost_usd,
     estimate_mode_b_cost_usd,
     estimate_openai_cost_usd,
     estimate_perplexity_cost_usd,
@@ -61,6 +62,7 @@ from engine.retrievers import (
     gemini_api,
     google_ai_mode,
     google_aio,
+    meta_api,
     openai_api,
     perplexity_api,
     perplexity_web,
@@ -173,6 +175,11 @@ A_ADAPTERS: dict[str, _AAdapter] = {
     "gemini_api": _AAdapter(
         gemini_api, "gemini_api_key", "gemini_model", "gemini_timeout_s",
         estimate_gemini_cost_usd, "GEMINI_API_KEY", supports_nosearch=True,
+    ),
+    # Search offered, not forced, like the Meta AI app (see the adapter).
+    "meta_api": _AAdapter(
+        meta_api, "meta_api_key", "meta_model", "meta_timeout_s",
+        estimate_meta_cost_usd, "META_API_KEY", supports_nosearch=True,
     ),
 }
 

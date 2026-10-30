@@ -29,6 +29,8 @@ class SurfaceCode(StrEnum):
     perplexity_api = "perplexity_api"
     claude_api = "claude_api"
     gemini_api = "gemini_api"
+    # Meta AI (Muse Spark) via the Meta Model API. Enum value added in m36.
+    meta_api = "meta_api"
     chatgpt_web = "chatgpt_web"
     perplexity_web = "perplexity_web"
     gemini_web = "gemini_web"

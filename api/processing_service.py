@@ -76,7 +76,7 @@ def _backfill_fanout(result: Result, envelope: dict) -> None:
             from engine.retrievers.claude_api import parse_claude_payload
 
             found = parse_claude_payload(response).fanout_queries
-        elif surface == "openai_api":
+        elif surface in ("openai_api", "meta_api"):
             from engine.retrievers.openai_api import parse_responses_payload
 
             found = parse_responses_payload(response).fanout_queries

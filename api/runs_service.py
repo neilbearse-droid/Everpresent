@@ -25,6 +25,7 @@ MODE_A_SURFACES = {
     SurfaceCode.perplexity_api,
     SurfaceCode.claude_api,
     SurfaceCode.gemini_api,
+    SurfaceCode.meta_api,
 }
 MODE_B_SURFACES = {
     SurfaceCode.chatgpt_web,
