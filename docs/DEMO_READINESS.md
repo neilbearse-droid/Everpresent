@@ -77,5 +77,8 @@ At `/admin/godaddy`:
 ## What's covered, and what isn't
 
 Measured: ChatGPT (API and web), Claude, Gemini (API), Perplexity (API and web),
-Microsoft Copilot, Google AI Overviews. **Not built:** Gemini web app, Google AI
-Mode, Grok, Meta AI. Each is a new adapter, not a setting.
+Meta AI (API), Microsoft Copilot, Google AI Overviews, Google AI Mode.
+**Imported only:** Meta Muse, Meta's signed-in shopping agent. Send a vendor's
+Muse captures to capture import (`/admin/<tenant>` → "Answers from a capture vendor", surface `meta_muse`); readiness shows
+"import only" until they arrive. **Not built:** Gemini web app, Grok. Each is a
+new adapter, not a setting.

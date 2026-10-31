@@ -3,6 +3,25 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M54 — Muse as an import-only surface; Muse steps in the Meta play (2026-10-31)
+
+1. **`meta_muse` surface, imported captures only** (migration m37). Closes the
+   gap left open in M53: Muse needs a signed-in account, so its answers come
+   from a vendor that tracks it, through capture import, and are measured like
+   any other answer. It's never dispatched, so it needs no key, plan slot or
+   switch; readiness shows "import only" until captures arrive, then
+   "imported". Captures carry no search count, so dashboards treat it like the
+   browser surfaces (a cited source is the evidence it searched).
+2. **"Close the gap on Muse"** fires on the same test as the Meta AI play
+   (two-proportion, against other engines' unforced answers). Steps follow the
+   reported Muse behaviour: get stocked by well-known retailers, grow branded
+   demand, product pages readable as plain text, agentic checkout on the
+   catalog. Evidence "emerging": one small study and a reported instruction
+   file (WHY["muse"]).
+3. **The Meta AI play gains the first two Muse steps** for brands that sell
+   products, since Muse shops on the same model and most tenants won't have
+   Muse imports yet.
+
 ## M53 — Meta AI: reasoning pinned low (2026-10-31)
 
 1. **`reasoning.effort = "low"` on every Muse Spark call.** Muse Spark can't
@@ -18,7 +37,7 @@ note it here.
    come from browsing the open web, not Meta's catalog; well-known merchants
    rank first; a named brand's own store goes to the top. The API can't reach
    it and we don't automate signed-in accounts, so it can only come in through
-   capture import from a vendor that tracks it.
+   capture import from a vendor that tracks it. (Done in M54.)
 
 ## M52 — Run cost: re-probe ceiling 75 → 15, 3×/week cadence (2026-10-31)
 

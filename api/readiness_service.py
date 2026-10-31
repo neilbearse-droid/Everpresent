@@ -8,7 +8,7 @@ Pure reads — no provider calls."""
 
 from collections import Counter
 
-from sqlmodel import Session, select
+from sqlmodel import Session, func, select
 
 from api.config import get_settings
 from api.models import (
@@ -23,7 +23,12 @@ from api.models import (
     TenantSurface,
 )
 from api.plans import limits_for
-from api.runs_service import DISPATCHABLE_SURFACES, MODE_A_SURFACES, eligible_surfaces
+from api.runs_service import (
+    DISPATCHABLE_SURFACES,
+    IMPORT_ONLY_SURFACES,
+    MODE_A_SURFACES,
+    eligible_surfaces,
+)
 
 # What each surface needs on the deployment, in plain words. Mode A keys are
 # read by the worker (dispatch runs there), so that's where they must be set.
@@ -42,6 +47,7 @@ _NEEDS: dict[str, list[str]] = {
     ],
     "google_ai_mode": ["SERPAPI_KEY on everpresent-worker"],
     "gemini_web": [],
+    "meta_muse": ["Captures from a vendor that tracks Muse, sent to capture import"],
 }
 
 _LABELS = {
@@ -56,12 +62,17 @@ _LABELS = {
     "google_aio": "Google AI Overviews",
     "google_ai_mode": "Google AI Mode",
     "gemini_web": "Gemini (web)",
+    "meta_muse": "Meta Muse (imported)",
 }
 
 # Verdict → the next thing to do about it.
 _HINTS = {
     "ready": "Working. The last run returned answers.",
     "unavailable": "Not built yet — no adapter for this engine.",
+    "import_only": "Measured from imported captures only (Muse needs a signed-in "
+                   "account, which EverPresent doesn't automate). Send a vendor's "
+                   "captures to capture import.",
+    "imported": "Captures on file from the last import.",
     "off": "Switch it on (this also approves it).",
     "outside_plan": "Over the plan's engine limit. Switch the plan to Command or Custom.",
     "not_run_yet": "Switched on. Trigger a run to verify it end to end.",
@@ -98,6 +109,8 @@ def _mode(code: str) -> str:
         return "API"
     if code in ("google_aio", "google_ai_mode"):
         return "SERP"
+    if code in {str(s) for s in IMPORT_ONLY_SURFACES}:
+        return "Import"
     return "Browser"
 
 
@@ -112,6 +125,7 @@ def engine_readiness(session: Session, tenant: Tenant) -> dict:
     approved = set(tenant.approved_surfaces or [])
     will_dispatch = set(eligible_surfaces(session, tenant))
     dispatchable = {str(s) for s in DISPATCHABLE_SURFACES}
+    import_only = {str(s) for s in IMPORT_ONLY_SURFACES}
 
     # Latest FINISHED run per surface, newest first. Gated, pending and
     # still-running runs carry no evidence yet and would hide the last real one.
@@ -138,7 +152,21 @@ def engine_readiness(session: Session, tenant: Tenant) -> dict:
         run = latest_run.get(code)
         evidence: dict = {"run_id": None, "at": None, "ok": 0, "blocked": 0, "error": 0}
         verdict: str
-        if code not in dispatchable:
+        if code in import_only:
+            verdict = "import_only"
+            if run is not None:
+                ok = session.exec(
+                    select(func.count()).select_from(Result).where(
+                        Result.run_id == run.id, Result.surface == code,
+                        Result.status == "ok",
+                    )
+                ).one()
+                evidence = {"run_id": run.id,
+                            "at": (run.finished_at or run.created_at).isoformat(),
+                            "ok": ok, "blocked": 0, "error": 0}
+                if ok:
+                    verdict = "imported"
+        elif code not in dispatchable:
             verdict = "unavailable"
         elif not is_on:
             verdict = "off"

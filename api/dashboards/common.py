@@ -235,5 +235,6 @@ def _surface_label(surface: str) -> str:
         "gemini_web": "Gemini (web)", "copilot_web": "Microsoft Copilot",
         "google_aio": "Google AI Overviews",
         "google_ai_mode": "Google AI Mode",
+        "meta_muse": "Meta Muse",
     }
     return labels.get(surface, surface)

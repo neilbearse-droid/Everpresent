@@ -45,7 +45,7 @@ FORCED_SEARCH_SURFACES = frozenset({"openai_api", "perplexity_api"})
 _ALWAYS_SEARCH_SURFACES = frozenset({"google_aio", "google_ai_mode"})
 # Browser captures report no search count.
 _NO_SEARCH_COUNT_SURFACES = frozenset({"chatgpt_web", "perplexity_web", "copilot_web",
-                                        "gemini_web"})
+                                        "gemini_web", "meta_muse"})
 
 
 def _unforced_counts(session: Session, base: list[Any], brand_hits: Any,

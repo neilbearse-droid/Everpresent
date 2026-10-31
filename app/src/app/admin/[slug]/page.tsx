@@ -64,6 +64,7 @@ export default async function TenantAdminPage({
     API: "API",
     Browser: "Browser",
     SERP: "Google results",
+    Import: "Imported captures",
   };
 
   return (
@@ -178,7 +179,7 @@ export default async function TenantAdminPage({
                       <td>
                         <span
                           className={`text-[12px] font-medium ${
-                            e.verdict === "ready" || e.verdict === "check_ok"
+                            e.verdict === "ready" || e.verdict === "check_ok" || e.verdict === "imported"
                               ? "bp-mark"
                               : ["missing_key", "blocked", "error", "withheld", "outside_plan",
                                  "check_failed", "check_parse"].includes(e.verdict)

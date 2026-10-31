@@ -147,6 +147,15 @@ WHY = {
         "meta-webindexer for Meta AI search. Little is published yet on what makes it "
         "name one brand over another."
     ),
+    "muse": (
+        "Muse, Meta's shopping agent (Sept 2026, US and Canada), browses stores itself. "
+        "In Profound's test (Oct 2026, 50 prompts, one category) about 4 of its 6 picks "
+        "came from the open web rather than Meta's catalog. Its reported instructions "
+        "rank well-known merchants first, check at most three web stores per request, "
+        "and put a named brand's own store first; in-chat checkout covers only catalog "
+        "products flagged for agentic checkout. A small sample and a reported file, so "
+        "directional."
+    ),
     "research": (
         "ChatGPT has shifted toward citing the original source of a fact, such as studies "
         "and official data, over sites that summarize it (Ahrefs' October 2026 study of "
@@ -778,34 +787,66 @@ def _research_play(session: Session, tenant_id: int) -> list[Play]:
         link="/dashboard/citations")]
 
 
+# Muse steps, shared: the Meta AI play carries the first two for brands that
+# sell products (Muse shops on top of the same model), the Muse play all.
+_MUSE_STEPS = [
+    "If you sell products: get stocked by well-known retailers and check they list "
+    "you correctly. Muse reportedly ranks well-known merchants first and checks at "
+    "most three web stores per request",
+    "Grow searches for your brand by name: when a shopper names a brand, Muse "
+    "reportedly puts that brand's own store first",
+    "Make the product pages Muse lands on easy to read: price, stock, sizes and "
+    "shipping in plain text on the page, not only in images or scripts",
+    "If you're eligible, turn on agentic checkout for your Meta catalog: Muse's "
+    "in-chat checkout reportedly covers only flagged catalog products",
+]
+
+
 def _meta_play(session: Session, tenant_id: int) -> list[Play]:
-    """Meta AI names the brand less often than the other engines' answers do."""
+    """A Meta engine names the brand less often than the other engines' answers
+    do: Meta AI (measured by API) or Muse (imported captures)."""
     from api.dashboards.measurement import mention_rates
     from engine.processing.stats import change_verdict
 
     engines = mention_rates(session, tenant_id)["engines"]
-    meta = next((e for e in engines if e["surface"] == SurfaceCode.meta_api), None)
-    if meta is None:
-        return []
-    # Meta's search isn't forced, so compare it with what users get elsewhere:
-    # the unforced answers of engines that are forced to search.
+    meta_codes = {SurfaceCode.meta_api, SurfaceCode.meta_muse}
+    # Meta's answers aren't forced to search, so compare them with what users get
+    # elsewhere: the unforced answers of engines that are forced to search.
     others = [e["unforced"] for e in engines
-              if e["surface"] != SurfaceCode.meta_api and e.get("unforced")]
+              if e["surface"] not in meta_codes and e.get("unforced")]
     k, n = sum(u["mentioned"] for u in others), sum(u["answers"] for u in others)
-    if change_verdict(k, n, meta["mentioned"], meta["answers"])["verdict"] != "down":
-        return []
-    return [Play(
-        "meta:gap", "meta", "Close the gap on Meta AI",
-        f"Meta AI names you in {meta['rate']}% of its answers ({meta['answers']} answers); "
-        f"the other engines do in {round(100 * k / n, 1)}%.",
-        58, "emerging", WHY["meta"],
-        ["Check robots.txt and your CDN let meta-webindexer crawl the site (AI Agents tab "
-         "shows whether it visits)",
-         "Keep your Facebook and Instagram business pages current: products, prices, "
-         "hours and a link to the matching page on your site",
-         "If you sell online, check your products reach Meta: a catalog in Commerce "
-         "Manager, or the Meta channel in Shopify's Agentic Storefronts"],
-        link="/dashboard/engines")]
+    plays: list[Play] = []
+    for e in engines:
+        if e["surface"] not in meta_codes or not n:
+            continue
+        if change_verdict(k, n, e["mentioned"], e["answers"])["verdict"] != "down":
+            continue
+        rest = f"the other engines do in {round(100 * k / n, 1)}%."
+        if e["surface"] == SurfaceCode.meta_api:
+            plays.append(Play(
+                "meta:gap", "meta", "Close the gap on Meta AI",
+                f"Meta AI names you in {e['rate']}% of its answers "
+                f"({e['answers']} answers); {rest}",
+                58, "emerging", WHY["meta"],
+                ["Check robots.txt and your CDN let meta-webindexer crawl the site (AI "
+                 "Agents tab shows whether it visits)",
+                 "Keep your Facebook and Instagram business pages current: products, "
+                 "prices, hours and a link to the matching page on your site",
+                 "If you sell online, check your products reach Meta: a catalog in "
+                 "Commerce Manager, or the Meta channel in Shopify's Agentic Storefronts",
+                 *_MUSE_STEPS[:2]],
+                link="/dashboard/engines"))
+        else:
+            plays.append(Play(
+                "meta:muse_gap", "meta", "Close the gap on Muse",
+                f"Muse names you in {e['rate']}% of the imported answers "
+                f"({e['answers']} answers); {rest}",
+                56, "emerging", WHY["muse"],
+                [*_MUSE_STEPS,
+                 "Check robots.txt and your CDN don't block Meta-ExternalFetcher, which "
+                 "fetches pages when a user's request needs them"],
+                link="/dashboard/engines"))
+    return plays
 
 
 def _owned_docs_play(session: Session, tenant_id: int, plan: dict) -> list[Play]:

@@ -11,7 +11,7 @@ export function ImportCapturesForm({ slug }: { slug: string }) {
   return (
     <form action={action} className="flex flex-col gap-2">
       <p className="text-xs text-[var(--text-2)]">
-        Answers a capture vendor collected (for example signed-in ChatGPT), as JSON:{" "}
+        Answers a capture vendor collected (for example signed-in ChatGPT, or Meta Muse as surface <code>meta_muse</code>), as JSON:{" "}
         <code>{"{source, captures: [{surface, query, answer_html | answer, citations, captured_at, logged_in}]}"}</code>.
         Each import becomes a run and is measured the same way as EverPresent&apos;s own answers.
         Sending the same file again skips the duplicates.

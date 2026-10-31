@@ -108,3 +108,23 @@ def test_not_json_and_not_admin(client, db_session, setup, login):
     db_session.commit()
     login(member)
     assert _post(client, PAYLOAD).status_code == 403
+
+
+def test_muse_captures_import_and_show_on_readiness(client, db_session, setup):
+    from api.readiness_service import engine_readiness
+
+    def muse(t):
+        return next(e for e in engine_readiness(db_session, t)["engines"]
+                    if e["code"] == "meta_muse")
+
+    before = muse(setup)
+    assert before["verdict"] == "import_only" and before["mode"] == "Import"
+    assert before["available"] is False  # never dispatched, never counted as missing
+    body = {"source": "Acme Panels", "captures": [
+        {"surface": "meta_muse", "query": "best registrar?",
+         "answer": "GoDaddy is a well-known pick.", "logged_in": True,
+         "captured_at": "2026-10-20T10:00:00Z"}]}
+    assert _post(client, body).json()["imported"] == 1
+    assert str(db_session.exec(select(Result)).one().surface) == "meta_muse"
+    after = muse(setup)
+    assert after["verdict"] == "imported" and after["last_run"]["ok"] == 1

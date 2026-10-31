@@ -216,7 +216,8 @@ _FORCED_SEARCH_SURFACES = {"openai_api", "perplexity_api"}
 _SERP_SURFACES = {"google_aio", "google_ai_mode"}
 # Consumer UIs captured in a browser: no search count, so a cited source is
 # the evidence that the answer searched.
-_BROWSER_SURFACES = {"chatgpt_web", "perplexity_web", "copilot_web", "gemini_web"}
+_BROWSER_SURFACES = {"chatgpt_web", "perplexity_web", "copilot_web", "gemini_web",
+                     "meta_muse"}
 
 
 def routing_report(

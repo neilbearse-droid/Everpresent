@@ -35,6 +35,9 @@ MODE_B_SURFACES = {
     SurfaceCode.google_ai_mode,
 }
 DISPATCHABLE_SURFACES = MODE_A_SURFACES | MODE_B_SURFACES
+# Measured only from imported captures (api.capture_import_service): never
+# dispatched, so they never need a key, a plan slot or a switch.
+IMPORT_ONLY_SURFACES = {SurfaceCode.meta_muse}
 
 
 def eligible_surfaces(session: Session, tenant: Tenant) -> list[str]:

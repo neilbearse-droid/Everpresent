@@ -146,7 +146,7 @@ def test_meta_search_crawler_is_known():
     assert bot is not None and bot.company == "Meta" and bot.purpose == "search"
 
 
-def _tenant_with_rates(db, meta_named: int, other_named: int):
+def _tenant_with_rates(db, meta_named: int, other_named: int, surface: str = "meta_api"):
     from api.models import BrandProfile, Query, ResultVariant, Run, RunStatus, SurfaceCode, Tenant
     from tests.test_unforced import _answers
 
@@ -161,7 +161,7 @@ def _tenant_with_rates(db, meta_named: int, other_named: int):
     db.add(run)
     db.commit()
     assert run.id is not None
-    _answers(db, t.id, run.id, SurfaceCode.meta_api, ResultVariant.search, 40,
+    _answers(db, t.id, run.id, SurfaceCode(surface), ResultVariant.search, 40,
              named=meta_named, searched=40)
     _answers(db, t.id, run.id, SurfaceCode.claude_api, ResultVariant.search, 40,
              named=other_named, searched=40)
@@ -189,3 +189,22 @@ def test_meta_play_stays_quiet_within_the_noise(db_session):
 
     tid = _tenant_with_rates(db_session, meta_named=18, other_named=20)
     assert _meta_play(db_session, tid) == []
+
+
+def test_muse_play_fires_on_imported_answers(db_session):
+    from api.recommendations_service import _meta_play
+
+    tid = _tenant_with_rates(db_session, meta_named=4, other_named=20, surface="meta_muse")
+    (play,) = _meta_play(db_session, tid)
+    assert play.gap_ref == "meta:muse_gap" and play.title == "Close the gap on Muse"
+    assert "Muse names you in 10.0%" in play.action_text
+    assert any("well-known retailers" in s for s in play.steps)
+    assert any("agentic checkout" in s for s in play.steps)
+
+
+def test_meta_ai_play_carries_muse_shopping_steps(db_session):
+    from api.recommendations_service import _meta_play
+
+    tid = _tenant_with_rates(db_session, meta_named=4, other_named=20)
+    (play,) = _meta_play(db_session, tid)
+    assert any("Muse reportedly ranks well-known merchants first" in s for s in play.steps)

@@ -39,6 +39,10 @@ class SurfaceCode(StrEnum):
     # Google AI Mode (conversational search tab), via SerpApi. Enum value
     # added in m28.
     google_ai_mode = "google_ai_mode"
+    # Muse, Meta's signed-in agent (muse.ai, WhatsApp). No API and we don't
+    # automate signed-in accounts, so it arrives only via capture import.
+    # Enum value added in m37.
+    meta_muse = "meta_muse"
 
 
 class Tenant(SQLModel, table=True):

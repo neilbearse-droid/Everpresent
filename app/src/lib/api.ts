@@ -702,7 +702,7 @@ export type EngineReadiness = {
   on: boolean;
   needs: string[];
   verdict:
-    | "ready" | "unavailable" | "off" | "outside_plan" | "not_run_yet"
+    | "ready" | "unavailable" | "import_only" | "imported" | "off" | "outside_plan" | "not_run_yet"
     | "missing_key" | "blocked" | "error" | "withheld"
     | "check_ok" | "check_failed" | "check_parse";
   hint: string;
