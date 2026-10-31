@@ -23,3 +23,7 @@ playwright-report/
 # OS
 .DS_Store
 *.tsbuildinfo
+
+# Research working files (never committed)
+research_notes/
+reports/
