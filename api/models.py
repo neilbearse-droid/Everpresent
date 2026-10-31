@@ -45,6 +45,12 @@ class SurfaceCode(StrEnum):
     meta_muse = "meta_muse"
 
 
+# §6.3 default geolocation for Google AI Overviews / AI Mode captures and the
+# browser engines: Canada, English. The worker fills a tenant's missing keys
+# from it so every adapter searches from the same place.
+DEFAULT_AIO_GEO: dict[str, str] = {"gl": "ca", "hl": "en"}
+
+
 class Tenant(SQLModel, table=True):
     __tablename__ = "tenants"  # pyright: ignore[reportAssignmentType]
 
@@ -81,9 +87,7 @@ class Tenant(SQLModel, table=True):
     notify_emails: list[str] = Field(default_factory=list, sa_column=Column(JSON))
     # §6.3: fixed per-tenant geolocation for reproducible AIO capture.
     # Keys: gl, hl, optional lat/lng.
-    aio_geo: dict = Field(
-        default_factory=lambda: {"gl": "ca", "hl": "en"}, sa_column=Column(JSON)
-    )
+    aio_geo: dict = Field(default_factory=lambda: dict(DEFAULT_AIO_GEO), sa_column=Column(JSON))
     # Outcome attribution (panel #6): the tenant's GA4 property id (digits
     # only, e.g. "123456789"). The shared service account must be granted
     # Viewer on this property. Unset = the Outcome view stays empty.
@@ -175,9 +179,11 @@ class Query(SQLModel, table=True):
     # the tenant has a "generic" baseline persona (selective mode); tenants
     # without one keep the full persona × query cross-product.
     persona_runs: list[dict] = Field(default_factory=list, sa_column=Column(JSON))
-    # Alternate wordings of the same question. Repeated samples of the generic
-    # cell rotate through [text, *paraphrases], so the measured rate reflects
-    # the topic, not one exact phrasing. Results keep `text` as query_text.
+    # Alternate wordings of the same question. On plans with repeated samples
+    # the first sample of the generic cell asks `text`; the extra samples
+    # rotate through these, offset by run, so over consecutive runs every
+    # wording is asked. Results keep `text` as query_text and the wording sent
+    # as asked_text.
     paraphrases: list[str] = Field(default_factory=list, sa_column=Column(JSON))
 
 
@@ -260,8 +266,10 @@ class ResultVariant(StrEnum):
     # other half of the dual-query diff (§6.1). Excluded from scoring.
     nosearch = "nosearch"
     # Routing probe (§AEO-plan M2): the search tool is offered but NOT forced,
-    # so whether the model searches reveals natural routing (~31% of prompts
-    # are answered from training). Measurement only — excluded from scoring.
+    # so whether the model searches reveals natural routing. Most free-tier
+    # ChatGPT answers do not search (Ahrefs, Oct 2026: 14.4% of free,
+    # logged-out answers did; paid tiers search far more often). Measurement
+    # only — excluded from scoring.
     natural = "natural"
     # Fan-out re-probe (§FANOUT_SCORECARD M25b; enum value added in m26): one
     # shard run as its own query
@@ -317,6 +325,10 @@ class Result(SQLModel, table=True):
     # where the idea doesn't apply, e.g. APIs).
     served_model: str = Field(default="", index=True)
     logged_in: bool | None = None
+    # The wording actually sent (m38): query_text, or the paraphrase a repeated
+    # sample rotated to. "" on rows written before m38 (their envelope has it
+    # as `asked`). Results stay keyed by query_text.
+    asked_text: str = Field(default="")
     created_at: datetime = Field(default_factory=utcnow)
 
 

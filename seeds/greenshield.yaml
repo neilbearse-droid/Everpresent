@@ -65,15 +65,15 @@ queries:
   - { text: "Best health insurance for early retirees in Canada", corpus: early_retirees }
   - { text: "What happens to my health benefits when I retire at 58 in Canada?", corpus: early_retirees }
   - { text: "Best individual health and dental insurance Canada", corpus: individual }
-  - { text: "GreenShield vs Sun Life health benefits comparison", corpus: competitive }
-  - { text: "Is GreenShield a good insurance company?", corpus: brand }
+  - { text: "GreenShield vs Sun Life health benefits comparison", corpus: competitive, branded: true }
+  - { text: "Is GreenShield a good insurance company?", corpus: brand, branded: true }
   - { text: "Best group benefits providers for small business Canada", corpus: small_business }
   - { text: "Affordable dental insurance without employer benefits", corpus: individual }
   - { text: "Top employee benefits providers in Canada", corpus: group_benefits }
   - { text: "Health insurance to bridge retirement before 65 Canada", corpus: early_retirees }
-  - { text: "GreenShield Canada coverage review", corpus: brand }
+  - { text: "GreenShield Canada coverage review", corpus: brand, branded: true }
   - { text: "How to choose a group health insurance provider in Canada", corpus: group_benefits }
-  - { text: "Manulife vs Canada Life vs GreenShield for company benefits", corpus: competitive }
+  - { text: "Manulife vs Canada Life vs GreenShield for company benefits", corpus: competitive, branded: true }
 
 surfaces:
   - openai_api

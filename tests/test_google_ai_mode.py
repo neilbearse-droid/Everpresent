@@ -51,6 +51,22 @@ def test_empty_or_errored_capture_is_an_error(monkeypatch):
         asyncio.run(capture("q", geo={}, api_key=""))
 
 
+def test_direct_call_without_gl_matches_the_aio_fallback(monkeypatch):
+    # The worker always passes a complete geo; a direct call with none falls
+    # back to the same country google_aio does (the tenant default, Canada),
+    # not the US.
+    seen = {}
+
+    async def _get(self, url, params=None, **k):
+        seen.update(params or {})
+        return httpx.Response(200, json=json.loads((FIX / "serpapi_ai_mode.json").read_text()),
+                              request=httpx.Request("GET", url))
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", _get)
+    asyncio.run(capture("q", geo={}, api_key="k"))
+    assert seen["gl"] == "ca" and seen["hl"] == "en"
+
+
 def test_ai_mode_runs_per_query_in_mode_b(db_session, job_env, monkeypatch):  # noqa: F811
     from sqlmodel import select
 
@@ -65,9 +81,11 @@ def test_ai_mode_runs_per_query_in_mode_b(db_session, job_env, monkeypatch):  # 
     monkeypatch.setenv("GOOGLE_AI_MODE_RATE_PER_MIN", "100000")
     get_settings.cache_clear()
     calls: list[str] = []
+    geos: list[dict] = []
 
     async def _capture(query_text, *, geo, api_key, timeout_s):
         calls.append(query_text)
+        geos.append(dict(geo))
         return AIModeOutcome(text="Smith is a strong option.", present=True,
                              citations=[ParsedCitation(url="https://smith.queensu.ca/x")])
 
@@ -89,6 +107,48 @@ def test_ai_mode_runs_per_query_in_mode_b(db_session, job_env, monkeypatch):  # 
     db_session.expire_all()
     results = db_session.exec(select(Result).where(Result.run_id == run_id)).all()
     assert len(calls) == 2  # one SERP per query, not per persona
+    # The tenant's geo (default Canada) is what reaches the call, not the
+    # adapter's own fallback.
+    assert geos == [{"gl": "ca", "hl": "en"}] * 2
     assert {r.surface for r in results} == {SurfaceCode.google_ai_mode}
     assert all(r.status == "ok" for r in results)
+    assert all(r.asked_text == r.query_text for r in results)
     assert db_session.get(Run, run_id).status == RunStatus.complete
+
+
+def test_ai_mode_gets_the_tenant_geo_with_missing_keys_filled(db_session, job_env,  # noqa: F811
+                                                                monkeypatch):
+    """A tenant whose stored geo lacks `gl` (or a legacy NULL) searches from
+    the tenant default, the same place google_aio does, not the US."""
+    from api.config import get_settings
+    from api.models import Run, SurfaceCode, TenantSurface
+    from engine.retrievers.google_ai_mode import AIModeOutcome
+    from tests.test_runs import _pending_run, make_tenant
+    from worker.jobs import run_mode_b
+
+    monkeypatch.setenv("SERPAPI_KEY", "serp-k")
+    monkeypatch.setenv("GOOGLE_AI_MODE_RATE_PER_MIN", "100000")
+    get_settings.cache_clear()
+    geos: list[dict] = []
+
+    async def _capture(query_text, *, geo, api_key, timeout_s):
+        geos.append(dict(geo))
+        return AIModeOutcome(text="answer", present=True)
+
+    monkeypatch.setattr("engine.retrievers.google_ai_mode.capture", _capture)
+    tenant = make_tenant(db_session, queries=1, personas=1)
+    tenant.approved_surfaces = ["google_ai_mode"]
+    tenant.aio_geo = {"hl": "fr"}
+    db_session.add(tenant)
+    db_session.add(TenantSurface(tenant_id=tenant.id, code=SurfaceCode.google_ai_mode,
+                                 enabled=True))
+    db_session.commit()
+    run_id = _pending_run(db_session, tenant)
+    run = db_session.get(Run, run_id)
+    run.surface_set = ["google_ai_mode"]
+    run.mode_set = ["B"]
+    db_session.add(run)
+    db_session.commit()
+
+    run_mode_b(run_id)
+    assert geos == [{"gl": "ca", "hl": "fr"}]

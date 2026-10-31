@@ -20,13 +20,13 @@ export function ScheduleForm({
     <form action={action} className="flex flex-col gap-3">
       <div className="flex flex-wrap items-end gap-2">
         <label className="flex min-w-[220px] flex-1 flex-col text-xs text-[var(--text-2)]">
-          Schedule in cron format, UTC. The default, <code>0 13 * * 1,3,5</code>, runs Monday,
+          Schedule in cron format, UTC. The default, <code>0 12 * * 1,3,5</code>, runs Monday,
           Wednesday and Friday at 13:00. Three runs a week with repeat samples costs less than
           one reading a day and gives steadier numbers.
           <input
             name="cron_expr"
-            defaultValue={cronExpr || "0 13 * * 1,3,5"}
-            placeholder="0 13 * * 1,3,5"
+            defaultValue={cronExpr || "0 12 * * 1,3,5"}
+            placeholder="0 12 * * 1,3,5"
             required
             className="mt-1 rounded-md border border-[var(--border)] bg-[var(--inset)] px-3 py-2 font-mono text-sm text-[var(--text)]"
           />

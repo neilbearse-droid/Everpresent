@@ -74,7 +74,7 @@ WHY = {
     "subquery": (
         "Engines answer by running several sub-searches and citing pages that answer "
         "those, often pages that don't rank for the main question (Ahrefs, BrightEdge and "
-        "Surfer SEO data on Google's AI Overviews, 2025–2026)."
+        "Surfer SEO data on Google's AI Overviews, 2025–2026; correlational)."
     ),
     "facts": (
         "In a May 2026 controlled study across several models, topical relevance, explicit "
@@ -148,7 +148,8 @@ WHY = {
         "name one brand over another."
     ),
     "muse": (
-        "Muse, Meta's shopping agent (Sept 2026, US and Canada), browses stores itself. "
+        "Muse, Meta's shopping agent (US since Sept 8, 2026, Singapore since Oct 28; not "
+        "in Canada as of Oct 31, 2026), browses stores itself. "
         "In Profound's test (Oct 2026, 50 prompts, one category) about 4 of its 6 picks "
         "came from the open web rather than Meta's catalog. Its reported instructions "
         "rank well-known merchants first, check at most three web stores per request, "
@@ -180,9 +181,14 @@ WHY = {
     ),
 }
 
+# The sub-search plays pair the retrieval mechanism (correlational) with the
+# controlled result on what gets cited once a page is retrieved.
+WHY_SUBQUERY_FACTS = f"{WHY['subquery']} {WHY['facts']}"
+
 _RECRAWL = (
-    "Request a recrawl after the change: IndexNow (Bing, which feeds Copilot and "
-    "ChatGPT) and URL Inspection in Google Search Console"
+    "Request a recrawl after the change: IndexNow (Bing, which feeds Copilot and, by most "
+    "accounts, ChatGPT search) and URL Inspection in Google Search Console; ChatGPT, "
+    "Perplexity and Claude have no recrawl request"
 )
 
 
@@ -417,7 +423,7 @@ def _query_plays(session: Session, tenant_id: int, plan: dict) -> list[Play]:
             steps.append("Log the change in Outcome with an untouched control page, then "
                          "judge it after 2–3 weeks of runs")
             plays.append(Play(ref, branch, f"Get named in answers to “{query_text}”", text,
-                              priority, "strong", WHY["subquery"], steps, query_text,
+                              priority, "strong", WHY_SUBQUERY_FACTS, steps, query_text,
                               "/dashboard/action-plan"))
         elif branch == "training":
             plays.append(Play(
@@ -443,7 +449,7 @@ def _query_plays(session: Session, tenant_id: int, plan: dict) -> list[Play]:
             plays.append(Play(
                 ref, branch, f"Get cited in Google's AI answer for “{query_text}”",
                 f'Google\'s AI Overview answers "{query_text}" without citing you.',
-                55, "official", WHY["aio"], steps, query_text, "/dashboard/action-plan"))
+                80, "official", WHY["aio"], steps, query_text, "/dashboard/action-plan"))
     return plays
 
 
@@ -498,7 +504,7 @@ def _accuracy_plays(session: Session, tenant_id: int) -> list[Play]:
 # The bots that decide whether an engine can show the site at all.
 _KEY_BOTS = {
     "OAI-SearchBot": "ChatGPT search",
-    "Bingbot": "Copilot and ChatGPT (Bing's index)",
+    "Bingbot": "Copilot (official) and, by most accounts, ChatGPT search",
     "PerplexityBot": "Perplexity",
     "Claude-SearchBot": "Claude",
     "Googlebot": "Google AI Overviews and AI Mode",
@@ -517,7 +523,7 @@ def _agent_plays(session: Session, tenant_id: int) -> list[Play]:
             "connect_logs", "connect_logs", "Upload recent server logs",
             f"Your newest AI-bot log data is more than {a['days']} days old, so bot "
             "access and page checks are on hold.",
-            40, "official", WHY["logs"],
+            60, "moderate", WHY["logs"],
             ["Upload the last 30 days of access logs on the AI Agents tab, or set up "
              "the automatic push from your CDN so the data stays current"],
             link="/dashboard/agents")])
@@ -525,7 +531,7 @@ def _agent_plays(session: Session, tenant_id: int) -> list[Play]:
         return [Play(
             "connect_logs", "connect_logs", "Connect your server logs",
             "See which AI bots can reach your site and which pages they read.",
-            25, "official", WHY["logs"],
+            72, "moderate", WHY["logs"],
             ["Upload a recent access log on the AI Agents tab, or set up the automatic "
              "push from your CDN"], link="/dashboard/agents")]
     plays: list[Play] = []
@@ -538,11 +544,12 @@ def _agent_plays(session: Session, tenant_id: int) -> list[Play]:
                     f"crawler:{bot}:absent", "crawler_access",
                     f"{bot} hasn't visited in {a['days']} days",
                     f"Without {bot}, {engine} can't show your pages.",
-                    90, "official", WHY["crawler"],
+                    95, "official", WHY["crawler"],
                     [f"Check robots.txt allows {bot} (you can still block training-only "
                      "bots like GPTBot)",
-                     "Check CDN / firewall bot rules (e.g. Cloudflare's AI-bot blocking) "
-                     f"aren't stopping {bot}",
+                     "Check CDN and firewall rules: Cloudflare's September 2026 defaults "
+                     f"allow search crawlers, so a missing {bot} usually means a custom "
+                     "WAF rule or a pre-July 'block all AI' toggle",
                      "Confirm the site is indexed in Bing Webmaster Tools and Google "
                      "Search Console"],
                     link="/dashboard/agents"))
@@ -566,7 +573,7 @@ def _agent_plays(session: Session, tenant_id: int) -> list[Play]:
                 f"A cited page is erroring for AI bots: {p['path']}",
                 f"AI answers cite {p['path']} ({p['cited']}×), but it returned "
                 f"{p['reason']}.",
-                86, "strong", WHY["broken"],
+                86, "moderate", WHY["broken"],
                 ["Fix the error or 301 it to the live page", _RECRAWL],
                 link="/dashboard/agents"))
     broken = a.get("broken_pages", [])[:8]
@@ -579,7 +586,7 @@ def _agent_plays(session: Session, tenant_id: int) -> list[Play]:
             "keep requesting",
             f"AI bots got {total:,} errors on {_join(paths, 5)}"
             + (f" and {len(paths) - 5} more" if len(paths) > 5 else "") + ".",
-            70, "strong", WHY["broken"],
+            70, "moderate", WHY["broken"],
             ["301 each to the closest live page", "Remove them from sitemaps and internal "
              "links", _RECRAWL], link="/dashboard/agents"))
     rnc = a.get("read_not_cited", [])[:8]
@@ -590,7 +597,7 @@ def _agent_plays(session: Session, tenant_id: int) -> list[Play]:
             f"{len(rnc)} page{'s' if len(rnc) != 1 else ''} AI reads but never cites",
             f"AI search keeps fetching {_join(paths, 5)}, but no measured answer cites "
             f"{'it' if len(rnc) == 1 else 'them'}.",
-            50, "moderate", WHY["read_not_cited"],
+            62, "moderate", WHY["read_not_cited"],
             ["Check the content is in the HTML (view it with JavaScript off)",
              "Lead with a direct answer; state prices, dates and specs as text",
              "Make sure each answers the sub-questions engines search for its topic"],
@@ -644,7 +651,7 @@ def _subquery_plays(session: Session, tenant_id: int) -> list[Play]:
             + (f"; {_join(winners)} {'appears' if len(winners) == 1 else 'appear'}."
                if winners else "."),
             min(85, 60 + 6 * reach) if winners else min(75, 55 + 5 * reach),
-            "strong", WHY["subquery"],
+            "strong", WHY_SUBQUERY_FACTS,
             ["Answer each sub-question in its own section (or page), first lines under "
              "a clear heading",
              "State the facts they ask about explicitly: numbers, prices, dates",
@@ -673,7 +680,7 @@ def _source_plays(plan: dict) -> list[Play]:
         plays.append(Play(
             "sources:review", "reviews", f"Build your review profile on {_join(doms, 3)}",
             f"Answers cite {_join(doms, 4)} when they name rivals, but not you.",
-            76, "moderate", WHY["reviews"],
+            66, "moderate", WHY["reviews"],
             ["Claim and complete the profile: plans, prices, categories, screenshots",
              "Ask real customers for reviews after a good experience; never tie incentives "
              "to positive reviews (FTC fake-review rule)",
@@ -898,9 +905,11 @@ def _strategy_play(session: Session, tenant_id: int) -> list[Play]:
             "Focus: get found at all",
             f"You're named in {rate}% of answers on your category questions. Engines aren't "
             "finding you yet, so on-page polish won't move much.",
-            ["Prioritize third-party lists, reviews and directories engines already cite",
-             "Cover the sub-questions engines search (Fan-out tab)",
-             "Make sure every AI search bot can reach the site (AI Agents tab)"])
+            ["Make sure every AI search bot can reach the site (AI Agents tab)",
+             "Cover the sub-questions engines search on your own pages, with prices and "
+             "dates stated plainly (Fan-out tab)",
+             "Then get onto the third-party lists, reviews and directories engines "
+             "already cite"])
     elif rate < 70:
         title, text, steps = (
             "Focus: turn mentions into recommendations",

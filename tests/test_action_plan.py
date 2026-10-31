@@ -219,7 +219,8 @@ def test_citability_diff_specs_winners_and_flags_your_gaps(db_session):
     db_session.commit()
 
     # Crawled fingerprints: winners carry the Tier-1 levers (capsule, stats,
-    # quotations, cited sources) + tables; yours is thin and has none of them.
+    # quotations, cited sources) + tables; yours is under the 250-word floor
+    # and has none of them.
     winner_features = {"has_answer_capsule": True, "statistic_count": 12,
                        "quotation_count": 3, "citation_count": 6, "front_loaded": True,
                        "promotional_tone_score": 0.0, "json_ld": True, "faq_schema": True,
@@ -234,7 +235,7 @@ def test_citability_diff_specs_winners_and_flags_your_gaps(db_session):
                                           "front_loaded": False, "promotional_tone_score": 0.0,
                                           "json_ld": True, "faq_schema": False,
                                           "has_tables": False, "recent_year_mentions": 1,
-                                          "word_count": 400}))
+                                          "word_count": 180}))
     db_session.commit()
 
     brief = action_plan(db_session, tid)["briefs"][0]
@@ -251,7 +252,10 @@ def test_citability_diff_specs_winners_and_flags_your_gaps(db_session):
     assert "statistics/data points" in gaps
     assert "quotations" in gaps
     assert "comparison tables" in gaps  # hygiene still flagged, but later
-    assert "too thin" in gaps
+    # Length is not a lever (word count r = 0.04 with citations, Ahrefs 2026):
+    # only a page under the 250-word floor gets a coverage note, never a
+    # "match the winners' length" one.
+    assert "under 250 words" in gaps and "too thin" not in gaps
     # Evidence order: data density before formatting, formatting before hygiene.
     def at(word: str) -> int:
         return cit["gaps"].index(next(g for g in cit["gaps"] if word in g))
@@ -344,6 +348,11 @@ def test_listicle_queries_carry_a_spam_policy_warning():
 
     risk = _spam_risk("What's the best website builder for a small business?")
     assert risk is not None and risk["level"] == "high"
-    assert _spam_risk("GoDaddy vs. Namecheap — which is better for domains?") is not None
+    assert "May 15, 2026" in risk["note"] and "September 2026 spam" not in risk["note"]
     assert _spam_risk("Wix alternatives") is not None
+    assert _spam_risk("top 10 website builders 2026") is not None
+    # A comparison question is not a self-ranked list: the brief itself asks
+    # for an honest comparison table, so it carries no spam warning.
+    assert _spam_risk("GoDaddy vs. Namecheap — which is better for domains?") is None
+    assert _spam_risk("compare Wix and Squarespace pricing") is None
     assert _spam_risk("How do I connect a domain to my site?") is None

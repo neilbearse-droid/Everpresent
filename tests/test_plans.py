@@ -28,8 +28,12 @@ def test_plan_limits_and_helpers():
     assert limits_for("diagnose").max_personas == 2
     assert limits_for("command").max_engines is None
     assert limits_for(None).label == "Custom"  # default
-    # Engine cap keeps the canonical order, dropping the lowest-priority ones.
-    assert cap_engines(A_SURFACES, 3) == ["openai_api", "perplexity_api", "claude_api"]
+    # Engine cap keeps the canonical order (most-used engines first: ChatGPT,
+    # Gemini, Google, Claude, then Perplexity), dropping the lowest-priority ones.
+    assert cap_engines(A_SURFACES, 3) == ["openai_api", "gemini_api", "claude_api"]
+    assert cap_engines(["perplexity_api", "google_aio", "openai_api"], 2) == [
+        "openai_api", "google_aio",
+    ]
     assert cap_engines(A_SURFACES, None) == sorted(A_SURFACES, key=A_SURFACES.index) or A_SURFACES
     # Model tier overrides the configured default; 'configured' falls back.
     assert model_for("openai_api", "economy", "x") == "gpt-5-mini"
@@ -101,7 +105,7 @@ def test_monitor_caps_personas_engines_and_skips_diagnosis(db_session, env):
     # 3 queries × 1 persona × 3 engines, search-only (no dual-query twin).
     assert len(results) == 9
     assert all(r.variant == ResultVariant.search for r in results)
-    assert {r.surface.value for r in results} == {"openai_api", "perplexity_api", "claude_api"}
+    assert {r.surface.value for r in results} == {"openai_api", "gemini_api", "claude_api"}
     assert len({r.persona_name for r in results}) == 1
     # Economy model tier reached the provider (captured in the raw model echo).
     openai = next(r for r in results if r.surface.value == "openai_api")
@@ -139,7 +143,9 @@ def test_diagnosis_twin_cached_across_runs(db_session, env, monkeypatch):
     run2 = _run(db_session, t)
     run_mode_a(run2)
     assert sum(1 for (_s, ws) in calls if not ws) == 0   # twins reused, not re-bought
-    assert sum(1 for (_s, ws) in calls if ws) == 24      # searches still live
+    # Searches still live: 24 forced, plus Diagnose's natural probe of every
+    # query on the two engines that force search (3 queries x 2).
+    assert sum(1 for (_s, ws) in calls if ws) == 30
 
     nosearch2 = [r for r in _results(db_session, run2) if r.variant == ResultVariant.nosearch]
     assert len(nosearch2) == 12  # cloned into the run so the classifier pairing works

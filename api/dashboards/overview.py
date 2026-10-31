@@ -23,6 +23,7 @@ from api.models import (
     Result,
     ResultVariant,
     SurfaceCode,
+    Tenant,
     VisibilityDaily,
 )
 from engine.processing.citations import domain_is_owned
@@ -209,7 +210,8 @@ def overview(
 
 # Provider-side changes that make an engine's numbers before and after a date
 # different systems. A trend spanning one gets a visible note, never a silent
-# "movement". (date, surface, note)
+# "movement"; an alert or a proof window spanning one says so (gap 2).
+# (date, surface, note)
 SERIES_BREAKS: list[tuple[str, SurfaceCode, str]] = [
     (
         "2026-09-27",
@@ -223,35 +225,88 @@ SERIES_BREAKS: list[tuple[str, SurfaceCode, str]] = [
         "Gemini (API) moved from Gemini 2.5 to Gemini 3.x models; "
         "a model change shifts answers, so compare like with like.",
     ),
+    (
+        "2026-10-08",
+        SurfaceCode.chatgpt_web,
+        "ChatGPT moved free users to GPT-6 on Oct 8, 2026 (paid tiers Oct 7); "
+        "answers before and after come from different models.",
+    ),
+    (
+        "2026-10-15",
+        SurfaceCode.google_aio,
+        "Google changed how AI Overviews and AI Mode show links on Oct 15, 2026: "
+        "more inline links and an official-site section.",
+    ),
+    (
+        "2026-10-15",
+        SurfaceCode.google_ai_mode,
+        "Google changed how AI Overviews and AI Mode show links on Oct 15, 2026: "
+        "more inline links and an official-site section.",
+    ),
+    (
+        "2026-10-29",
+        SurfaceCode.chatgpt_web,
+        "ChatGPT's Oct 29, 2026 update made free-tier answers more concise.",
+    ),
 ]
+
+# Breaks that only apply where the tenant searches from (its aio_geo gl):
+# (date, surface, note, countries).
+_GEO_SERIES_BREAKS: list[tuple[str, SurfaceCode, str, frozenset[str]]] = [
+    (
+        "2026-10-28",
+        SurfaceCode.google_ai_mode,
+        "Ads began showing in Google AI Mode in Canada on Oct 28, 2026.",
+        frozenset({"ca"}),
+    ),
+]
+
+
+def series_breaks(session: Session, tenant_id: int) -> list[tuple[str, SurfaceCode, str]]:
+    """SERIES_BREAKS plus the geo-specific ones for this tenant's search
+    country (the model's default is Canada, as the readiness check assumes)."""
+    tenant = session.get(Tenant, tenant_id)
+    gl = str((tenant.aio_geo or {}).get("gl", "ca") if tenant else "ca").lower()
+    return SERIES_BREAKS + [(d, s, n) for d, s, n, countries in _GEO_SERIES_BREAKS
+                            if gl in countries]
+
+
+def engine_breaks(session: Session, tenant_id: int, lo: str, hi: str) -> list[dict]:
+    """Engine changes that split a series between ISO dates lo (exclusive)
+    and hi (inclusive): the announced breaks for surfaces this tenant has
+    measured, plus observed model switches (the provider started serving a
+    different model, whether or not anyone announced it). Each item is
+    {date, surface, label, note}, oldest first. Shared by the trend notes,
+    the alert bar and the proof of fixes, so they never disagree."""
+    from api.answer_shape_service import model_timeline
+    from api.dashboards.common import _surface_label
+
+    measured = {
+        str(s) for s in session.exec(
+            select(col(Result.surface)).where(Result.tenant_id == tenant_id).distinct()
+        ).all()
+    }
+    notes = [
+        {"date": day, "surface": str(surface), "label": _surface_label(str(surface)),
+         "note": note}
+        for day, surface, note in series_breaks(session, tenant_id)
+        if lo < day <= hi and str(surface) in measured
+    ]
+    seen = {(n["date"], n["surface"]) for n in notes}
+    # The timeline's default window is 60 days; a proof window can start earlier.
+    days = max(60, (datetime.now(UTC).date() - datetime.fromisoformat(lo).date()).days + 1)
+    for ch in model_timeline(session, tenant_id, days=days):
+        if lo < ch["since"] <= hi and (ch["since"], ch["surface"]) not in seen:
+            notes.append({"date": ch["since"], "surface": ch["surface"], "label": ch["label"],
+                          "note": f"{ch['label']} started answering with {ch['model']}; "
+                                  "compare before and after with care."})
+    return sorted(notes, key=lambda n: n["date"])
 
 
 def _series_notes(session: Session, tenant_id: int, dates: list[str]) -> list[dict]:
     if not dates:
         return []
-    lo, hi = min(dates), max(dates)
-    notes = []
-    for date, surface, note in SERIES_BREAKS:
-        if not (lo < date <= hi):
-            continue
-        measured = session.exec(
-            select(func.count()).select_from(Result).where(
-                Result.tenant_id == tenant_id, Result.surface == surface
-            )
-        ).one()
-        if measured:
-            notes.append({"date": date, "surface": str(surface), "note": note})
-    # Observed model changes (the provider started serving a different model):
-    # a break in the series even when nobody announced it.
-    from api.answer_shape_service import model_timeline
-
-    seen = {(n["date"], n["surface"]) for n in notes}
-    for ch in model_timeline(session, tenant_id):
-        if lo < ch["since"] <= hi and (ch["since"], ch["surface"]) not in seen:
-            notes.append({"date": ch["since"], "surface": ch["surface"],
-                          "note": f"{ch['label']} started answering with {ch['model']}; "
-                                  "compare before and after with care."})
-    return sorted(notes, key=lambda n: n["date"])
+    return engine_breaks(session, tenant_id, min(dates), max(dates))
 
 
 def personas(

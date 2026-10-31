@@ -244,7 +244,7 @@ td.r, th.r { text-align: right; }
         <td class="r"><span class="pill {{ e.pill.cls }}">{{ e.pill.text }}</span></td></tr>
       {% else %}<tr><td colspan="6" class="empty">No engines measured yet.</td></tr>{% endfor %}
     </table>
-    <p class="small muted" style="margin-top:8px">We make ChatGPT and Perplexity search the web on every measured answer, though many everyday answers don't search. "Without forced search" uses answers where they chose for themselves, which is closer to what people see.</p>
+    <p class="small muted" style="margin-top:8px">We make ChatGPT and Perplexity search the web on every measured answer, though many everyday answers don't search. Free ChatGPT searched in roughly one answer in seven in Ahrefs' October 2026 study; paid tiers search far more often. "Without forced search" uses answers where they chose for themselves, which is closer to what people see.</p>
   </div>
 
   {% if c %}
@@ -365,7 +365,7 @@ td.r, th.r { text-align: right; }
     <div class="proof-head">
       <div><h3>{{ it.description }}</h3>
         <p class="small muted">Shipped {{ fmt_date(it.shipped_at) }}{% if it.path %} · {{ it.path }}{% endif %}{% if it.query %} · “{{ it.query }}”{% endif %}</p></div>
-      <span class="pill {{ 'pill-good' if it.status == 'proven' }}">{{ it.status|replace('_',' ')|capitalize }}</span>
+      <span class="pill {{ 'pill-good' if it.status == 'proven' else ('pill-bad' if it.status in ('worse', 'confounded')) }}">{{ it.status|replace('_',' ')|capitalize }}</span>
     </div>
     {% if it.headline %}<p style="margin-top:8px">{{ it.headline }}</p>{% endif %}
     {% if it.signals %}
@@ -393,8 +393,11 @@ td.r, th.r { text-align: right; }
   <div class="card block">
     <h3>How these numbers are measured</h3>
     <ul class="method">
-      <li>Each question is asked on every engine several times, with paraphrases, so one lucky answer can't move the score.</li>
+      <li>Questions are asked again on every run; on the Diagnose plan and above the API engines are also asked two or three times per run, so one lucky answer can't move the score.</li>
+      <li>Rates are over all answers, including answers naming no brand, so they are not comparable with tools that count only answers naming some brand or weight by search volume.</li>
+      {% if s and s.segment == 'generic' %}<li>Generic answers only; answers given to a persona (“I run a small bakery…”) are reported on the Personas page, not here.</li>{% endif %}
       <li>Rates show a 95% range. “Up” or “down” is only used when the change is unlikely to be chance.</li>
+      <li>A fix whose window overlaps an engine change (a new model, a new answer layout) is marked “confounded”: the engine's answers are left out, and a lift that survives only on the other engines is reported.</li>
       <li>Failed or blocked captures count as missing data, never as “not mentioned”.</li>
       <li>Sponsored placements are removed from organic numbers and reported separately.</li>
       {% if s and s.series_notes %}{% for n in s.series_notes[:4] %}<li>{{ fmt_date(n.date) }}: {{ n.note }}</li>{% endfor %}{% endif %}

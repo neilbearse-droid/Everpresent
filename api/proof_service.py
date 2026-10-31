@@ -15,6 +15,13 @@ ship date on every signal we hold, each against a control:
 
 Counts (reads, impressions, sessions) carry no sampling model here, so they
 are labelled directional; only the mention change is called "real".
+
+An engine change inside a window (a model switch, a layout change: see
+dashboards.overview.engine_breaks) moves answers on that engine for reasons
+that have nothing to do with the fix. That engine's answers are kept only
+from the state the fix shipped in, on both sides of the ship date; when
+that removes most of the data or no lift remains, the fix is "confounded"
+rather than proven.
 """
 
 from collections import defaultdict
@@ -105,6 +112,7 @@ def _count_signal(label: str, cells: dict[str, dict[str, float]], target: str,
 def intervention_proof(session: Session, tenant_id: int, days: int = WINDOW_DAYS,
                        today: date | None = None) -> dict[str, Any]:
     from api.dashboards.common import _off_score_query_texts
+    from api.dashboards.overview import engine_breaks
 
     today = today or datetime.now(UTC).date()
     ledger = session.exec(
@@ -117,7 +125,8 @@ def intervention_proof(session: Session, tenant_id: int, days: int = WINDOW_DAYS
     # Mentions: one pass over measured answers, bucketed by query and day.
     earliest = min(i.shipped_at for i in ledger).date() - timedelta(days=days + 1)
     rows = session.execute(
-        sa_select(col(Result.id), col(Result.query_text), col(Result.created_at)).where(
+        sa_select(col(Result.id), col(Result.query_text), col(Result.created_at),
+                  col(Result.surface)).where(
             col(Result.tenant_id) == tenant_id,
             col(Result.status) == ResultStatus.ok,
             col(Result.variant) == ResultVariant.search,
@@ -131,11 +140,13 @@ def intervention_proof(session: Session, tenant_id: int, days: int = WINDOW_DAYS
                col(Result.created_at) >= datetime(earliest.year, earliest.month, earliest.day,
                                                   tzinfo=UTC))
     ).scalars().all())
-    by_query: dict[str, list[tuple[date, bool]]] = defaultdict(list)
-    for rid, q, created in rows:
-        by_query[q].append((created.date(), rid in named))
+    by_query: dict[str, list[tuple[date, bool, str]]] = defaultdict(list)
+    for rid, q, created, surface in rows:
+        by_query[q].append((created.date(), rid in named, str(surface)))
     treated = {i.query_text for i in ledger}
     controls = set(by_query) - treated - _off_score_query_texts(session, tenant_id)
+    # Engine changes anywhere in the ledger's span; filtered per window below.
+    breaks = engine_breaks(session, tenant_id, earliest.isoformat(), today.isoformat())
 
     # Page-level counts, keyed by path then date.
     reads: dict[str, dict[str, float]] = defaultdict(lambda: defaultdict(float))
@@ -170,14 +181,33 @@ def intervention_proof(session: Session, tenant_id: int, days: int = WINDOW_DAYS
         shipped = item.shipped_at.date()
         w = _windows(shipped, today, days)
         b0, a0, a1, length = w
+        # An engine that changed inside [before_start, after_end) can't tell
+        # the fix from its own change. Its answers are kept only from the
+        # regime the fix shipped in: from the last change before the ship
+        # date up to the first change after it, on both sides, so before and
+        # after compare the same engine state.
+        confounding = [b for b in breaks if b0.isoformat() <= b["date"] < a1.isoformat()]
+        regime: dict[str, tuple[date, date]] = {}
+        for b in confounding:
+            lo, hi = regime.get(b["surface"], (b0, a1))
+            when = date.fromisoformat(b["date"])
+            if when <= shipped:
+                lo = max(lo, when)
+            else:
+                hi = min(hi, when)
+            regime[b["surface"]] = (lo, hi)
 
-        def tally(queries: set[str], lo: date, hi: date) -> tuple[int, int]:
+        def tally(queries: set[str], lo: date, hi: date,
+                  trim: dict[str, tuple[date, date]] = regime) -> tuple[int, int]:
             k = n = 0
             for q in queries:
-                for d, hit in by_query.get(q, ()):
-                    if lo <= d < hi:
-                        n += 1
-                        k += hit
+                for d, hit, surface in by_query.get(q, ()):
+                    if not lo <= d < hi:
+                        continue
+                    if surface in trim and not trim[surface][0] <= d < trim[surface][1]:
+                        continue
+                    n += 1
+                    k += hit
             return k, n
 
         kb, nb = tally({item.query_text}, b0, a0)
@@ -187,6 +217,18 @@ def intervention_proof(session: Session, tenant_id: int, days: int = WINDOW_DAYS
         delta = round(100.0 * (ka / na - kb / nb), 1) if na and nb else None
         cdelta = round(100.0 * (cka / cna - ckb / cnb), 1) if cna and cnb else None
         test = change_verdict(kb, nb, ka, na)
+        # The same test over every answer, to say whether a lift was there
+        # before the trim, and how much data the engine changes cost.
+        kb_all, nb_all = tally({item.query_text}, b0, a0, trim={})
+        ka_all, na_all = tally({item.query_text}, a0, a1, trim={})
+        test_all = change_verdict(kb_all, nb_all, ka_all, na_all)
+        lost_most = bool(regime) and 2 * (nb + na) < nb_all + na_all
+        left_out = ""
+        if confounding:
+            labels = ", ".join(sorted({b["label"] for b in confounding}))
+            dates = ", ".join(sorted({b["date"] for b in confounding}))
+            left_out = (f"{labels} answers limited to the engine state the fix shipped in "
+                        f"(engine change on {dates})")
         signals: list[dict[str, Any]] = [{
             "key": "mentions", "label": "Named in answers", "kind": "rate",
             "before": _rate(kb, nb), "after": _rate(ka, na), "before_n": nb, "after_n": na,
@@ -194,7 +236,8 @@ def intervention_proof(session: Session, tenant_id: int, days: int = WINDOW_DAYS
             "net_pts": round(delta - cdelta, 1) if delta is not None and cdelta is not None
             else None,
             "verdict": test["verdict"], "p_value": test["p_value"],
-            "note": f"answers to “{item.query_text}” vs all untouched questions",
+            "note": f"answers to “{item.query_text}” vs all untouched questions"
+                    + (f"; {left_out}" if left_out else ""),
         }]
         path = page_path(item.url)
         if path:
@@ -219,11 +262,19 @@ def intervention_proof(session: Session, tenant_id: int, days: int = WINDOW_DAYS
             status = "awaiting"
             headline = (f"Shipped {shipped.isoformat()}: {length} of {MIN_AFTER_DAYS} days "
                         "measured so far. Check back after a week of runs.")
+        elif confounding and (lost_most or test["verdict"] != "up"):
+            status = "confounded"
+            b = confounding[0]
+            headline = (f"An engine change on {b['date']} ({b['label']}) overlaps this "
+                        "window, so "
+                        + ("the lift" if test_all["verdict"] == "up" else "any lift")
+                        + " can't be attributed to the fix. " + b["note"])
         elif test["verdict"] == "up" and (cdelta is None or delta is None or delta > cdelta):
             status = "proven"
             headline = (f"Mention rate on this question is up {delta} points since the fix"
                         + (f", {round(delta - cdelta, 1)} more than the control"
-                           if delta is not None and cdelta is not None else "") + ".")
+                           if delta is not None and cdelta is not None else "") + "."
+                        + (f" {left_out[0].upper()}{left_out[1:]}." if left_out else ""))
         elif any(s.get("verdict") == "up vs control" for s in signals[1:]):
             status = "early"
             headline = "Page signals are up against the control; answers haven't moved yet."
@@ -244,7 +295,7 @@ def intervention_proof(session: Session, tenant_id: int, days: int = WINDOW_DAYS
             "id": item.id, "query": item.query_text, "description": item.description,
             "url": item.url, "path": path, "shipped_at": shipped.isoformat(),
             "window_days": length, "status": status, "headline": headline,
-            "signals": signals,
+            "signals": signals, "breaks": confounding,
         })
 
     counts: dict[str, int] = defaultdict(int)
@@ -253,5 +304,7 @@ def intervention_proof(session: Session, tenant_id: int, days: int = WINDOW_DAYS
     measured = len(items) - counts["awaiting"]
     summary = (f"{counts['proven']} of {measured} measured fixes show a real lift in answers"
                + (f"; {counts['early']} more show early page signals" if counts["early"] else "")
+               + (f"; {counts['confounded']} can't be read because an engine changed in the "
+                  "window" if counts["confounded"] else "")
                + "." if measured else "No fix has a full week of data after it yet.")
     return {"items": items, "window_days": days, "summary": summary, "counts": dict(counts)}

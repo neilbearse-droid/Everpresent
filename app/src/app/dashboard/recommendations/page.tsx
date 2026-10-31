@@ -54,7 +54,7 @@ const NEXT_ACTIONS: Record<string, { to: Recommendation["status"]; label: string
 const DONTS: { title: string; why: string }[] = [
   {
     title: "Publishing your own “best X” rankings",
-    why: "A list where you rank yourself first is easy for engines to discount, and Google's August and September 2026 spam updates target self-promotional listicles.",
+    why: "A list where you rank yourself first is easy for engines to discount. Google extended its spam policies to manipulating AI answers on May 15, 2026 and enforced them in the June and August 2026 spam updates; self-ranked “best of” lists and scaled “alternatives” pages are the exposed formats.",
   },
   {
     title: "Hidden instructions for AI (“Summarize with AI” prompts, invisible text)",

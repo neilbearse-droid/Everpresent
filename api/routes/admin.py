@@ -29,7 +29,14 @@ from api.models import (
 )
 from api.runs_service import RunInFlight, month_spend_usd, run_detail_payload, trigger_run
 from api.storage import read_raw_envelope
-from api.yaml_import import ConfigImportError, import_config, parse_config_yaml
+from api.yaml_import import (
+    ConfigImportError,
+    auto_branded_texts,
+    import_config,
+    names_brand,
+    parse_config_yaml,
+    recheck_branded,
+)
 from engine.llm.policy import RUNTIME_LLM_ALLOWLIST
 
 router = APIRouter(prefix="/admin", dependencies=[Depends(require_superadmin)])
@@ -245,7 +252,10 @@ def import_yaml(
         session, tenant_id=tenant.id, actor=admin.user.email, action=f"tenant.import-yaml {slug}"
     )
     session.commit()
-    return {"imported": counts, "brand": spec.brand.name}
+    # auto_branded: questions the file left unbranded that name the brand and
+    # were filed as branded (out of the competitive score) by the import rule.
+    return {"imported": counts, "brand": spec.brand.name,
+            "auto_branded": auto_branded_texts(spec)}
 
 
 class DemoClientRequest(BaseModel):
@@ -387,7 +397,8 @@ def import_seed(slug: str, payload: SeedImport, session: Db, admin: Admin) -> di
         action=f"tenant.import-seed {slug} <- {payload.name}",
     )
     session.commit()
-    return {"imported": counts, "brand": spec.brand.name}
+    return {"imported": counts, "brand": spec.brand.name,
+            "auto_branded": auto_branded_texts(spec)}
 
 
 @router.post("/tenants/{slug}/agent-log-token")
@@ -526,7 +537,8 @@ def result_raw(result_id: int, session: Db) -> dict:
 def access_audit(slug: str, session: Db, admin: Admin) -> dict:
     """AI-crawler access audit: probes the tenant's brand domains for
     robots.txt AI-agent rules, CDN bot-blocking, llms.txt, and homepage
-    schema. Live outbound HTTP (a few requests per domain); on-demand only."""
+    schema. Live outbound HTTP (about eight requests per domain, one per crawler
+    user agent); on-demand only."""
     from engine.audit.access import audit_domains
 
     tenant = _tenant_or_404(session, slug)
@@ -771,18 +783,10 @@ class QueriesAdd(BaseModel):
     text: str
 
 
-# "Botnia Skincare" is also called just "Botnia": a trailing generic word on
-# the brand name is optional when deciding whether a question names the brand.
-_GENERIC_SUFFIX = re.compile(
-    r"\s+(skincare|skin care|cosmetics|beauty|labs?|inc\.?|co\.?|ltd\.?|llc|company|group)$",
-    re.IGNORECASE,
-)
-
-
-def _names_brand(text: str, names: list[str]) -> bool:
-    names = names + [_GENERIC_SUFFIX.sub("", n) for n in names]
-    lowered = text.lower()
-    return any(re.search(rf"\b{re.escape(n.lower())}\b", lowered) for n in names if n.strip())
+# The brand-naming rule lives in api.yaml_import so the add box and the YAML
+# import file the same questions as branded; kept under its old name here for
+# existing imports.
+_names_brand = names_brand
 
 
 @router.post("/tenants/{slug}/queries", status_code=201)
@@ -804,7 +808,7 @@ def add_queries(slug: str, payload: QueriesAdd, session: Db, admin: Admin) -> di
     if any(len(line) > 500 for line in lines):
         raise HTTPException(status_code=422, detail="A question is over 500 characters")
     brand = session.exec(select(BrandProfile).where(BrandProfile.tenant_id == tenant.id)).first()
-    names = [brand.brand_name, *brand.aliases] if brand else [tenant.name]
+    names = [brand.brand_name, *brand.aliases, *brand.domains] if brand else [tenant.name]
     seen = {q.text.strip().lower() for q in session.exec(
         select(Query).where(Query.tenant_id == tenant.id)).all()}
     added: list[Query] = []
@@ -827,6 +831,21 @@ def add_queries(slug: str, payload: QueriesAdd, session: Db, admin: Admin) -> di
         "branded": sum(q.branded for q in added),
         "skipped_duplicates": skipped,
     }
+
+
+@router.post("/tenants/{slug}/queries/recheck-branded")
+def recheck_branded_queries(slug: str, session: Db, admin: Admin) -> dict:
+    """Apply the brand-naming rule to the stored questions: unbranded ones that
+    name the brand become branded (rows imported before the import applied the
+    rule). Lists what flipped. Live reads re-scope at once; run "Reprocess
+    history" afterwards so the daily rows are rebuilt without them."""
+    tenant = _tenant_or_404(session, slug)
+    assert tenant.id is not None
+    flagged = recheck_branded(session, tenant.id)
+    write_audit(session, tenant_id=tenant.id, actor=admin.user.email,
+                action=f"queries.recheck-branded {slug} +{len(flagged)}")
+    session.commit()
+    return {"flagged": flagged, "count": len(flagged)}
 
 
 class QueryBrandedPatch(BaseModel):

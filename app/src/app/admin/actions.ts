@@ -148,13 +148,25 @@ export async function rotateAgentLogToken(
   };
 }
 
+type ImportResult = {
+  imported: Record<string, number>;
+  brand: string;
+  // Unbranded questions the import filed as branded because they name the brand.
+  auto_branded?: string[];
+};
+
+function autoBranded(data: ImportResult): string {
+  const list = data.auto_branded ?? [];
+  return list.length ? ` Filed as branded (they name the brand): ${list.join(" · ")}.` : "";
+}
+
 export async function importSeed(
   slug: string,
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
   const name = String(formData.get("seed") ?? "");
-  const res = await apiFetch<{ imported: Record<string, number>; brand: string }>(
+  const res = await apiFetch<ImportResult>(
     `/api/admin/tenants/${slug}/import-seed`,
     {
       method: "POST",
@@ -167,7 +179,7 @@ export async function importSeed(
   const counts = Object.entries(res.data!.imported)
     .map(([k, v]) => `${k}: ${v}`)
     .join(", ");
-  return { ok: true, message: `Loaded ${res.data!.brand}: ${counts}` };
+  return { ok: true, message: `Loaded ${res.data!.brand}: ${counts}${autoBranded(res.data!)}` };
 }
 
 export async function createTenant(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -189,7 +201,7 @@ export async function importYaml(
   formData: FormData,
 ): Promise<ActionState> {
   const yamlText = String(formData.get("yaml") ?? "");
-  const res = await apiFetch<{ imported: Record<string, number>; brand: string }>(
+  const res = await apiFetch<ImportResult>(
     `/api/admin/tenants/${slug}/import-yaml`,
     { method: "POST", headers: { "Content-Type": "text/plain" }, body: yamlText },
   );
@@ -198,7 +210,28 @@ export async function importYaml(
   const counts = Object.entries(res.data!.imported)
     .map(([k, v]) => `${k}: ${v}`)
     .join(", ");
-  return { ok: true, message: `Imported ${res.data!.brand}: ${counts}` };
+  return { ok: true, message: `Imported ${res.data!.brand}: ${counts}${autoBranded(res.data!)}` };
+}
+
+export async function recheckBranded(
+  slug: string,
+  _prev: ActionState,
+  _formData: FormData,
+): Promise<ActionState> {
+  const res = await apiFetch<{ flagged: string[]; count: number }>(
+    `/api/admin/tenants/${slug}/queries/recheck-branded`,
+    { method: "POST" },
+  );
+  if (!res.ok || !res.data) return { ok: false, message: res.error ?? "Could not re-check" };
+  revalidatePath(`/admin/${slug}`);
+  const { flagged, count } = res.data;
+  return {
+    ok: true,
+    message: count
+      ? `${count} question${count === 1 ? "" : "s"} now branded: ${flagged.join(" · ")}. ` +
+        "Click Reprocess history so the daily numbers are rebuilt without them."
+      : "Every question naming the brand is already branded.",
+  };
 }
 
 export async function patchTenant(slug: string, patch: Record<string, unknown>): Promise<void> {

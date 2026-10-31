@@ -183,6 +183,7 @@ def _cover_and_scorecard(session: Session, tenant_id: int) -> dict:
     return {
         "brand": brand,
         "window": mr.get("window") or {},
+        "segment": mr.get("segment"),
         "verdict": (brief.get("winning") or {}),
         "focus": brief.get("focus"),
         "overall": overall,

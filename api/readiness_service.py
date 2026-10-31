@@ -265,8 +265,9 @@ def engine_readiness(session: Session, tenant: Tenant) -> dict:
         {
             "label": "Run schedule set",
             "ok": schedule is not None and schedule.enabled,
-            "hint": "Run schedule → 3x/week (0 13 * * 1,3,5) builds trend lines with "
-            "enough samples for real confidence ranges.",
+            "hint": "Run schedule → 3×/week (0 12 * * 1,3,5) keeps a Diagnose client under "
+            "its monthly cap; whether that is enough samples depends on the plan, see the "
+            "sample planner.",
         },
     ]
     from api.health_service import system_checks

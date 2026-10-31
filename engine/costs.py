@@ -103,9 +103,12 @@ def estimate_anthropic_cost_usd(
 
 
 # Google Gemini (§6.1). Token prices per 1M; grounding billed per 1k requests.
-# Gemini 3.x figures are from third-party price trackers (Sept 2026; sources
-# disagree on a temporary 3.6 Flash discount), so the HIGHER list price is used
-# to keep the spend cap conservative. Verify against ai.google.dev/pricing.
+# Gemini 3.x TOKEN prices are from third-party price trackers (Sept 2026;
+# sources disagree on a temporary 3.6 Flash discount), so the HIGHER list price
+# is used to keep the spend cap conservative. The grounding price ($14 per
+# 1,000 search queries, after 5,000 free searches a month, not modelled here)
+# is on Google's own pricing page (ai.google.dev/gemini-api/docs/pricing, read
+# Oct 2026). Verify the token prices against that page.
 GEMINI_TOKEN_PRICES: dict[str, tuple[float, float]] = {
     "gemini-3.6-flash": (1.50, 7.50),
     "gemini-3.5-flash-lite": (0.30, 2.50),

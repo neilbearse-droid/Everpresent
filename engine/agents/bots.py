@@ -53,7 +53,7 @@ BOTS: tuple[Bot, ...] = (
     Bot("Gemini-Deep-Research", "Gemini Deep Research", "Google", "user"),
     Bot("Google-CloudVertexBot", "Google-CloudVertexBot", "Google", "user"),
     Bot("GoogleOther", "GoogleOther", "Google", "training"),
-    # Microsoft (Bing index feeds Copilot and ChatGPT search)
+    # Microsoft (Bing's index feeds Copilot and, by most accounts, ChatGPT search)
     Bot("bingbot", "Bingbot", "Microsoft", "search"),
     # Apple
     Bot("Applebot", "Applebot", "Apple", "search"),

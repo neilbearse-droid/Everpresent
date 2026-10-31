@@ -71,10 +71,12 @@ async def capture(
     if not api_key:
         raise RuntimeError("SERPAPI_KEY is not set on the worker")
     started = time.monotonic()
+    # The worker passes the tenant's geo with every key filled; this fallback
+    # is for direct calls and matches google_aio's (and the tenant default).
     params = {
         "engine": "google_ai_mode",
         "q": query_text,
-        "gl": str(geo.get("gl") or "us"),
+        "gl": str(geo.get("gl") or "ca"),
         "hl": str(geo.get("hl") or "en"),
         "api_key": api_key,
     }

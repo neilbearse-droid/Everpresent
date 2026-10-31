@@ -46,9 +46,19 @@ class PlanLimits:
     shard_probes_per_run: int = 0
     # Repeated sampling (Mode A, generic cells only): answers to the same
     # question vary run to run, so each run takes this many samples of every
-    # generic query x engine cell, rotating through the query's paraphrases.
-    # Persona cells stay at 1. See research "AEO deep dive" sampling design.
+    # generic query x engine cell. The first sample asks the canonical text;
+    # the extras rotate through the query's paraphrases, offset by run, so
+    # over consecutive runs every wording is asked. Persona cells stay at 1.
+    # See research "AEO deep dive" sampling design.
     samples_per_cell: int = 1
+    # Natural search-routing probe (§AEO-plan M2): the share of queries that
+    # also get an un-forced call on the engines that force search, so the
+    # "what users see" rate has data. None = the deployment setting
+    # (NATURAL_PROBE_FRACTION; 0.34 on Render). Diagnose and above probe every
+    # query so the unforced series has the headline's n. Cost: about $0.03 per
+    # query per run on OpenAI and $0.01 on Perplexity, so roughly $20-25 a
+    # month for 50 questions at 3x/week.
+    natural_probe_fraction: float | None = None
 
 
 PLANS: dict[str, PlanLimits] = {
@@ -62,12 +72,14 @@ PLANS: dict[str, PlanLimits] = {
         diagnosis=True, model_tier="standard", outcome=True,
         max_runs_per_day=1, monthly_price_usd=549, max_locations=1,
         shard_probes_per_prompt=2, shard_probes_per_run=15, samples_per_cell=2,
+        natural_probe_fraction=1.0,
     ),
     "command": PlanLimits(
         "Command", max_prompts=None, max_personas=None, max_engines=None,
         diagnosis=True, model_tier="premium", outcome=True,
         max_runs_per_day=None, monthly_price_usd=2900, max_locations=5,
         shard_probes_per_prompt=5, shard_probes_per_run=15, samples_per_cell=3,
+        natural_probe_fraction=1.0,
     ),
     "custom": PlanLimits(
         "Custom", max_prompts=None, max_personas=None, max_engines=None,
@@ -85,10 +97,14 @@ def limits_for(plan: str | None) -> PlanLimits:
 
 
 # When several engines must be dropped to fit max_engines, keep them in this
-# canonical order (the most-used answer engines first) rather than alphabetical.
+# canonical order rather than alphabetical: the most-used answer engines first.
+# Ordered 31 Oct 2026 on Similarweb, Sept 2026 visits: ChatGPT 56%, Gemini 25%,
+# Claude 10%, Perplexity under 1%; Google AI Overviews appear on roughly 40% of
+# US searches (third-party trackers). An AI Overviews capture is also cheaper
+# than a Perplexity call, so the reorder is cost-neutral.
 ENGINE_PRIORITY: list[str] = [
-    "openai_api", "perplexity_api", "claude_api", "gemini_api", "meta_api",
-    "chatgpt_web", "perplexity_web", "copilot_web", "google_aio", "google_ai_mode",
+    "openai_api", "gemini_api", "google_aio", "claude_api", "google_ai_mode",
+    "perplexity_api", "chatgpt_web", "copilot_web", "meta_api", "perplexity_web",
     "gemini_web", "meta_muse",
 ]
 
@@ -117,8 +133,9 @@ MODEL_TIERS: dict[str, dict[str, str]] = {
         "standard": "claude-sonnet-4-6",
         "premium": "claude-sonnet-4-6",
     },
-    # Gemini 3.x (2.5 Pro is deprecated for 2026-10-16). Gemini 4 "Argon" was
-    # announced 2026-09-30 but isn't generally available yet.
+    # Gemini 3.x (2.5 Pro is deprecated for 2026-10-16). Gemini 4 "Argon":
+    # announced 30 Sept; GA 13 Oct 2026 (API; AI Mode for paid tiers). The
+    # tier re-pin is a separate decision (not this week).
     "gemini_api": {"economy": "gemini-3.5-flash-lite", "standard": "gemini-3.6-flash",
                    "premium": "gemini-3.1-pro-preview"},
     # Muse Spark is the model the Meta AI app serves, so every tier measures it.

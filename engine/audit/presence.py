@@ -147,9 +147,9 @@ _CAPSULE_WINDOW = 6000  # how far after a heading to look for its answer
 
 def _has_answer_capsule(html: str) -> bool:
     """A ~40-60 word direct answer immediately under a question-format heading —
-    Common on cited pages (industry studies). Detected on HTML structure (robust to
-    source line-wrapping): a question heading followed by a paragraph of
-    answer-capsule length."""
+    Reported on cited pages by practitioners; not a controlled result. Detected
+    on HTML structure (robust to source line-wrapping): a question heading
+    followed by a paragraph of answer-capsule length."""
     for i, m in enumerate(_HEADING_RE.finditer(html)):
         if i >= _MAX_HEADINGS:
             break

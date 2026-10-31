@@ -424,6 +424,9 @@ export type UnforcedRate = {
 
 export type MentionRates = {
   window: { start: string; end: string; split: string };
+  /** Which answers the rates stand for: "generic" (no persona) when the
+   * tenant has a generic cell, else "all" segments (legacy persona mode). */
+  segment?: "generic" | "all";
   overall: MentionRate & {
     unforced?: UnforcedRate | null;
     /** Forced engines without unforced answers yet (the pooled rate waits). */
@@ -453,6 +456,8 @@ export type TopicRow = MentionRate & {
 
 export type KpiScorecard = {
   brand_name: string;
+  /** Which answers the scorecard stands for (see MentionRates.segment). */
+  segment?: "generic" | "all";
   /** Headline: pooled mention rate with 95% ranges (absent on an older API). */
   mention_rates?: MentionRates;
   /** The same metrics split by question topic (absent on an older API). */
@@ -681,8 +686,11 @@ export type AccessAuditDomain = {
   has_llms_txt: boolean;
   has_json_ld: boolean;
   status_normal: number | null;
+  /** GPTBot's status (training crawler); the per-bot probes are in ua_probes. */
   status_bot: number | null;
+  /** True when a search-class crawler is refused by user agent. */
   ua_blocked: boolean;
+  ua_probes?: { agent: string; kind: string; status: number | null; blocked: boolean }[];
   rendering: AccessRendering;
   entity: {
     has_sameas: boolean;
@@ -1008,9 +1016,11 @@ export type Proof = {
     path: string;
     shipped_at: string;
     window_days: number;
-    status: "proven" | "early" | "no_change" | "worse" | "awaiting";
+    status: "proven" | "early" | "no_change" | "worse" | "awaiting" | "confounded";
     headline: string;
     signals: ProofSignal[];
+    /** Engine changes inside this window; their answers were left out. */
+    breaks?: { date: string; surface: string; label: string; note: string }[];
   }[];
 };
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { addQueries, setQueryBranded, type ActionState } from "../actions";
+import { addQueries, recheckBranded, setQueryBranded, type ActionState } from "../actions";
 
 export type AdminQuery = {
   id: number;
@@ -61,11 +61,40 @@ function AddQueriesForm({ slug }: { slug: string }) {
           {pending ? "Adding…" : "Add questions"}
         </button>
         <span className="text-xs text-[var(--text-3)]">
-          Questions naming the brand are filed as branded. Duplicates are skipped.
+          Questions naming the brand are filed as branded, whether added here or imported.
+          Duplicates are skipped.
         </span>
       </div>
       {state && (
         <p className={`text-xs ${state.ok ? "text-[var(--text-2)]" : "text-[var(--neg)]"}`}>
+          {state.message}
+        </p>
+      )}
+    </form>
+  );
+}
+
+function RecheckBrandedForm({ slug }: { slug: string }) {
+  const [state, action, pending] = useActionState<ActionState, FormData>(
+    recheckBranded.bind(null, slug),
+    null,
+  );
+  return (
+    <form action={action} className="mb-3">
+      <div className="flex items-center gap-3">
+        <button
+          disabled={pending}
+          className="btn px-3 text-[12.5px] disabled:opacity-50"
+          title="Questions imported before the import applied the brand-naming rule may still count as competitive."
+        >
+          {pending ? "Checking…" : "Re-check branded"}
+        </button>
+        <span className="text-xs text-[var(--text-3)]">
+          Files any competitive question that names the brand as branded. Reprocess history afterwards.
+        </span>
+      </div>
+      {state && (
+        <p className={`mt-2 text-xs ${state.ok ? "text-[var(--text-2)]" : "text-[var(--neg)]"}`}>
           {state.message}
         </p>
       )}
@@ -89,6 +118,7 @@ export function QueriesPanel({ slug, queries }: { slug: string; queries: AdminQu
         next processed run.
       </p>
       <AddQueriesForm slug={slug} />
+      <RecheckBrandedForm slug={slug} />
       <ul className="space-y-2">
         {queries.map((q) => (
           <li key={q.id} className="flex items-center justify-between gap-3 text-sm">

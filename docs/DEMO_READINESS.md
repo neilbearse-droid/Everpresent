@@ -40,7 +40,7 @@ At `/admin/godaddy`:
 - [ ] **Governance → Turn on Claude features** (Whitespace page + corrective-content and brief buttons).
 - [ ] **Governance → Monthly spend cap**: at least **$300** for demo week. Too low and calls come back WITHHELD.
 - [ ] **Governance → Fan-out re-probe: on**.
-- [ ] **Run schedule**: `0 12 * * 1,3,5` (Mon/Wed/Fri, 12:00 UTC ≈ 8am ET), enabled. Daily costs ~2.3× more for little extra signal.
+- [ ] **Run schedule**: `0 12 * * 1,3,5` (Mon/Wed/Fri, 12:00 UTC ≈ 8am ET), enabled. 3×/week keeps a Diagnose client under its $50 cap; daily would cost about 2.3× more and detect changes about a third smaller (more answers, narrower ranges).
 - [ ] **Brand fact sheet**: confirm the domain-privacy fact matches GoDaddy's real policy (it's a placeholder).
 
 ## 4. First verification run (20 minutes)

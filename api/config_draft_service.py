@@ -25,7 +25,7 @@ from sqlmodel import Session, func, select
 
 from api.config import get_settings
 from api.models import SpendEntry, Tenant, utcnow
-from api.yaml_import import ConfigImportError, parse_config_yaml
+from api.yaml_import import ConfigImportError, auto_branded_texts, parse_config_yaml
 
 DRAFTS_PER_HOUR = 10
 PAGE_CHARS = 6000
@@ -172,12 +172,12 @@ def draft_config(
     if not any(p.segment == "generic" or not p.prompt.strip() for p in spec.personas):
         warnings.append("No generic baseline persona: add one so every question also runs "
                         "without a persona.")
-    unbranded = [q for q in spec.queries if not q.branded]
-    names = [spec.brand.name.lower(), *[a.lower() for a in spec.brand.aliases]]
-    leaky = [q.text for q in unbranded if any(n and n in q.text.lower() for n in names)]
+    # The same rule the import applies, so the warning matches what will happen.
+    leaky = auto_branded_texts(spec)
     if leaky:
-        warnings.append(f"{len(leaky)} category question(s) name the brand; they would "
-                        "inflate the mention rate. Mark them branded or reword them.")
+        warnings.append(f"{len(leaky)} category question(s) name the brand and will be filed "
+                        "as branded on import (they don't count toward the mention rate). "
+                        "Reword them if they were meant to be competitive.")
 
     header = (f"# Draft config for {domain}, written by the drafting model from the\n"
               "# homepage. Review every line before importing: competitors and\n"

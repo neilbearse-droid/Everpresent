@@ -63,7 +63,7 @@ personas:
 queries:
   - { text: "What is the best MBA program in Canada?", corpus: core }
   - { text: "Smith School of Business MBA review", corpus: brand, branded: true }
-  - { text: "Rotman vs Ivey vs Smith MBA — which should I choose?", corpus: competitive }
+  - { text: "Rotman vs Ivey vs Smith MBA — which should I choose?", corpus: competitive, branded: true }
   - { text: "Best one-year MBA programs in Canada", corpus: core }
   - { text: "Which Canadian MBA has the best career outcomes?", corpus: core }
   - { text: "Best master's in management analytics in Canada", corpus: analytics }

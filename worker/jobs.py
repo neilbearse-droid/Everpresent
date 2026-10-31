@@ -22,6 +22,7 @@ from api.fanout_service import (
     shard_priority,
 )
 from api.models import (
+    DEFAULT_AIO_GEO,
     BrandProfile,
     Citation,
     Competitor,
@@ -716,19 +717,23 @@ async def _run_mode_a(run_id: int) -> None:
         for (qid, qtext, (pid, pname, pprompt, pseg)) in cells
     ]
     # Repeated sampling: extra samples of each GENERIC cell (persona cells stay
-    # at one), rotating through the query's paraphrases. Answers vary run to
-    # run; pooled samples are what the mention-rate confidence range is made of.
+    # at one). The first sample asks the canonical text; the extras rotate
+    # through the query's paraphrases, offset by run as well as by sample, so
+    # a plan with two samples still reaches every paraphrase over consecutive
+    # runs (a fixed offset asked only the first one, run after run). Answers
+    # vary run to run; pooled samples are what the mention-rate confidence
+    # range is made of.
     extra = max(0, limits.samples_per_cell - 1)
     if extra:
         for s in configured:
             for (qid, qtext, (pid, pname, pprompt, pseg)) in cells:
                 if pseg != _GENERIC_SEGMENT:
                     continue
-                wordings = [qtext, *paraphrases_by_qid.get(qid, [])]
+                pool = paraphrases_by_qid.get(qid) or [qtext]
                 for r in range(1, extra + 1):
                     work.append(_AWorkItem(
                         qid, qtext, pid, pname, pprompt, pseg, s, ResultVariant.search,
-                        asked_text=wordings[r % len(wordings)],
+                        asked_text=pool[(r - 1 + run_id) % len(pool)],
                     ))
     baseline = _baseline_persona(personas)
     if baseline is not None and limits.diagnosis:
@@ -743,8 +748,12 @@ async def _run_mode_a(run_id: int) -> None:
 
     # M2 natural routing probe: an un-forced call on a deterministic fraction of
     # queries, for the surfaces that force search (only those hide routing).
-    # Baseline persona only; measurement-only, excluded from scoring.
-    probe_frac = getattr(settings, "natural_probe_fraction", 0.0)
+    # Baseline persona only; measurement-only, excluded from scoring. The plan
+    # sets the fraction (Diagnose and above probe every query); a plan without
+    # one uses the deployment setting.
+    probe_frac = limits.natural_probe_fraction
+    if probe_frac is None:
+        probe_frac = getattr(settings, "natural_probe_fraction", 0.0)
     forced_surfaces = [s for s in configured if A_ADAPTERS[s].forces_search]
     if baseline is not None and probe_frac > 0 and forced_surfaces and queries:
         n_probe = max(1, round(probe_frac * len(queries)))
@@ -806,6 +815,7 @@ async def _run_mode_a(run_id: int) -> None:
                 query_id=wi.query_id,
                 persona_id=wi.persona_id,
                 query_text=wi.query_text,
+                asked_text=wi.asked_text or wi.query_text,
                 persona_name=wi.persona_name,
                 persona_segment=wi.persona_segment,
                 surface=SurfaceCode(wi.surface),
@@ -894,6 +904,7 @@ async def _run_mode_a(run_id: int) -> None:
                         query_id=qid_by_text.get(qtext),
                         persona_id=bpid0,
                         query_text=qtext,
+                        asked_text=qtext,
                         persona_name=bpname0,
                         persona_segment=bpseg0,
                         surface=SurfaceCode(twin_surface),
@@ -947,8 +958,12 @@ async def _run_mode_b(run_id: int) -> None:
         tenant_slug = tenant.slug
         # Guard legacy rows: M6 backfilled aio_geo NULL on pre-existing tenants
         # (no server_default), and default_factory fires only on construction,
-        # not on load — so a migrated row can load None here.
-        aio_geo = dict(tenant.aio_geo or {"gl": "ca", "hl": "en"})
+        # not on load — so a migrated row can load None here. Missing keys are
+        # filled from the default too, so the geo handed to google_aio and
+        # google_ai_mode is complete and neither adapter's own fallback (which
+        # differ) decides where a tenant searches from.
+        aio_geo = {**DEFAULT_AIO_GEO,
+                   **{k: v for k, v in (tenant.aio_geo or {}).items() if v not in (None, "")}}
         # §9 cost governance: Mode B (scraping + SerpApi) is charged against the
         # same monthly cap as token spend. month_spent_before already includes
         # this run's Mode A cost (committed before B started).
@@ -1167,6 +1182,7 @@ async def _run_mode_b(run_id: int) -> None:
                 query_id=wi.query_id,
                 persona_id=wi.persona_id,
                 query_text=wi.query_text,
+                asked_text=wi.query_text,
                 persona_name=wi.persona_name,
                 persona_segment=wi.persona_segment,
                 surface=SurfaceCode(wi.surface),
@@ -1431,6 +1447,7 @@ async def _run_fanout_reprobe(run_id: int) -> None:
                 tenant_id=tenant_id,
                 persona_id=wi.persona_id,
                 query_text=wi.query_text,
+                asked_text=wi.query_text,
                 persona_name=wi.persona_name,
                 persona_segment=wi.persona_segment,
                 surface=SurfaceCode(wi.surface),

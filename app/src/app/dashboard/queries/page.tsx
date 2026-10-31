@@ -87,7 +87,8 @@ export default async function QueriesPage({
           Web search is how likely an engine is to search the web for a query instead of
           answering from memory, judged by comparing its answers with and without search. Answers
           come from two places: the engines&apos; developer APIs (more answers) and their public
-          websites (closest to what people see). Compare puts the two side by side.
+          websites (closest to what a signed-out, free-tier user sees: no memory, ads possible).
+          Compare puts the two side by side.
         </p>
         {queries.length === 0 ? (
           <p className="text-sm text-[var(--text-3)]">No queries configured.</p>

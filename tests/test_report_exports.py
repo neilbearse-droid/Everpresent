@@ -33,6 +33,10 @@ def test_report_html_carries_every_section(db_session, demo_tenant):
     assert "/help/plans" in html                          # the fact conflict
     assert "<svg" in html                                 # the trend chart
     assert "Down " in html and "pill-bad" in html  # Claude's drop, bad news in ink
+    # The method says which answers the rates stand for (the demo has a
+    # generic persona cell) and what the denominator is.
+    assert "Generic answers only" in html
+    assert "Rates are over all answers, including answers naming no brand" in html
 
 
 def test_report_pdf_renders(db_session, demo_tenant):

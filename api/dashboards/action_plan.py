@@ -209,6 +209,7 @@ def _lost_citations(session: Session, tenant_id: int) -> dict:
 
 
 _MAX_DIFF_WINNERS = 3
+_THIN_PAGE_WORDS = 250  # below this a page rarely covers the sub-questions
 
 
 def _citability_diff(
@@ -298,17 +299,21 @@ def _citability_diff(
                 f"yours has {yf.get('statistic_count', 0)}. Add specific figures a reader "
                 f"can check: pages with numbers, definitions and comparisons get cited more"
             )
-        if yf.get("word_count", 0) < spec["word_count"] * 0.5:
+        # Length is not a lever: word count correlated 0.04 with AI Overview
+        # citations across 174k pages (Ahrefs, 2026) and shorter focused pages
+        # beat long guides (Indig). Only a page too short to cover anything
+        # gets a coverage note.
+        if yf.get("word_count", 0) < _THIN_PAGE_WORDS:
             gaps.append(
-                f"Winning pages run ~{spec['word_count']} words; yours is "
-                f"{yf.get('word_count', 0)}. It's likely too thin to cite"
+                f"This page is under {_THIN_PAGE_WORDS} words; pages that short rarely "
+                "answer the sub-questions engines search for. Cover them, don't pad"
             )
         # 3. Second-order formatting: helps once retrieved.
         if spec["has_answer_capsule"] and not yf.get("has_answer_capsule"):
             gaps.append(
-                "Winning pages open sections with a short direct answer under a question "
-                "heading (an answer capsule); yours doesn't. Worth adding, though it only "
-                "helps once engines already find the page"
+                "Winning pages put a short direct answer under the first heading (an "
+                "answer capsule); yours doesn't. Practitioner evidence, not a controlled "
+                "result: it may help once engines already find the page"
             )
         if spec["front_loaded"] and not yf.get("front_loaded"):
             gaps.append(
@@ -556,13 +561,17 @@ def action_plan(session: Session, tenant_id: int) -> dict:
     }
 
 
-# Queries whose natural self-published answer is a ranked "best X" list or an
-# "alternatives"/"vs" page — the formats Google's 2026 spam policy and the
-# June 2026 spam update targeted (self-promotional listicles, scaled
-# alternatives pages). For these, the safe play is earned placement on
-# third-party lists, not publishing your own ranking.
+# Queries whose natural self-published answer is a self-ranked list: "best X",
+# "top 10 X", "cheapest X", "X alternatives", with or without a count or year.
+# Google extended its spam policies to manipulating generative AI responses on
+# 15 May 2026 and enforced them in the June and August 2026 spam updates;
+# self-ranked "best of" lists and scaled "alternatives" pages are the exposed
+# formats. Comparison questions ("X vs Y") are not in this set: the brief
+# itself asks for an honest comparison table. For the listed forms the safe
+# play is earned placement on third-party lists, not publishing your own
+# ranking.
 _LISTICLE_RE = re.compile(
-    r"\b(best|top|cheapest|alternatives?|vs\.?|versus|compare|comparison|which is better)\b",
+    r"\b(?:(?:top|best)\s+\d+|best|top|cheapest|alternatives?)\b",
     re.IGNORECASE,
 )
 
@@ -576,9 +585,10 @@ def _spam_risk(query: str) -> dict | None:
             "Don't answer this with your own ranked 'best X' list or an "
             "'alternatives' page. These earn few AI mentions and carry spam risk: in "
             "Search Engine Land's September 2026 experiments, placement on third-party "
-            "lists drove far more AI mentions than brands' own lists, and Google's August "
-            "and September 2026 spam updates target "
-            "self-promotional listicles and attempts to steer AI answers. Earn a place "
+            "lists drove far more AI mentions than brands' own lists, and Google's spam "
+            "policies have covered manipulating AI answers since May 15, 2026, enforced "
+            "in the June and August 2026 spam updates; self-ranked 'best of' lists and "
+            "scaled 'alternatives' pages are the exposed formats. Earn a place "
             "on the third-party pages engines already cite (target sources), and "
             "publish an honest comparison that says where competitors fit better."
         ),
@@ -612,7 +622,8 @@ def _brief_outline(
     )
     outline.append(
         "Show a visible 'Updated <month year>' and re-check the facts every quarter; "
-        "after each update, request a recrawl (IndexNow for Bing/Copilot/ChatGPT, "
-        "Search Console for Google)"
+        "after each update, request a recrawl (IndexNow for Bing, which feeds Copilot "
+        "and, by most accounts, ChatGPT search; URL Inspection in Search Console for "
+        "Google; ChatGPT, Perplexity and Claude have no recrawl request)"
     )
     return outline

@@ -7,6 +7,7 @@ const STATUS: Record<Proof["items"][number]["status"], string> = {
   no_change: "No change yet",
   worse: "Down",
   awaiting: "Measuring",
+  confounded: "Confounded",
 };
 
 function signed(n: number | null | undefined, unit: string) {
@@ -80,7 +81,12 @@ export function ProofSection({ p }: { p: Proof }) {
               <div key={it.id} className="border-t border-[var(--line)] first:border-t-0">
                 <div className="flex flex-wrap items-baseline justify-between gap-2 px-4 pt-4">
                   <div>
-                    <span className="mr-2 text-xs font-semibold text-[var(--text-3)]">
+                    {/* Bad news is an ink pill, never the brand colour. */}
+                    <span
+                      className={`mr-2 text-xs font-semibold ${
+                        it.status === "confounded" ? "bp-neg" : "text-[var(--text-3)]"
+                      }`}
+                    >
                       {STATUS[it.status]}
                     </span>
                     <span className="text-[14px] font-semibold">{it.description || it.query}</span>
@@ -114,7 +120,9 @@ export function ProofSection({ p }: { p: Proof }) {
             <p className="px-4 pb-3 pt-2 text-xs text-[var(--text-3)]">
               Only the change in answers is tested to see whether it&apos;s a real change. Bot reads
               and search impressions are raw counts that show direction. AI referrals cover the
-              whole site, so read them as background.
+              whole site, so read them as background. A fix whose window overlaps an engine change
+              (a new model, a new answer layout) is marked confounded: that engine&apos;s answers are
+              left out, and a lift that survives only on the other engines is reported.
             </p>
           </>
         )}

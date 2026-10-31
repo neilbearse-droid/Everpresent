@@ -79,7 +79,7 @@ def test_outcome_overlays_referrals_on_visibility(db_session):
 
 
 def test_outcome_flags_the_chatgpt_tagging_outage(db_session):
-    """Oct 8-15, 2026: ChatGPT links went untagged, so GA4 filed those visits
+    """Oct 8-16, 2026: ChatGPT links went untagged, so GA4 filed those visits
     under Direct. The chart marks those days instead of showing a real drop."""
     from api.dashboards_service import outcome
     from api.models import AiReferralDaily, Tenant
@@ -88,7 +88,7 @@ def test_outcome_flags_the_chatgpt_tagging_outage(db_session):
     tenant = Tenant(name="Acme", slug="acme", ga4_property_id="123456789")
     db_session.add(tenant)
     db_session.commit()
-    for d, n in (("2026-10-07", 40), ("2026-10-08", 9), ("2026-10-15", 12), ("2026-10-16", 41)):
+    for d, n in (("2026-10-07", 40), ("2026-10-08", 9), ("2026-10-16", 12), ("2026-10-17", 41)):
         db_session.add(AiReferralDaily(tenant_id=tenant.id, date=d, engine="ChatGPT",
                                        sessions=n, conversions=0))
     db_session.commit()
@@ -96,8 +96,9 @@ def test_outcome_flags_the_chatgpt_tagging_outage(db_session):
     result = outcome(db_session, tenant.id)
     assert [s["tracking_gap"] for s in result["series"]] == [False, True, True, False]
     (gap,) = result["tracking_gaps"]
-    assert gap["engine"] == "ChatGPT" and gap["label"] == "Oct 8–15"
+    assert gap["engine"] == "ChatGPT" and gap["label"] == "Oct 8–16"
     # A window that ends before the outage carries no note.
     assert outcome(db_session, tenant.id, end="2026-10-07")["tracking_gaps"] == []
-    assert tracking_gaps("2026-10-15", "2026-10-30")
-    assert not tracking_gaps("2026-10-16", "2026-10-30")
+    # The fix rolled out on Oct 15–16; tagging was normal from the 16th on.
+    assert tracking_gaps("2026-10-16", "2026-10-30")
+    assert not tracking_gaps("2026-10-17", "2026-10-30")

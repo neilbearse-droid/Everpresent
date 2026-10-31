@@ -218,7 +218,9 @@ export default async function EnginesPage({
             <p className="mt-2 text-xs text-[var(--text-3)]">
               <span className="font-medium text-[var(--text-2)]">(API)</span> engines are
               measured through the provider&apos;s developer API with web search. The consumer app
-              can differ: it adds chat memory, location, ads and shopping results.{" "}
+              can differ: it adds chat memory, location, ads and shopping results, and may run a
+              different model (ChatGPT moved to GPT-6 on 7–8 Oct 2026; the model each API
+              measurement used is on Answer Shape).{" "}
               <span className="font-medium text-[var(--text-2)]">(web)</span> engines, Copilot and
               Google&apos;s AI answers are collected from what a signed-out visitor sees.
             </p>

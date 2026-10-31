@@ -11,9 +11,11 @@ from sqlmodel import Session, col, func, select
 from api.dashboards.action_plan import _lost_citations
 from api.dashboards.common import (
     AGENT_CORPUS_TAGS,
+    GENERIC_SEGMENTS,
     _brand_and_cited_ids,
     _brand_name,
     _date_window,
+    _generic_only,
     _latest_results_by_variant,
     _off_score_query_texts,
     _pct,
@@ -92,7 +94,12 @@ def mention_rates(
     Every ok search answer to a competitive query (not branded, not an agent
     prompt) counts, across
     all runs in the window: repeated runs are samples, not duplicates. Counted
-    in the database, so it stays fast at any history size."""
+    in the database, so it stays fast at any history size.
+
+    Generic answers only (`segment` says which population the rate stands
+    for): a persona cell answers a different question, so pooling it would
+    move the headline. Persona answers stay on the Personas page and in the
+    answer-level views."""
     lo, hi = _date_window(start, end)
     now = datetime.now(UTC)
     hi_eff = _utc(hi) if hi is not None else now
@@ -107,6 +114,9 @@ def mention_rates(
     ]
     if branded:
         base.append(col(Result.query_text).not_in(branded))
+    seg_conds, segment = _generic_only(
+        session, [*base, Result.variant == ResultVariant.search])
+    base.extend(seg_conds)
     conds: list[Any] = [*base, Result.variant == ResultVariant.search]
     brand_hits = (
         select(col(Mention.result_id))
@@ -181,6 +191,7 @@ def mention_rates(
     return {
         "window": {"start": lo_eff.date().isoformat(), "end": hi_eff.date().isoformat(),
                    "split": mid.date().isoformat()},
+        "segment": segment,
         "overall": {
             "prompts": int(session.exec(
                 select(func.count(func.distinct(col(Result.query_text)))).where(*conds)
@@ -194,26 +205,82 @@ def mention_rates(
     }
 
 
+ALERT_ALPHA = 0.05
+
+
+def _holm_survivors(p_values: list[float | None], alpha: float = ALERT_ALPHA) -> set[int]:
+    """Indexes whose p-value survives a Holm–Bonferroni step-down at `alpha`
+    across every test in the list (None = no test was run). The smallest p
+    must beat alpha/m, the next alpha/(m-1), and so on; the first miss stops
+    it. Controls the chance of ANY false alert across the family."""
+    tested = sorted((p, i) for i, p in enumerate(p_values) if p is not None)
+    m = len(tested)
+    survivors: set[int] = set()
+    for rank, (p, i) in enumerate(tested):
+        if p > alpha / (m - rank):
+            break
+        survivors.add(i)
+    return survivors
+
+
 def alerts(session: Session, tenant_id: int) -> list[dict]:
     """What changed that someone should act on, most urgent first. Each item:
     {severity: high|medium|good, kind, text}. Only REAL changes: visibility
     moves must clear the noise test; citations lost are compared run to run.
     Pure reads; feeds the Overview block and the run email."""
+    # measurement is imported by overview; import at call time, not module load.
+    from api.dashboards.overview import engine_breaks
+
     out: list[dict] = []
     rates = mention_rates(session, tenant_id)
-    for e in [{**rates["overall"], "label": "Overall"}, *rates["engines"]]:
+    rows: list[dict] = [{**rates["overall"], "label": "Overall", "surface": None},
+                        *rates["engines"]]
+    # The alert bar is stricter than the table. The scorecard labels each row
+    # on its own test (p < 0.05), which is right for reading one row; the bar
+    # reports every row that moved, and with Overall plus eight engines tested
+    # per window a false "real change" somewhere is close to a coin flip. So
+    # only moves that survive a Holm correction across the whole family are
+    # emitted; a row can read "down" in the table and raise no alert.
+    survivors = _holm_survivors([r["change"]["p_value"] for r in rows])
+    # Engine changes inside the window (announced breaks, observed model
+    # switches): a move that coincides with one is not the brand's doing.
+    w = rates["window"]
+    breaks = engine_breaks(session, tenant_id, w["start"], w["end"])
+    break_for: dict[str, dict] = {}
+    for b in breaks:
+        break_for.setdefault(b["surface"], b)
+    for i, e in enumerate(rows):
         ch = e["change"]
+        if ch["verdict"] not in ("up", "down") or i not in survivors:
+            continue
+        moved = (f"fell {abs(ch['delta'])}pt" if ch["verdict"] == "down"
+                 else f"rose {ch['delta']}pt")
+        if e["surface"] is None and breaks:
+            # The pooled rate mixes engines that changed with engines that
+            # didn't, so its verdict can't be read until the window is clear.
+            b = breaks[0]
+            out.append({
+                "severity": "medium", "kind": "series_break",
+                "text": f"Overall: mention rate {moved} to {e['rate']}% "
+                        f"({e['low']}–{e['high']}%), but {b['label']} changed on "
+                        f"{b['date']}, so the pooled verdict is withheld until the window "
+                        f"is past that change. {b['note']}",
+            })
+            continue
+        b = break_for.get(e["surface"] or "")
+        coincides = (f" This coincides with an engine change on {b['date']}: {b['note']}"
+                     if b else "")
         if ch["verdict"] == "down":
             out.append({
                 "severity": "high", "kind": "visibility_drop",
-                "text": f"{e['label']}: mention rate fell {abs(ch['delta'])}pt to "
-                        f"{e['rate']}% ({e['low']}–{e['high']}%), a real change.",
+                "text": f"{e['label']}: mention rate {moved} to "
+                        f"{e['rate']}% ({e['low']}–{e['high']}%), a real change." + coincides,
             })
-        elif ch["verdict"] == "up":
+        else:
             out.append({
                 "severity": "good", "kind": "visibility_gain",
-                "text": f"{e['label']}: mention rate rose {ch['delta']}pt to {e['rate']}% "
-                        f"({e['low']}–{e['high']}%).",
+                "text": f"{e['label']}: mention rate {moved} to {e['rate']}% "
+                        f"({e['low']}–{e['high']}%)." + coincides,
             })
     lost = _lost_citations(session, tenant_id)
     if lost.get("ready"):
@@ -255,10 +322,14 @@ def kpi_scorecard(
     mention/rank/sentiment data already captured — no LLM, no run spend."""
     brand_name = _brand_name(session, tenant_id)
     lo, hi = _date_window(start, end)
+    # Generic answers only, as the headline (the rate says which population).
+    mr = mention_rates(session, tenant_id, start, end)
+    segments = GENERIC_SEGMENTS if mr["segment"] == "generic" else None
     # Competitive scope: branded queries (the brand always appears) don't count
     # toward the visibility KPIs — they're the Brand-knowledge layer.
     search = _latest_results_by_variant(
-        session, tenant_id, ResultVariant.search, lo, hi, scope="competitive"
+        session, tenant_id, ResultVariant.search, lo, hi, scope="competitive",
+        segments=segments,
     )
     results = list(search.values())
     result_ids = [r.id for r in results if r.id is not None]
@@ -349,6 +420,8 @@ def kpi_scorecard(
         st_conds.append(col(Result.created_at) < _utc(hi))
     if branded_texts:
         st_conds.append(col(Result.query_text).not_in(branded_texts))
+    if segments is not None:
+        st_conds.append(col(Result.persona_segment).in_(list(segments)))
     # Only the last STABILITY_RUNS runs are used; load just those.
     recent_run_ids = session.exec(
         select(col(Result.run_id)).where(*st_conds)
@@ -394,7 +467,8 @@ def kpi_scorecard(
 
     return {
         "brand_name": brand_name,
-        "mention_rates": mention_rates(session, tenant_id, start, end),
+        "segment": mr["segment"],
+        "mention_rates": mr,
         "by_topic": topic_scorecard(session, tenant_id, start, end),
         "answer_share": answer_share,
         "share_breakdown": share_breakdown,
@@ -465,11 +539,20 @@ def topic_scorecard(
         return []
 
     # Mention rate per topic: every ok search answer in the window, split in
-    # halves for the change test (same rules as mention_rates).
+    # halves for the change test (same rules as mention_rates, generic
+    # answers only).
     lo, hi = _date_window(start, end)
     hi_eff = _utc(hi) if hi is not None else datetime.now(UTC)
     lo_eff = _utc(lo) if lo is not None else hi_eff - timedelta(days=MENTION_WINDOW_DAYS)
     mid = lo_eff + (hi_eff - lo_eff) / 2
+    conds: list[Any] = [
+        Result.tenant_id == tenant_id, Result.variant == ResultVariant.search,
+        Result.status == ResultStatus.ok,
+        col(Result.created_at) >= lo_eff, col(Result.created_at) < hi_eff,
+    ]
+    seg_conds, segment = _generic_only(session, conds)
+    conds.extend(seg_conds)
+    segments = GENERIC_SEGMENTS if segment == "generic" else None
     brand_hits = (
         select(col(Mention.result_id))
         .where(Mention.tenant_id == tenant_id, Mention.entity_type == "brand")
@@ -483,9 +566,7 @@ def topic_scorecard(
         select(col(Result.query_text), second_half,
                func.count(col(Result.id)), func.count(brand_hits.c.result_id))
         .outerjoin(brand_hits, brand_hits.c.result_id == col(Result.id))
-        .where(Result.tenant_id == tenant_id, Result.variant == ResultVariant.search,
-               Result.status == ResultStatus.ok,
-               col(Result.created_at) >= lo_eff, col(Result.created_at) < hi_eff)
+        .where(*conds)
         .group_by(col(Result.query_text), second_half)
     ).all():
         if qtext not in topic_of:
@@ -499,7 +580,8 @@ def topic_scorecard(
     # Share, lead rate, sentiment, rivals and citations: the latest answer per
     # (question, engine) in the window, like the rest of the scorecard.
     latest = list(_latest_results_by_variant(
-        session, tenant_id, ResultVariant.search, lo, hi, scope="all").values())
+        session, tenant_id, ResultVariant.search, lo, hi, scope="all",
+        segments=segments).values())
     latest = [r for r in latest if r.query_text in topic_of]
     ids = [r.id for r in latest if r.id is not None]
     mentions: dict[int, list[Mention]] = defaultdict(list)

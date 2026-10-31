@@ -121,4 +121,4 @@ def test_referrals_note_the_chatgpt_tagging_outage(db_session):
     db_session.commit()
     it = intervention_proof(db_session, t.id, today=date(2026, 10, 21))["items"][0]
     note = next(s for s in it["signals"] if s["key"] == "referrals")["note"]
-    assert "Undercounts ChatGPT for Oct 8–15" in note
+    assert "Undercounts ChatGPT for Oct 8–16" in note

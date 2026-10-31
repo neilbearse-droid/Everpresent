@@ -190,10 +190,14 @@ def test_recommendations_endpoint_and_isolation(
 
     login(member, org_id="org_acme")
     recs = client.get("/api/tenant/recommendations").json()
-    # 4 query gaps + the "connect your logs" setup play, highest priority first.
+    # 4 query gaps + the "connect your logs" setup play, highest priority first:
+    # the AIO plays (official guidance, 80) lead, the logs gate (72) sits above
+    # the per-query search gaps (60 without contest history).
     assert len(recs) == 5
     assert [r["priority"] for r in recs] == sorted((r["priority"] for r in recs), reverse=True)
-    assert recs[-1]["branch"] == "connect_logs" and recs[0]["steps"] and recs[0]["why"]
+    assert [r["branch"] for r in recs] == ["aio", "aio", "connect_logs", "web_search",
+                                           "web_search"]
+    assert recs[0]["steps"] and recs[0]["why"]
     rec_id = recs[0]["id"]
     patched = client.patch(f"/api/tenant/recommendations/{rec_id}", json={"status": "in_progress"})
     assert patched.status_code == 200 and patched.json()["status"] == "in_progress"

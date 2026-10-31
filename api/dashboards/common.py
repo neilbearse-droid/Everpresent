@@ -1,6 +1,7 @@
 """Shared helpers for the dashboard reads: names, date windows, the
 branded-query filter, latest results per variant."""
 
+from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -103,6 +104,28 @@ def _off_score_query_texts(session: Session, tenant_id: int) -> frozenset[str]:
     )
 
 
+# Answers with no persona conditioning: the "generic" baseline persona
+# (selective mode) and answers taken with no persona at all (SERP surfaces,
+# which carry ""). A persona cell answers a different question ("...for a
+# bakery owner"), so the headline, KPI and topic scorecards read generic
+# answers only; persona answers are their own series on the Personas page.
+GENERIC_SEGMENTS: tuple[str, ...] = ("generic", "")
+
+
+def _generic_only(session: Session, conds: list[Any]) -> tuple[list[Any], str]:
+    """Conditions that keep generic answers only, plus which population the
+    numbers then stand for: "generic" when the rows matching `conds` include
+    a generic cell, else "all". A legacy tenant without a baseline persona
+    runs every persona on every question, so it has no generic cell to
+    prefer and every segment counts (and the payload says so)."""
+    has_generic = session.exec(
+        select(col(Result.id)).where(*conds, Result.persona_segment == "generic").limit(1)
+    ).first()
+    if has_generic is None:
+        return [], "all"
+    return [col(Result.persona_segment).in_(list(GENERIC_SEGMENTS))], "generic"
+
+
 def _branded_query_texts(session: Session, tenant_id: int) -> frozenset[str]:
     """Query texts flagged branded — probes of what the model says about the
     brand. Matched by value (results snapshot query_text), so a re-import that
@@ -125,6 +148,7 @@ def _latest_results_by_variant(
     lo: datetime | None = None,
     hi: datetime | None = None,
     scope: str = "all",
+    segments: Sequence[str] | None = None,
 ) -> dict[tuple[str, str], Result]:
     """Newest result per (query_text, surface) for one variant, restricted to
     the [lo, hi) window when given — i.e. the state 'as of' the range's end.
@@ -133,7 +157,9 @@ def _latest_results_by_variant(
       "all"          — every query (default; unchanged behaviour)
       "competitive"  — exclude branded queries and agent prompts (the visibility layer)
       "unbranded"    — exclude branded queries only (agent prompts kept)
-      "branded"      — only branded queries (the brand-knowledge layer)"""
+      "branded"      — only branded queries (the brand-knowledge layer)
+    segments, when given, keeps only answers with those persona segments
+    (GENERIC_SEGMENTS for the headline views); None keeps every segment."""
     branded = (
         _branded_query_texts(session, tenant_id)
         if scope in ("branded", "unbranded") else frozenset()
@@ -161,6 +187,8 @@ def _latest_results_by_variant(
         conds.append(col(Result.query_text).not_in(branded))
     if scope == "branded":
         conds.append(col(Result.query_text).in_(branded))
+    if segments is not None:
+        conds.append(col(Result.persona_segment).in_(list(segments)))
     newest = (
         select(func.max(Result.id))
         .where(*conds)

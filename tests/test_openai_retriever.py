@@ -77,12 +77,15 @@ def test_request_body_uses_persona_as_instructions():
     assert "tools" not in nosearch and "tool_choice" not in nosearch
 
 
-def test_gpt5_models_pin_low_reasoning_effort():
+def test_gpt5_and_gpt6_models_pin_low_reasoning_effort():
     # Reasoning tokens bill as output; low effort matches the consumer app's
-    # fast default and bounds cost.
-    body = build_request_body("p", "q", model="gpt-5.6-terra")
-    assert body["reasoning"] == {"effort": "low"}
-    assert body["max_output_tokens"] == 1200
+    # fast default and bounds cost. Left at the default, a GPT-6 model can
+    # spend the whole output budget thinking and return no answer.
+    for model in ("gpt-5.6-terra", "gpt-5-mini", "gpt-6-luna", "gpt-6.1-sol"):
+        body = build_request_body("p", "q", model=model)
+        assert body["reasoning"] == {"effort": "low"}, model
+        assert body["max_output_tokens"] == 1200
+    assert "reasoning" not in build_request_body("p", "q", model="gpt-4o-mini")
 
 
 def test_cost_estimate_matches_price_table():

@@ -154,6 +154,8 @@ class Settings(BaseSettings):
     # deterministic fraction of queries to map routing without doubling cost.
     # 0 disables it (default); 1.0 probes every query. Enabled in production via
     # render.yaml (NATURAL_PROBE_FRACTION) so it's an explicit, costed opt-in.
+    # A plan can set its own fraction (api.plans: Diagnose and above probe
+    # every query); this is the fallback for plans that don't.
     natural_probe_fraction: float = 0.0
 
     # Fan-out re-probe freshness (§FANOUT_SCORECARD M25b). A shard re-probed

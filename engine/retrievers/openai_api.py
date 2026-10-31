@@ -160,12 +160,15 @@ def parse_responses_payload(payload: dict[str, Any]) -> ParsedResponse:
 
 
 # Consumer answers run a few hundred tokens; reasoning models bill their
-# thinking as output. Capping output (and pinning low reasoning effort on
-# GPT-5-class models) bounds cost without changing who gets cited — and
+# thinking as output. Capping output (and pinning low reasoning effort on the
+# GPT-5 and GPT-6 families) bounds cost without changing who gets cited — and
 # matches the consumer app, which defaults to fast, low-reasoning replies.
 # A methodology constant, not deployment config: comparability across runs
 # requires every tenant to be measured the same way.
 ANSWER_MAX_TOKENS = 1200
+# Model families that take `reasoning.effort`. Left to its default, a GPT-6
+# model can spend the whole output budget thinking and return no answer.
+REASONING_MODEL_PREFIXES = ("gpt-5", "gpt-6")
 
 
 def build_request_body(
@@ -179,7 +182,7 @@ def build_request_body(
     }
     if persona_prompt.strip():  # the generic baseline sends no instructions
         body["instructions"] = persona_prompt.strip()
-    if model.startswith("gpt-5"):
+    if model.startswith(REASONING_MODEL_PREFIXES):
         body["reasoning"] = {"effort": "low"}
     if web_search:
         # The search-DISABLED variant of the same call is the other half of

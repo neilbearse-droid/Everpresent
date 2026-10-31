@@ -93,6 +93,7 @@ queries:
     personas: [dreamer, domain_investor]
   - text: "GoDaddy vs. Namecheap — which is better for domains?"
     corpus: domains
+    branded: true   # names GoDaddy, so it belongs in the Brand layer, not the competitive score
     paraphrases: ["Should I use GoDaddy or Namecheap for my domain?", "Namecheap or GoDaddy: which registrar is better?"]
     personas: [domain_investor]
   - text: "Is domain privacy free with GoDaddy?"   # Q3 — accuracy specimen, generic only

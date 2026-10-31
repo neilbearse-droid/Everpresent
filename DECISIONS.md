@@ -3,6 +3,83 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M55 — Week one of the October 2026 sweep (2026-10-31)
+
+Fixes from the best-practice sweep (reports/AEO best practice sweep October
+2026.md): the seven bugs, the series breaks, the engine order and the copy the
+evidence contradicted. Headline rates move for existing clients: see 1 and 8.
+
+1. **Branded questions can't leak in through import.** The brand-naming rule
+   (`api.yaml_import.names_brand`: name, aliases, domains, whole word) now
+   applies on YAML import as it did on the add box; explicit `branded: true`
+   is kept and the import result lists what it filed (`auto_branded`). The
+   GoDaddy, Smith and GreenShield seeds had leaks (e.g. "GoDaddy vs.
+   Namecheap") and are corrected, so GoDaddy's headline falls. Existing
+   clients: admin "Re-check branded" (`POST …/queries/recheck-branded`) flips
+   stored rows and lists them; live reads re-scope at once, the daily rows
+   after "Reprocess history". Not folded into reprocess, which would undo an
+   admin's explicit "competitive" choice.
+2. **Paraphrases rotate by run.** Sample 0 is the canonical text; extra
+   samples take `pool[(r - 1 + run_id) % len]`, so a two-sample plan reaches
+   every paraphrase over consecutive runs (before, the second paraphrase never
+   ran). The wording asked is stored as `results.asked_text` (m38). The claim
+   that pooled paraphrases make the rate "reflect the topic" is withdrawn: the
+   controlled studies find rewording moves brand sets more than rerunning, so
+   constraint-changing wordings become their own questions in a later step.
+3. **Tenant geo reaches every SERP capture.** Missing keys are filled from
+   `DEFAULT_AIO_GEO` (ca/en); AI Mode's direct-call fallback was "us".
+4. **Access audit grades per crawler.** The user-agent A/B now probes
+   OAI-SearchBot, PerplexityBot, Claude-SearchBot and bingbot (search class,
+   "fail" on refusal) and GPTBot (training, "warn" only): since Cloudflare's
+   2026-09-15 defaults, a GPTBot 403 beside a browser 200 is normal and says
+   nothing about live answers. Googlebot and Meta-ExternalFetcher join the
+   robots check; it is still homepage-only. JSON-LD absence is advisory
+   (Ahrefs May 2026: no citation effect).
+5. **Playbook order follows the evidence**: access gate → facts and
+   freshness → earned → formatting. AIO 80, connect-logs 72/60, crawler
+   absent 95, reviews 66, read-not-cited 62; broken-page and log plays graded
+   moderate (product rationale, not a study). The sub-search plays cite the
+   controlled study (arXiv 2605.25517) with the vendor data marked
+   correlational. Word count is no longer a gap (r ≈ 0.04); a 250-word floor
+   is. The spam check flags self-ranked list forms, not comparisons. The
+   drafter writes "for a reader who wants the facts". Dated claims fixed:
+   Google's spam policy change 2026-05-15 enforced June and August; "Bing
+   feeds ChatGPT" is "by most accounts"; Muse markets.
+6. **Engine priority by use** (Similarweb Sept 2026 visits: ChatGPT 56%,
+   Gemini 25%, Claude 10%, Perplexity <1%): ChatGPT, Gemini, Google AIO,
+   Claude, Google AI Mode, Perplexity, then web and Meta surfaces. Monitor
+   now keeps ChatGPT, Gemini and Google AIO.
+7. **Unforced probe on every question for Diagnose and Command**
+   (`PlanLimits.natural_probe_fraction` = 1.0; Monitor and Custom keep the
+   deployment setting). About $20–25 a month for 50 questions at 3×/week.
+8. **Headline is generic answers only.** `mention_rates`, `kpi_scorecard` and
+   `topic_scorecard` filter `persona_segment IN ("generic", "")`; persona
+   answers stay on the Personas page. Clients without a generic cell keep all
+   segments (`segment: "all"` in the payload). Rates move for every client
+   that runs personas. The denominator (all answers, including those naming
+   no brand) is now stated on the scorecard and in the report.
+9. **Engine changes are annotated where they matter.** Series breaks added
+   for 2026-10-08 and 2026-10-29 (ChatGPT web), 2026-10-15 (AI Overviews and
+   AI Mode link layout) and 2026-10-28 (AI Mode ads, Canadian tenants only).
+   `engine_breaks()` feeds the trend notes, alerts and proof: an alert whose
+   engine changed says so, the pooled verdict is withheld while a break is in
+   the window, and proof keeps each changed engine's answers only from the
+   state the fix shipped in (last change before the ship date to first change
+   after), reporting "confounded" when that leaves no readable lift. Dropping
+   the whole engine was tried first and left nothing in a season with this
+   many changes.
+10. **Alerts use Holm.** The alert bar corrects across Overall plus every
+    engine per call; scorecard rows keep the per-row p < 0.05 label, so the
+    bar is stricter than the table on purpose.
+11. **Small fixes.** Low reasoning pinned for GPT-6 as well as GPT-5; the
+    schedule default and readiness hint say `0 12 * * 1,3,5` (M52); GA4's
+    ChatGPT tagging gap is Oct 8–16; the cadence copy is a cost statement.
+12. **Not rewritten.** Citations the sweep could not re-verify (the notes
+    behind them were lost with the container) stay until checked against
+    their originals: arXiv 2606.17443 and 2605.27439, Peec/Writesonic,
+    Qwairy, the SEL September experiments, the 30-day churn figure, Profound's
+    Muse figures, "19+ data points".
+
 ## M54 — Muse as an import-only surface; Muse steps in the Meta play (2026-10-31)
 
 1. **`meta_muse` surface, imported captures only** (migration m37). Closes the
@@ -31,8 +108,8 @@ note it here.
    3 tokens of answer). Our cap is 1,200, so unpinned calls risked cut-off
    answers that read as "brand not named". Low also matches the app: Instant
    (fast, light) is the default and Thinking is opt-in. Same pin as GPT-5.
-2. **Known gap, not fixed here: Muse, the agent.** Muse (Sept 2026, US/Canada,
-   muse.ai and WhatsApp) is a separate signed-in agent that browses and shops.
+2. **Known gap, not fixed here: Muse, the agent.** Muse (US since 2026-09-08, Singapore since
+   2026-10-28, not in Canada as of 2026-10-31; muse.ai and WhatsApp) is a separate signed-in agent that browses and shops.
    Reported behaviour (Profound, Oct 2026, small sample): most product picks
    come from browsing the open web, not Meta's catalog; well-known merchants
    rank first; a named brand's own store goes to the top. The API can't reach
@@ -143,7 +220,9 @@ preprint on what drives citations):
 
 1. **"Without forced search" beside the headline.** ChatGPT and Perplexity
    are forced to search on every measured answer, but free ChatGPT searched in
-   about one answer in seven in that study. Their unforced probe is now a
+   about one answer in seven in that study (free, logged-out, GPT-5.6 Luna,
+   Aug–Sep 2026: a floor; Semrush put it at a third in Feb 2026, paid tiers
+   near always). Their unforced probe is now a
    rate with a range and a search share, per engine and pooled. The pooled
    figure is withheld until every forced engine has unforced answers, since a
    partial pool would mislead. The headline itself is unchanged (comparable
@@ -329,8 +408,9 @@ preprint on what drives citations):
    answer names first (mention rank 1). The rate reads against every answer,
    with a 95% range; answers that pick no tracked brand count as "no pick".
 2. **No new schema.** The prompt type rides on the existing corpus tag, so
-   configs and imports work unchanged. Agent prompts stay in the normal
-   visibility numbers too; they are real category prompts.
+   configs and imports work unchanged. Agent prompts were later taken out of
+   the competitive numbers (commit 9cc92dd, 2026-10-06; see M47) and scored
+   as their own category.
 3. **GoDaddy seed** gains three task and two coding prompts (generic
    persona only, to keep the cost small).
 4. **Briefing.** When the top rival's first-pick rate sits above the top of
@@ -465,7 +545,9 @@ divergence, Perplexity's API change, Google's spam policy).
    Command/Custom 3 samples per run), rotating through `queries.paraphrases`.
    Results keep the canonical `query_text`; the envelope records the wording
    asked. Persona cells and Mode B stay at 1 (cost). Recommended cadence is
-   3×/week rather than daily: more samples per dollar.
+   3×/week rather than daily: it keeps a Diagnose client under its cap; daily
+   would detect changes about a third smaller (M55 corrects the earlier
+   "more samples per dollar" wording, which read as a signal claim).
 3. **Perplexity on the Agent API** (`/v1/agent`, `perplexity/sonar`, forced
    web_search) since Sonar chat completions retired on 2026-09-27. Presets are
    avoided because they resolve to OpenAI models; `sonar-pro` has no Agent slug.
@@ -482,7 +564,8 @@ divergence, Perplexity's API change, Google's spam policy).
    placement; the drafting prompt refuses self-ranked lists.
 7. **Gemini on 3.x** (economy 3.5 Flash-Lite, standard 3.6 Flash, premium
    3.1 Pro preview). 2.5 Pro is deprecated for 2026-10-16 and already refuses
-   new users; Gemini 4 "Argon" (announced 2026-09-30) is limited-access only.
+   new users; Gemini 4 "Argon" (announced 2026-09-30) reached general availability
+   on 2026-10-13 (API; AI Mode for paid tiers); not pinned yet.
    Gemini 3 takes `thinkingLevel: low` (never with thinkingBudget). A retired
    or unavailable model falls back once to `gemini-3.6-flash`, tagged in the
    payload. Prices are third-party figures, the higher list price used.

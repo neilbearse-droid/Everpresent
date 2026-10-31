@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   apiFetch,
   rangeQuery,
@@ -135,6 +136,21 @@ function MentionRatePanel({ m, brand }: { m: MentionRates; brand: string }) {
             How often AI answers name you, across every run in the window. The figure in brackets
             is the 95% range: the true rate is very likely inside it. A change is flagged only when
             the second half of the window differs from the first by more than the noise.
+          </p>
+          <p className="mt-2 max-w-md text-xs leading-relaxed text-[var(--text-3)]">
+            Rates are over all answers, including answers naming no brand, so they are not
+            comparable with tools that count only answers naming some brand or weight by search
+            volume.
+            {m.segment === "generic" && (
+              <>
+                {" "}
+                Generic answers only; persona answers are on the{" "}
+                <Link href="/dashboard/personas" className="underline">
+                  Personas page
+                </Link>
+                .
+              </>
+            )}
           </p>
           {o.unforced && o.unforced.answers > 0 && (
             <div className="mt-4 border-t border-[var(--border)] pt-3">

@@ -4,11 +4,18 @@ Replace semantics: an import swaps the tenant's brand profile, competitors,
 personas, queries, and surface enablement wholesale, so re-importing a
 corrected file (e.g. the real v1 configs once supplied) is always safe.
 Runs/results data is never touched — those tables don't exist until M2 and
-will reference config by value, not by row id, across imports."""
+will reference config by value, not by row id, across imports.
+
+A question that names the brand (name, alias or domain) is filed as branded
+whether or not the file says so — the same rule the admin add box applies —
+because a branded question in the competitive layer inflates the mention rate
+(the brand nearly always appears when it is asked about)."""
+
+import re
 
 import yaml
 from pydantic import BaseModel, Field, ValidationError
-from sqlmodel import Session, delete
+from sqlmodel import Session, delete, select
 
 from api.models import (
     BrandFact,
@@ -51,6 +58,8 @@ class QuerySpec(BaseModel):
     active: bool = True
     # A branded query probes what the model says about the brand (excluded from
     # the competitive-visibility metrics; shown in the Brand-knowledge view).
+    # An explicit true is kept; a false on a question that names the brand is
+    # overridden at import (see auto_branded_texts) and reported.
     branded: bool = False
     # Personas to run on this query (selective matrix). Each item is either a
     # bare segment string or {segment, overlay}. The baseline "generic" persona
@@ -104,6 +113,56 @@ class TenantConfigSpec(BaseModel):
 
 class ConfigImportError(ValueError):
     pass
+
+
+# "Botnia Skincare" is also called just "Botnia": a trailing generic word on
+# the brand name is optional when deciding whether a question names the brand.
+_GENERIC_SUFFIX = re.compile(
+    r"\s+(skincare|skin care|cosmetics|beauty|labs?|inc\.?|co\.?|ltd\.?|llc|company|group)$",
+    re.IGNORECASE,
+)
+
+
+def names_brand(text: str, names: list[str]) -> bool:
+    """Whether a question names the brand: any of `names` (the brand name, its
+    aliases and domains) as a whole word, case-insensitive."""
+    names = names + [_GENERIC_SUFFIX.sub("", n) for n in names]
+    lowered = text.lower()
+    return any(re.search(rf"\b{re.escape(n.lower())}\b", lowered) for n in names if n.strip())
+
+
+def brand_names(spec: BrandSpec) -> list[str]:
+    return [spec.name, *spec.aliases, *spec.domains]
+
+
+def auto_branded_texts(spec: TenantConfigSpec) -> list[str]:
+    """Questions the file leaves unbranded but which name the brand: the import
+    files them as branded. Listed in the import result so the admin sees what
+    moved out of the competitive score."""
+    names = brand_names(spec.brand)
+    return [q.text for q in spec.queries if not q.branded and names_brand(q.text, names)]
+
+
+def recheck_branded(session: Session, tenant_id: int) -> list[str]:
+    """Apply the same rule to a tenant's STORED questions: flag the unbranded
+    ones that name the brand (rows imported before the rule existed). Returns
+    the texts flipped; the caller owns the commit. Live reads re-scope at once
+    (they match results by query text); the daily rows need a reprocess."""
+    brand = session.exec(
+        select(BrandProfile).where(BrandProfile.tenant_id == tenant_id)
+    ).first()
+    if brand is None:
+        return []
+    names = [brand.brand_name, *brand.aliases, *brand.domains]
+    flipped: list[str] = []
+    for q in session.exec(
+        select(Query).where(Query.tenant_id == tenant_id, Query.branded == False)  # noqa: E712
+    ).all():
+        if names_brand(q.text, names):
+            q.branded = True
+            session.add(q)
+            flipped.append(q.text)
+    return flipped
 
 
 def _explain_yaml_error(text: str, exc: yaml.YAMLError) -> str:
@@ -161,6 +220,7 @@ def import_config(session: Session, tenant: Tenant, spec: TenantConfigSpec) -> d
         session.add(
             Persona(tenant_id=tenant_id, name=p.name, prompt_text=p.prompt, segment_tag=p.segment)
         )
+    auto_branded = set(auto_branded_texts(spec))
     for q in spec.queries:
         session.add(
             Query(
@@ -168,7 +228,7 @@ def import_config(session: Session, tenant: Tenant, spec: TenantConfigSpec) -> d
                 text=q.text,
                 corpus_tag=q.corpus,
                 active=q.active,
-                branded=q.branded,
+                branded=q.branded or q.text in auto_branded,
                 persona_runs=q.persona_runs(),
                 paraphrases=[p.strip() for p in q.paraphrases if p.strip()][:10],
             )
@@ -208,4 +268,6 @@ def import_config(session: Session, tenant: Tenant, spec: TenantConfigSpec) -> d
     }
     if spec.surfaces is not None:
         summary["surfaces_enabled"] = len(spec.surfaces)
+    if auto_branded:
+        summary["branded_auto"] = len(auto_branded)
     return summary
