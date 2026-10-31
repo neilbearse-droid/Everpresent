@@ -36,6 +36,12 @@ ADAPTER_VERSION = "meta-responses-v1"
 # Same cap as the other API engines, for the same reason (bounded cost,
 # consumer-length answers, comparable across engines).
 ANSWER_MAX_TOKENS = 1200
+# Muse Spark always reasons (no "none"), the API defaults to medium or higher,
+# and reasoning tokens come out of max_output_tokens before any answer text.
+# Unpinned, a 1,200-token cap can end in a cut-off or empty answer. Low also
+# matches the app, whose default Instant mode is the fast, light one; Thinking
+# is opt-in. Same pin as the OpenAI adapter (DECISIONS M53).
+REASONING_EFFORT = "low"
 
 
 def parse_meta_payload(payload: dict[str, Any]) -> ParsedResponse:
@@ -55,6 +61,7 @@ def build_request_body(
         "model": model,
         "input": query_text,
         "max_output_tokens": ANSWER_MAX_TOKENS,
+        "reasoning": {"effort": REASONING_EFFORT},
     }
     if persona_prompt.strip():
         body["instructions"] = persona_prompt.strip()

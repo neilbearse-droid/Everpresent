@@ -3,6 +3,23 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M53 — Meta AI: reasoning pinned low (2026-10-31)
+
+1. **`reasoning.effort = "low"` on every Muse Spark call.** Muse Spark can't
+   turn reasoning off, the API default is medium or higher, and reasoning
+   tokens come out of `max_output_tokens` before the answer. Third-party
+   integrations hit this at small caps (a 512-token cap with medium effort left
+   3 tokens of answer). Our cap is 1,200, so unpinned calls risked cut-off
+   answers that read as "brand not named". Low also matches the app: Instant
+   (fast, light) is the default and Thinking is opt-in. Same pin as GPT-5.
+2. **Known gap, not fixed here: Muse, the agent.** Muse (Sept 2026, US/Canada,
+   muse.ai and WhatsApp) is a separate signed-in agent that browses and shops.
+   Reported behaviour (Profound, Oct 2026, small sample): most product picks
+   come from browsing the open web, not Meta's catalog; well-known merchants
+   rank first; a named brand's own store goes to the top. The API can't reach
+   it and we don't automate signed-in accounts, so it can only come in through
+   capture import from a vendor that tracks it.
+
 ## M52 — Run cost: re-probe ceiling 75 → 15, 3×/week cadence (2026-10-31)
 
 1. **Command and Custom re-probe ceiling cut from 75 to 15 per run** (same as

@@ -57,6 +57,15 @@ def test_search_is_offered_not_forced():
     assert "tools" not in twin and "instructions" not in twin
 
 
+def test_reasoning_pinned_low_on_every_call():
+    # Unpinned, Muse Spark's default effort can spend the whole output cap
+    # reasoning and return a cut-off or empty answer.
+    for web_search in (True, False):
+        body = meta_api.build_request_body("", "q", model="muse-spark-1.3",
+                                           web_search=web_search)
+        assert body["reasoning"] == {"effort": "low"}
+
+
 def _mock_client(monkeypatch, handler):
     real = httpx.AsyncClient
 
