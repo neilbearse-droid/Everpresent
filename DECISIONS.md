@@ -3,6 +3,18 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M52 — Run cost: re-probe ceiling 75 → 15, 3×/week cadence (2026-10-31)
+
+1. **Command and Custom re-probe ceiling cut from 75 to 15 per run** (same as
+   Diagnose; K per prompt stays 5). Full GoDaddy runs were costing ~$15, and
+   the cost model put roughly half of that on the fan-out re-probe (75 probes
+   at ~$0.12, mostly Gemini grounding). Perplexity's API was ~4%, so it stays.
+   The 7-day TTL still rotates coverage across the shard set, just slower.
+2. **Recommended schedule is 3×/week** (`0 12 * * 1,3,5`), not daily. Daily at
+   ~$15 is ~$450/month per tenant, far over the $50 default cap, so calls get
+   WITHHELD mid-month and the trend gets holes. The schedule is a per-tenant
+   admin setting; the demo checklist now says 3×/week.
+
 ## M51 — Meta AI as a measured engine (2026-10-30)
 
 1. **The model, not the app.** "Meta AI (API)" (`meta_api`) calls Muse Spark,
@@ -474,6 +486,7 @@ divergence, Perplexity's API change, Google's spam policy).
    | Diagnose ($549) | 2 | 15 | 450 | ~$50 |
    | Command ($2,900) | 5 | 75 | 2,250 | ~$290 |
    | Custom | 5 | 75 | — | spend cap governs |
+   (Superseded by M52: Command and Custom ceilings are now 15.)
    Everything still runs through `monthly_spend_cap_usd` (default $50), so a
    Diagnose tenant needs its cap raised to use the full re-probe allowance.
 2. **7-day freshness TTL** (`FANOUT_REPROBE_TTL_DAYS`). A shard re-probed within

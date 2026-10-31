@@ -18,7 +18,7 @@ fan-out trends need about a week of runs.
 | Gemini (API) | aistudio.google.com → Get API key → Create key (turn on billing for its Cloud project; free-tier search grounding is rate-limited) | `AIza...` → `GEMINI_API_KEY` |
 | Perplexity (API) | perplexity.ai → Settings → API → add credit → Generate key | `pplx-...` → `PERPLEXITY_API_KEY` |
 | Meta AI (API) | dev.meta.ai → API keys (Meta Model API, public preview; add billing). Never pick a "-contributor" model: Meta trains on those prompts | key → `META_API_KEY` |
-| Google AI Overviews | serpapi.com → Register → Dashboard → Private API Key. Plan: ~10 searches per run, so ~300/month for daily runs plus testing | key → `SERPAPI_KEY` |
+| Google AI Overviews | serpapi.com → Register → Dashboard → Private API Key. Plan: ~10 searches per run, so ~150/month at 3 runs a week plus testing | key → `SERPAPI_KEY` |
 | Copilot, ChatGPT (web), Perplexity (web) | A residential proxy (Bright Data, Oxylabs, Decodo/Smartproxy…) → create a residential zone, country **US** | `http://USER:PASS@HOST:PORT` → `SCRAPE_PROXY_URL` |
 
 ## 2. Put them in Render (15 minutes)
@@ -40,7 +40,7 @@ At `/admin/godaddy`:
 - [ ] **Governance → Turn on Claude features** (Whitespace page + corrective-content and brief buttons).
 - [ ] **Governance → Monthly spend cap**: at least **$300** for demo week. Too low and calls come back WITHHELD.
 - [ ] **Governance → Fan-out re-probe: on**.
-- [ ] **Run schedule**: `0 12 * * *` (daily, 12:00 UTC ≈ 8am ET), enabled.
+- [ ] **Run schedule**: `0 12 * * 1,3,5` (Mon/Wed/Fri, 12:00 UTC ≈ 8am ET), enabled. Daily costs ~2.3× more for little extra signal.
 - [ ] **Brand fact sheet**: confirm the domain-privacy fact matches GoDaddy's real policy (it's a placeholder).
 
 ## 4. First verification run (20 minutes)
@@ -62,10 +62,10 @@ At `/admin/godaddy`:
   Exit `0` = good · `3` = blocked (proxy) · `4`/`5` = page changed (screenshots show it; fix in `engine/retrievers/copilot_web_selectors.py`).
 - [ ] The four readiness checks at the top of the panel all say **Done**.
 
-## 5. Every day until the demo (2 minutes)
+## 5. After each scheduled run until the demo (2 minutes)
 
-- [ ] Open `/admin/godaddy` → Engine readiness still all **READY** after the overnight run.
-- [ ] Anything else: use the table above the same day. A missed day is a gap in the trend.
+- [ ] Open `/admin/godaddy` → Engine readiness still all **READY** after the latest run (Mon/Wed/Fri).
+- [ ] Anything else: use the table above the same day. A missed run is a gap in the trend.
 
 ## 6. Day before the demo
 

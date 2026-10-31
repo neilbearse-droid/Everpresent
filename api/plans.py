@@ -41,6 +41,7 @@ class PlanLimits:
     # map only (no re-probe spend). Sized from the cost model in DECISIONS.md
     # M25b: a Gemini re-probe is ~$0.14 (grounding bills per sub-query), an
     # OpenAI one ~$0.02–0.07, so these hold re-probe spend near 10% of price.
+    # Command/Custom ceilings cut 75 -> 15 to control run cost (DECISIONS M52).
     shard_probes_per_prompt: int = 0
     shard_probes_per_run: int = 0
     # Repeated sampling (Mode A, generic cells only): answers to the same
@@ -66,13 +67,13 @@ PLANS: dict[str, PlanLimits] = {
         "Command", max_prompts=None, max_personas=None, max_engines=None,
         diagnosis=True, model_tier="premium", outcome=True,
         max_runs_per_day=None, monthly_price_usd=2900, max_locations=5,
-        shard_probes_per_prompt=5, shard_probes_per_run=75, samples_per_cell=3,
+        shard_probes_per_prompt=5, shard_probes_per_run=15, samples_per_cell=3,
     ),
     "custom": PlanLimits(
         "Custom", max_prompts=None, max_personas=None, max_engines=None,
         diagnosis=True, model_tier="configured", outcome=True,
         max_runs_per_day=None, monthly_price_usd=0, max_locations=None,
-        shard_probes_per_prompt=5, shard_probes_per_run=75, samples_per_cell=3,
+        shard_probes_per_prompt=5, shard_probes_per_run=15, samples_per_cell=3,
     ),
 }
 
