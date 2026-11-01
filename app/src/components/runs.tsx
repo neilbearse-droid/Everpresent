@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import type { Run, RunDetail } from "@/lib/api";
 import { surfaceLabel } from "@/lib/viz";
 
@@ -29,7 +30,16 @@ export function StatusBadge({ status }: { status: Run["status"] }) {
   );
 }
 
-export function RunsTable({ runs, hrefBase }: { runs: Run[]; hrefBase: string }) {
+export function RunsTable({
+  runs,
+  hrefBase,
+  renderActions,
+}: {
+  runs: Run[];
+  hrefBase: string;
+  /** Admin only: a control per row (e.g. Resume on a failed run). */
+  renderActions?: (run: Run) => ReactNode;
+}) {
   if (runs.length === 0) {
     return <p className="text-sm text-[var(--text-3)]">No runs yet.</p>;
   }
@@ -45,6 +55,7 @@ export function RunsTable({ runs, hrefBase }: { runs: Run[]; hrefBase: string })
           <th>Answers done / planned</th>
           <th>Cost</th>
           <th>Started</th>
+            {renderActions && <th></th>}
         </tr>
       </thead>
       <tbody>
@@ -74,6 +85,7 @@ export function RunsTable({ runs, hrefBase }: { runs: Run[]; hrefBase: string })
             <td className="whitespace-nowrap text-[var(--text-2)]">
               {run.started_at ? new Date(run.started_at).toLocaleString() : "—"}
             </td>
+            {renderActions && <td>{renderActions(run)}</td>}
           </tr>
         ))}
       </tbody>

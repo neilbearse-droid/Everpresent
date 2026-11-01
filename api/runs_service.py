@@ -199,6 +199,40 @@ def reap_abandoned_runs(session: Session) -> int:
     return len(reaped)
 
 
+def resume_run(session: Session, run: Run) -> Run:
+    """Put a failed run back on the queue to finish what it lacks. Answers
+    already saved stay; the planners re-ask only the missing cells and the
+    cost keeps accumulating on the same run. Refused while the tenant has a
+    live run."""
+    from api.queue import enqueue_run, enqueue_run_mode_b  # avoid import cycle
+
+    if run.status != RunStatus.failed:
+        raise ValueError(f"Run #{run.id} is {run.status}; only a failed run can be resumed.")
+    existing = run_in_flight(session, run.tenant_id)
+    if existing is not None:
+        session.commit()
+        raise RunInFlight(existing)
+    assert run.id is not None
+    run.status = RunStatus.pending
+    run.error = None
+    run.finished_at = None
+    run.counts = {**(run.counts or {}),
+                  "resumed": int((run.counts or {}).get("resumed", 0)) + 1}
+    session.add(run)
+    session.commit()
+    try:
+        if RunMode.A in run.mode_set:
+            enqueue_run(run.id)
+        else:
+            enqueue_run_mode_b(run.id)
+    except Exception as exc:  # noqa: BLE001 — record it; never strand a pending run
+        run.status = RunStatus.failed
+        run.error = f"could not queue the run (is Redis up?): {type(exc).__name__}"[:500]
+        session.add(run)
+        session.commit()
+    return run
+
+
 def trigger_run(session: Session, tenant: Tenant, *, trigger: str = "manual") -> Run:
     """Create, commit, and dispatch a run — shared by the admin trigger route
     and the scheduler. Gated/failed runs are recorded and never enqueued.

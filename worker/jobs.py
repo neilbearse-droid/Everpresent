@@ -4,12 +4,15 @@ only place the two meet a database session and a provider key."""
 
 import asyncio
 import hashlib
+import threading
 import time
+import uuid
+from collections import defaultdict
 from dataclasses import asdict, dataclass, field, replace
 from datetime import UTC, timedelta
 from typing import Any
 
-from sqlmodel import Session, select
+from sqlmodel import Session, col, func, select
 
 from api.config import get_settings
 from api.db import get_engine
@@ -497,12 +500,15 @@ async def _dispatch_all(
     month_spent_before: float,
     cap_usd: float,
     on_progress: Any = None,
+    on_outcome: Any = None,
 ) -> tuple[list[dict[str, Any] | None], bool]:
     """Runs the (query × persona × surface) matrix with a concurrency limit,
     routing each item to its provider adapter by surface code. NO database
     connection is held here (§ connection-lifetime fix): work items are plain
     data. The spend cap is checked BEFORE each dispatch (§6.1/§9); a None slot
-    means the call was withheld by the cap."""
+    means the call was withheld by the cap. `on_outcome(index, item)` is
+    awaited for every answer or error as it returns, so the caller can save
+    it at once instead of at the end."""
     semaphore = asyncio.Semaphore(concurrency)
     lock = asyncio.Lock()
     # `spent` = actual cost of returned calls; `reserved` = conservative
@@ -515,7 +521,7 @@ async def _dispatch_all(
         if on_progress is not None:
             await on_progress(int(state["ok"]), int(state["failed"]))
 
-    async def one(item: _AWorkItem) -> dict[str, Any] | None:
+    async def one(index: int, item: _AWorkItem) -> dict[str, Any] | None:
         adapter = A_ADAPTERS[item.surface]
         model = model_for(item.surface, model_tier, getattr(settings, adapter.model_attr))
         # Conservative upper-bound estimate for the reservation (over-reserving
@@ -545,7 +551,11 @@ async def _dispatch_all(
                     state["reserved"] -= est
                     state["failed"] += 1
                 await report()
-                return {"item": item, "model": model, "error": f"{type(exc).__name__}: {exc}"[:500]}
+                failed = {"item": item, "model": model,
+                          "error": f"{type(exc).__name__}: {exc}"[:500]}
+                if on_outcome is not None:
+                    await on_outcome(index, failed)
+                return failed
             cost = adapter.cost_fn(
                 outcome.parsed.model or model,
                 outcome.parsed.input_tokens,
@@ -557,13 +567,150 @@ async def _dispatch_all(
                 state["spent"] += cost
                 state["ok"] += 1
             await report()
-            return {"item": item, "outcome": outcome, "cost": cost, "model": model}
+            done = {"item": item, "outcome": outcome, "cost": cost, "model": model}
+            if on_outcome is not None:
+                await on_outcome(index, done)
+            return done
 
-    results = await asyncio.gather(*[one(item) for item in work])
+    results = await asyncio.gather(*[one(i, item) for i, item in enumerate(work)])
     # Belt-and-suspenders: if an estimate under-shot actual token use enough to
     # cross the cap, still surface the run as capped.
     capped = state["capped"] or (month_spent_before + state["spent"] > cap_usd)
     return list(results), capped
+
+
+# One writer at a time: each persist read-modify-writes the run's counts and
+# cost, and the dispatcher runs several calls at once.
+_PERSIST_LOCK = threading.Lock()
+
+
+def _persist_a_outcome(run_id: int, tenant_slug: str, index: int, item: dict[str, Any]) -> None:
+    """Save one Mode A answer the moment it returns: its Result row, citations,
+    consulted sources and raw envelope, with its cost and the run's counts
+    booked in the same transaction. A run killed mid-dispatch (a deploy
+    restarts the worker) keeps every answer it paid for, the spend cap sees
+    the money, and Resume re-asks only what is missing."""
+    wi: _AWorkItem = item["item"]
+    with _PERSIST_LOCK, Session(get_engine()) as session:
+        run = session.get(Run, run_id)
+        if run is None:
+            return
+        counts = dict(run.counts or {})
+        result = Result(
+            run_id=run_id,
+            tenant_id=run.tenant_id,
+            query_id=wi.query_id,
+            persona_id=wi.persona_id,
+            query_text=wi.query_text,
+            asked_text=wi.asked_text or wi.query_text,
+            persona_name=wi.persona_name,
+            persona_segment=wi.persona_segment,
+            surface=SurfaceCode(wi.surface),
+            variant=wi.variant,
+        )
+        if "error" in item:
+            counts["failed"] = int(counts.get("failed", 0)) + 1
+            result.status = ResultStatus.error
+            result.error = item["error"]
+        else:
+            outcome: openai_api.RetrievalOutcome = item["outcome"]
+            counts["completed"] = int(counts.get("completed", 0)) + 1
+            _add_cost(counts, wi.surface, item["cost"])
+            run.cost_usd = round((run.cost_usd or 0.0) + item["cost"], 6)
+            result.latency_ms = outcome.latency_ms
+            result.web_search_calls = outcome.parsed.web_search_calls
+            result.fanout_queries = list(outcome.parsed.fanout_queries)
+            # The model the provider actually served (it can differ from
+            # the configured one: aliases, defaults, silent upgrades).
+            result.served_model = (outcome.parsed.model or "")[:120]
+            result.response_hash = hashlib.sha256(
+                outcome.parsed.text.encode("utf-8")
+            ).hexdigest()
+            # A resumed run restarts its indices, so the name carries a nonce.
+            result.raw_uri = write_raw_envelope(
+                tenant_slug,
+                run_id,
+                f"result-{index:04d}-{uuid.uuid4().hex[:6]}",
+                {
+                    "surface": wi.surface,
+                    "mode": "A",
+                    "variant": wi.variant,
+                    "query": wi.query_text,
+                    "asked": wi.asked_text or wi.query_text,
+                    "persona": wi.persona_name,
+                    "persona_prompt": wi.persona_prompt,
+                    "model": item.get("model", ""),
+                    "response": outcome.payload,
+                    "parsed_text": outcome.parsed.text,
+                    "cost_usd": item["cost"],
+                },
+                session=session,
+            )
+        session.add(result)
+        session.flush()
+        if "error" not in item and wi.variant == ResultVariant.search:
+            # Citation rows are client-facing measurement data; the
+            # nosearch twin is classifier input only.
+            assert result.id is not None
+            for parsed_citation in item["outcome"].parsed.citations:
+                session.add(
+                    Citation(
+                        result_id=result.id,
+                        tenant_id=run.tenant_id,
+                        url=parsed_citation.url,
+                        domain=parsed_citation.domain,
+                        cited_text=parsed_citation.cited_text,
+                    )
+                )
+            # Consulted-but-not-cited sources (§AEO-plan M6): competitive
+            # intel, kept out of the citations table.
+            for src in item["outcome"].parsed.consulted_sources:
+                session.add(
+                    ConsultedSource(
+                        result_id=result.id,
+                        tenant_id=run.tenant_id,
+                        url=src.url,
+                        domain=src.domain,
+                    )
+                )
+        run.counts = counts
+        session.add(run)
+        session.commit()
+
+
+def _a_done_cells(session: Session, run_id: int) -> dict[tuple, int]:
+    """How many ok Mode A answers this run already holds per cell, so a
+    resumed run re-asks only what it lacks. Samples of one cell with the same
+    wording are told apart by count."""
+    done: dict[tuple, int] = defaultdict(int)
+    for r in session.exec(
+        select(Result).where(Result.run_id == run_id, Result.status == ResultStatus.ok,
+                             Result.mode == RunMode.A)
+    ).all():
+        done[(r.query_text, r.persona_segment, r.persona_name, str(r.surface),
+              str(r.variant), r.asked_text or r.query_text)] += 1
+    return done
+
+
+def _skip_done(work: list, done: dict[tuple, int], key: Any) -> tuple[list, int]:
+    """Drop the work items a run already has an ok answer for (one per
+    matching answer). Returns the remaining work and how many were skipped."""
+    left = dict(done)
+    kept = []
+    skipped = 0
+    for wi in work:
+        k = key(wi)
+        if left.get(k, 0) > 0:
+            left[k] -= 1
+            skipped += 1
+        else:
+            kept.append(wi)
+    return kept, skipped
+
+
+def _a_cell_key(wi: "_AWorkItem") -> tuple:
+    return (wi.query_text, wi.persona_segment, wi.persona_name, wi.surface, str(wi.variant),
+            wi.asked_text or wi.query_text)
 
 
 PROGRESS_EVERY_S = 5.0
@@ -641,6 +788,10 @@ async def _run_mode_a(run_id: int) -> None:
         if limits.max_personas is not None:
             personas = personas[: limits.max_personas]
         month_spent_before = month_spend_usd(session, run.tenant_id)
+        # A resumed run (status set back to pending after a kill) already
+        # holds some answers: they are kept, and their cells are not re-asked.
+        done_cells = _a_done_cells(session, run_id)
+        prior_counts = dict(run.counts or {})
 
         # Diagnosis-twin cache (§cost): training knowledge is frozen between
         # model snapshots, so re-buying the nosearch twin every run measures a
@@ -777,7 +928,13 @@ async def _run_mode_a(run_id: int) -> None:
             for (qid, qtext, _runs) in probe_queries
         ]
 
-    counts = {"planned": len(work), "completed": 0, "failed": 0, "withheld_by_cap": 0}
+    work, already = _skip_done(work, done_cells, _a_cell_key)
+    # Counters start from what the run already holds; the per-engine cost
+    # counters and the resume count carry over, the rest is recomputed.
+    counts = {k: v for k, v in prior_counts.items()
+              if k.startswith(("cost:", "reprobe_cost:")) or k == "resumed"}
+    counts.update({"planned": already + len(work), "completed": already, "failed": 0,
+                   "withheld_by_cap": 0})
     if unconfigured:
         counts["skipped_unconfigured"] = len(unconfigured)
         # Per-surface flags so the admin readiness panel can name the engine
@@ -791,9 +948,13 @@ async def _run_mode_a(run_id: int) -> None:
         session.add(run)
         session.commit()
 
-    # Phase 2 — dispatch the provider calls. NO DB CONNECTION HELD, except
-    # a short write every few seconds so the Runs page shows live progress
-    # instead of 0 until the very end.
+    # Phase 2 — dispatch the provider calls. NO DB CONNECTION HELD for the
+    # duration: each answer is saved in its own short transaction the moment
+    # it returns (counts and cost with it), so the Runs page shows live
+    # progress and a worker restart loses nothing already paid for.
+    async def persist(index: int, item: dict[str, Any]) -> None:
+        await asyncio.to_thread(_persist_a_outcome, run_id, tenant_slug, index, item)
+
     outcomes, capped = await _dispatch_all(
         work,
         settings=settings,
@@ -801,110 +962,35 @@ async def _run_mode_a(run_id: int) -> None:
         concurrency=settings.openai_concurrency,
         month_spent_before=month_spent_before,
         cap_usd=cap_usd,
-        on_progress=_progress_publisher(run_id),
+        on_outcome=persist,
     )
 
-    # Phase 3 — persist results with a fresh connection.
+    # Phase 3 — close the books with a fresh connection: the answers are
+    # already in; this adds the cached twins, the totals and the status.
     with Session(get_engine()) as session:
         run = session.get(Run, run_id)
         tenant = session.get(Tenant, run.tenant_id) if run else None
         assert run is not None and tenant is not None
-
-        total_cost = 0.0
-        citation_count = 0
-        for index, item in enumerate(outcomes):
-            if item is None:
-                counts["withheld_by_cap"] += 1
-                continue
-            wi: _AWorkItem = item["item"]
-            result = Result(
-                run_id=run_id,
-                tenant_id=run.tenant_id,
-                query_id=wi.query_id,
-                persona_id=wi.persona_id,
-                query_text=wi.query_text,
-                asked_text=wi.asked_text or wi.query_text,
-                persona_name=wi.persona_name,
-                persona_segment=wi.persona_segment,
-                surface=SurfaceCode(wi.surface),
-                variant=wi.variant,
-            )
-            if "error" in item:
-                counts["failed"] += 1
-                result.status = ResultStatus.error
-                result.error = item["error"]
-            else:
-                outcome: openai_api.RetrievalOutcome = item["outcome"]
-                counts["completed"] += 1
-                total_cost += item["cost"]
-                _add_cost(counts, wi.surface, item["cost"])
-                result.latency_ms = outcome.latency_ms
-                result.web_search_calls = outcome.parsed.web_search_calls
-                result.fanout_queries = list(outcome.parsed.fanout_queries)
-                # The model the provider actually served (it can differ from
-                # the configured one: aliases, defaults, silent upgrades).
-                result.served_model = (outcome.parsed.model or "")[:120]
-                result.response_hash = hashlib.sha256(
-                    outcome.parsed.text.encode("utf-8")
-                ).hexdigest()
-                result.raw_uri = write_raw_envelope(
-                    tenant_slug,
-                    run_id,
-                    f"result-{index:04d}",
-                    {
-                        "surface": wi.surface,
-                        "mode": "A",
-                        "variant": wi.variant,
-                        "query": wi.query_text,
-                        "asked": wi.asked_text or wi.query_text,
-                        "persona": wi.persona_name,
-                        "persona_prompt": wi.persona_prompt,
-                        "model": item.get("model", ""),
-                        "response": outcome.payload,
-                        "parsed_text": outcome.parsed.text,
-                        "cost_usd": item["cost"],
-                    },
-                    session=session,
-                )
-            session.add(result)
-            session.flush()
-            if "error" not in item and wi.variant == ResultVariant.search:
-                # Citation rows are client-facing measurement data; the
-                # nosearch twin is classifier input only.
-                assert result.id is not None
-                for parsed_citation in item["outcome"].parsed.citations:
-                    citation_count += 1
-                    session.add(
-                        Citation(
-                            result_id=result.id,
-                            tenant_id=run.tenant_id,
-                            url=parsed_citation.url,
-                            domain=parsed_citation.domain,
-                            cited_text=parsed_citation.cited_text,
-                        )
-                    )
-                # Consulted-but-not-cited sources (§AEO-plan M6): competitive
-                # intel, kept out of the citations table.
-                for src in item["outcome"].parsed.consulted_sources:
-                    session.add(
-                        ConsultedSource(
-                            result_id=result.id,
-                            tenant_id=run.tenant_id,
-                            url=src.url,
-                            domain=src.domain,
-                        )
-                    )
+        counts = dict(run.counts or counts)
+        counts["withheld_by_cap"] = (int(counts.get("withheld_by_cap", 0))
+                                     + sum(1 for o in outcomes if o is None))
 
         # Materialize cached diagnosis twins as rows in this run (same raw
         # envelope, zero provider spend) so the classifier's within-run
-        # variant pairing works unchanged.
+        # variant pairing works unchanged. A resumed run may hold them already.
         baseline_twin = _baseline_persona(personas)
         if cached_twins and baseline_twin is not None:
+            have_twin = {
+                (r.query_text, str(r.surface)) for r in session.exec(
+                    select(Result).where(Result.run_id == run_id,
+                                         Result.variant == ResultVariant.nosearch)
+                ).all()
+            }
             qid_by_text = {qtext: qid for (qid, qtext, _runs) in queries}
             bpid0, bpname0, _bpprompt0, bpseg0 = baseline_twin
             cloned = 0
             for (qtext, twin_surface), (uri, rhash, created_ts) in cached_twins.items():
-                if twin_surface not in configured:
+                if twin_surface not in configured or (qtext, twin_surface) in have_twin:
                     continue
                 session.add(
                     Result(
@@ -930,7 +1016,11 @@ async def _run_mode_a(run_id: int) -> None:
             if cloned:
                 counts["diagnosis_cached"] = cloned
 
-        counts["citations"] = citation_count
+        counts["citations"] = int(session.exec(
+            select(func.count(col(Citation.id)))
+            .join(Result, col(Result.id) == col(Citation.result_id))
+            .where(Result.run_id == run_id)
+        ).one() or 0)
         if capped:
             counts["capped"] = True
             run.error = (
@@ -938,7 +1028,7 @@ async def _run_mode_a(run_id: int) -> None:
                 f"spent ${month_spent_before:.2f} before this run)"
             )
         run.counts = counts
-        run.cost_usd = round(total_cost, 6)
+        # run.cost_usd was booked answer by answer; nothing to total here.
         session.add(run)
         session.commit()
 
@@ -1034,10 +1124,22 @@ async def _run_mode_b(run_id: int) -> None:
                 for (qid, qtext, (pid, pname, pprompt, pseg)) in web_cells
             ]
 
+    # A resumed run keeps the captures it already has.
+    with Session(get_engine()) as session:
+        done_b: dict[tuple, int] = defaultdict(int)
+        for r in session.exec(
+            select(Result).where(Result.run_id == run_id, Result.status == ResultStatus.ok,
+                                 Result.mode == RunMode.B)
+        ).all():
+            done_b[(r.query_text, r.persona_name, str(r.surface), r.location_label)] += 1
+    work, already_b = _skip_done(
+        work, done_b, lambda wi: (wi.query_text, wi.persona_name, wi.surface, wi.location_label))
+
     base_env = _base_scrape_env(settings)
 
     counts = dict(base_counts)
-    counts["planned"] = counts.get("planned", 0) + len(work)
+    counts["planned"] = counts.get("planned", 0) + already_b + len(work)
+    counts["completed"] = counts.get("completed", 0) + already_b
     mode_b_cost = 0.0
     booked_b_cost = 0.0  # portion of mode_b_cost already added to run.cost_usd
     capped = False

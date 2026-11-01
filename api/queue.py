@@ -14,8 +14,9 @@ def get_queue(name: str = "default") -> Queue:
 
 
 def enqueue_run(run_id: int) -> None:
-    # 3h: a large plan's matrix (~1,700 calls at concurrency 4) outlasts 1h,
-    # and Mode A only writes results at the end, so a timeout loses the run.
+    # 3h: a large plan's matrix (~1,700 calls at concurrency 4) outlasts 1h.
+    # Answers are saved as they return, so a timeout keeps what was done and
+    # the run can be resumed.
     get_queue().enqueue("worker.jobs.run_mode_a", run_id, job_timeout=3 * 60 * 60)
 
 

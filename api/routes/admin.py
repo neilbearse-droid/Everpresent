@@ -547,6 +547,27 @@ def reprocess_run(run_id: int, session: Db, admin: Admin) -> dict:
     return counts
 
 
+@router.post("/runs/{run_id}/resume")
+def resume_run_route(run_id: int, session: Db, admin: Admin) -> Run:
+    """Finish a failed run: re-ask only the cells it lacks, keep what it has."""
+    from api.runs_service import RunInFlight, resume_run
+
+    run = session.get(Run, run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="No such run")
+    try:
+        run = resume_run(session, run)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except RunInFlight as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    write_audit(session, tenant_id=run.tenant_id, actor=admin.user.email,
+                action=f"run.resume {run_id}")
+    session.commit()
+    session.refresh(run)  # expired by the commit; the response needs its fields
+    return run
+
+
 @router.get("/runs/{run_id}")
 def run_detail(run_id: int, session: Db) -> dict:
     run = session.get(Run, run_id)
