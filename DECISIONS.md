@@ -3,10 +3,32 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
-## M59 — Clients pause questions and choose personas (2026-11-01)
+## M61 — The public page is written for the buyer (2026-11-01)
+
+1. **Who it is for.** The landing page speaks to the people who would pay:
+   the marketing lead at a brand and the agency that runs it for them. It
+   names their problems (a channel their analytics cannot see, answers that
+   get facts wrong, engines that change without notice) and what they get
+   (share of the answer, what is wrong, what to fix, proof it worked). How
+   the product does it appears only where a buyer needs it to trust a number.
+2. **No figures the copy cannot stand behind.** The Ahrefs one-in-seven
+   search rate and the Oct 8–15 outage detail are out of the public copy: both
+   are second-hand here, and the outage already lives in the product as a dated
+   series break (M50). The "$149 a month" line is out too; no price is
+   published until one is decided, and the FAQ says the price is confirmed
+   before anyone commits.
+3. **No eyebrows, no decorative numbering, no orange outside the brand mark
+   and the call to action**, as everywhere else in the product (M49).
+   `SectionHead` takes a title and an optional lead; step numbers are grey.
+4. **Numbering.** The landing page and waitlist (M59) shipped first from a
+   parallel session; the question controls that were drafted as M59 are M60,
+   and their migration is m41 (`d5e6f7a8b9c0`), re-parented after the
+   waitlist's m40 so there is one migration head.
+
+## M60 — Clients pause questions and choose personas (2026-11-01)
 
 1. **Pause, don't delete.** A question has `active`, `paused_at` and
-   `paused_by` ("client" or "admin"; m40 also adds `created_at`). Pausing
+   `paused_by` ("client" or "admin"; m41 also adds `created_at`). Pausing
    takes it out of the next run's plan and out of the competitive numbers at
    once (`_off_score_query_texts`), so the rates stop covering it the day it
    is paused; its answers stay, listed under "Paused questions" on the
@@ -27,6 +49,39 @@ note it here.
 4. **Routes.** `GET /api/tenant/query-controls`, `PATCH
    /api/tenant/queries/{id}` (`active`, `persona_segments`) for members;
    the admin PATCH gains `active`. Every change is audited.
+## M59 — A public landing page and a waitlist (2026-11-01)
+
+1. **everpresent.io is a marketing surface, not part of the themed app.** The
+   landing page is black, white and EverPresent orange in both themes: the
+   palette is re-declared on an `.ep-landing` wrapper in `globals.css` and
+   inherited by everything inside it, so the design-system classes (`.card`,
+   `.field`, `.pill`) keep working and the dashboard's light/dark toggle is
+   untouched. Orange carries a button here (`.ep-cta`) — the one place it
+   does, because on the public site it is the brand's own call to action
+   rather than a status.
+2. **The page leans on what the product does differently**, eight points, each
+   one a capability with a line of proof under it: both ways of asking (API
+   and a logged-out browser session), the fan-out searches behind an answer,
+   evidence you can open rather than a score, before-and-after proof of a fix,
+   GA4 outcomes alongside mentions, crawler access to your own site, accuracy
+   findings, and per-account spend caps. Only sourced figures appear: the
+   Ahrefs one-in-seven search rate (Oct 2026) and the ChatGPT Oct 8–15 link
+   tagging outage, both named in the copy.
+3. **Waitlist writes to Postgres** (`waitlist_signups`, m40): name, email,
+   title, company, industry, plus the source and any `utm_*` tags, with a
+   status of `new | contacted | invited | activated | declined`. Email is the
+   identity (lowercased, unique); a resubmission updates the details, bumps a
+   counter and **keeps** whatever status the row already reached, so inviting
+   someone can't be undone by them filling the form again.
+4. **The one public write path, so it is guarded**: field length caps before
+   the database, a hidden honeypot field that answers 201 and stores nothing,
+   and a per-IP hourly limit in Redis that fails open rather than losing a
+   signup when Redis is down. The notification email is best effort for the
+   same reason (`WAITLIST_NOTIFY_EMAILS`, falling back to the superadmin).
+5. **Admin → Waitlist** lists the signups with counts per status, a note
+   field, and a CSV export streamed through the app so the browser never sees
+   an API token. Status changes are audited (`tenant_id` null: a prospect has
+   no tenant yet).
 
 ## M58 — Answers are saved as they return; a failed run can be resumed (2026-11-01)
 
@@ -54,6 +109,7 @@ note it here.
 5. **Pushes and runs.** A push redeploys the worker and kills a run in
    flight. The rule from here: push only when no run is in flight, and say
    so before pushing.
+
 
 ## M57 — The pooled headline weights engines by audience (2026-11-01)
 

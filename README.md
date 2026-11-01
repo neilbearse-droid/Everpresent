@@ -81,6 +81,18 @@ up, and runs the idempotent seed (`python -m api.seed`): the superadmin row
 for `SUPERADMIN_EMAIL` (Clerk account linked on first login) plus the two
 launch tenants (`smith`, `greenshield`) with their `seeds/*.yaml` configs.
 
+## Landing page and waitlist
+
+`/` is the public site for everpresent.io: black, white and orange, with the
+waitlist form in the hero and again at the foot. A signup (name, email, title,
+company, industry) posts through a server action to `POST /api/waitlist` and
+lands in `waitlist_signups` with a status of `new`. Superadmins work the queue
+at **/admin/waitlist** (status, note, CSV export).
+
+Optional env: `WAITLIST_NOTIFY_EMAILS` (comma separated; falls back to
+`SUPERADMIN_EMAIL`) emails you on each signup when SMTP is configured, and
+`SITE_URL` sets the canonical URL used by `robots.txt` and `sitemap.xml`.
+
 ## Tenancy
 
 Clerk organizations map one-to-one to tenants. The API resolves the tenant

@@ -20,6 +20,7 @@ const PAGES = [
   "/dashboard/action-plan",
   "/dashboard/runs",
   "/admin",
+  "/admin/waitlist",
   "/admin/godaddy",
 ];
 

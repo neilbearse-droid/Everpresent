@@ -194,7 +194,7 @@ class Query(SQLModel, table=True):
     # Lifecycle. A paused (inactive) question leaves the run plan and the
     # competitive numbers from `paused_at` on; the Queries page keeps its
     # history under "Paused" with the date and who paused it ("client" or
-    # "admin"). Rows from before m40 have no created_at.
+    # "admin"). Rows from before m41 have no created_at.
     created_at: datetime | None = Field(default_factory=utcnow)
     paused_at: datetime | None = None
     paused_by: str | None = None
@@ -811,3 +811,41 @@ class EngineCheck(SQLModel, table=True):
     cost_usd: float = 0.0
     detail: str = ""  # what went wrong, or a short sample of the answer
     checked_at: datetime = Field(default_factory=utcnow, index=True)
+
+
+class WaitlistStatus(StrEnum):
+    """Where a waitlist signup sits. The form only ever writes `new`; the rest
+    are moved by hand from the admin list, so the queue is a worklist rather
+    than a dump of rows."""
+
+    new = "new"
+    contacted = "contacted"
+    invited = "invited"
+    activated = "activated"
+    declined = "declined"
+
+
+class WaitlistSignup(SQLModel, table=True):
+    """Public waitlist signup from the landing page (m40). No tenant: these
+    are prospects, so they sit outside tenancy until one is created for them.
+    Email is unique and stored lowercased — a second submission updates the
+    details and keeps whatever status the row already reached."""
+
+    __tablename__ = "waitlist_signups"  # pyright: ignore[reportAssignmentType]
+
+    id: int | None = Field(default=None, primary_key=True)
+    name: str
+    email: str = Field(unique=True, index=True)
+    title: str = ""
+    company: str = ""
+    industry: str = ""
+    status: WaitlistStatus = Field(default=WaitlistStatus.new, index=True)
+    # Which page/campaign the form was submitted from. utm_* parameters are
+    # kept as given so a referral can be traced without a tracking script.
+    source: str = ""
+    utm: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    # Internal note, written from the admin list (never by the public form).
+    note: str = ""
+    submissions: int = Field(default=1)
+    created_at: datetime = Field(default_factory=utcnow, index=True)
+    updated_at: datetime = Field(default_factory=utcnow)

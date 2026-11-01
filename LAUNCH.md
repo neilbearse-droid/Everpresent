@@ -13,6 +13,17 @@ code is built and tested; this is the human setup.
 That's the "clickable, deployed app" milestone. Everything below activates a
 client.
 
+## 0.5 Point everpresent.io at the site
+
+- [ ] Add `everpresent.io` (and `www`) as custom domains on the
+      **everpresent-web** service in Render, and set the DNS records it shows.
+- [ ] Set `SITE_URL=https://everpresent.io` on that service (already in
+      `render.yaml`) so `robots.txt` and `sitemap.xml` are right.
+- [ ] *(recommended)* Set `WAITLIST_NOTIFY_EMAILS` on **everpresent-api** with
+      the SMTP vars, so each waitlist signup emails you. Without SMTP the
+      signup is still saved; you just have to go look.
+- [ ] Submit the form once yourself and check the row at **/admin/waitlist**.
+
 ## 1. Activate Smith (unblocked launch tenant)
 
 - [ ] In **Clerk** → Organizations: create the Smith organization, invite its

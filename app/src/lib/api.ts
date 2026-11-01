@@ -1071,3 +1071,25 @@ export type AdsReport = {
   engines: { surface: string; label: string; answers: number; with_ads: number; ad_rate: number }[];
   advertisers: { name: string; type: string; units: number; share: number; example: string }[];
 };
+
+export type WaitlistSignup = {
+  id: number;
+  name: string;
+  email: string;
+  title: string;
+  company: string;
+  industry: string;
+  status: string;
+  source: string;
+  utm: Record<string, string> | null;
+  note: string;
+  submissions: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type WaitlistReport = {
+  signups: WaitlistSignup[];
+  counts: Record<string, number>;
+  statuses: string[];
+};
