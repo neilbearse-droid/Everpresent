@@ -8,6 +8,7 @@ from sqlmodel import Session, func, select
 from api.models import (
     Citation,
     Result,
+    ResultVariant,
     Run,
     RunMode,
     RunStatus,
@@ -258,7 +259,67 @@ def month_spend_usd(session: Session, tenant_id: int) -> float:
     return float(total) + float(other)
 
 
-def run_detail_payload(session: Session, run: Run) -> dict:
+def cost_by_engine(session: Session, run: Run, results: list[Result]) -> dict:
+    """Where a run's spend went, per engine (admin only: cost reveals the
+    margin). Read from the `cost:<surface>` counters the worker books as it
+    goes; runs from before those counters are summed once from the stored
+    answers' envelopes and the result written back, so the next read is free."""
+    from api.dashboards.common import _surface_label
+    from api.storage import read_raw_envelope
+
+    counts = dict(run.counts or {})
+    source = "live"
+    if not any(k.startswith("cost:") or k.startswith("reprobe_cost:") for k in counts):
+        source = "stored answers"
+        for r in results:
+            if not r.raw_uri:
+                continue
+            envelope = read_raw_envelope(r.raw_uri, session=session) or {}
+            kind = "reprobe_cost" if r.variant == ResultVariant.shard else "cost"
+            key = f"{kind}:{r.surface}"
+            spent = float(envelope.get("cost_usd") or 0.0)
+            counts[key] = round(float(counts.get(key, 0.0)) + spent, 6)
+        if any(k.startswith(("cost:", "reprobe_cost:")) for k in counts):
+            counts["cost_breakdown_source"] = "envelopes"
+            run.counts = counts
+            session.add(run)
+            session.commit()
+    answers: dict[str, int] = {}
+    for r in results:
+        if r.variant != ResultVariant.shard:
+            answers[str(r.surface)] = answers.get(str(r.surface), 0) + 1
+    engine_cost = {k.removeprefix("cost:"): float(v) for k, v in counts.items()
+                   if k.startswith("cost:")}
+    reprobe_cost = {k.removeprefix("reprobe_cost:"): float(v) for k, v in counts.items()
+                    if k.startswith("reprobe_cost:")}
+    total = float(run.cost_usd or 0.0)
+    engines = [
+        {"surface": s, "label": _surface_label(s), "answers": answers.get(s, 0),
+         "cost_usd": round(engine_cost.get(s, 0.0), 4),
+         "share_pct": round(100 * engine_cost.get(s, 0.0) / total, 1) if total else 0.0}
+        for s in sorted(set(engine_cost) | set(answers),
+                        key=lambda s: (-engine_cost.get(s, 0.0), s))
+    ]
+    reprobe_total = round(sum(reprobe_cost.values()), 4)
+    booked = sum(engine_cost.values()) + reprobe_total
+    return {
+        "source": source,
+        "total_usd": round(total, 4),
+        "engines": engines,
+        "reprobe": {
+            "cost_usd": reprobe_total,
+            "probes": int(counts.get("fanout_reprobed", 0) or 0),
+            "share_pct": round(100 * reprobe_total / total, 1) if total else 0.0,
+            "by_surface": [{"surface": s, "label": _surface_label(s), "cost_usd": round(c, 4)}
+                           for s, c in sorted(reprobe_cost.items(), key=lambda kv: -kv[1])],
+        } if reprobe_cost else None,
+        # Spend the counters don't attribute (rounding, or calls booked before
+        # the counters existed in a partly-covered run).
+        "unattributed_usd": round(max(total - booked, 0.0), 4),
+    }
+
+
+def run_detail_payload(session: Session, run: Run, *, with_cost: bool = False) -> dict:
     results = session.exec(
         select(Result).where(Result.run_id == run.id).order_by(Result.id)  # pyright: ignore[reportArgumentType]
     ).all()
@@ -268,7 +329,7 @@ def run_detail_payload(session: Session, run: Run) -> dict:
             select(Citation).where(Citation.result_id.in_([r.id for r in results]))  # pyright: ignore[reportAttributeAccessIssue]
         ).all():
             citations_by_result.setdefault(citation.result_id, []).append(citation)
-    return {
+    payload = {
         "run": run,
         "results": [
             {
@@ -278,3 +339,6 @@ def run_detail_payload(session: Session, run: Run) -> dict:
             for r in results
         ],
     }
+    if with_cost:
+        payload["cost_by_engine"] = cost_by_engine(session, run, list(results))
+    return payload

@@ -93,6 +93,7 @@ export function RunDetailView({
   showCost?: boolean;
 }) {
   const { run, results } = detail;
+  const cost = showCost ? detail.cost_by_engine : undefined;
   return (
     <>
       <div className="mb-6 flex flex-wrap items-center gap-3 text-sm text-[var(--text-2)]">
@@ -102,6 +103,60 @@ export function RunDetailView({
         <span>citations: {run.counts.citations ?? 0}</span>
         {run.error && <span className="text-[var(--warn-t)]">{run.error}</span>}
       </div>
+      {cost && cost.engines.length > 0 && (
+        <div className="card mb-6 p-4">
+          <div className="mb-2 flex items-baseline justify-between">
+            <h2 className="text-sm font-medium">Cost by engine</h2>
+            <span className="text-xs text-[var(--text-3)]">
+              {cost.source === "live"
+                ? "Booked as the run went"
+                : "Summed from the stored answers"}
+              {" · "}estimates from the price tables, not the provider invoice
+            </span>
+          </div>
+          <table className="bp-table w-full max-w-xl text-left">
+            <thead>
+              <tr>
+                <th>Engine</th>
+                <th className="text-right">Answers</th>
+                <th className="text-right">Cost</th>
+                <th className="text-right">Share</th>
+              </tr>
+            </thead>
+            <tbody>
+              {cost.engines.map((e) => (
+                <tr key={e.surface}>
+                  <td>{e.label}</td>
+                  <td className="text-right tabular-nums">{e.answers}</td>
+                  <td className="text-right tabular-nums">${e.cost_usd.toFixed(2)}</td>
+                  <td className="text-right tabular-nums">{e.share_pct}%</td>
+                </tr>
+              ))}
+              {cost.reprobe && (
+                <tr>
+                  <td>
+                    Fan-out re-probe
+                    <span className="block text-xs text-[var(--text-3)]">
+                      {cost.reprobe.by_surface.map((s) => `${s.label} $${s.cost_usd.toFixed(2)}`).join(" · ")}
+                    </span>
+                  </td>
+                  <td className="text-right tabular-nums">{cost.reprobe.probes}</td>
+                  <td className="text-right tabular-nums">${cost.reprobe.cost_usd.toFixed(2)}</td>
+                  <td className="text-right tabular-nums">{cost.reprobe.share_pct}%</td>
+                </tr>
+              )}
+              {cost.unattributed_usd >= 0.01 && (
+                <tr>
+                  <td className="text-[var(--text-3)]">Not attributed</td>
+                  <td></td>
+                  <td className="text-right tabular-nums">${cost.unattributed_usd.toFixed(2)}</td>
+                  <td></td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
       <div className="card overflow-x-auto">
       <table className="bp-table w-full min-w-[820px] text-left">
         <thead>

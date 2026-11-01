@@ -189,7 +189,8 @@ def test_job_stores_results_citations_and_raw(db_session, job_env, fake_retrieve
 
     run = db_session.get(Run, run_id)
     assert run is not None and run.status == RunStatus.complete
-    assert run.counts == {
+    # Per-engine cost counters are checked in test_run_cost_breakdown.
+    assert {k: v for k, v in run.counts.items() if not k.startswith("cost:")} == {
         # 2 queries × 2 personas × 1 surface, plus one nosearch twin per
         # (query, surface) for the classifier diff
         "planned": 6,

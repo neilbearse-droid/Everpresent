@@ -3,6 +3,22 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M56 — Cost by engine on the admin run page (2026-11-01)
+
+1. The worker books each call's estimated cost against its engine in
+   `run.counts` (`cost:<surface>`, `reprobe_cost:<surface>` for fan-out
+   re-probes) as the run goes, including SerpApi follow-up searches. The
+   admin run detail (`with_cost=True`) returns `cost_by_engine`: answers and
+   cost per engine with share of the run, the re-probe line split by engine,
+   and whatever the counters don't attribute. The client-facing run detail
+   never carries it (cost reveals the margin).
+2. Runs from before the counters are summed once from the stored answers'
+   envelopes and the result written back to `run.counts`
+   (`cost_breakdown_source: envelopes`), so later reads cost nothing.
+3. Why it was asked: a 680-answer Command run on Oct 8 cost $24.70. Gemini
+   3.x bills $14 per 1,000 searches and fans out several searches per answer,
+   and the run carried the old 75-probe re-probe ceiling (cut to 15 in M52).
+
 ## M55 — Week one of the October 2026 sweep (2026-10-31)
 
 Fixes from the best-practice sweep (reports/AEO best practice sweep October

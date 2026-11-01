@@ -519,7 +519,7 @@ def run_detail(run_id: int, session: Db) -> dict:
     run = session.get(Run, run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="No such run")
-    return run_detail_payload(session, run)
+    return run_detail_payload(session, run, with_cost=True)
 
 
 @router.get("/results/{result_id}/raw")

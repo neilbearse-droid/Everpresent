@@ -162,9 +162,24 @@ export type RunResult = {
   response_hash: string;
 };
 
+export type CostByEngine = {
+  source: "live" | "stored answers";
+  total_usd: number;
+  engines: { surface: string; label: string; answers: number; cost_usd: number; share_pct: number }[];
+  reprobe: {
+    cost_usd: number;
+    probes: number;
+    share_pct: number;
+    by_surface: { surface: string; label: string; cost_usd: number }[];
+  } | null;
+  unattributed_usd: number;
+};
+
 export type RunDetail = {
   run: Run;
   results: { result: RunResult; citations: { url: string; domain: string }[] }[];
+  /** Admin only: where the run's spend went. */
+  cost_by_engine?: CostByEngine;
 };
 
 export type AdminRunsPayload = {

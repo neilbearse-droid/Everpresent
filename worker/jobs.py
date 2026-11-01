@@ -155,6 +155,14 @@ class _AAdapter:
     forces_search: bool = False
 
 
+def _add_cost(counts: dict, surface: str, cost: float, kind: str = "cost") -> None:
+    """Book a call's cost against its engine in run.counts (`cost:<surface>`;
+    `reprobe_cost:<surface>` for fan-out re-probes), so the admin run page can
+    say where the money went."""
+    key = f"{kind}:{surface}"
+    counts[key] = round(float(counts.get(key, 0.0)) + cost, 6)
+
+
 # Adding a Mode A surface = one line here plus its adapter + cost function.
 A_ADAPTERS: dict[str, _AAdapter] = {
     "openai_api": _AAdapter(
@@ -829,6 +837,7 @@ async def _run_mode_a(run_id: int) -> None:
                 outcome: openai_api.RetrievalOutcome = item["outcome"]
                 counts["completed"] += 1
                 total_cost += item["cost"]
+                _add_cost(counts, wi.surface, item["cost"])
                 result.latency_ms = outcome.latency_ms
                 result.web_search_calls = outcome.parsed.web_search_calls
                 result.fanout_queries = list(outcome.parsed.fanout_queries)
@@ -1087,6 +1096,7 @@ async def _run_mode_b(run_id: int) -> None:
             counts["withheld_by_cap"] = counts.get("withheld_by_cap", 0) + (len(work) - index)
             break
         mode_b_cost += call_cost
+        _add_cost(counts, wi.surface, call_cost)
 
         adapter_module, model_label, rate_attr, timeout_attr = B_ADAPTERS[wi.surface]
         # Pace per surface: only wait out the remainder of THIS engine's
@@ -1131,6 +1141,7 @@ async def _run_mode_b(run_id: int) -> None:
                     extra_cost = outcome.extra_searches * settings.serpapi_cost_per_search
                     call_cost += extra_cost
                     mode_b_cost += extra_cost
+                    _add_cost(counts, wi.surface, extra_cost)
                 response_payload = {
                     "aio_summary": asdict(outcome.summary),
                     "aio_html": outcome.aio_html,
@@ -1464,6 +1475,7 @@ async def _run_fanout_reprobe(run_id: int) -> None:
                 continue
             outcome = item["outcome"]
             cost += item["cost"]
+            _add_cost(counts, wi.surface, item["cost"], kind="reprobe_cost")
             counts["fanout_reprobed"] += 1
             cited = [c.domain for c in outcome.parsed.citations]
             result.latency_ms = outcome.latency_ms
