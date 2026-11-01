@@ -3,7 +3,7 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
-## M58 — A public landing page and a waitlist (2026-11-01)
+## M59 — A public landing page and a waitlist (2026-11-01)
 
 1. **everpresent.io is a marketing surface, not part of the themed app.** The
    landing page is black, white and EverPresent orange in both themes: the
@@ -36,6 +36,34 @@ note it here.
    field, and a CSV export streamed through the app so the browser never sees
    an API token. Status changes are audited (`tenant_id` null: a prospect has
    no tenant yet).
+
+## M58 — Answers are saved as they return; a failed run can be resumed (2026-11-01)
+
+1. **Why.** Run #52 died when a deploy restarted the worker: Mode A saved
+   its answers only after the whole batch came back, so 201 paid-for answers
+   and their cost were lost, and the spend cap never saw the money.
+2. **Save as you go.** Each Mode A answer is written in its own short
+   transaction the moment it returns (`_persist_a_outcome`): Result row,
+   citations, consulted sources, raw envelope, and the run's counts and cost
+   in the same commit, serialised by a lock. The dispatcher still holds no
+   connection across the batch. Phase 3 only adds the cached twins, counts
+   citations from the table and sets the status; `run.cost_usd` is never
+   overwritten with a total. Envelope names carry a nonce so a resumed run
+   can't reuse one. Mode B already saved per capture.
+3. **Planners skip what the run holds.** Both modes subtract the ok answers
+   a run already has, cell by cell (`_skip_done`), with samples of one
+   wording told apart by count. A fresh run has nothing to skip, so this
+   costs nothing; a resumed run re-asks only the missing cells, including
+   cells that errored.
+4. **Resume.** `POST /admin/runs/{id}/resume` puts a failed run back to
+   pending and re-queues it (refused while the tenant has a live run);
+   counts carry the per-engine cost and a `resumed` count. The admin Runs
+   page shows a Resume button on failed runs. A crash in Mode A still marks
+   the run failed; Resume is the recovery path, not auto-retry.
+5. **Pushes and runs.** A push redeploys the worker and kills a run in
+   flight. The rule from here: push only when no run is in flight, and say
+   so before pushing.
+
 
 ## M57 — The pooled headline weights engines by audience (2026-11-01)
 

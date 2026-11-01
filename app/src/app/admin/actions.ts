@@ -353,6 +353,19 @@ export async function setEngineWeights(
   };
 }
 
+export async function resumeRun(
+  slug: string,
+  runId: number,
+  _prev: ActionState,
+): Promise<ActionState> {
+  const res = await apiFetch<{ id: number; status: string }>(`/api/admin/runs/${runId}/resume`, {
+    method: "POST",
+  });
+  if (!res.ok || !res.data) return { ok: false, message: res.error ?? "Could not resume the run" };
+  revalidatePath(`/admin/${slug}/runs`);
+  return { ok: true, message: `Run #${runId} is back in the queue; it re-asks only what it lacks.` };
+}
+
 export async function triggerRun(slug: string, _prev: ActionState): Promise<ActionState> {
   const res = await apiFetch<{ id: number; status: string; error: string | null }>(
     `/api/admin/tenants/${slug}/runs`,

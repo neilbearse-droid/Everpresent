@@ -2,6 +2,7 @@ import Link from "next/link";
 import { apiFetch, type AdminRunsPayload, type Me } from "@/lib/api";
 import { RunsTable } from "@/components/runs";
 import { TriggerRunButton } from "./trigger-run-button";
+import { ResumeRunButton } from "./resume-run-button";
 
 export default async function AdminRunsPage({
   params,
@@ -40,7 +41,11 @@ export default async function AdminRunsPage({
         </div>
         <TriggerRunButton slug={slug} />
       </header>
-      <RunsTable runs={payload.data.runs} hrefBase={`/admin/${slug}/runs`} />
+      <RunsTable runs={payload.data.runs} hrefBase={`/admin/${slug}/runs`}
+        renderActions={(run) =>
+          run.status === "failed" ? <ResumeRunButton slug={slug} runId={run.id} /> : null
+        }
+      />
     </main>
   );
 }
