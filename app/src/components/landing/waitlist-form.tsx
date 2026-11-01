@@ -46,15 +46,14 @@ export function WaitlistForm({ source = "landing" }: { source?: string }) {
   if (state?.ok) {
     return (
       <div className="card p-6 sm:p-7" aria-live="polite">
-        <p className="ep-eyebrow">Waitlist</p>
+        <p className="ep-eyebrow">Request received</p>
         <h3 className="mt-2 text-[20px] font-semibold tracking-[-0.02em]">{state.message}</h3>
         <p className="mt-3 text-[14px] leading-relaxed text-[var(--text-2)]">
-          We&apos;re onboarding in small groups so every account gets its question set built
-          properly. You&apos;ll get an email from a person, not a drip sequence, with what we can
-          measure for your category and what it costs.
+          You&apos;ll hear from a person, not a sequence. We onboard in small groups so each
+          account&apos;s question set is built properly before the first run.
         </p>
         <p className="mt-4 text-[13px] text-[var(--text-3)]">
-          Something to add in the meantime? Reply to that email, or write to{" "}
+          Anything to add first, write to{" "}
           <a className="bp-link" href="mailto:hello@everpresent.io">
             hello@everpresent.io
           </a>
@@ -66,13 +65,13 @@ export function WaitlistForm({ source = "landing" }: { source?: string }) {
 
   return (
     <form action={action} className="card p-6 sm:p-7" noValidate={false}>
-      <p className="ep-eyebrow">Waitlist</p>
+      <p className="ep-eyebrow">Request access</p>
       <h3 className="mt-2 text-[20px] font-semibold tracking-[-0.02em]">
-        Get an early account
+        See your own numbers first
       </h3>
       <p className="mt-2 text-[13.5px] leading-relaxed text-[var(--text-2)]">
-        Five fields. We use them to build your question set before the first call, so the
-        conversation starts with your own numbers.
+        Five fields. They tell us which questions your buyers ask, so we come back with your
+        category and your competitors rather than a demo account.
       </p>
 
       <input type="hidden" name="source" value={source} />
@@ -179,7 +178,7 @@ export function WaitlistForm({ source = "landing" }: { source?: string }) {
         disabled={pending}
         className="btn ep-cta mt-5 w-full px-5 py-3 text-[14px]"
       >
-        {pending ? "Adding you…" : "Join the waitlist"}
+        {pending ? "Sending…" : "Request access"}
       </button>
 
       {state && !state.ok && (
@@ -189,8 +188,8 @@ export function WaitlistForm({ source = "landing" }: { source?: string }) {
       )}
 
       <p className="mt-4 text-[12px] leading-relaxed text-[var(--text-3)]">
-        One email when your account is ready, and nothing else. No newsletter, no reselling your
-        details, and you can ask us to delete them at any time.
+        One email when your account is ready. No newsletter, no list sales, and we delete your
+        details on request.
       </p>
     </form>
   );

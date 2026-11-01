@@ -66,7 +66,7 @@ export async function joinWaitlist(
     ok: true,
     alreadyOnList: Boolean(parsed.already_on_list),
     message: parsed.already_on_list
-      ? "You're already on the list. We've updated your details."
+      ? "You were already on the list. Details updated."
       : "You're on the list.",
   };
 }

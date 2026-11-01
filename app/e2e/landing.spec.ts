@@ -6,7 +6,7 @@ import { test, expect } from "@playwright/test";
 
 test("landing page renders", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1, name: /AI answers/ })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: /shortlist/i })).toBeVisible();
   // Header "[Sign in]" and the footer link both go to sign-in.
   await expect(page.getByRole("link", { name: /Sign in/ }).first()).toBeVisible();
 });
@@ -19,15 +19,15 @@ test("the waitlist form asks for all five fields", async ({ page }) => {
   await expect(form.getByLabel("Title", { exact: true })).toBeVisible();
   await expect(form.getByLabel("Company", { exact: true })).toBeVisible();
   await expect(form.getByLabel("Industry", { exact: true })).toBeVisible();
-  await expect(form.getByRole("button", { name: /Join the waitlist/ })).toBeVisible();
+  await expect(form.getByRole("button", { name: /Request access/ })).toBeVisible();
 });
 
 test("the page carries its differentiators and sections", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: /stand up to a question/i })).toBeVisible();
-  await expect(page.getByRole("heading", { name: /Both ways of asking/i })).toBeVisible();
-  await expect(page.getByRole("heading", { name: /Four steps/i })).toBeVisible();
-  await expect(page.getByRole("heading", { name: /questions we get asked/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /stopped clicking through/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Evidence is the hard part/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Three steps/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Before you ask/i })).toBeVisible();
 });
 
 test("element ids are unique across both copies of the form", async ({ page }) => {

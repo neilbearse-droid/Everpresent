@@ -14,103 +14,85 @@ export const ENGINES = {
   ],
 };
 
-/** The differentiators, in the order they matter to someone deciding. Each one
- * is a capability in the product, not a promise. */
-export const DIFFERENTIATORS: { title: string; body: string; proof: string }[] = [
+/** The three versions of the same problem, as a founder, a marketing lead and
+ * a board member each run into it. Pain first; the product comes later. */
+export const PAIN: { title: string; body: string }[] = [
   {
-    title: "The answer your buyer actually gets",
+    title: "Traffic is down. Nobody can tell you why.",
     body:
-      "Most tools ask a model over its API and call that visibility. We do that too, and then we open a clean, logged-out browser session on ChatGPT, Perplexity, Gemini and Copilot, and capture Google's AI Overviews and AI Mode from a real search. Same questions, same week, both ways, so you can see where the product differs from the API.",
-    proof: "12 surfaces across 8 engines, each one labelled by how it was measured.",
+      "The answer resolves the question on the page, so the buyer gets what they came for and never clicks. The decision still happens. The visit you used to count doesn't.",
   },
   {
-    title: "The searches behind the answer",
+    title: "The board will ask how you're positioned.",
     body:
-      "When an engine searches before it answers, it splits your question into sub-searches. We record those, then re-run the important ones on their own to see who gets named for each. That tells you which specific sub-question you are losing, not just that your score moved.",
-    proof: "Fan-out captured from ChatGPT, Gemini, Perplexity and Claude, with a step-by-step replay of a real answer.",
+      "There is a version of that meeting where you show a trend by engine, name who is being recommended instead of you, and say what you changed. Most companies are having the other version.",
   },
   {
-    title: "Evidence you can open, not a score",
+    title: "The work is already being done. It isn't being measured.",
     body:
-      "Every answer is kept with its citations and the date it was given. A number on a dashboard links to the answers behind it. Rate changes come with a 95% range and a significance test, and when an engine changes under us we mark the break and withhold the verdict instead of reporting noise as progress.",
-    proof: "Dated series breaks for the ChatGPT, AI Overviews and AI Mode changes of October 2026.",
+      "Agencies and in-house teams are shipping work in the name of AI search. Almost none of it is checked against the answers it was meant to change.",
+  },
+];
+
+/** Four reasons to pick this over the tools being pitched alongside it. Each
+ * one is a capability in the product, framed as what it gets the buyer. */
+export const DIFFERENTIATORS: { title: string; body: string }[] = [
+  {
+    title: "We measure the answer your buyer gets",
+    body:
+      "Most tools query a model over its API and call the result visibility. An API behaves differently from the app your customer opens. We measure both, from a clean logged-out session in your market, and we never mix them in one number without saying so.",
   },
   {
-    title: "Proof that your fix worked",
+    title: "Every figure opens",
     body:
-      "Log the change you shipped and the same questions are measured before and after it, on the engines that were stable across the window. If the window is confounded, the report says so rather than taking credit.",
-    proof: "A before-and-after table in the client report, per logged fix.",
+      "Behind each number are the answers it came from: the question, the engine, the date, the brands named, the pages cited. Changes carry a range and a significance test. When an engine changes under us, we say so and withhold the verdict rather than sell you noise as progress.",
   },
   {
-    title: "Mentions are the start; we follow it to revenue",
+    title: "The reason, not just the result",
     body:
-      "We pull AI-referred sessions and conversions from your GA4 alongside the mention rates, so a rise in visibility can be checked against leads. Where the engines' tracking is known to be broken, those days are marked as missing data and never estimated.",
-    proof:
-      "ChatGPT's links went untagged from 8 to 15 October 2026 and those visits landed in GA4 as Direct. Our charts grey those days out.",
+      "Before it answers, an engine breaks your buyer's question into searches of its own. We capture those and re-run the ones that matter. You find out which part of the question you lose, and which page would win it back.",
   },
   {
-    title: "Your own site, from the engines' side",
+    title: "Proof, and then pipeline",
     body:
-      "Which AI crawlers reached your site, which were blocked or served an error, which of your pages get cited, and whether engines run site: searches against you or against your rivals. The gaps become a short list of pages to write or fix, with a brief for the biggest ones.",
-    proof: "Crawler access audit, cited-page inventory and a playbook with drafts.",
-  },
-  {
-    title: "What the engines get wrong about you",
-    body:
-      "Visibility is not much use if the answer is inaccurate. We check the claims engines make against the facts you give us, and trace a wrong price or a retired product back to the page that most likely taught it.",
-    proof: "Accuracy findings, each tied to a source page.",
-  },
-  {
-    title: "Run on your terms",
-    body:
-      "A monthly spend cap per account, enforced before every call, so there is no surprise bill. You approve which engines run and whether answers may be processed by a model at all. Every change is in an audit log, and the raw answers stay yours.",
-    proof: "Per-account caps, approved-engine list, audit log, raw answer retention.",
+      "Log a change and the same questions are measured before and after it. Alongside that sit the sessions and conversions AI engines actually sent you, pulled from your own analytics. Visibility you can bank, rather than a score that went up.",
   },
 ];
 
 export const STEPS: { title: string; body: string }[] = [
   {
-    title: "We build your question set",
+    title: "We build the question set",
     body:
-      "The questions your buyers actually type, by audience and by topic, with your brand, your competitors and your own pages registered. Branded questions are kept separate so they can't flatter the headline.",
+      "The questions your buyers ask, by audience and topic, with your brand, your competitors and your pages registered. It takes one working session.",
   },
   {
-    title: "It runs on a schedule",
+    title: "It runs every week",
     body:
-      "Three times a week by default. Each run asks every question on every engine you've enabled, keeps the full answer, and notes the searches and citations behind it.",
+      "Every question, on every engine you've enabled, with each answer kept in full. No tagging, no script on your site, nothing for your team to maintain.",
   },
   {
-    title: "You get a ranked list of things to do",
+    title: "You get a short list, then proof",
     body:
-      "Where you're named, where a rival is named instead, which sources the engines trust, and the pages that would close the biggest gaps, with a draft brief for the top ones.",
-  },
-  {
-    title: "Then we measure whether it worked",
-    body:
-      "Ship the change, log it, and the next runs tell you whether the mention rate moved on those questions, with the statistics stated and the engine changes accounted for.",
+      "Where you're named, who is named instead, and the few pages that would close the gap. Ship one, and the next runs tell you whether it moved.",
   },
 ];
 
 export const FAQ: { q: string; a: string }[] = [
   {
-    q: "How is this different from an AI visibility score?",
-    a: "A score is one number with nothing underneath it. Here, every figure opens into the answers it came from, the searches the engine ran, and the sources it cited. If we can't tell whether a change is real, we say so.",
+    q: "How is this different from the tools being pitched to us?",
+    a: "Most of them return a score. A score is one number with nothing underneath it, which makes it impossible to defend and impossible to act on. Here, every figure opens into the answers behind it, and anything we can't prove, we say we can't prove.",
   },
   {
-    q: "Which engines do you measure?",
-    a: "ChatGPT, Google AI Overviews, Google AI Mode, Gemini, Claude, Perplexity, Microsoft Copilot and Meta AI. Each is measured over its API, as a logged-out browser session, or both, and every number says which.",
+    q: "What do you need from us?",
+    a: "Your brand and its aliases, your domains, the competitors that matter, and roughly 25 to 50 buyer questions, which we draft with you. Read-only access to your analytics if you want the revenue side. Nothing goes on your site.",
   },
   {
-    q: "What do you need from us to start?",
-    a: "Your brand name and aliases, your domains, the competitors you care about, and roughly 25 to 50 questions (we draft those with you). Read-only GA4 access is optional and only needed for the revenue side.",
+    q: "How long until I have something worth presenting?",
+    a: "The first run completes the week you start, and gives you a baseline by engine and competitor. A trend you'd put in front of a board takes about a month of runs behind it.",
   },
   {
     q: "What does it cost?",
-    a: "Plans start at $149 a month; larger plans add questions, audiences, engines and locations. We confirm the number with you before you commit, and your account carries a hard monthly spend cap.",
-  },
-  {
-    q: "Do you need logins to our accounts?",
-    a: "No. We measure what a logged-out person sees, and we don't automate signed-in accounts. Where an engine can only be seen from a signed-in session, we take imported captures from a vendor that tracks it, and label them as imported.",
+    a: "Plans start at $149 a month and scale with questions, audiences and engines. We confirm the number before you commit, and every account carries a hard monthly cap, so the bill can't run away from you.",
   },
 ];
 
@@ -124,7 +106,7 @@ export function SectionHead({
   children?: ReactNode;
 }) {
   return (
-    <div className="max-w-[68ch]">
+    <div className="max-w-[62ch]">
       <p className="ep-eyebrow">{eyebrow}</p>
       <h2 className="ep-h2 mt-3">{title}</h2>
       {children && (
