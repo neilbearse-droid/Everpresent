@@ -5,6 +5,14 @@ import type { WaitlistSignup } from "@/lib/api";
 import type { ActionState } from "../actions";
 import { updateSignup } from "./actions";
 
+const STATUS_LABEL: Record<string, string> = {
+  new: "New",
+  contacted: "Contacted",
+  invited: "Invited",
+  activated: "Activated",
+  declined: "Declined",
+};
+
 export function SignupRow({
   signup,
   statuses,
@@ -50,7 +58,7 @@ export function SignupRow({
           >
             {statuses.map((status) => (
               <option key={status} value={status}>
-                {status}
+                {STATUS_LABEL[status] ?? status}
               </option>
             ))}
           </select>
