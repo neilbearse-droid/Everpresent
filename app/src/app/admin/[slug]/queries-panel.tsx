@@ -1,7 +1,13 @@
 "use client";
 
 import { useActionState } from "react";
-import { addQueries, recheckBranded, setQueryBranded, type ActionState } from "../actions";
+import {
+  addQueries,
+  recheckBranded,
+  setQueryActive,
+  setQueryBranded,
+  type ActionState,
+} from "../actions";
 
 export type AdminQuery = {
   id: number;
@@ -32,6 +38,25 @@ function BrandedToggle({ slug, query }: { slug: string; query: AdminQuery }) {
         }`}
       >
         {pending ? "…" : query.branded ? "branded" : "competitive"}
+      </button>
+      {state && !state.ok && <span className="text-xs text-[var(--neg)]">{state.message}</span>}
+    </form>
+  );
+}
+
+function ActiveToggle({ slug, query }: { slug: string; query: AdminQuery }) {
+  const [state, action, pending] = useActionState<ActionState, FormData>(
+    setQueryActive.bind(null, slug, query.id, !query.active),
+    null,
+  );
+  return (
+    <form action={action} className="flex items-center gap-2">
+      <button
+        disabled={pending}
+        title={query.active ? "Pause: leaves the next run and the rates." : "Resume."}
+        className="rounded-[var(--radius-sm)] border border-[var(--border)] px-2 py-1 text-[11px] font-semibold text-[var(--text-3)] hover:text-[var(--text-2)] disabled:opacity-50"
+      >
+        {pending ? "…" : query.active ? "pause" : "resume"}
       </button>
       {state && !state.ok && <span className="text-xs text-[var(--neg)]">{state.message}</span>}
     </form>
@@ -125,8 +150,9 @@ export function QueriesPanel({ slug, queries }: { slug: string; queries: AdminQu
             <span>
               {q.text}
               <span className="ml-2 text-xs text-[var(--text-3)]">{q.corpus_tag}</span>
-              {!q.active && <span className="ml-2 text-xs text-[var(--text-3)]">(inactive)</span>}
+              {!q.active && <span className="ml-2 text-xs text-[var(--text-3)]">(paused)</span>}
             </span>
+            <ActiveToggle slug={slug} query={q} />
             <BrandedToggle slug={slug} query={q} />
           </li>
         ))}

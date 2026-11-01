@@ -191,6 +191,13 @@ class Query(SQLModel, table=True):
     # wording is asked. Results keep `text` as query_text and the wording sent
     # as asked_text.
     paraphrases: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    # Lifecycle. A paused (inactive) question leaves the run plan and the
+    # competitive numbers from `paused_at` on; the Queries page keeps its
+    # history under "Paused" with the date and who paused it ("client" or
+    # "admin"). Rows from before m40 have no created_at.
+    created_at: datetime | None = Field(default_factory=utcnow)
+    paused_at: datetime | None = None
+    paused_by: str | None = None
 
 
 class Location(SQLModel, table=True):

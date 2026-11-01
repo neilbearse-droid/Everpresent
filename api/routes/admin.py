@@ -903,7 +903,8 @@ def recheck_branded_queries(slug: str, session: Db, admin: Admin) -> dict:
 
 
 class QueryBrandedPatch(BaseModel):
-    branded: bool
+    branded: bool | None = None
+    active: bool | None = None
 
 
 @router.patch("/tenants/{slug}/queries/{query_id}")
@@ -911,19 +912,31 @@ def set_query_branded(
     slug: str, query_id: int, payload: QueryBrandedPatch, session: Db, admin: Admin
 ) -> Query:
     """Flip a query between the competitive-visibility layer and the branded
-    brand-knowledge layer without a full config re-import. Takes effect on the
-    next processed run (visibility_daily) and immediately on the live reads."""
+    brand-knowledge layer, or pause/resume it, without a full config
+    re-import. Takes effect on the next processed run (visibility_daily) and
+    immediately on the live reads."""
+    from api.query_controls import QueryControlError, set_query_active
+
     tenant = _tenant_or_404(session, slug)
     query = session.get(Query, query_id)
     if query is None or query.tenant_id != tenant.id:
         raise HTTPException(status_code=404, detail="No such query for this tenant")
-    query.branded = payload.branded
+    actions: list[str] = []
+    if payload.branded is not None:
+        query.branded = payload.branded
+        actions.append(f"branded={'on' if payload.branded else 'off'}")
+    if payload.active is not None:
+        try:
+            set_query_active(session, tenant, query, payload.active, by="admin")
+        except QueryControlError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        actions.append("resumed" if payload.active else "paused")
     session.add(query)
     write_audit(
         session,
         tenant_id=tenant.id,
         actor=admin.user.email,
-        action=f"query.branded {slug} q{query_id}={'on' if payload.branded else 'off'}",
+        action=f"query.edit {slug} q{query_id} {' '.join(actions) or 'noop'}",
     )
     session.commit()
     session.refresh(query)

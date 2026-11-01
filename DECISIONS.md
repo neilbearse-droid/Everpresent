@@ -3,6 +3,31 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M59 — Clients pause questions and choose personas (2026-11-01)
+
+1. **Pause, don't delete.** A question has `active`, `paused_at` and
+   `paused_by` ("client" or "admin"; m40 also adds `created_at`). Pausing
+   takes it out of the next run's plan and out of the competitive numbers at
+   once (`_off_score_query_texts`), so the rates stop covering it the day it
+   is paused; its answers stay, listed under "Paused questions" on the
+   Queries page with the date and who paused it, and the PDF says how many
+   questions were paused in the period. The last active competitive
+   question can't be paused: the headline needs a denominator.
+2. **Set changes are dated.** Questions paused or added inside the window
+   put a note on the pooled line ("2 questions paused on …; from that day
+   the rates cover a different set of questions"); the first day a set
+   exists is onboarding, not a change. Per-question views are unaffected.
+3. **Personas per question, gated by plan.** The client ticks which
+   personas a question also runs against (the generic baseline always runs).
+   The worker runs the first `max_personas` personas by id, so the same rule
+   decides what the client may tick: a persona outside the plan is shown
+   greyed with the plan that unlocks it (`persona_access`). Overlays already
+   set on a kept persona survive. Tenants without a generic baseline (legacy
+   cross-product mode) get no picker.
+4. **Routes.** `GET /api/tenant/query-controls`, `PATCH
+   /api/tenant/queries/{id}` (`active`, `persona_segments`) for members;
+   the admin PATCH gains `active`. Every change is audited.
+
 ## M58 — Answers are saved as they return; a failed run can be resumed (2026-11-01)
 
 1. **Why.** Run #52 died when a deploy restarted the worker: Mode A saved

@@ -96,11 +96,13 @@ AGENT_CORPUS_TAGS = frozenset({"agent_task", "agent_code"})
 def _off_score_query_texts(session: Session, tenant_id: int) -> frozenset[str]:
     """Query texts kept out of the visibility layer (mention rate, answer
     share, share of voice, the score): branded questions, which name the
-    brand by design, and agent prompts, which are their own category."""
+    brand by design; agent prompts, which are their own category; and paused
+    questions, whose reporting stops the day they are paused (the Queries
+    page keeps their history under "Paused")."""
     return frozenset(
         q.text
         for q in session.exec(select(Query).where(Query.tenant_id == tenant_id)).all()
-        if q.branded or q.corpus_tag in AGENT_CORPUS_TAGS
+        if q.branded or q.corpus_tag in AGENT_CORPUS_TAGS or not q.active
     )
 
 
