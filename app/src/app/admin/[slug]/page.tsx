@@ -9,6 +9,7 @@ import { CrawlPagesButton } from "./crawl-pages-button";
 import { ReprocessButton } from "./reprocess-button";
 import { EngineCheckButton } from "./engine-check-button";
 import { Ga4Form } from "./ga4-form";
+import { EngineWeightsForm, type EngineWeightDefaults } from "./engine-weights-form";
 import { ImportYamlForm, type BundledSeed } from "./import-yaml-form";
 import { ImportCapturesForm } from "./import-captures-form";
 import { AgentTokenForm } from "./agent-token-form";
@@ -42,6 +43,7 @@ export default async function TenantAdminPage({
     apiFetch<ReadinessPayload>(`/api/admin/tenants/${slug}/readiness`),
     apiFetch<BundledSeed[]>("/api/admin/seeds"),
   ]);
+  const weightDefaults = await apiFetch<EngineWeightDefaults>("/api/admin/engine-weights");
   if (detail.status === 404 || !detail.data) notFound();
   const { tenant, brand_profile, competitors, personas, queries, plans } = detail.data;
   const ready = readiness.data;
@@ -271,6 +273,22 @@ export default async function TenantAdminPage({
               come from AI assistants appear on the Outcome page each night.
             </p>
             <Ga4Form slug={tenant.slug} propertyId={tenant.ga4_property_id ?? ""} />
+          </div>
+          <div className="mt-5 border-t border-[var(--border)] pt-4">
+            <h3 className="mb-1 text-sm font-medium">Audience weights (for the pooled rate)</h3>
+            <p className="mb-3 text-xs text-[var(--text-2)]">
+              How much each engine counts in the headline mention rate and the visibility
+              trend. Per-engine rates never change. 0 keeps an engine measured and shown but out
+              of the pool. Every change is dated on the trend.
+            </p>
+            {weightDefaults.data && (
+              <EngineWeightsForm
+                slug={tenant.slug}
+                defaults={weightDefaults.data}
+                current={tenant.engine_weights ?? null}
+                changedOn={tenant.engine_weights_changed_on ?? null}
+              />
+            )}
           </div>
         </section>
 

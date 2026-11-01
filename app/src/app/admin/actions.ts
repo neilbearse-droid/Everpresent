@@ -319,6 +319,40 @@ export async function setGa4Property(
   };
 }
 
+export async function setEngineWeights(
+  slug: string,
+  families: string[],
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  if (formData.get("reset")) {
+    try {
+      await patchTenant(slug, { engine_weights: {} });
+    } catch (e) {
+      return { ok: false, message: e instanceof Error ? e.message : "Save failed" };
+    }
+    return { ok: true, message: "Back to the default weights." };
+  }
+  const weights: Record<string, number> = {};
+  for (const f of families) {
+    const raw = String(formData.get(`w_${f}`) ?? "").trim();
+    const n = Number(raw);
+    if (raw === "" || !Number.isInteger(n) || n < 0 || n > 100) {
+      return { ok: false, message: `Weights are whole numbers from 0 to 100 (${f}).` };
+    }
+    weights[f] = n;
+  }
+  try {
+    await patchTenant(slug, { engine_weights: weights });
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Save failed" };
+  }
+  return {
+    ok: true,
+    message: "Saved. The pooled rate uses these weights from now on; the change is noted on the trend.",
+  };
+}
+
 export async function triggerRun(slug: string, _prev: ActionState): Promise<ActionState> {
   const res = await apiFetch<{ id: number; status: string; error: string | null }>(
     `/api/admin/tenants/${slug}/runs`,

@@ -16,6 +16,7 @@ from api.dashboards.common import (
     _utc,
 )
 from api.dashboards.measurement import alerts, mention_rates
+from api.engine_weights import engine_weights, family_of
 from api.models import (
     BrandProfile,
     Mention,
@@ -71,6 +72,23 @@ def aio_summary(session: Session, tenant_id: int) -> dict:
     }
 
 
+def _weighted_score(rows: list, weights: dict[str, int], value: Any) -> float:
+    """Mean of `value(row)` per engine family, then the audience-weighted mean
+    across families (equal weights if every present family weighs 0)."""
+    per_family: dict[str, list[float]] = defaultdict(list)
+    for row in rows:
+        v = value(row)
+        if v is not None:
+            per_family[family_of(str(row.surface))].append(float(v))
+    if not per_family:
+        return 0.0
+    means = {f: _mean(v) for f, v in per_family.items()}
+    total_w = sum(weights.get(f, 0) for f in means)
+    if total_w <= 0:
+        return round(_mean(list(means.values())), 2)
+    return round(sum(weights.get(f, 0) * m for f, m in means.items()) / total_w, 2)
+
+
 def overview(
     session: Session, tenant_id: int, start: str | None = None, end: str | None = None
 ) -> dict:
@@ -93,18 +111,22 @@ def overview(
     for row in rows:
         by_date[row.date].append(row)
 
+    # The trend weights engine families by audience, like the headline rate:
+    # a day's rows are averaged within each family, then across families.
+    weights = engine_weights(session.get(Tenant, tenant_id))
     trend = []
     for date in sorted(by_date):
         group = by_date[date]
-        competitor_values: dict[str, list[float]] = defaultdict(list)
-        for row in group:
-            for name, score in row.competitor_scores.items():
-                competitor_values[name].append(score)
+        competitor_names = {n for row in group for n in row.competitor_scores}
         trend.append(
             {
                 "date": date,
-                "brand_score": _mean([r.brand_score for r in group]),
-                "competitors": {n: _mean(v) for n, v in competitor_values.items()},
+                "brand_score": _weighted_score(group, weights, lambda r: r.brand_score),
+                "competitors": {
+                    n: _weighted_score(group, weights,
+                                       lambda r, n=n: r.competitor_scores.get(n))
+                    for n in sorted(competitor_names)
+                },
             }
         )
 
@@ -292,6 +314,15 @@ def engine_breaks(session: Session, tenant_id: int, lo: str, hi: str) -> list[di
         for day, surface, note in series_breaks(session, tenant_id)
         if lo < day <= hi and str(surface) in measured
     ]
+    # A change to the audience weights re-weights the pooled line (and only
+    # that line): noted on the trend and the alert bar, never a proof trim.
+    tenant = session.get(Tenant, tenant_id)
+    changed = tenant.engine_weights_changed_on if tenant else None
+    if changed and lo < changed <= hi:
+        notes.append({"date": changed, "surface": "overall", "label": "Overall",
+                      "note": "The audience weights behind the pooled rate changed on "
+                              f"{changed}; the overall line before and after is weighted "
+                              "differently. Per-engine rates are unaffected."})
     seen = {(n["date"], n["surface"]) for n in notes}
     # The timeline's default window is 60 days; a proof window can start earlier.
     days = max(60, (datetime.now(UTC).date() - datetime.fromisoformat(lo).date()).days + 1)

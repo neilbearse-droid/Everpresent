@@ -64,9 +64,11 @@ def test_forced_engines_report_their_unforced_answers(db_session):
     assert chatgpt["unforced"]["rate"] == 20.0 and chatgpt["unforced"]["searched_rate"] == 30.0
     assert not claude["forced"] and claude["unforced"]["rate"] == claude["rate"] == 50.0
     assert claude["unforced"]["searched_rate"] == 40.0
-    # Headline unchanged (forced ChatGPT + Claude); unforced pools probe + Claude.
-    assert m["overall"]["rate"] == 65.0
-    assert m["overall"]["unforced"]["rate"] == 35.0
+    # Headline pools forced ChatGPT (weight 40) and Claude (weight 8) by
+    # audience; the unforced pool takes ChatGPT's probe and Claude's answers.
+    assert m["overall"]["rate"] == 75.0           # (40·0.8 + 8·0.5) / 48
+    assert m["overall"]["equal"]["rate"] == 65.0  # one answer, one vote
+    assert m["overall"]["unforced"]["rate"] == 25.0  # (40·0.2 + 8·0.5) / 48
 
 
 def test_probe_rotates_through_every_question(db_session, job_env, fake_retrieve,  # noqa: F811

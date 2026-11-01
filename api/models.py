@@ -95,6 +95,12 @@ class Tenant(SQLModel, table=True):
     # Subscription plan (pricing tier). Caps the run matrix and selects the
     # model tier (api.plans). "custom" = uncapped (default; legacy/enterprise).
     plan: str = Field(default="custom")
+    # Audience weights for the pooled headline (api.engine_weights): engine
+    # family -> 0-100. None = the dated default table; 0 = measured, not pooled.
+    engine_weights: dict | None = Field(default=None, sa_column=Column(JSON, nullable=True))
+    # ISO date of the last weights change: a note on the pooled series, since
+    # the overall line before and after is weighted differently.
+    engine_weights_changed_on: str | None = Field(default=None)
 
     created_at: datetime = Field(default_factory=utcnow)
 

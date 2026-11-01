@@ -186,7 +186,8 @@ def intervention_proof(session: Session, tenant_id: int, days: int = WINDOW_DAYS
         # regime the fix shipped in: from the last change before the ship
         # date up to the first change after it, on both sides, so before and
         # after compare the same engine state.
-        confounding = [b for b in breaks if b0.isoformat() <= b["date"] < a1.isoformat()]
+        confounding = [b for b in breaks if b0.isoformat() <= b["date"] < a1.isoformat()
+                       and b["surface"] != "overall"]
         regime: dict[str, tuple[date, date]] = {}
         for b in confounding:
             lo, hi = regime.get(b["surface"], (b0, a1))

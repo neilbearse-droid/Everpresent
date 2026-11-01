@@ -113,6 +113,7 @@ export default async function OverviewPage({
             <div className="flex flex-wrap items-center gap-2">
               <span className="bp-label">
                 {data?.brand_name ?? tenant.data.name} · Named in AI answers
+                {mr?.weighting === "audience" ? " · weighted by audience" : ""}
               </span>
               {mr && mr.answers > 0 && (
                 <span

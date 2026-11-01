@@ -80,9 +80,11 @@ def test_persona_answers_do_not_move_the_headline(db_session):
 
     m = mention_rates(db_session, t.id)
     assert m["segment"] == "generic"
-    # Generic + SERP answers only: 20 of 50, not 60 of 90.
+    # Generic + SERP answers only: 20 of 50, not 60 of 90. The pooled rate
+    # weights ChatGPT 40 and Google AI Overviews 20 (api.engine_weights).
     assert m["overall"]["answers"] == 50 and m["overall"]["mentioned"] == 20
-    assert m["overall"]["rate"] == 40.0
+    assert m["overall"]["rate"] == 50.0           # (40·0.25 + 20·1.0) / 60
+    assert m["overall"]["equal"]["rate"] == 40.0  # one answer, one vote
     assert {e["surface"]: e["answers"] for e in m["engines"]} == {"openai_api": 40,
                                                                   "google_aio": 10}
 

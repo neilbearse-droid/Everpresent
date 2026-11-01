@@ -3,6 +3,37 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M57 — The pooled headline weights engines by audience (2026-11-01)
+
+1. **Audience weights, said out loud.** The overall mention rate, its
+   unforced twin and the visibility trend now weight engine families by
+   audience share: `Σ weight × rate / Σ weight` over the families the client
+   measures (`api/engine_weights.py`). A family with no answers drops out of
+   the denominator; weight 0 is measured and shown per engine but not
+   pooled. Surfaces of one engine (ChatGPT API and web) pool their answers
+   first, so measuring an engine twice doesn't double its vote. Per-engine
+   rows, topics, personas and proof are unchanged (proof stays one answer,
+   one vote per question).
+2. **The default table is a judgement, dated and sourced**: ChatGPT 40,
+   Google AI Overviews 20, Gemini 12, Google AI Mode 10, Claude 8, Copilot
+   4, Perplexity 3, Meta AI 3. Anchored in Similarweb visits and StatCounter
+   referrals (Sept 2026); neither panel covers Google's AI surfaces, so
+   those rows are placed by judgement and the admin page says so.
+3. **Per-client override** (Admin → Audience weights; `tenants.engine_weights`,
+   m39). B2B software leans Claude and Perplexity; consumer brands the other
+   way. Every change is dated (`engine_weights_changed_on`) and becomes a
+   note on the pooled line only: the trend shows it, the alert bar withholds
+   the pooled verdict across it, proof ignores it.
+4. **Statistics.** The weighted rate's 95% range comes from the weighted
+   variance of the family proportions (Agresti–Coull shrinkage so a 0-of-5
+   cell doesn't claim zero noise); the change test is the difference of the
+   two weighted rates over the root of their summed variances, with the
+   usual 30-answer floor per side. The equal-weight pool is kept in the
+   payload (`overall.equal`) and printed beside the headline so the two can
+   be compared; the scorecard, Overview and PDF state the weights.
+5. **Rates move.** For a client measuring Perplexity or Claude alongside
+   ChatGPT, the headline shifts toward ChatGPT's rate the day this lands.
+
 ## M56 — Cost by engine on the admin run page (2026-11-01)
 
 1. The worker books each call's estimated cost against its engine in

@@ -97,6 +97,9 @@ export type Tenant = {
   monthly_spend_cap_usd: number;
   notify_emails: string[];
   ga4_property_id: string | null;
+  /** Audience weights for the pooled headline (family -> 0-100); null = default table. */
+  engine_weights?: Record<string, number> | null;
+  engine_weights_changed_on?: string | null;
   plan: string;
   fanout_reprobe_enabled: boolean;
   entity_extraction_enabled: boolean;
@@ -236,7 +239,7 @@ export type OverviewPayload = {
   /** Provider changes inside the trend window (absent on an older API). */
   series_notes?: { date: string; surface: string; note: string }[];
   /** Pooled mention rate with its 95% range (absent on an older API). */
-  mention_rate?: MentionRate;
+  mention_rate?: MentionRates["overall"];
   /** What changed that needs action (absent on an older API). */
   alerts?: { severity: "high" | "medium" | "good"; kind: string; text: string }[];
 };
@@ -446,6 +449,11 @@ export type MentionRates = {
     unforced?: UnforcedRate | null;
     /** Forced engines without unforced answers yet (the pooled rate waits). */
     unforced_missing?: string[];
+    /** The pooled rate weights engine families by audience share. */
+    weighting?: "audience";
+    weights?: { family: string; label: string; weight: number; share_pct: number; pooled: boolean }[];
+    /** The one-answer-one-vote pool, for comparison. */
+    equal?: MentionRate;
   };
   engines: (MentionRate & {
     surface: string;

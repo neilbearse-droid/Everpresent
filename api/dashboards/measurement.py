@@ -23,6 +23,7 @@ from api.dashboards.common import (
     _surface_label,
     _utc,
 )
+from api.engine_weights import engine_weights, family_of, weight_lines
 from api.models import (
     AccuracyFinding,
     Mention,
@@ -30,8 +31,14 @@ from api.models import (
     Result,
     ResultStatus,
     ResultVariant,
+    Tenant,
 )
-from engine.processing.stats import change_verdict, rate_summary
+from engine.processing.stats import (
+    change_verdict,
+    rate_summary,
+    weighted_change_verdict,
+    weighted_rate_summary,
+)
 
 STABILITY_RUNS = 8
 
@@ -170,6 +177,27 @@ def mention_rates(
         }
 
     total = [sum(c[i] for c in counts.values()) for i in range(4)]
+    # The pooled rate weights engine FAMILIES by audience (api.engine_weights):
+    # surfaces that measure the same engine pool their answers first.
+    weights = engine_weights(session.get(Tenant, tenant_id))
+
+    def _family_cells(cell_map: dict[str, list[int]]) -> tuple[list, list]:
+        fam: dict[str, list[int]] = defaultdict(lambda: [0, 0, 0, 0])
+        for surface, c in cell_map.items():
+            f = fam[family_of(surface)]
+            for i in range(4):
+                f[i] += c[i]
+        first = [(float(weights.get(f, 0)), c[0], c[1]) for f, c in fam.items()]
+        second = [(float(weights.get(f, 0)), c[2], c[3]) for f, c in fam.items()]
+        return first, second
+
+    def _weighted_entry(cell_map: dict[str, list[int]]) -> dict:
+        first, second = _family_cells(cell_map)
+        both = [(w, k1 + k2, n1 + n2)
+                for (w, k1, n1), (_w, k2, n2) in zip(first, second, strict=True)]
+        return {**weighted_rate_summary(both),
+                "change": weighted_change_verdict(first, second)}
+
     engines: list[dict[str, Any]] = [
         {
             "surface": surface,
@@ -196,9 +224,13 @@ def mention_rates(
             "prompts": int(session.exec(
                 select(func.count(func.distinct(col(Result.query_text)))).where(*conds)
             ).one() or 0),
-            **_entry(total),
-            "unforced": (_entry(uf_total) if uf_total[1] + uf_total[3] and not uf_missing
-                         else None),
+            **_weighted_entry(counts),
+            "weighting": "audience",
+            "weights": weight_lines(weights, {family_of(s) for s in counts}),
+            # The old one-answer-one-vote pool, for comparison.
+            "equal": _entry(total),
+            "unforced": (_weighted_entry({s: u["c"] for s, u in unforced.items()})
+                         if uf_total[1] + uf_total[3] and not uf_missing else None),
             "unforced_missing": uf_missing,
         },
         "engines": engines,

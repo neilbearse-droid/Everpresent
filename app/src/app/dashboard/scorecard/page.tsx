@@ -132,6 +132,26 @@ function MentionRatePanel({ m, brand }: { m: MentionRates; brand: string }) {
               {o.answers} answers · {o.prompts} questions · {m.window.start} to {m.window.end}
             </span>
           </div>
+          {o.weights && o.weights.length > 0 && (
+            <p className="mt-2 max-w-md text-xs leading-relaxed text-[var(--text-3)]">
+              Weighted by audience:{" "}
+              {o.weights
+                .filter((w) => w.pooled)
+                .map((w) => `${w.label} ${w.share_pct}%`)
+                .join(" · ")}
+              {o.weights.some((w) => !w.pooled) && (
+                <>
+                  {" "}· measured, not pooled:{" "}
+                  {o.weights.filter((w) => !w.pooled).map((w) => w.label).join(", ")}
+                </>
+              )}
+              {o.equal && (
+                <>
+                  {" "}· equal weight: {o.equal.rate}% ({o.equal.low}–{o.equal.high}%)
+                </>
+              )}
+            </p>
+          )}
           <p className="mt-3 max-w-md text-xs leading-relaxed text-[var(--text-3)]">
             How often AI answers name you, across every run in the window. The figure in brackets
             is the 95% range: the true rate is very likely inside it. A change is flagged only when

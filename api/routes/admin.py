@@ -135,6 +135,23 @@ class TenantPatch(BaseModel):
     # lowercase letters); language stays as set unless given.
     search_country: str | None = None
     search_language: str | None = None
+    # Audience weights for the pooled headline, family -> 0-100 (see
+    # api.engine_weights). {} resets to the default table.
+    engine_weights: dict[str, int] | None = None
+
+
+@router.get("/engine-weights")
+def engine_weight_defaults(admin: Admin) -> dict:
+    """The default audience-weight table, its labels and where it comes from."""
+    from api.engine_weights import (
+        DEFAULT_ENGINE_WEIGHTS,
+        FAMILY_LABELS,
+        WEIGHTS_DATE,
+        WEIGHTS_SOURCE,
+    )
+
+    return {"defaults": DEFAULT_ENGINE_WEIGHTS, "labels": FAMILY_LABELS,
+            "source": WEIGHTS_SOURCE, "date": WEIGHTS_DATE}
 
 
 @router.patch("/tenants/{slug}")
@@ -213,6 +230,22 @@ def patch_tenant(slug: str, payload: TenantPatch, session: Db, admin: Admin) -> 
             raise HTTPException(status_code=422, detail="GA4 property id is digits only")
         tenant.ga4_property_id = pid or None
         changed.append("ga4_property_id")
+    if payload.engine_weights is not None:
+        import datetime as _dt
+
+        from api.engine_weights import DEFAULT_ENGINE_WEIGHTS
+
+        unknown = sorted(set(payload.engine_weights) - set(DEFAULT_ENGINE_WEIGHTS))
+        if unknown:
+            raise HTTPException(status_code=422, detail=f"Unknown engine: {', '.join(unknown)}")
+        cleaned = {k: int(v) for k, v in payload.engine_weights.items()}
+        if any(v < 0 or v > 100 for v in cleaned.values()):
+            raise HTTPException(status_code=422, detail="Engine weights are 0 to 100")
+        new_weights = cleaned or None
+        if new_weights != tenant.engine_weights:
+            tenant.engine_weights = new_weights
+            tenant.engine_weights_changed_on = _dt.datetime.now(_dt.UTC).date().isoformat()
+            changed.append("engine_weights")
     if payload.plan is not None:
         from api.plans import PLANS
 

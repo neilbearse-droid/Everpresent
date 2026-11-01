@@ -67,6 +67,61 @@ def change_verdict(k_before: int, n_before: int, k_after: int, n_after: int) -> 
     return {"verdict": verdict, "delta": delta, "p_value": round(p, 4)}
 
 
+def _shrunk(k: int, n: int) -> float:
+    """Agresti-Coull proportion for a variance: 0 of 5 doesn't claim zero noise."""
+    return (k + 2) / (n + 4)
+
+
+def _weighted(cells: list[tuple[float, int, int]]) -> tuple[float, float, int, int]:
+    """(rate, variance, answers, mentioned) for cells of (weight, mentioned,
+    answers), pooled by weight over the cells that have answers and a weight.
+    If every cell's weight is 0, they count equally rather than not at all."""
+    live = [(w, k, n) for w, k, n in cells if n > 0 and w > 0]
+    if not live:
+        live = [(1.0, k, n) for _w, k, n in cells if n > 0]
+    if not live:
+        return 0.0, 0.0, 0, 0
+    total_w = sum(w for w, _k, _n in live)
+    rate = sum(w / total_w * k / n for w, k, n in live)
+    var = sum((w / total_w) ** 2 * _shrunk(k, n) * (1 - _shrunk(k, n)) / n for w, k, n in live)
+    return rate, var, sum(n for _w, _k, n in live), sum(k for _w, k, _n in live)
+
+
+def weighted_rate_summary(cells: list[tuple[float, int, int]]) -> dict:
+    """A rate pooled across engines by audience weight (api.engine_weights):
+    Σ weight × rate over the engines with answers, normalised over those
+    weights, with a 95% range from the weighted variance. Each cell is
+    (weight, mentioned, answers). An engine with no answers drops out instead
+    of pulling the number down; weight 0 is measured but not pooled."""
+    rate, var, answers, mentioned = _weighted(cells)
+    half = Z95 * math.sqrt(var)
+    return {
+        "rate": round(100.0 * rate, 1),
+        "low": round(100.0 * max(0.0, rate - half), 1) if answers else 0.0,
+        "high": round(100.0 * min(1.0, rate + half), 1) if answers else 0.0,
+        "answers": answers,
+        "mentioned": mentioned,
+    }
+
+
+def weighted_change_verdict(before: list[tuple[float, int, int]],
+                            after: list[tuple[float, int, int]]) -> dict:
+    """change_verdict for two weighted pools: the difference of the weighted
+    rates against the root of the summed weighted variances."""
+    rb, vb, nb, _ = _weighted(before)
+    ra, va, na, _ = _weighted(after)
+    if nb < MIN_ANSWERS_FOR_CHANGE or na < MIN_ANSWERS_FOR_CHANGE:
+        return {"verdict": "not enough data", "delta": None, "p_value": None}
+    delta = round(100.0 * (ra - rb), 1)
+    se = math.sqrt(vb + va)
+    p = math.erfc(abs(ra - rb) / se / math.sqrt(2)) if se > 0 else 1.0
+    if p < 0.05:
+        verdict = "up" if delta > 0 else "down"
+    else:
+        verdict = "no real change"
+    return {"verdict": verdict, "delta": delta, "p_value": round(p, 4)}
+
+
 Z_POWER80 = 0.8416  # one-sided z for 80% power
 
 
