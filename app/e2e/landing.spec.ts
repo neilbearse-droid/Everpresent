@@ -5,7 +5,7 @@ import { test, expect } from "@playwright/test";
 
 test("landing page renders", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1, name: /AI answers/ })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: /AI recommends/ })).toBeVisible();
   // Header "[Sign in]" and the hero CTA both link to sign-in.
   await expect(page.getByRole("link", { name: /Sign in/ }).first()).toBeVisible();
 });

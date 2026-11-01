@@ -4,7 +4,8 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "EverPresent",
-  description: "Brand visibility in AI-generated answers",
+  description:
+    "EverPresent measures how often ChatGPT, Gemini, Claude, Perplexity, Copilot and Google's AI results name your brand, who they name instead, and which pages they cite.",
 };
 
 // Render everything dynamically so the Clerk publishable key is read from the

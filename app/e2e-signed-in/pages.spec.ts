@@ -49,7 +49,7 @@ for (const path of PAGES) {
 
 test("overview shows the weekly briefing with seeded data", async ({ page }) => {
   await page.goto("/dashboard");
-  await expect(page.getByText("Are we winning?")).toBeVisible();
+  await expect(page.getByText("Where you stand")).toBeVisible();
   await expect(page.getByText("This week")).toBeVisible();
 });
 

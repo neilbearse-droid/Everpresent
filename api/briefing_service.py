@@ -1,6 +1,6 @@
 """The weekly briefing: three answers on one screen.
 
-  Are we winning?  the headline mention rate, its range and real change,
+  Where you stand  the headline mention rate, its range and real change,
                    and how we compare with the top rival
   Why?             the strongest reasons in the data right now: a real
                    change on one engine, a model switch, memory vs search,

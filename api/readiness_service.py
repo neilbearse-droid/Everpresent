@@ -68,7 +68,7 @@ _LABELS = {
 # Verdict → the next thing to do about it.
 _HINTS = {
     "ready": "Working. The last run returned answers.",
-    "unavailable": "Not built yet — no adapter for this engine.",
+    "unavailable": "Not built yet: no adapter for this engine.",
     "import_only": "Measured from imported captures only (Muse needs a signed-in "
                    "account, which EverPresent doesn't automate). Send a vendor's "
                    "captures to capture import.",

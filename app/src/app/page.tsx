@@ -18,25 +18,34 @@ export default async function LandingPage() {
       </header>
 
       <main className="mx-auto w-full max-w-[1200px] flex-1 px-6 pb-20 pt-16 lg:pt-24">
-        <h1 className="bp-display max-w-[20ch]">See how often AI answers name your brand.</h1>
+        <h1 className="bp-display max-w-[22ch]">
+          See which brands AI recommends, and how often it&apos;s yours.
+        </h1>
         <div className="mt-8 max-w-[60ch] space-y-4 text-[17px] leading-relaxed text-[var(--text-2)]">
           <p>
-            EverPresent puts the questions your buyers ask to ChatGPT, Gemini, Claude, Perplexity,
-            Microsoft Copilot and Google&apos;s AI Overviews on a regular schedule, and keeps every
-            answer. For each engine you see how often your brand is named, which competitors are
-            named instead, and which web pages the engines cite as sources.
+            Buyers now ask ChatGPT, Gemini, Claude, Perplexity, Copilot and Google&apos;s AI results
+            which company to pick. EverPresent asks those engines the same questions every week,
+            keeps every answer, and counts how often each one names you, who it names instead,
+            and which web pages it took its information from.
           </p>
           <p>
-            It also records the web searches an engine runs before it answers and checks whether
-            your brand turns up in them. The gaps become a list of pages to write or fix, with a
-            draft brief for the biggest ones.
+            Most engines search the web before they answer. We record those searches, so you can
+            see which of your pages an engine read and which it never reached. Where you&apos;re
+            missing, you get a ranked list of what to publish or fix, with the evidence behind
+            each suggestion.
+          </p>
+          <p>
+            Built for agencies that run AI visibility for their clients: one login per client, a
+            monthly report you can hand over, and every number shown with its margin of error.
           </p>
         </div>
         <div className="mt-10 flex flex-wrap items-center gap-4">
           <Link href="/sign-in" className="btn btn-primary px-5 py-2.5 text-[14px]">
             Sign in
           </Link>
-          <span className="text-[13px] text-[var(--text-3)]">Access is by invitation.</span>
+          <span className="text-[13px] text-[var(--text-3)]">
+            Access is by invitation while we&apos;re in beta.
+          </span>
         </div>
       </main>
 

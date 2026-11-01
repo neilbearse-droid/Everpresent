@@ -15,7 +15,7 @@ export function BriefingBlock({ b }: { b: Briefing }) {
   return (
     <section className="blueprint mb-6 grid-cols-1 lg:grid-cols-3">
       <div className="p-5">
-        <h2 className="mb-2 text-[13.5px] font-semibold">Are we winning?</h2>
+        <h2 className="mb-2 text-[13.5px] font-semibold">Where you stand</h2>
         <span
           className={`pill ${v === "losing" ? "pill-bad" : v === "gaining" ? "pill-good" : ""}`}
         >
