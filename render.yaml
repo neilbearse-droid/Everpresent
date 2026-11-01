@@ -98,6 +98,11 @@ services:
         sync: false
       - key: SMTP_FROM
         sync: false
+      # Landing-page waitlist: who gets the "someone joined" email. Comma
+      # separated; blank falls back to SUPERADMIN_EMAIL. With no SMTP host
+      # the signup is still saved and the email is skipped.
+      - key: WAITLIST_NOTIFY_EMAILS
+        sync: false
 
   # --- Next.js frontend -------------------------------------------------
   - type: web
@@ -113,6 +118,10 @@ services:
         value: http://everpresent-api:8000
       - key: NEXT_PUBLIC_CLERK_SIGN_IN_URL
         value: /sign-in
+      # Public site URL: canonical link, robots.txt and sitemap.xml. Change it
+      # to the Render URL on a preview deploy.
+      - key: SITE_URL
+        value: https://everpresent.io
       # Read at runtime by the app (no secret baked into the image).
       - key: CLERK_SECRET_KEY
         sync: false

@@ -2,9 +2,22 @@ import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 
+// SITE_URL lets a preview deploy advertise its own URL; everpresent.io is the
+// production canonical.
+const SITE_URL = process.env.SITE_URL ?? "https://everpresent.io";
+
 export const metadata: Metadata = {
-  title: "EverPresent",
-  description: "Brand visibility in AI-generated answers",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "EverPresent — brand visibility in AI answers",
+    template: "%s · EverPresent",
+  },
+  description:
+    "Measure how often AI answer engines name your brand, keep every answer as evidence, and fix the pages that close the gaps.",
+  applicationName: "EverPresent",
+  openGraph: { siteName: "EverPresent", type: "website", url: SITE_URL },
+  twitter: { card: "summary_large_image" },
+  robots: { index: true, follow: true },
 };
 
 // Render everything dynamically so the Clerk publishable key is read from the

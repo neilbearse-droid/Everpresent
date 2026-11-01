@@ -3,6 +3,40 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M58 — A public landing page and a waitlist (2026-11-01)
+
+1. **everpresent.io is a marketing surface, not part of the themed app.** The
+   landing page is black, white and EverPresent orange in both themes: the
+   palette is re-declared on an `.ep-landing` wrapper in `globals.css` and
+   inherited by everything inside it, so the design-system classes (`.card`,
+   `.field`, `.pill`) keep working and the dashboard's light/dark toggle is
+   untouched. Orange carries a button here (`.ep-cta`) — the one place it
+   does, because on the public site it is the brand's own call to action
+   rather than a status.
+2. **The page leans on what the product does differently**, eight points, each
+   one a capability with a line of proof under it: both ways of asking (API
+   and a logged-out browser session), the fan-out searches behind an answer,
+   evidence you can open rather than a score, before-and-after proof of a fix,
+   GA4 outcomes alongside mentions, crawler access to your own site, accuracy
+   findings, and per-account spend caps. Only sourced figures appear: the
+   Ahrefs one-in-seven search rate (Oct 2026) and the ChatGPT Oct 8–15 link
+   tagging outage, both named in the copy.
+3. **Waitlist writes to Postgres** (`waitlist_signups`, m40): name, email,
+   title, company, industry, plus the source and any `utm_*` tags, with a
+   status of `new | contacted | invited | activated | declined`. Email is the
+   identity (lowercased, unique); a resubmission updates the details, bumps a
+   counter and **keeps** whatever status the row already reached, so inviting
+   someone can't be undone by them filling the form again.
+4. **The one public write path, so it is guarded**: field length caps before
+   the database, a hidden honeypot field that answers 201 and stores nothing,
+   and a per-IP hourly limit in Redis that fails open rather than losing a
+   signup when Redis is down. The notification email is best effort for the
+   same reason (`WAITLIST_NOTIFY_EMAILS`, falling back to the superadmin).
+5. **Admin → Waitlist** lists the signups with counts per status, a note
+   field, and a CSV export streamed through the app so the browser never sees
+   an API token. Status changes are audited (`tenant_id` null: a prospect has
+   no tenant yet).
+
 ## M57 — The pooled headline weights engines by audience (2026-11-01)
 
 1. **Audience weights, said out loud.** The overall mention rate, its

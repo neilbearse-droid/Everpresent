@@ -6,7 +6,7 @@ import re
 from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
@@ -26,6 +26,9 @@ from api.models import (
     Tenant,
     TenantStatus,
     TenantSurface,
+    WaitlistSignup,
+    WaitlistStatus,
+    utcnow,
 )
 from api.runs_service import RunInFlight, month_spend_usd, run_detail_payload, trigger_run
 from api.storage import read_raw_envelope
@@ -907,3 +910,64 @@ def set_query_branded(
     session.commit()
     session.refresh(query)
     return query
+
+
+# --- Waitlist (m40) ----------------------------------------------------
+# Landing-page signups. Not tenant-scoped (a prospect has no tenant yet), so
+# the audit rows carry tenant_id=None.
+
+
+@router.get("/waitlist")
+def list_waitlist(session: Db, status: str = "", limit: int = 500) -> dict:
+    from api.waitlist_service import list_signups, status_counts
+
+    if status and status not in {s.value for s in WaitlistStatus}:
+        raise HTTPException(status_code=422, detail="Unknown status")
+    rows = list_signups(session, status=status, limit=max(1, min(limit, 2000)))
+    return {
+        "signups": [r.model_dump() for r in rows],
+        "counts": status_counts(session),
+        "statuses": [s.value for s in WaitlistStatus],
+    }
+
+
+@router.get("/waitlist.csv")
+def waitlist_csv(session: Db) -> Response:
+    from api.waitlist_service import signups_csv
+
+    return Response(
+        content=signups_csv(session),
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="everpresent-waitlist.csv"'},
+    )
+
+
+class WaitlistPatch(BaseModel):
+    status: str | None = None
+    note: str | None = None
+
+
+@router.patch("/waitlist/{signup_id}")
+def update_waitlist_signup(
+    signup_id: int, payload: WaitlistPatch, session: Db, admin: Admin
+) -> WaitlistSignup:
+    signup = session.get(WaitlistSignup, signup_id)
+    if signup is None:
+        raise HTTPException(status_code=404, detail="No such signup")
+    if payload.status is not None:
+        if payload.status not in {s.value for s in WaitlistStatus}:
+            raise HTTPException(status_code=422, detail="Unknown status")
+        signup.status = WaitlistStatus(payload.status)
+    if payload.note is not None:
+        signup.note = payload.note.strip()[:2000]
+    signup.updated_at = utcnow()
+    session.add(signup)
+    write_audit(
+        session,
+        tenant_id=None,
+        actor=admin.user.email,
+        action=f"waitlist.update #{signup_id} status={signup.status.value}",
+    )
+    session.commit()
+    session.refresh(signup)
+    return signup

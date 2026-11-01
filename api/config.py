@@ -137,6 +137,11 @@ class Settings(BaseSettings):
     smtp_from: str = "reports@everpresent.local"
     smtp_starttls: bool = True
 
+    # Waitlist signups (m40): comma-separated recipients for the "someone
+    # joined" email. Empty falls back to superadmin_email; with no SMTP host
+    # configured the signup is still saved and the email is skipped.
+    waitlist_notify_emails: str = ""
+
     # GA4 outcome attribution (panel #6). Reuses google_service_account_json
     # below; the SA must be granted Viewer on each tenant's GA4 property.
     # Lookback window pulled on each nightly refresh.

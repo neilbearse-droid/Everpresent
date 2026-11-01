@@ -22,9 +22,14 @@ export default async function AdminPage() {
     <main className="mx-auto max-w-5xl px-4 py-10 sm:px-8">
       <header className="mb-8 flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">Clients</h1>
-        <Link href="/dashboard" className="text-sm text-[var(--accent)] hover:underline">
-          ← Dashboard
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link href="/admin/waitlist" className="text-sm text-[var(--accent)] hover:underline">
+            Waitlist
+          </Link>
+          <Link href="/dashboard" className="text-sm text-[var(--accent)] hover:underline">
+            ← Dashboard
+          </Link>
+        </div>
       </header>
 
       <table className="w-full text-left text-sm">
