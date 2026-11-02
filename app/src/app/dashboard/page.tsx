@@ -10,7 +10,7 @@ import {
   type TenantSummary,
 } from "@/lib/api";
 import { DashNav } from "@/components/dash-nav";
-import { EngineStrip, ModeStack } from "@/components/engine-modes";
+import { ModeStack } from "@/components/engine-modes";
 import { NoOrgNotice } from "@/components/no-org-notice";
 import { TrendChart, HBars } from "@/components/charts";
 import { entityColors, fmtDate, OTHER_COLOR } from "@/lib/viz";
@@ -298,15 +298,9 @@ export default async function OverviewPage({
           <div className="mb-3 mt-10 flex items-baseline justify-between">
             <h2 className="text-[15px] font-semibold tracking-[-0.01em]">The numbers behind it</h2>
             <span className="text-xs text-[var(--text-3)]">
-              Per engine, by how the engine answered, and against each rival
+              Over time, by how the engine answered, and against each rival
             </span>
           </div>
-
-          {modes?.observed && (
-            <section className="mb-6">
-              <EngineStrip data={modes} />
-            </section>
-          )}
 
           {/* Asymmetric row: trend (8) + mode stack (4). */}
           <section className="blueprint mb-6 grid-cols-1 lg:grid-cols-12">

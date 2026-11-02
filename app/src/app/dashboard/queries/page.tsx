@@ -9,6 +9,7 @@ import {
 import { ActiveToggle, PersonaPicker } from "./query-controls";
 import { DashNav } from "@/components/dash-nav";
 import { NoOrgNotice } from "@/components/no-org-notice";
+import { PageLead } from "@/components/page-lead";
 import { LIKELIHOOD_COLORS, LIKELIHOOD_LABELS, surfaceLabel, humanize } from "@/lib/viz";
 
 function ClassificationChip({
@@ -86,21 +87,56 @@ export default async function QueriesPage({
   const pausedQueries = queries.filter((q) => !q.active);
   const ctl = controls.data ?? null;
 
+  // The lead: how many questions you're in the latest answer for, how many
+  // you're missing, and the one thing to do with the list.
+  const answered = activeQueries.filter((q) => Object.keys(q.latest_results).length > 0);
+  const named = answered.filter((q) => Object.values(q.latest_results).some((r) => r.brand_mentioned));
+  const missing = answered.length - named.length;
+  const firstMissing = answered.find((q) => !Object.values(q.latest_results).some((r) => r.brand_mentioned));
+  const lead =
+    queries.length === 0
+      ? {
+          tells: "No questions are set up yet. These are the questions your buyers ask AI; every rate in the product is measured against this list.",
+          act: "Your EverPresent contact drafts the list with you, usually 25 to 50 questions. Once it's in, the first run asks every engine.",
+          tone: "neutral" as const,
+        }
+      : answered.length === 0
+        ? {
+            tells: `${activeQueries.length} questions are tracked. None has an answer yet; the first run fills this table.`,
+            act: "Read the list as your buyer would. Pause anything that isn't a question a buyer asks about your category, and the rates will follow the set.",
+            tone: "neutral" as const,
+          }
+        : {
+            tells: (
+              <>
+                You&apos;re named in the latest answer for {named.length} of {answered.length} questions
+                {missing > 0 ? <> and missing from {missing}</> : null}
+                {pausedQueries.length > 0 ? <>; {pausedQueries.length} paused</> : null}.
+              </>
+            ),
+            act:
+              missing === 0
+                ? "You're in every answer measured. Use this page to read what the engines say and to keep the question set honest: pause the ones that stop mattering."
+                : "Open a question you're missing and read the answer a buyer gets; the rival it names is who you're losing to. Pause questions that aren't yours, and the rates follow the set.",
+            href: firstMissing
+              ? (() => {
+                  const ok = Object.values(firstMissing.latest_results).find((r) => r.status === "ok");
+                  return ok ? `/dashboard/runs/${ok.run_id}/results/${ok.result_id}` : undefined;
+                })()
+              : undefined,
+            hrefLabel: "Read a missed answer",
+            tone: (missing === 0 ? "good" : missing > named.length ? "bad" : "neutral") as "good" | "bad" | "neutral",
+          };
+
   return (
     <main className="mx-auto max-w-[1400px] px-6 pb-16">
       <DashNav active="Queries" isSuperadmin={me.data?.is_superadmin} withDateRange />
+      <PageLead {...lead} />
 
       <section className="card p-4">
-        <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
-          Tracked queries and latest answers
+        <h2 className="mb-3 text-sm font-medium text-[var(--text-2)]">
+          Tracked questions and the latest answer to each
         </h2>
-        <p className="mb-4 text-xs text-[var(--text-3)]">
-          Web search is how likely an engine is to search the web for a query instead of
-          answering from memory, judged by comparing its answers with and without search. Answers
-          come from two places: the engines&apos; developer APIs (more answers) and their public
-          websites (closest to what a signed-out, free-tier user sees: no memory, ads possible).
-          Compare puts the two side by side.
-        </p>
         {queries.length === 0 ? (
           <p className="text-sm text-[var(--text-3)]">No queries configured.</p>
         ) : (
@@ -194,6 +230,18 @@ export default async function QueriesPage({
             </table>
           </div>
         )}
+        <details className="mt-4">
+          <summary className="cursor-pointer text-xs font-medium text-[var(--text-3)] hover:text-[var(--text-2)]">
+            How to read this table
+          </summary>
+          <p className="mt-2 max-w-3xl text-xs leading-relaxed text-[var(--text-3)]">
+            Web search is how likely an engine is to search the web for a question instead of
+            answering from memory, judged by comparing its answers with and without search. Answers
+            come from two places: the engines&apos; developer APIs (more answers) and their public
+            websites (closest to what a signed-out, free-tier user sees: no memory, ads possible).
+            Compare puts the two side by side.
+          </p>
+        </details>
         {ctl && ctl.selective && ctl.personas.length > 0 && (
           <p className="mt-3 text-xs text-[var(--text-3)]">
             Every question runs on the generic baseline. Tick a persona to also ask it as that
