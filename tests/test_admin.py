@@ -74,7 +74,7 @@ def test_godaddy_seed_imports_facts_and_baseline(client, as_superadmin, db_sessi
     resp = client.post("/api/admin/tenants/godaddy/import-yaml", content=yaml_text)
     assert resp.status_code == 200, resp.text
     counts = resp.json()["imported"]
-    assert counts["queries"] == 21  # 16 questions + 5 agent prompts
+    assert counts["queries"] == 15  # 11 questions + 4 agent prompts
     assert counts["brand_facts"] == 2
     assert "branded_auto" not in counts  # every brand-naming question is filed explicitly
 
@@ -86,14 +86,14 @@ def test_godaddy_seed_imports_facts_and_baseline(client, as_superadmin, db_sessi
     assert "domain_investor" not in segments  # retired with the website-builder focus
     # The selective matrix lives on the queries as persona_runs.
     queries = db_session.exec(select(Query).where(Query.tenant_id == tenant.id)).all()
-    assert sum(len(q.persona_runs) for q in queries) == 17  # curated persona combos
+    assert sum(len(q.persona_runs) for q in queries) == 13  # curated persona combos
     # The competitive layer is website building: builders, AI builders and
     # stores dominate; one domain and one hosting question remain as controls.
     corpora = {q.corpus_tag for q in queries}
     assert {"website_builder", "ai_builder", "online_store", "cross_category"} <= corpora
     assert sum(q.corpus_tag == "domains" for q in queries) == 1
     assert sum(q.corpus_tag == "hosting" for q in queries) == 1
-    assert sum(q.branded for q in queries) == 2
+    assert sum(q.branded for q in queries) == 1
     competitors = db_session.exec(
         select(Competitor).where(Competitor.tenant_id == tenant.id)
     ).all()
@@ -212,7 +212,7 @@ def test_bundled_seeds_are_listed_and_loadable(client, as_superadmin, db_session
     assert all("example" not in s["name"] for s in seeds)
     res = client.post("/api/admin/tenants/gd/import-seed", json={"name": "godaddy"})
     assert res.status_code == 200 and res.json()["brand"] == "GoDaddy"
-    assert len(db_session.exec(select(Query)).all()) == 21
+    assert len(db_session.exec(select(Query)).all()) == 15
 
 
 def test_seed_names_are_lookup_keys_not_paths(client, as_superadmin, db_session):

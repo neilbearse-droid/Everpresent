@@ -23,8 +23,8 @@ note it here.
    (the freeze rule). Domain Investor is retired: no website-builder intent.
    Established Owner is new, for the "replace my outdated site without an
    agency" journey, which is a buyer the builder questions had no voice for.
-   Seventeen curated persona × question combos, up from fifteen, all on
-   builder, AI-builder, store or bundle questions.
+   Thirteen curated persona × question combos, all on builder, AI-builder,
+   store or bundle questions.
 4. **Brand facts.** The domain-privacy placeholder is replaced by two
    disallowed claims about the builder: that it has no free plan (it has a
    free-forever tier on a godaddysites.com address) and that it cannot sell
@@ -32,10 +32,13 @@ note it here.
    GoDaddy's builder page and 2026 reviews; the demo checklist asks for a
    re-check before the demo. No numeric price fact: published prices differ
    by source and promotion, and a stale number would fire false alerts.
-5. **Agent prompts.** Still three task and two coding prompts, generic only,
-   but every one is a "get me a website or store" job; the domain-registration
-   and DNS prompts are gone.
-6. **Series break.** Questions are matched by text, so every builder trend
+5. **Agent prompts.** Two task and two coding prompts, generic only, every
+   one a "get me a website or store" job; the domain-registration and DNS
+   prompts are gone.
+6. **Cost does not rise.** Fifteen questions and thirteen combos make 28
+   cells per engine per run, under the domain-era seed's 30. A question is
+   added only by retiring one.
+7. **Series break.** Questions are matched by text, so every builder trend
    line starts again from the first run on this seed; the two controls and
    "best website builder for a small business", "best AI website builder" and
    the cheapest-domain-and-website question keep their wording, so their

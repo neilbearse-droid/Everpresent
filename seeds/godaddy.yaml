@@ -17,8 +17,10 @@
 #
 # COLLECTION-START NOTE: this seeds the GENERIC BASELINE (every query, no
 # persona) so trend lines begin accumulating immediately, plus a curated set
-# of persona × query combos (17) rather than the full cross-product (Copilot
-# browser runs are the expensive ones). Persona preambles are frozen in version
+# of persona × query combos (13) rather than the full cross-product (Copilot
+# browser runs are the expensive ones). Budget: 15 questions + 13 combos =
+# 28 cells per engine per run, under the 30 of the domain-era seed. Add a
+# question only by retiring one. Persona preambles are frozen in version
 # control per the "freeze before collection" rule. Do NOT edit persona wording
 # once a persona goes live — changing it mid-series breaks the trend line.
 # The three client-brief personas (Dreamer, New Entrepreneur, Side Hustler)
@@ -119,38 +121,22 @@ queries:
     corpus: website_builder
     paraphrases: ["Which website builder is simplest if I've never made a site?", "Most beginner-friendly way to build a website?"]
     personas: [dreamer, side_hustler]
-  - text: "What's the cheapest way to build a simple business website?"
-    corpus: website_builder
-    paraphrases: ["Lowest-cost website builder for a basic business site?", "How can I make a small business website on a tight budget?"]
-    personas: [side_hustler]
-  - text: "Which website builder is best for a local service business like a plumber, salon or contractor?"
-    corpus: website_builder
-    paraphrases: ["Best website builder for a local service company?", "What should a plumber or electrician use to build their website?"]
-    personas: [established_owner]
   - text: "My small business website is outdated. What's the best way to rebuild it without an agency?"
     corpus: website_builder
     paraphrases: ["How do I redo my old business website myself?", "Best tool to replace an outdated small business site?"]
     personas: [established_owner]
-  # Brand-knowledge questions: they name GoDaddy, so they sit in the Brand
-  # layer (what the engines say about the builder), not the competitive score.
+  # Brand-knowledge question: it names GoDaddy, so it sits in the Brand layer
+  # (what the engines say about the builder), not the competitive score.
   - text: "Is GoDaddy's website builder any good?"
     corpus: website_builder
     branded: true
     paraphrases: ["Is GoDaddy Website Builder worth it?", "GoDaddy website builder review: pros and cons?"]
-  - text: "GoDaddy Website Builder vs Wix: which should I use for my small business?"
-    corpus: website_builder
-    branded: true
-    paraphrases: ["Wix or GoDaddy for building a small business website?", "GoDaddy vs Wix website builder comparison?"]
 
   # --- AI website builders (the Airo segment) ---
   - text: "What's the best AI website builder?"
     corpus: ai_builder
     paraphrases: ["Which AI tool builds the best website?", "Top AI website builders right now?"]
     personas: [new_entrepreneur, side_hustler]
-  - text: "Can AI build my whole business website for me? Which tool should I use?"
-    corpus: ai_builder
-    paraphrases: ["Is there an AI that makes a complete business website from a description?", "Which AI website generator should a small business use?"]
-    personas: [new_entrepreneur]
   - text: "How much does it cost to build a website with AI?"
     corpus: ai_builder
     paraphrases: ["What does an AI-built website cost?", "How expensive is it to make a site using an AI builder?"]
@@ -163,10 +149,6 @@ queries:
     personas:
       - new_entrepreneur
       - { segment: new_entrepreneur, overlay: "It's an online store selling handmade goods." }
-  - text: "What's the easiest way to start selling online with my own website?"
-    corpus: online_store
-    paraphrases: ["Simplest way to sell a few products from my own site?", "How do I add a shop to a small business website?"]
-    personas: [side_hustler]
 
   # --- Domain + website bundle: where the two businesses meet ---
   - text: "What's the cheapest way to get a domain and website for a new business?"
@@ -192,8 +174,6 @@ queries:
   - text: "I need a website for my plumbing business live this week. Choose the service for me and walk me through it."
     corpus: agent_task
   - text: "Build me a simple online store for my candle business. Pick the platform and tell me the exact steps."
-    corpus: agent_task
-  - text: "Set up a one-page website with a booking button for my dog-grooming business. Pick the website builder for me and do as much as you can."
     corpus: agent_task
   - text: "Write the HTML and CSS for a landing page for my bakery, then tell me exactly where to host it on a custom domain."
     corpus: agent_code

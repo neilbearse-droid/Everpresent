@@ -122,8 +122,7 @@ def test_seed_marks_branded(db_session, client, login):
 
     tenant = db_session.exec(select(Tenant).where(Tenant.slug == "godaddy")).one()
     branded = _branded_query_texts(db_session, tenant.id)
-    assert "Is GoDaddy's website builder any good?" in branded
-    assert "GoDaddy Website Builder vs Wix: which should I use for my small business?" in branded
+    assert branded == frozenset({"Is GoDaddy's website builder any good?"})
 
 
 def test_admin_toggle_branded(db_session, client, login):

@@ -72,7 +72,8 @@ def test_godaddy_seed_matrix_matches_brief():
     cells = matrix_cells(queries, personas)
     generic = [c for c in cells if c[2][3] == "generic"]
     persona = [c for c in cells if c[2][3] != "generic"]
-    # Every question generic (16 questions + 5 agent prompts) plus the 17
-    # curated persona-query combinations of the website-builder seed.
-    assert len(generic) == 21
-    assert len(persona) == 17
+    # Every question generic (11 questions + 4 agent prompts) plus the 13
+    # curated persona-query combinations: 28 cells per engine, under the 30
+    # of the domain-era seed (cost is the constraint).
+    assert len(generic) == 15
+    assert len(persona) == 13
