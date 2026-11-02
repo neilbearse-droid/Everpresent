@@ -1,4 +1,3 @@
-import Link from "next/link";
 import {
   apiFetch,
   rangeQuery,
@@ -55,15 +54,14 @@ function ChangeBadge({ change }: { change: RateChange }) {
  * data yet" into a number and a next step. */
 function SamplePlanPanel({ p }: { p: SamplePlan }) {
   return (
-    <details className="blueprint mt-6 grid-cols-1">
-      <summary className="bp-bar cursor-pointer list-none">
-        <span>Smallest change we can detect</span>
+    <section className="blueprint mt-6 grid-cols-1">
+      <div className="bp-bar">
+        <span>Detectable change</span>
         <span>
-          {p.window_days}-day window · {p.runs_per_week ? `${p.runs_per_week} runs/week` : "no schedule"} · open
+          {p.window_days}-day window · {p.runs_per_week ? `${p.runs_per_week} runs/week` : "no schedule"}
         </span>
-      </summary>
+      </div>
       <div>
-        <p className="px-4 pt-3 text-sm text-[var(--text-2)]">{p.summary}</p>
         <div className="overflow-x-auto">
           <table className="bp-table mt-2 w-full min-w-[640px]">
             <thead>
@@ -100,13 +98,8 @@ function SamplePlanPanel({ p }: { p: SamplePlan }) {
             </tbody>
           </table>
         </div>
-        <p className="px-4 pb-3 pt-2 text-xs text-[var(--text-3)]">
-          A change counts as real when the second half of the window differs from the first by
-          more than chance would explain (it passes a standard significance test). Google&apos;s
-          AI answers give one answer per question per run, so they need the most repeats.
-        </p>
       </div>
-    </details>
+    </section>
   );
 }
 
@@ -133,51 +126,6 @@ function MentionRatePanel({ m, brand }: { m: MentionRates; brand: string }) {
               {o.answers} answers · {o.prompts} questions · {m.window.start} to {m.window.end}
             </span>
           </div>
-          <details className="mt-3 max-w-md">
-            <summary className="cursor-pointer text-xs font-medium text-[var(--text-3)] hover:text-[var(--text-2)]">
-              How this rate is measured
-            </summary>
-          {o.weights && o.weights.length > 0 && (
-            <p className="mt-2 max-w-md text-xs leading-relaxed text-[var(--text-3)]">
-              Weighted by audience:{" "}
-              {o.weights
-                .filter((w) => w.pooled)
-                .map((w) => `${w.label} ${w.share_pct}%`)
-                .join(" · ")}
-              {o.weights.some((w) => !w.pooled) && (
-                <>
-                  {" "}· measured, not pooled:{" "}
-                  {o.weights.filter((w) => !w.pooled).map((w) => w.label).join(", ")}
-                </>
-              )}
-              {o.equal && (
-                <>
-                  {" "}· equal weight: {o.equal.rate}% ({o.equal.low}–{o.equal.high}%)
-                </>
-              )}
-            </p>
-          )}
-          <p className="mt-3 max-w-md text-xs leading-relaxed text-[var(--text-3)]">
-            How often AI answers name you, across every run in the window. The figure in brackets
-            is the 95% range: the true rate is very likely inside it. A change is flagged only when
-            the second half of the window differs from the first by more than the noise.
-          </p>
-          <p className="mt-2 max-w-md text-xs leading-relaxed text-[var(--text-3)]">
-            Rates are over all answers, including answers naming no brand, so they are not
-            comparable with tools that count only answers naming some brand or weight by search
-            volume.
-            {m.segment === "generic" && (
-              <>
-                {" "}
-                Generic answers only; persona answers are on the{" "}
-                <Link href="/dashboard/personas" className="underline">
-                  Personas page
-                </Link>
-                .
-              </>
-            )}
-          </p>
-          </details>
           {o.unforced && o.unforced.answers > 0 && (
             <div className="mt-4 border-t border-[var(--border)] pt-3">
               <p className="text-xs font-medium text-[var(--text-2)]">Without forced search</p>
@@ -187,20 +135,7 @@ function MentionRatePanel({ m, brand }: { m: MentionRates; brand: string }) {
                   ({o.unforced.low}–{o.unforced.high}%)
                 </span>
               </div>
-              <p className="mt-1 max-w-md text-xs leading-relaxed text-[var(--text-3)]">
-                ChatGPT and Perplexity are made to search the web on every measured answer. Left
-                to themselves, they search only some of the time (see the Searched the web
-                column). This rate uses those unforced answers, so it&apos;s closer to what people
-                see.
-              </p>
             </div>
-          )}
-          {!o.unforced && (o.unforced_missing ?? []).length > 0 && (
-            <p className="mt-4 max-w-md border-t border-[var(--border)] pt-3 text-xs leading-relaxed text-[var(--text-3)]">
-              {o.unforced_missing!.join(" and ")} {o.unforced_missing!.length === 1 ? "is" : "are"}{" "}
-              made to search on every measured answer. Their unforced answers (closer to what
-              users see) appear here after the next runs.
-            </p>
           )}
         </div>
         <div className="min-w-72 flex-1 overflow-x-auto">
@@ -272,10 +207,7 @@ function TopicPanel({ rows, brand }: { rows: TopicRow[]; brand: string }) {
   const pct = (n: number) => (sentimentTotal ? Math.round((100 * n) / sentimentTotal) : 0);
   return (
     <section className="card mb-6 p-4">
-      <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">By topic, weakest first</h2>
-      <p className="mb-4 max-w-2xl text-xs leading-relaxed text-[var(--text-3)]">
-        A strong topic can hide a weak one. The topic at the top is where you&apos;re named least.
-      </p>
+      <h2 className="mb-3 text-sm font-medium text-[var(--text-2)]">By topic, weakest first</h2>
       {topics.length > 0 && (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
@@ -317,11 +249,6 @@ function TopicPanel({ rows, brand }: { rows: TopicRow[]; brand: string }) {
               ))}
             </tbody>
           </table>
-          <p className="mt-3 max-w-2xl text-xs leading-relaxed text-[var(--text-3)]">
-            Mention rate pools every answer in the window; answer share, lead rate and the top
-            rival come from the latest answer per question and engine. Questions that name{" "}
-            {brand} are scored separately below.
-          </p>
         </div>
       )}
       {branded && branded.answers > 0 && (
@@ -373,8 +300,8 @@ export default async function ScorecardPage({
       <main className="mx-auto max-w-[1400px] px-6 pb-16">
         <DashNav active="Scorecard" isSuperadmin={me.data?.is_superadmin} withDateRange />
         <PageLead
-          tells="No scorecard yet. After the first run this page scores you against every rival: how often you're named, how often first, how you're described, and whether the facts are right."
-          act="Give your EverPresent contact the facts you want checked (prices, accreditations, policies) so the first run can test the answers against them."
+          tells="No scorecard yet; it fills in after the first run."
+          act="Send your EverPresent contact the facts you want checked."
         />
       </main>
     );
@@ -401,56 +328,26 @@ export default async function ScorecardPage({
   const errors = acc.data?.error_count ?? 0;
   const verdict = o?.change.verdict ?? "not enough data";
   const trailing = d.head_to_head.filter((h) => h.shared >= 3 && h.win_rate < 50);
+  const delta = Math.abs(o?.change.delta ?? 0);
   const lead = {
-    tells: (
+    tells: o ? (
       <>
-        {o ? (
-          <>
-            {d.brand_name} is named in {o.rate}% of AI answers
-            {verdict === "up" || verdict === "down" ? (
-              <>, {verdict === "up" ? "up" : "down"} {Math.abs(o.change.delta ?? 0)} points, a real change</>
-            ) : verdict === "no real change" ? (
-              <>, with no real change over the window</>
-            ) : null}
-            .
-          </>
-        ) : (
-          <>
-            {d.brand_name} appears in {d.prominence.presence_rate}% of the latest answers.
-          </>
-        )}{" "}
-        When named, you lead the answer {d.prominence.lead_rate}% of the time
-        {trailing.length > 0 && (
-          <>
-            {" "}
-            and trail {trailing.map((h) => h.competitor).join(", ")} head to head
-          </>
-        )}
-        .
-        {weakest && (
-          <>
-            {" "}
-            Weakest topic: {weakest.topic} at {weakest.rate}%.
-          </>
-        )}
-        {errors > 0 && (
-          <>
-            {" "}
-            The engines state {errors} wrong {errors === 1 ? "fact" : "facts"} about you.
-          </>
-        )}
+        Named in {o.rate}% of AI answers
+        {verdict === "up" ? <>, up {delta} points.</> : verdict === "down" ? <>, down {delta} points.</> : <>.</>}
       </>
+    ) : (
+      <>Named in {d.prominence.presence_rate}% of the latest answers.</>
     ),
     act:
       errors > 0
-        ? "Fix the wrong facts first. Each one traces to a page the engines cite, so correct that page and publish the corrective content drafted under Factual accuracy below."
+        ? `Fix the ${errors} wrong ${errors === 1 ? "fact" : "facts"} first; drafts are below.`
         : weakest && o && weakest.rate < o.rate
-          ? `Put this period's work into ${weakest.topic}: it's where you're named least. The questions behind it are on Queries; the pages to write are on the Action Plan.`
+          ? `Write for ${weakest.topic}, your weakest topic at ${weakest.rate}%.`
           : trailing.length > 0
-            ? `You're named, but ${trailing[0].competitor} is named first more often. Being listed earlier follows from clearer, more specific pages on the questions you share; start with the shared questions.`
-            : "Hold what's working. Keep the pages that win these answers current, and read the per-engine table to see which engine to watch.",
-    href: errors > 0 ? undefined : weakest && o && weakest.rate < o.rate ? "/dashboard/action-plan" : trailing.length > 0 ? "/dashboard/queries" : "/dashboard/pages",
-    hrefLabel: weakest && o && weakest.rate < o.rate ? "Action Plan" : trailing.length > 0 ? "Queries" : "Your Pages",
+            ? `Beat ${trailing[0].competitor} on the questions you share.`
+            : "Hold what's winning.",
+    href: errors > 0 ? undefined : weakest && o && weakest.rate < o.rate ? "/dashboard/action-plan" : trailing.length > 0 ? "/dashboard/queries" : undefined,
+    hrefLabel: weakest && o && weakest.rate < o.rate ? "Action Plan" : "Queries",
     tone: (errors > 0 || verdict === "down" ? "bad" : verdict === "up" ? "good" : "neutral") as "good" | "bad" | "neutral",
   };
 
@@ -474,11 +371,6 @@ export default async function ScorecardPage({
                 {d.answer_share}%
               </span>
             </div>
-            <p className="mt-3 max-w-md text-xs leading-relaxed text-[var(--text-3)]">
-              Your share of AI answers compared with competitors, weighted by prominence. Being
-              named earlier and more often counts for more. Treat it as a rough guide: where a
-              brand is listed varies a lot from one answer to the next.
-            </p>
           </div>
           <div className="min-w-64 flex-1">
             <HBars items={shareItems} max={Math.max(...shareItems.map((s) => s.value), 1)} unit="%" />
@@ -533,11 +425,6 @@ export default async function ScorecardPage({
                 : `${acc.data.error_count} error${acc.data.error_count > 1 ? "s" : ""}`}
             </span>
           </div>
-          <p className="mb-3 text-xs text-[var(--text-3)]">
-            Checked against {acc.data.facts_on_file} fact
-            {acc.data.facts_on_file > 1 ? "s" : ""} on file. A wrong price or accreditation often
-            comes from a page the engines cite, so start by correcting that page.
-          </p>
           {acc.data.error_count === 0 ? (
             <p className="text-sm text-[var(--pos)]">
               No contradictions found in the latest answers.
@@ -611,12 +498,9 @@ export default async function ScorecardPage({
 
       {/* Head-to-head */}
       <section className="mt-6 card p-4">
-        <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
-          Head-to-head
+        <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">
+          Head-to-head: how often you&apos;re named first
         </h2>
-        <p className="mb-4 text-xs text-[var(--text-3)]">
-          On queries where you and a rival are both named, how often you're named first.
-        </p>
         {d.head_to_head.length === 0 ? (
           <p className="text-sm text-[var(--text-3)]">No shared appearances yet.</p>
         ) : (

@@ -116,11 +116,7 @@ export function FanoutSimulator({ data }: { data: FanoutReplay }) {
     <section className="card mb-6 p-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold tracking-tight">Watch how an AI engine answers one question</h2>
-          <p className="mt-1 max-w-2xl text-xs text-[var(--text-3)]">
-            A replay of a real answer from your latest runs: the searches it ran, what we found when we
-            re-ran them, and what it wrote.
-          </p>
+          <h2 className="text-lg font-semibold tracking-tight">Replay one answer</h2>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -357,8 +353,7 @@ export function FanoutSimulator({ data }: { data: FanoutReplay }) {
         </p>
       </div>
       <p className="mt-2 text-[11px] text-[var(--text-3)]">
-        {engine.label}, {engine.date}. Sub-searches are the ones the engine reported; “appear” comes from re-running
-        each one, and is only shown where we did.
+        {engine.label}, {engine.date}
       </p>
     </section>
   );

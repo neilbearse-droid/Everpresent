@@ -58,51 +58,32 @@ export default async function FanoutPage({
   const lead =
     !data?.observed
       ? {
-          tells: "No sub-searches captured yet. Before answering, an engine splits your buyer's question into smaller searches of its own; this page shows which of those name a rival instead of you.",
-          act: "Nothing to do yet. It fills in after a run with an engine that searches the web and reports its searches (Gemini always does, ChatGPT sometimes).",
+          tells: "No sub-searches captured yet.",
+          act: "Nothing to do yet.",
           tone: "neutral" as const,
         }
       : {
-          tells: (
-            <>
-              Across {prompts.length} {prompts.length === 1 ? "question" : "questions"} the engines ran{" "}
-              {shards} sub-searches
-              {notInAnswer > 0 && (
-                <>
-                  , and left you out of the final answer on {notInAnswer}
-                </>
-              )}
-              .{" "}
-              {present + absent > 0 ? (
-                <>
-                  You&apos;re in {present} of {present + absent} re-checked
-                  {high > 0 && (
-                    <>
-                      , with {high} high-priority {high === 1 ? "miss" : "misses"}
-                    </>
-                  )}
-                  .
-                  {(data.trend.won_back > 0 || data.trend.lost > 0) && (
-                    <>
-                      {" "}
-                      Since the last check: {data.trend.won_back} won back, {data.trend.lost} newly lost.
-                    </>
-                  )}
-                </>
-              ) : data.reprobe_enabled ? (
-                <>Presence in those searches appears after the next re-check.</>
-              ) : (
-                <>Re-checking is off for this account, so presence in those searches isn&apos;t measured yet.</>
-              )}
-            </>
-          ),
+          tells:
+            present + absent > 0 ? (
+              <>
+                You appear in {present} of {present + absent} re-checked sub-searches
+                {high > 0 ? <>, {high} high-priority {high === 1 ? "miss" : "misses"}</> : null}.
+              </>
+            ) : (
+              <>
+                {shards} sub-searches across {prompts.length} {prompts.length === 1 ? "question" : "questions"}
+                {notInAnswer > 0 ? <>; you&apos;re out of {notInAnswer} final answers</> : null}.
+              </>
+            ),
           act: topMiss
-            ? `Win the top miss first: "${topMiss.sh.text}", where ${topMiss.sh.winners.length ? topMiss.sh.winners.slice(0, 2).join(" and ") : "others"} appear and you don't. Use Generate brief under it; the brief is the page to publish.`
+            ? `Generate the brief for "${topMiss.sh.text}".`
             : absent > 0
-              ? `No urgent misses. Work the ${absent} remaining ${absent === 1 ? "absence" : "absences"} in priority order; each is a specific question a page of yours can answer.`
+              ? `Work the ${absent} remaining ${absent === 1 ? "miss" : "misses"} in priority order.`
               : present > 0
-                ? "You're in every re-checked sub-search. Hold it: these are the exact questions to keep answering well on your site."
-                : "Nothing to act on until presence is measured. Ask your EverPresent contact to turn on re-checking if you want it.",
+                ? "Hold what's winning."
+                : data.reprobe_enabled
+                  ? "Wait for the next re-check."
+                  : "Ask your EverPresent contact to turn on re-checking.",
           tone: (high > 0 || (present + absent > 0 && absent > present) ? "bad" : present > 0 && absent === 0 ? "good" : "neutral") as "good" | "bad" | "neutral",
         };
 
@@ -113,47 +94,10 @@ export default async function FanoutPage({
 
       {replay.data && replay.data.prompts.length > 0 && <FanoutSimulator data={replay.data} />}
 
-      <details className="card-inset mb-6 p-4 text-xs text-[var(--text-2)]">
-        <summary className="cursor-pointer font-semibold text-[var(--text)]">
-          How this is measured
-          {data?.observed && (
-            <span className="ml-2 font-medium text-[var(--text-3)]">
-              {data.coverage.reprobed} re-checked · {data.coverage.unresolved} unresolved
-            </span>
-          )}
-        </summary>
-                <p className="mt-2 leading-[1.55]">
-          When an engine searches the web to answer a question, it splits the question into
-          several smaller searches and picks sources from each one. Each sub-search below shows
-          whether you appear in its results and who does.{" "}
-          The sub-searches and the &ldquo;names you / a competitor&rdquo; flags come straight from
-          the search text the engines reported. Whether you appear in the <em>final answer</em>{" "}
-          comes from the answer itself. Whether you appear in a sub-search&apos;s results is shown
-          only for sub-searches we ran again ourselves on an engine that used them
-          (&ldquo;re-checked&rdquo;); the rest are marked unresolved instead of guessed from the
-          full answer. Branded questions are left out (see the Brand tab).
-          {data?.observed && (
-            <>
-              {" "}
-              <span className="font-medium text-[var(--text)]">
-                Coverage: {data.coverage.reprobed} re-checked · {data.coverage.unresolved} unresolved.
-              </span>
-              {(data.trend.won_back > 0 || data.trend.lost > 0) &&
-                ` Since each sub-search was last re-checked: ${data.trend.won_back} won back, ${data.trend.lost} newly lost.`}
-              {!data.reprobe_enabled && " Re-checking is off for this account, so presence in sub-searches isn't measured yet."}
-            </>
-          )}
-        </p>
-      </details>
 
       {!data?.observed ? (
         <section className="card p-4">
-          <h2 className="mb-2 text-lg font-medium">No fan-out captured yet</h2>
-          <p className="text-sm text-[var(--text-2)]">
-            Fan-out appears when an engine reports the searches it ran (Gemini always does,
-            ChatGPT sometimes). It shows up here after a run that includes an engine that
-            searches the web.
-          </p>
+          <p className="text-sm text-[var(--text-2)]">No sub-searches captured yet.</p>
         </section>
       ) : (
         <div className="space-y-4">

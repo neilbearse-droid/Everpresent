@@ -50,54 +50,40 @@ export default async function AnswerShapePage() {
   const lead =
     !d || !d.has_data
       ? {
-          tells: `No answers in the last ${d?.days ?? 60} days. After the next run this page shows which engines know you from memory, which only find you by searching, and what each one says about you.`,
-          act: "Nothing to do here until the next run.",
+          tells: "No answers yet; this fills in after the next run.",
+          act: "Nothing to do yet.",
           tone: "neutral" as const,
         }
       : {
-          tells: (
-            <>
-              {losing.length > 0 && (
-                <>
-                  {losing.map((m) => m.label).join(" and ")} {losing.length === 1 ? "knows" : "know"} you
-                  from memory but {losing.length === 1 ? "finds" : "find"} others when{" "}
-                  {losing.length === 1 ? "it searches" : "they search"}.{" "}
-                </>
-              )}
-              {unknown.length > 0 && (
-                <>
-                  {unknown.map((m) => m.label).join(" and ")} {unknown.length === 1 ? "finds" : "find"} you
-                  by searching but {unknown.length === 1 ? "doesn't" : "don't"} name you from memory.{" "}
-                </>
-              )}
-              {losing.length === 0 && unknown.length === 0 && consistent.length > 0 && (
-                <>Memory and search agree on {consistent.length === mvs.length ? "every engine" : `${consistent.length} of ${mvs.length} engines`}. </>
-              )}
-              {objection && objection.objections > 0 && (
-                <>
-                  The most common objection is about {objection.theme} ({objection.objections}{" "}
-                  {objection.objections === 1 ? "mention" : "mentions"}).{" "}
-                </>
-              )}
-              {switches > 0 && (
-                <>
-                  {switches} model {switches === 1 ? "switch" : "switches"} in the last {d.days} days
-                  {switches === 1 ? " changes" : " change"} how to read the trend.
-                </>
-              )}
-            </>
-          ),
+          tells:
+            losing.length > 0 ? (
+              <>
+                {losing.map((m) => m.label).join(" and ")} {losing.length === 1 ? "knows" : "know"} you
+                from memory but {losing.length === 1 ? "picks" : "pick"} rivals when searching.
+              </>
+            ) : unknown.length > 0 ? (
+              <>
+                {unknown.map((m) => m.label).join(" and ")} {unknown.length === 1 ? "finds" : "find"} you
+                only by searching the web.
+              </>
+            ) : objection && objection.objections > 0 ? (
+              <>
+                Memory and search agree; the main objection is {objection.theme} ({objection.objections}).
+              </>
+            ) : (
+              <>Memory and search agree on {consistent.length === mvs.length ? "every engine" : `${consistent.length} of ${mvs.length} engines`}.</>
+            ),
           act:
             losing.length > 0
-              ? "Work on what the engines find when they search: your own pages and the third-party pages they cite for these questions. Memory is already on your side."
+              ? "Fix the pages engines find when they search."
               : objection && objection.objections > 0
-                ? `Answer the ${objection.theme} objection plainly on your own site, on the page an engine would cite for it. Engines repeat what they can quote.`
-                : unknown.length > 0 && losing.length === 0
-                  ? "Keep the third-party coverage that search finds up to date. Models pick it up when they're retrained; there's nothing to change on-site for this."
+                ? `Answer the ${objection.theme} objection on your own site.`
+                : unknown.length > 0
+                  ? "Keep third-party coverage current."
                   : unlinked && unlinked.mentioned_unlinked_share >= 25
-                    ? `${unlinked.label} names you without linking you in ${Math.round(unlinked.mentioned_unlinked_share)}% of answers. Make the page that answers each question the obvious one to link: specific, dated, with the answer at the top.`
-                    : "Nothing to change on the strength of this page. Use it to read the model switches before you read a trend.",
-          href: losing.length > 0 ? "/dashboard/pages" : objection && objection.objections > 0 ? "/dashboard/pages" : "/dashboard/citations",
+                    ? `Make your answer pages linkable; ${unlinked.label} names you without linking.`
+                    : "Nothing to change.",
+          href: losing.length > 0 || (objection && objection.objections > 0) ? "/dashboard/pages" : unlinked && unlinked.mentioned_unlinked_share >= 25 ? "/dashboard/citations" : undefined,
           hrefLabel: losing.length > 0 || (objection && objection.objections > 0) ? "Your Pages" : "Citations",
           tone: (losing.length > consistent.length ? "bad" : losing.length === 0 && unknown.length === 0 && mvs.length > 0 ? "good" : "neutral") as "good" | "bad" | "neutral",
         };
@@ -146,11 +132,6 @@ export default async function AnswerShapePage() {
                   </tbody>
                 </table>
               </div>
-              <p className="px-4 pb-3 pt-2 text-xs text-[var(--text-3)]">
-                From memory means answers given without searching the web, so they reflect what
-                the model learned in training. The less often an engine searches, the more these
-                answers count.
-              </p>
             </div>
             <div>
               <div className="bp-bar">
@@ -237,26 +218,14 @@ export default async function AnswerShapePage() {
                   </tbody>
                 </table>
               </div>
-              <p className="px-4 pb-3 pt-2 text-xs text-[var(--text-3)]">
-                For ChatGPT and Perplexity&apos;s APIs, &ldquo;Searched&rdquo; comes from a separate
-                check where the engine decides for itself whether to search (the main measurement
-                always searches). Answers collected from the engines&apos; websites are signed out,
-                with no saved chat history. A name with no link still counts as visibility.
-              </p>
             </div>
           </section>
 
-          <p className="mb-3 mt-8 max-w-3xl text-[12.5px] leading-relaxed text-[var(--text-3)]">
-            Each new model changes how an engine answers: how often it searches the web, how many
-            sources it links, whether links sit in the text or in footnotes, and whether they
-            point to your site or someone else&apos;s. A drop in citations can be a model switch,
-            so read the numbers above per model, with the date each model started.
-          </p>
-          <section className="blueprint mb-6 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+          <section className="blueprint mb-6 mt-8 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
             <div>
               <div className="bp-bar">
-                <span>Models answering now</span>
-                <span>As reported by each API</span>
+                <span>Current models</span>
+                <span>Per engine</span>
               </div>
               <ul>
                 {Object.entries(d.current_models).length === 0 ? (
@@ -276,7 +245,7 @@ export default async function AnswerShapePage() {
             <div>
               <div className="bp-bar">
                 <span>Model changes</span>
-                <span>Read before and after separately</span>
+                <span>Last {d.days} days</span>
               </div>
               {d.model_changes.length === 0 ? (
                 <p className="p-4 text-sm text-[var(--text-2)]">

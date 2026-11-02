@@ -22,11 +22,13 @@ the lead is the conclusion.
    before target sites (Action Plan); knowledge gaps versus content gaps
    decide whether the fix is off-site or on your pages (Engines). When
    there is nothing to fix the lead says so and what to hold.
-3. **Method follows data.** Opening paragraphs that explained how a thing is
-   measured move under the data they explain or into a closed disclosure:
-   the detectability table on Scorecard, the memory-versus-search and
-   model-change notes on How engines answer, "How this is measured" on
-   Sub-questions, the intro on Queries. Nothing is removed.
+3. **A metric is a label and a number.** No screen explains what a metric
+   means, how it is measured or why it matters, in prose or behind a
+   disclosure; click-through rate in Google Analytics is the model. The
+   detectability table on Scorecard stays as a plain table at the end. If a
+   header is unclear the header is renamed, never explained. The lead has a
+   hard budget: fourteen words for what it tells you, twelve for what to
+   do. Data, tables, charts and buttons are all kept.
 4. **No duplicate titles.** The breadcrumb names the page, so in-page h1s
    that repeated it are gone. The per-engine strip with its plays moves
    from the Overview to Engines, so the Overview has one "what to do"

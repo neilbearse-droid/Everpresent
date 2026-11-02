@@ -25,25 +25,23 @@ export default async function WhitespacePage({
   const lead = !data?.observed
     ? data && data.measured > 0
       ? {
-          tells: `Every name in ${data.measured} answers is ${data.brand_name} or a competitor you already track. Nobody is slipping into these answers unnoticed.`,
-          act: "Nothing to add. Check back after a few runs; new names appear here first.",
+          tells: `No untracked names in ${data.measured} answers.`,
+          act: "Nothing to add.",
           tone: "good" as const,
         }
       : {
-          tells: "No data yet. This page lists the products and companies AI answers recommend that are neither you nor a competitor you track.",
-          act: "Nothing to do until name detection is turned on for this account and a run has finished.",
+          tells: "No data yet.",
+          act: "Nothing to do yet.",
           tone: "neutral" as const,
         }
     : {
         tells: (
           <>
-            {data.entity_count} {data.entity_count === 1 ? "name" : "names"} you don&apos;t track appear
-            across {data.measured} answers. {top!.name} is the most common, named {top!.count}{" "}
-            {top!.count === 1 ? "time" : "times"}
-            {top!.engines.length > 0 && <> on {top!.engines.join(", ")}</>}.
+            {data.entity_count} untracked {data.entity_count === 1 ? "name appears" : "names appear"} in your answers;{" "}
+            {top!.name} most, {top!.count} {top!.count === 1 ? "time" : "times"}.
           </>
         ),
-        act: `If ${top!.name} competes with you, have it added to your tracked competitors so share of voice and head-to-head count it. If it doesn't, it marks a part of the category the engines think you're not in; the questions it appears on are the ones to cover.`,
+        act: `Track ${top!.name} if it competes with you; otherwise cover its questions.`,
         href: "/dashboard/queries",
         hrefLabel: "Queries",
         tone: "neutral" as const,
@@ -56,22 +54,15 @@ export default async function WhitespacePage({
 
       {!data?.observed ? (
         <section className="card p-4">
-          <h2 className="mb-2 text-lg font-medium">No untracked names yet</h2>
           <p className="text-sm text-[var(--text-2)]">
-            {data && data.measured > 0
-              ? "Every name in this date range's answers is your brand or a tracked competitor."
-              : "No data yet. Untracked names appear here once name detection is turned on for this account."}
+            {data && data.measured > 0 ? "No untracked names in this range." : "No data yet."}
           </p>
         </section>
       ) : (
         <section className="card p-4">
-          <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
-            Who else the AI recommends
+          <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">
+            Untracked names · {data.entity_count} across {data.measured} answers
           </h2>
-          <p className="mb-4 max-w-3xl text-xs text-[var(--text-3)]">
-            Products and companies named in AI answers that aren&apos;t you or a tracked
-            competitor, most often first. {data.entity_count} distinct across {data.measured} answers.
-          </p>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
