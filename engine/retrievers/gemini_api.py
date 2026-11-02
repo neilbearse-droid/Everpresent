@@ -126,9 +126,10 @@ def parse_gemini_payload(payload: dict[str, Any]) -> ParsedResponse:
 ANSWER_MAX_TOKENS = 1200
 PRO_THINKING_BUDGET = 128  # the minimum Pro accepts
 PRO_THINKING_HEADROOM = 1024
-# Stable model a retired/unknown configured model falls back to (2.5 Pro was
-# deprecated for 2026-10-16 and refuses new users; Gemini 4 isn't GA yet).
-FALLBACK_MODEL = "gemini-3.6-flash"
+# Stable model a retired/unknown configured model falls back to: Google's
+# stable Flash with a free API tier (3.6 Flash left the app picker in Oct 2026;
+# Gemini 4 Argon is paid-only on the API, so it can't be the safe landing).
+FALLBACK_MODEL = "gemini-3.8-flash"
 # Gemini 3 replaces thinkingBudget with thinkingLevel (sending both is an
 # error). "low" matches the consumer app's fast path, like OpenAI effort=low.
 GEMINI3_THINKING_LEVEL = "low"

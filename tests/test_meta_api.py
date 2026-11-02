@@ -119,10 +119,11 @@ def test_cost_estimate():
 
 
 def test_engine_is_registered_everywhere():
+    from api.consumer_models import AUDIENCES, model_for
     from api.dashboards.common import _surface_label
     from api.dashboards.measurement import FORCED_SEARCH_SURFACES
     from api.models import SurfaceCode
-    from api.plans import ENGINE_PRIORITY, model_for
+    from api.plans import ENGINE_PRIORITY
     from api.readiness_service import _LABELS, _NEEDS
     from api.runs_service import MODE_A_SURFACES
     from worker.jobs import A_ADAPTERS
@@ -134,8 +135,8 @@ def test_engine_is_registered_everywhere():
     assert _NEEDS["meta_api"] and _LABELS["meta_api"] == "Meta AI (API)"
     assert _surface_label("meta_api") == "Meta AI"
     # Never a "-contributor" model: those let Meta train on client questions.
-    for tier in ("economy", "standard", "premium"):
-        assert "contributor" not in model_for("meta_api", tier, "x")
+    for audience in AUDIENCES:
+        assert "contributor" not in model_for("meta_api", audience, "x")
 
 
 def test_meta_search_crawler_is_known():

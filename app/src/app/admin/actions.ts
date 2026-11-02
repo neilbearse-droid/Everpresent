@@ -316,6 +316,23 @@ export async function setPlan(
   return { ok: true, message: `Saved. The plan is now ${plan}, starting with the next run.` };
 }
 
+export async function setAudience(
+  slug: string,
+  _prev: ActionState,
+  formData: FormData,
+): Promise<ActionState> {
+  const audience = String(formData.get("audience") ?? "");
+  try {
+    await patchTenant(slug, { audience });
+  } catch (e) {
+    return { ok: false, message: e instanceof Error ? e.message : "Save failed" };
+  }
+  return {
+    ok: true,
+    message: `Saved. Engines answer as their ${audience === "b2b" ? "paid" : "free"} tier from the next run.`,
+  };
+}
+
 export async function setGa4Property(
   slug: string,
   _prev: ActionState,

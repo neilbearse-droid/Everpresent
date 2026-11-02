@@ -199,7 +199,7 @@ def test_gemini_retired_model_falls_back_to_stable(monkeypatch):
 
     monkeypatch.setattr(httpx.AsyncClient, "post", _post)
     out = asyncio.run(gemini_api.retrieve("", "q", api_key="k", model="gemini-2.5-pro"))
-    assert urls[-1].endswith("/gemini-3.6-flash:generateContent")
+    assert urls[-1].endswith(f"/{gemini_api.FALLBACK_MODEL}:generateContent")
     assert "gemini-2.5-pro" in out.payload["_everpresent_model_fallback"]
     assert out.parsed.text == "GoDaddy and Wix."
 

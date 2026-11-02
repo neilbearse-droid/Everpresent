@@ -117,8 +117,8 @@ RUN_DAYS_AGO = (27, 24, 20, 17, 13, 10, 6, 3, 1)
 SHIP_DAYS_AGO = 14  # the logged fix on the registrar question
 MODEL_SWITCH_DAYS_AGO = 10
 
-MODELS = {"claude_api": "claude-sonnet-4-6", "gemini_api": "gemini-3.6-flash",
-          "perplexity_api": "sonar-pro"}
+MODELS = {"claude_api": "claude-sonnet-5-5", "gemini_api": "gemini-3.5-flash-lite",
+          "perplexity_api": "perplexity/sonar"}
 
 # Third-party pages engines cite, per question. Rival sites appear too.
 SOURCES = {
@@ -426,7 +426,7 @@ def build_demo_client(session: Session, clerk_org_id: str | None = None) -> dict
                 for k, (pname, pseg) in enumerate(personas):
                     rng = random.Random(f"{SLUG}|{days_ago}|{q}|{surface}|{k}")
                     text, urls, extra = _answer(rng, q, str(surface), days_ago, latest)
-                    model = ("gpt-6-astra" if days_ago < MODEL_SWITCH_DAYS_AGO else
+                    model = ("gpt-6-luna" if days_ago < MODEL_SWITCH_DAYS_AGO else
                              "gpt-5.6-terra") if surface == SurfaceCode.openai_api else \
                         MODELS.get(str(surface), "")
                     r = Result(run_id=run.id, tenant_id=tid, query_id=qid[q], query_text=q,

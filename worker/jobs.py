@@ -15,6 +15,7 @@ from typing import Any
 from sqlmodel import Session, col, func, select
 
 from api.config import get_settings
+from api.consumer_models import model_for
 from api.db import get_engine
 from api.fanout_service import (
     ShardCandidate,
@@ -45,7 +46,7 @@ from api.models import (
     Tenant,
     utcnow,
 )
-from api.plans import cap_engines, limits_for, model_for
+from api.plans import cap_engines, limits_for
 from api.processing_service import process_run
 from api.queue import enqueue_run_mode_b
 from api.runs_service import MODE_A_SURFACES, MODE_B_SURFACES, month_spend_usd
@@ -495,7 +496,7 @@ async def _dispatch_all(
     work: list[_AWorkItem],
     *,
     settings: Any,
-    model_tier: str,
+    audience: str,
     concurrency: int,
     month_spent_before: float,
     cap_usd: float,
@@ -523,7 +524,7 @@ async def _dispatch_all(
 
     async def one(index: int, item: _AWorkItem) -> dict[str, Any] | None:
         adapter = A_ADAPTERS[item.surface]
-        model = model_for(item.surface, model_tier, getattr(settings, adapter.model_attr))
+        model = model_for(item.surface, audience, getattr(settings, adapter.model_attr))
         # Conservative upper-bound estimate for the reservation (over-reserving
         # withholds slightly early — the safe direction for a spend cap).
         est = adapter.cost_fn(model, _EST_INPUT_TOKENS, _EST_OUTPUT_TOKENS, _EST_SEARCH_CALLS)
@@ -757,6 +758,7 @@ async def _run_mode_a(run_id: int) -> None:
         tenant_slug = tenant.slug
         cap_usd = tenant.monthly_spend_cap_usd
         limits = limits_for(tenant.plan)
+        audience = tenant.audience
         a_surfaces = cap_engines(_a_surfaces(run), limits.max_engines)
         run.status = RunStatus.running
         run.started_at = utcnow()
@@ -823,7 +825,7 @@ async def _run_mode_a(run_id: int) -> None:
                 if adapter is None or not adapter.supports_nosearch:
                     continue
                 expected = model_for(
-                    str(r.surface), limits.model_tier, getattr(settings, adapter.model_attr)
+                    str(r.surface), audience, getattr(settings, adapter.model_attr)
                 )
                 envelope = read_raw_envelope(r.raw_uri, session=session) or {}
                 if envelope.get("model") == expected:
@@ -958,7 +960,7 @@ async def _run_mode_a(run_id: int) -> None:
     outcomes, capped = await _dispatch_all(
         work,
         settings=settings,
-        model_tier=limits.model_tier,
+        audience=audience,
         concurrency=settings.openai_concurrency,
         month_spent_before=month_spent_before,
         cap_usd=cap_usd,
@@ -1428,6 +1430,7 @@ async def _run_fanout_reprobe(run_id: int) -> None:
         tenant = session.get(Tenant, run.tenant_id)
         assert tenant is not None
         limits = limits_for(tenant.plan)
+        audience = tenant.audience
         if not tenant.fanout_reprobe_enabled or limits.shard_probes_per_run <= 0:
             return
         tenant_id = run.tenant_id
@@ -1527,7 +1530,7 @@ async def _run_fanout_reprobe(run_id: int) -> None:
     outcomes, capped = await _dispatch_all(
         work,
         settings=settings,
-        model_tier=limits.model_tier,
+        audience=audience,
         concurrency=settings.openai_concurrency,
         month_spent_before=month_spent_before,
         cap_usd=cap_usd,

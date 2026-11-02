@@ -1,13 +1,13 @@
 """Subscription plans (pricing tiers, §pricing-model).
 
-A plan caps the run matrix — prompts, personas, engines — toggles the
-dual-query diagnosis (the expensive search-vs-training twin), and selects the
-model tier per measured surface. Enforced in the run pipeline so spend tracks
-the plan the tenant pays for. 'custom' is uncapped and uses the deployment's
-configured models (the pre-plan behaviour), for enterprise/legacy tenants.
+A plan caps the run matrix — prompts, personas, engines — and toggles the
+dual-query diagnosis (the expensive search-vs-training twin). Enforced in the
+run pipeline so spend tracks the plan the tenant pays for. 'custom' is
+uncapped, for enterprise/legacy tenants.
 
-The per-tier models are real consumer models; the §4 runtime-model ban is
-enforced by the policy test, which scans this file for forbidden substrings.
+Which model each API engine is asked as is NOT a plan choice: it follows the
+client's audience (Tenant.audience -> api.consumer_models), so a plan moves
+how much is measured, never which product is measured (M62).
 """
 
 from dataclasses import dataclass
@@ -28,7 +28,6 @@ class PlanLimits:
     max_personas: int | None
     max_engines: int | None
     diagnosis: bool              # emit the search-disabled dual-query twin
-    model_tier: str              # economy | standard | premium | configured
     outcome: bool                # GA4 outcome attribution available
     max_runs_per_day: int | None  # scheduled-run frequency cap (None = uncapped)
     monthly_price_usd: int
@@ -64,26 +63,26 @@ class PlanLimits:
 PLANS: dict[str, PlanLimits] = {
     "monitor": PlanLimits(
         "Monitor", max_prompts=25, max_personas=1, max_engines=3,
-        diagnosis=False, model_tier="economy", outcome=False,
+        diagnosis=False, outcome=False,
         max_runs_per_day=1, monthly_price_usd=149, max_locations=1,
     ),
     "diagnose": PlanLimits(
         "Diagnose", max_prompts=50, max_personas=2, max_engines=4,
-        diagnosis=True, model_tier="standard", outcome=True,
+        diagnosis=True, outcome=True,
         max_runs_per_day=1, monthly_price_usd=549, max_locations=1,
         shard_probes_per_prompt=2, shard_probes_per_run=15, samples_per_cell=2,
         natural_probe_fraction=1.0,
     ),
     "command": PlanLimits(
         "Command", max_prompts=None, max_personas=None, max_engines=None,
-        diagnosis=True, model_tier="premium", outcome=True,
+        diagnosis=True, outcome=True,
         max_runs_per_day=None, monthly_price_usd=2900, max_locations=5,
         shard_probes_per_prompt=5, shard_probes_per_run=15, samples_per_cell=3,
         natural_probe_fraction=1.0,
     ),
     "custom": PlanLimits(
         "Custom", max_prompts=None, max_personas=None, max_engines=None,
-        diagnosis=True, model_tier="configured", outcome=True,
+        diagnosis=True, outcome=True,
         max_runs_per_day=None, monthly_price_usd=0, max_locations=None,
         shard_probes_per_prompt=5, shard_probes_per_run=15, samples_per_cell=3,
     ),
@@ -115,36 +114,3 @@ def cap_engines(surfaces: list[str], max_engines: int | None) -> list[str]:
     ordered = sorted(surfaces, key=lambda s: ENGINE_PRIORITY.index(s)
                      if s in ENGINE_PRIORITY else len(ENGINE_PRIORITY))
     return ordered[:max_engines]
-
-
-# Per-surface model by tier. Overrides the configured default so a plan's
-# model_tier actually moves cost. 'configured' (custom plan) falls back to the
-# deployment's settings. All real consumer models — no build-time models.
-MODEL_TIERS: dict[str, dict[str, str]] = {
-    "openai_api": {"economy": "gpt-5-mini", "standard": "gpt-5.6-terra", "premium": "gpt-5.6-sol"},
-    # One Perplexity-native model on the Agent API: `sonar-pro` has no slug
-    # there, and the "presets" run OpenAI models (wrong engine to measure).
-    "perplexity_api": {
-        "economy": "perplexity/sonar", "standard": "perplexity/sonar",
-        "premium": "perplexity/sonar",
-    },
-    "claude_api": {
-        "economy": "claude-haiku-4-5-20251001",
-        "standard": "claude-sonnet-4-6",
-        "premium": "claude-sonnet-4-6",
-    },
-    # Gemini 3.x (2.5 Pro is deprecated for 2026-10-16). Gemini 4 "Argon":
-    # announced 30 Sept; GA 13 Oct 2026 (API; AI Mode for paid tiers). The
-    # tier re-pin is a separate decision (not this week).
-    "gemini_api": {"economy": "gemini-3.5-flash-lite", "standard": "gemini-3.6-flash",
-                   "premium": "gemini-3.1-pro-preview"},
-    # Muse Spark is the model the Meta AI app serves, so every tier measures it.
-    "meta_api": {"economy": "muse-spark-1.3", "standard": "muse-spark-1.3",
-                 "premium": "muse-spark-1.3"},
-}
-
-
-def model_for(surface: str, tier: str, default: str) -> str:
-    """The model to use for a surface under a plan's tier, or the configured
-    default when the tier doesn't override it (e.g. the 'custom' plan)."""
-    return MODEL_TIERS.get(surface, {}).get(tier, default)

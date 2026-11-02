@@ -29,8 +29,13 @@ class Settings(BaseSettings):
 
     # Measured surface: OpenAI Responses API (Mode A, §6.1). The key is a
     # deployment secret; absence disables real runs, never CI tests.
+    #
+    # The *_model settings below are fallbacks only: a run asks each engine as
+    # the model api.consumer_models pins for the tenant's audience (free or
+    # paid tier). These apply to a surface with no pin, and to tooling that
+    # has no tenant. Keep them on the free-tier model.
     openai_api_key: str = ""
-    openai_model: str = "gpt-5.6-terra"
+    openai_model: str = "gpt-6-luna"
     openai_concurrency: int = 4
     openai_timeout_s: float = 90.0
 
@@ -47,10 +52,10 @@ class Settings(BaseSettings):
     perplexity_timeout_s: float = 90.0
 
     anthropic_api_key: str = ""
-    # A real consumer-facing Claude model (what claude.ai serves), NOT a
+    # A real consumer-facing Claude model (what claude.ai Free serves), NOT a
     # build-time-only model. The §4 runtime-model ban is enforced by the policy
     # test, which scans this file for forbidden model substrings.
-    claude_model: str = "claude-sonnet-4-6"
+    claude_model: str = "claude-sonnet-5-5"
     claude_timeout_s: float = 90.0
 
     # Meta AI via the Meta Model API (Muse Spark, the model behind the Meta AI
@@ -76,7 +81,7 @@ class Settings(BaseSettings):
     content_drafts_per_hour: int = 30
 
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-3.6-flash"
+    gemini_model: str = "gemini-3.5-flash-lite"
     gemini_timeout_s: float = 90.0
 
     # Mode B scraping (§6.2): conservative by default, sequential per surface.

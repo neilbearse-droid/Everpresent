@@ -101,6 +101,8 @@ export type Tenant = {
   engine_weights?: Record<string, number> | null;
   engine_weights_changed_on?: string | null;
   plan: string;
+  /** Who the client sells to: "d2c" asks engines as their free tier, "b2b" as the paid tier. */
+  audience: string;
   fanout_reprobe_enabled: boolean;
   entity_extraction_enabled: boolean;
   aio_geo: { gl?: string; hl?: string } | null;
@@ -113,7 +115,6 @@ export type PlanLimits = {
   max_personas: number | null;
   max_engines: number | null;
   diagnosis: boolean;
-  model_tier: string;
   outcome: boolean;
   max_runs_per_day: number | null;
   monthly_price_usd: number;
@@ -778,6 +779,23 @@ export type TenantDetail = {
   queries: { id: number; text: string; corpus_tag: string; active: boolean; branded: boolean }[];
   surfaces: { id: number; code: string; enabled: boolean }[];
   plans: Record<string, PlanLimits>;
+  audiences: AudienceCatalog;
+};
+
+/** The model each API engine is asked as, per audience (api.consumer_models). */
+export type AudienceCatalog = {
+  default: string;
+  choices: { key: string; tier: string; label: string; models: Record<string, string> }[];
+  pins: {
+    surface: string;
+    free: string;
+    paid: string;
+    as_of: string;
+    age_days: number;
+    stale: boolean;
+    source: string;
+  }[];
+  stale_after_days: number;
 };
 
 export type AgentPage = {

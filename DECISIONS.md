@@ -3,6 +3,39 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M62 — The client's audience picks which tier of each engine we measure (2026-11-02)
+
+1. **A toggle per client, not a model per plan.** `Tenant.audience` is
+   `d2c` (the default) or `b2b`. A consumer brand is measured through each
+   engine's free tier; a business through the entry paid tier its buyers
+   are on. The plan keeps its caps (questions, personas, engines, the
+   diagnosis twin) and no longer chooses models: the old economy/standard/
+   premium tiers measured cost, not a product anyone uses. Cost follows the
+   toggle now; a b2b client on Monitor pays Argon and Opus prices on those
+   engines.
+2. **One dated table.** `api/consumer_models.py` holds free and paid per
+   API engine, with the date it was checked and what was read. Pinned today:
+   ChatGPT gpt-6-luna / gpt-6-sol (GPT-6 is ChatGPT's default since
+   2026-10-07); Claude claude-sonnet-5-5 / claude-opus-5-5 (Free runs Sonnet
+   5.5 since 2026-09-28, Pro and Team default to Opus 5.5 since 2026-09-22);
+   Gemini gemini-3.5-flash-lite / gemini-4-argon (the free app moved to an
+   Auto setting that mostly serves Flash-Lite on 2026-10-09; Pro and Ultra
+   get Argon since 2026-10-13); Perplexity perplexity/sonar for both (Pro
+   Search has no API equivalent); Meta muse-spark-1.3 for both. The Gemini
+   free-tier reading is third-party; Google has not said what Auto serves.
+3. **A reminder with teeth.** `tests/test_consumer_models.py` fails once
+   any pin is older than 45 days, and the admin page shows each pin's age.
+   The October note that deferred the Gemini re-pin slipped a month without
+   anyone noticing; a failing test does not.
+4. **Fallbacks follow.** The deployment `*_MODEL` settings are fallbacks for
+   an unpinned surface and now name the free-tier models. Gemini's retired-
+   model landing is 3.8 Flash (3.6 left the picker; Argon is paid-only on
+   the API, so a free-tier key cannot measure b2b Gemini). Claude's answer
+   cap rises from 1024 to 4096 tokens because the 5.x models reason inside
+   it. Prices for the GPT-6, Claude 5.x, Argon and 3.8 Flash rows are
+   added to `engine/costs.py`; Argon uses the December list price, not the
+   introductory one.
+
 ## M61 — The public page is written for the buyer (2026-11-01)
 
 1. **Who it is for.** The landing page speaks to the people who would pay:

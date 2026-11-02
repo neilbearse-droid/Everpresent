@@ -13,6 +13,7 @@ import { EngineWeightsForm, type EngineWeightDefaults } from "./engine-weights-f
 import { ImportYamlForm, type BundledSeed } from "./import-yaml-form";
 import { ImportCapturesForm } from "./import-captures-form";
 import { AgentTokenForm } from "./agent-token-form";
+import { AudienceForm } from "./audience-form";
 import { QueriesPanel } from "./queries-panel";
 import { NotifyEmailsForm } from "./notify-emails-form";
 import { PlanForm } from "./plan-form";
@@ -45,7 +46,7 @@ export default async function TenantAdminPage({
   ]);
   const weightDefaults = await apiFetch<EngineWeightDefaults>("/api/admin/engine-weights");
   if (detail.status === 404 || !detail.data) notFound();
-  const { tenant, brand_profile, competitors, personas, queries, plans } = detail.data;
+  const { tenant, brand_profile, competitors, personas, queries, plans, audiences } = detail.data;
   const ready = readiness.data;
   // Fall back to the tenant's own approvals when the readiness call fails, so
   // the toggle never shows "off" (and flips the wrong way) on a transient error.
@@ -250,11 +251,22 @@ export default async function TenantAdminPage({
       <section className="card mb-6 p-5">
         <h2 className="mb-1 font-medium">Plan</h2>
         <p className="mb-4 text-xs text-[var(--text-2)]">
-          Sets how many questions, personas and engines each run covers, whether each question is
-          also asked with web search turned off, and which model of each API engine answers.
-          Takes effect on the next run. Existing clients default to Custom, which has no limits.
+          Sets how many questions, personas and engines each run covers and whether each question
+          is also asked with web search turned off. Takes effect on the next run. Existing clients
+          default to Custom, which has no limits.
         </p>
         <PlanForm slug={tenant.slug} current={tenant.plan} plans={plans} />
+      </section>
+
+      <section className="card mb-6 p-5">
+        <h2 className="mb-1 font-medium">Audience</h2>
+        <p className="mb-4 text-xs text-[var(--text-2)]">
+          Who this client sells to decides which version of each engine we measure. A consumer
+          brand is seen through the free apps; a business through the paid tier its buyers are
+          on. The models follow whatever each app serves today and are re-checked on a schedule.
+          Takes effect on the next run.
+        </p>
+        <AudienceForm slug={tenant.slug} current={tenant.audience} catalog={audiences} />
       </section>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

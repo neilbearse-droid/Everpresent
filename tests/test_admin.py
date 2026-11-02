@@ -121,6 +121,25 @@ def test_governance_rejects_non_allowlisted_utility_model(client, as_superadmin)
     assert resp.json()["approved_utility_models"] == ["claude-haiku-4-5-20251001"]
 
 
+def test_audience_toggle_validated_and_shown(client, as_superadmin):
+    _create_tenant(client)
+    assert client.get("/api/admin/tenants/smith").json()["tenant"]["audience"] == "d2c"
+
+    resp = client.patch("/api/admin/tenants/smith", json={"audience": "enterprise"})
+    assert resp.status_code == 422
+
+    resp = client.patch("/api/admin/tenants/smith", json={"audience": "b2b"})
+    assert resp.status_code == 200
+    assert resp.json()["audience"] == "b2b"
+
+    detail = client.get("/api/admin/tenants/smith").json()
+    choices = {c["key"]: c for c in detail["audiences"]["choices"]}
+    assert choices["b2b"]["tier"] == "paid"
+    assert choices["d2c"]["models"]["openai_api"] != choices["b2b"]["models"]["openai_api"]
+    assert all("as_of" in p and "age_days" in p for p in detail["audiences"]["pins"])
+    assert client.get("/api/admin/consumer-models").json()["default"] == "d2c"
+
+
 def test_governance_flag_and_org_link(client, as_superadmin):
     _create_tenant(client)
     resp = client.patch(

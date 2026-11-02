@@ -92,9 +92,13 @@ class Tenant(SQLModel, table=True):
     # only, e.g. "123456789"). The shared service account must be granted
     # Viewer on this property. Unset = the Outcome view stays empty.
     ga4_property_id: str | None = Field(default=None)
-    # Subscription plan (pricing tier). Caps the run matrix and selects the
-    # model tier (api.plans). "custom" = uncapped (default; legacy/enterprise).
+    # Subscription plan (pricing tier). Caps the run matrix (api.plans).
+    # "custom" = uncapped (default; legacy/enterprise).
     plan: str = Field(default="custom")
+    # Who the client sells to, which picks the consumer tier every API engine
+    # is asked as (api.consumer_models): "d2c" = the free app, "b2b" = the
+    # paid tier its buyers are on. Default d2c: the larger audience.
+    audience: str = Field(default="d2c")
     # Audience weights for the pooled headline (api.engine_weights): engine
     # family -> 0-100. None = the dated default table; 0 = measured, not pooled.
     engine_weights: dict | None = Field(default=None, sa_column=Column(JSON, nullable=True))

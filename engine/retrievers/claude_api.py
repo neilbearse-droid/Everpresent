@@ -109,7 +109,10 @@ def build_request_body(
 ) -> dict[str, Any]:
     body: dict[str, Any] = {
         "model": model,
-        "max_tokens": 1024,
+        # Claude 5.x reasons by default and the reasoning counts toward this
+        # cap, so a consumer-length answer (a few hundred tokens) needs room
+        # above it or the model can spend the budget thinking and stop short.
+        "max_tokens": 4096,
         "messages": [{"role": "user", "content": query_text.strip()}],
     }
     # The generic baseline persona has no prompt; send no system field rather

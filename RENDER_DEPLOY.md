@@ -92,8 +92,12 @@ scraping).
 | `GEMINI_API_KEY` | aistudio.google.com → Get API key | Gemini |
 | `META_API_KEY` | dev.meta.ai → API keys (Meta Model API; add billing) | Meta AI (Muse Spark) |
 
-The model each uses is preset (`PERPLEXITY_MODEL`, `CLAUDE_MODEL`,
-`GEMINI_MODEL`, `META_MODEL`) and can be changed later. Each engine you add multiplies the
+The model each engine answers as follows the tenant's **Audience** setting in
+the admin panel (consumer brand = the free tier, business = the paid tier; the
+table is `api/consumer_models.py`). The `*_MODEL` env vars are only fallbacks
+for an engine with no pin. Note the Gemini paid-tier model (Argon) is not on
+the API's free tier, so a business tenant's Gemini runs need a billed key.
+Each engine you add multiplies the
 per-run cost by roughly one more provider's usage, so watch the tenant spend
 cap. In the admin panel, toggle the new surfaces **on** for a tenant (that also
 governance-approves them), then trigger a run.

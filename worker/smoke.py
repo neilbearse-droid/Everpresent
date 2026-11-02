@@ -14,9 +14,9 @@ import structlog
 from sqlmodel import Session
 
 from api.config import get_settings
+from api.consumer_models import model_for
 from api.db import get_engine
 from api.models import EngineCheck, SpendEntry, Tenant, utcnow
-from api.plans import model_for
 from api.runs_service import eligible_surfaces
 from engine.costs import estimate_mode_b_cost_usd
 from engine.retrievers.blocking import BlockedError
@@ -42,11 +42,8 @@ async def _run(tenant_id: int) -> int:
         if tenant is None:
             return 0
         surfaces = eligible_surfaces(session, tenant)
-        tier = tenant.plan
+        audience = tenant.audience
         aio_geo = dict(tenant.aio_geo or {})
-    from api.plans import limits_for
-
-    model_tier = limits_for(tier).model_tier
     env = _base_scrape_env(settings)
     done = 0
     for surface in surfaces:
@@ -54,7 +51,7 @@ async def _run(tenant_id: int) -> int:
         row: dict[str, Any] = {"surface": surface}
         try:
             if surface in A_ADAPTERS:
-                row |= await _check_api(A_ADAPTERS[surface], surface, settings, model_tier)
+                row |= await _check_api(A_ADAPTERS[surface], surface, settings, audience)
             elif surface in B_ADAPTERS:
                 row |= await _check_browser(B_ADAPTERS[surface], surface, settings, env, aio_geo)
             else:
@@ -106,11 +103,11 @@ def _verdict(text: str, citations: int, searches: int, needs_sources: bool) -> t
     return "ok", text.strip().replace("\n", " ")[:200]
 
 
-async def _check_api(adapter: Any, surface: str, settings: Any, tier: str) -> dict[str, Any]:
+async def _check_api(adapter: Any, surface: str, settings: Any, audience: str) -> dict[str, Any]:
     key = getattr(settings, adapter.key_attr, "")
     if not key:
         return {"status": "not_configured", "detail": f"{adapter.env_var} is not set on the worker"}
-    model = model_for(surface, tier, getattr(settings, adapter.model_attr))
+    model = model_for(surface, audience, getattr(settings, adapter.model_attr))
     started = time.monotonic()
     outcome = await asyncio.wait_for(
         adapter.module.retrieve(PERSONA, PROBE, api_key=key, model=model,

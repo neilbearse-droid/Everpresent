@@ -119,7 +119,38 @@ def tenant_detail(slug: str, session: Db) -> dict:
         "queries": session.exec(select(Query).where(Query.tenant_id == tid)).all(),
         "surfaces": _full_surface_catalog(session, tid),
         "plans": {key: asdict(limits) for key, limits in PLANS.items()},
+        "audiences": _audience_catalog(),
     }
+
+
+def _audience_catalog() -> dict:
+    """The two audience choices, the model each would ask every engine as, and
+    how old each pin is, so the admin page can show what a toggle changes."""
+    from api.consumer_models import (
+        AUDIENCE_LABELS,
+        AUDIENCES,
+        DEFAULT_AUDIENCE,
+        STALE_AFTER_DAYS,
+        models_for,
+        pins_status,
+    )
+
+    return {
+        "default": DEFAULT_AUDIENCE,
+        "choices": [
+            {"key": key, "tier": tier, "label": AUDIENCE_LABELS[key], "models": models_for(key)}
+            for key, tier in AUDIENCES.items()
+        ],
+        "pins": pins_status(),
+        "stale_after_days": STALE_AFTER_DAYS,
+    }
+
+
+@router.get("/consumer-models")
+def consumer_models(admin: Admin) -> dict:
+    """What each API engine is asked as per audience, with the date each pin
+    was last checked (api.consumer_models)."""
+    return _audience_catalog()
 
 
 class TenantPatch(BaseModel):
@@ -133,6 +164,9 @@ class TenantPatch(BaseModel):
     notify_emails: list[str] | None = None
     ga4_property_id: str | None = None
     plan: str | None = None
+    # Who the client sells to: "d2c" asks engines as their free tier, "b2b"
+    # as the paid tier (api.consumer_models).
+    audience: str | None = None
     fanout_reprobe_enabled: bool | None = None
     # Search country for Google AI Overviews and the browser engines (gl, 2
     # lowercase letters); language stays as set unless given.
@@ -258,6 +292,16 @@ def patch_tenant(slug: str, payload: TenantPatch, session: Db, admin: Admin) -> 
             )
         tenant.plan = payload.plan
         changed.append("plan")
+    if payload.audience is not None:
+        from api.consumer_models import AUDIENCES
+
+        if payload.audience not in AUDIENCES:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Unknown audience: {payload.audience}. One of {sorted(AUDIENCES)}",
+            )
+        tenant.audience = payload.audience
+        changed.append("audience")
 
     session.add(tenant)
     write_audit(

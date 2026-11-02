@@ -44,8 +44,9 @@ extension.
 - **Runtime-model policy (CRITICAL):** `tests/test_llm_policy.py` scans
   `.env*`, `api/**`, `worker/**`, `engine/**` for banned model-family
   substrings. Never write those substrings (or a build-time-only model id) in
-  those paths, including comments/docstrings. Model tiers live in
-  `api/plans.py::MODEL_TIERS` — all real consumer models.
+  those paths, including comments/docstrings. The model each API engine is
+  asked as lives in `api/consumer_models.py` (free and paid tier per engine,
+  dated; the tenant's audience picks the column) — all real consumer models.
 - **Verify before every commit:**
   ```
   cd /home/user/Everpresent && python -m pytest -q

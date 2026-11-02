@@ -55,8 +55,7 @@ export function PlanForm({
                 <span className="mt-0.5 block text-xs text-[var(--text-2)]">
                   {cap(p.max_prompts)} questions · {cap(p.max_personas)} personas ·{" "}
                   {cap(p.max_engines)} engines · {cap(p.max_runs_per_day)} runs a day ·{" "}
-                  {p.diagnosis ? "also asks without web search" : "doesn't ask without web search"} ·{" "}
-                  {p.model_tier} models
+                  {p.diagnosis ? "also asks without web search" : "doesn't ask without web search"}
                 </span>
               </span>
             </label>

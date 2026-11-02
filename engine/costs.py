@@ -13,6 +13,15 @@ OPENAI_TOKEN_PRICES: dict[str, tuple[float, float]] = {
     "gpt-4o": (2.50, 10.00),
     "gpt-4.1-mini": (0.40, 1.60),
     "gpt-4.1": (2.00, 8.00),
+    # GPT-6 range (Sept 2026): Luna $0.10/$0.50 and Sol $2/$10 from OpenAI's
+    # launch post; Astra (the flagship, not a ChatGPT default) $10/$50 from
+    # third-party trackers. GPT-6.1 Sol kept Sol's price. The bare "gpt-6"
+    # prefix catches any new tier at the flagship price (conservative).
+    "gpt-6-luna": (0.10, 0.50),
+    "gpt-6.1-sol": (2.00, 10.00),
+    "gpt-6-sol": (2.00, 10.00),
+    "gpt-6-astra": (10.00, 50.00),
+    "gpt-6": (10.00, 50.00),
     # GPT-5 range (2026). 5.6 ships as three tiers; the bare "gpt-5.6" alias
     # is Sol. Longest-prefix match keeps the tiers distinct.
     "gpt-5.6-luna": (1.00, 6.00),
@@ -83,9 +92,16 @@ def estimate_perplexity_cost_usd(
 
 
 # Anthropic Claude (§6.1). Token prices per 1M; web search $10 / 1k.
+# Claude 5.x prices from Anthropic's model table (Oct 2026); Haiku 5.5 is the
+# up-to-100K-token rate. Longest prefix wins, so 5.x rows beat the bare family
+# rows, which still price the 4.x models.
 ANTHROPIC_TOKEN_PRICES: dict[str, tuple[float, float]] = {
+    "claude-haiku-5": (0.10, 0.50),
     "claude-haiku": (1.00, 5.00),
+    "claude-opus-5-5": (4.00, 20.00),
+    "claude-opus-5": (5.00, 25.00),
     "claude-opus": (15.00, 75.00),
+    "claude-sonnet-5": (2.00, 10.00),
     "claude-sonnet": (3.00, 15.00),
 }
 ANTHROPIC_WEB_SEARCH_PER_1K = 10.00
@@ -110,6 +126,11 @@ def estimate_anthropic_cost_usd(
 # is on Google's own pricing page (ai.google.dev/gemini-api/docs/pricing, read
 # Oct 2026). Verify the token prices against that page.
 GEMINI_TOKEN_PRICES: dict[str, tuple[float, float]] = {
+    # Gemini 4 Argon: $2/$10 introductory to 2026-11-30, then $4/$20 list
+    # (VentureBeat and price trackers, Oct 2026). The list price is used so
+    # the cap does not undershoot when the introductory rate ends.
+    "gemini-4-argon": (4.00, 20.00),
+    "gemini-3.8-flash": (0.75, 3.75),
     "gemini-3.6-flash": (1.50, 7.50),
     "gemini-3.5-flash-lite": (0.30, 2.50),
     "gemini-3.1-pro": (2.00, 12.00),

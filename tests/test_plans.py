@@ -1,9 +1,11 @@
-"""Pricing plans cap the run matrix and select the model tier. Enforcement is
-verified end-to-end through the Mode A job with faked providers (§11.5)."""
+"""Pricing plans cap the run matrix; the tenant's audience picks the model each
+engine is asked as. Enforcement is verified end-to-end through the Mode A job
+with faked providers (§11.5)."""
 
 import pytest
 from sqlmodel import select
 
+from api.consumer_models import model_for
 from api.models import (
     Persona,
     Query,
@@ -16,7 +18,7 @@ from api.models import (
     Tenant,
     TenantSurface,
 )
-from api.plans import cap_engines, limits_for, model_for
+from api.plans import cap_engines, limits_for
 from engine.retrievers.openai_api import ParsedResponse, RetrievalOutcome
 
 A_SURFACES = ["openai_api", "perplexity_api", "claude_api", "gemini_api"]
@@ -35,9 +37,11 @@ def test_plan_limits_and_helpers():
         "openai_api", "google_aio",
     ]
     assert cap_engines(A_SURFACES, None) == sorted(A_SURFACES, key=A_SURFACES.index) or A_SURFACES
-    # Model tier overrides the configured default; 'configured' falls back.
-    assert model_for("openai_api", "economy", "x") == "gpt-5-mini"
-    assert model_for("openai_api", "configured", "gpt-4o") == "gpt-4o"
+    # Plans no longer carry a model tier: the audience picks the model.
+    assert not hasattr(limits_for("monitor"), "model_tier")
+    assert model_for("openai_api", "d2c", "x") == "gpt-6-luna"
+    assert model_for("openai_api", "b2b", "x") == "gpt-6-sol"
+    assert model_for("not_a_surface", "b2b", "configured") == "configured"
 
 
 def _fake(surface):
@@ -97,7 +101,7 @@ def _results(db, run_id):
 def test_monitor_caps_personas_engines_and_skips_diagnosis(db_session, env):
     from worker.jobs import run_mode_a
 
-    t = _tenant(db_session, "monitor")  # 25/1/3, no diagnosis, economy
+    t = _tenant(db_session, "monitor")  # 25/1/3, no diagnosis
     run_id = _run(db_session, t)
     run_mode_a(run_id)
 
@@ -107,9 +111,27 @@ def test_monitor_caps_personas_engines_and_skips_diagnosis(db_session, env):
     assert all(r.variant == ResultVariant.search for r in results)
     assert {r.surface.value for r in results} == {"openai_api", "gemini_api", "claude_api"}
     assert len({r.persona_name for r in results}) == 1
-    # Economy model tier reached the provider (captured in the raw model echo).
+    # The default audience (d2c) asks ChatGPT as its free-tier model, whatever
+    # the plan (captured in the raw model echo).
     openai = next(r for r in results if r.surface.value == "openai_api")
     assert openai.status == ResultStatus.ok
+    assert openai.served_model == "gpt-6-luna"
+
+
+def test_b2b_audience_asks_paid_tier_models(db_session, env):
+    from worker.jobs import run_mode_a
+
+    t = _tenant(db_session, "monitor")
+    t.audience = "b2b"
+    db_session.add(t)
+    db_session.commit()
+    run_id = _run(db_session, t)
+    run_mode_a(run_id)
+
+    served = {r.surface.value: r.served_model for r in _results(db_session, run_id)}
+    assert served["openai_api"] == "gpt-6-sol"
+    assert served["gemini_api"] == "gemini-4-argon"
+    assert served["claude_api"] == "claude-opus-5-5"
 
 
 def test_diagnosis_twin_cached_across_runs(db_session, env, monkeypatch):
