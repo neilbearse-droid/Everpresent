@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { apiFetch, type Me, type RawEnvelope } from "@/lib/api";
+import { apiFetch, type Me, type RawEnvelope, type TenantSummary } from "@/lib/api";
 import { DashNav } from "@/components/dash-nav";
+import { PageLead } from "@/components/page-lead";
 import { surfaceLabel } from "@/lib/viz";
 
 function AnswerColumn({ title, envelope }: { title: string; envelope: RawEnvelope }) {
@@ -25,12 +26,48 @@ export default async function ComparePage({
 }) {
   const { a, b } = await searchParams;
   if (!a || !b) notFound();
-  const [modeA, modeB, me] = await Promise.all([
+  const [modeA, modeB, me, tenant] = await Promise.all([
     apiFetch<RawEnvelope>(`/api/tenant/results/${a}/raw`),
     apiFetch<RawEnvelope>(`/api/tenant/results/${b}/raw`),
     apiFetch<Me>("/api/me"),
+    apiFetch<TenantSummary>("/api/tenant"),
   ]);
   if (!modeA.data || !modeB.data) notFound();
+
+  // The lead: do the two answers agree about you? A plain name match on the
+  // answer text; the measured classification lives on the Queries page.
+  const brand = tenant.data?.brand_name ?? tenant.data?.name ?? "";
+  const names = (text: string) => brand !== "" && text.toLowerCase().includes(brand.toLowerCase());
+  const inApi = names(modeA.data.parsed_text);
+  const inWeb = names(modeB.data.parsed_text);
+  const lead =
+    inApi && inWeb
+      ? {
+          tells: `Both answers name ${brand}. What a buyer sees on the website matches what the API says for this question.`,
+          act: "Read the website answer for how you're described and which rival sits beside you; that wording is what a buyer takes away.",
+          tone: "good" as const,
+        }
+      : !inApi && !inWeb
+        ? {
+            tells: `Neither answer names ${brand}. You're missing from this question however it's asked.`,
+            act: "Treat this as a gap to close. The Engines page says whether it's a knowledge gap or a content gap, and that decides where the fix goes.",
+            href: "/dashboard/engines",
+            hrefLabel: "Engines",
+            tone: "bad" as const,
+          }
+        : inWeb
+          ? {
+              tells: `The website answer names ${brand} and the API answer doesn't. The buyer-facing answer is the better one here.`,
+              act: "Nothing urgent. The website is what buyers see; keep the pages behind that answer current.",
+              tone: "neutral" as const,
+            }
+          : {
+              tells: `The API answer names ${brand} and the website answer doesn't. Buyers see the website, so for this question you're effectively missing.`,
+              act: "Work from the website answer: the rival it names and the sources it links are what to beat.",
+              href: "/dashboard/citations",
+              hrefLabel: "Citations",
+              tone: "bad" as const,
+            };
 
   return (
     <main className="mx-auto max-w-[1400px] px-6 pb-16">
@@ -40,6 +77,7 @@ export default async function ComparePage({
       </Link>
       <h1 className="mt-1 text-2xl font-semibold tracking-tight">API answer vs website answer</h1>
       <p className="mt-1 mb-6 text-sm text-[var(--text-2)]">“{modeA.data.query}”</p>
+      <PageLead {...lead} />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <AnswerColumn title="Developer API" envelope={modeA.data} />
         <AnswerColumn title="Public website" envelope={modeB.data} />

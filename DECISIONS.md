@@ -3,6 +3,38 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M64 — Every screen opens with what it tells you and what to do (2026-11-02)
+
+The rule for every dashboard screen from here: the first thing on the page
+answers "what is this telling me?" and "what should I do about it?", in
+plain words, with the page's own numbers. Charts and tables are evidence;
+the lead is the conclusion.
+
+1. **One component, one shape.** `PageLead` (`app/src/components/page-lead.tsx`)
+   takes `tells`, `act`, an optional link to where the action happens, and a
+   tone (good, needs attention, neutral). Every page under `/dashboard`
+   renders it directly under the nav, computed from the data the page
+   already fetched. Empty states get a lead too: what will appear and when,
+   and the one thing to do now.
+2. **The action is a single move, chosen by priority.** Wrong facts before
+   weak topics before rivals who lead you (Scorecard); broken pages before
+   read-but-uncited pages (AI bots); lost citations before winnable briefs
+   before target sites (Action Plan); knowledge gaps versus content gaps
+   decide whether the fix is off-site or on your pages (Engines). When
+   there is nothing to fix the lead says so and what to hold.
+3. **Method follows data.** Opening paragraphs that explained how a thing is
+   measured move under the data they explain or into a closed disclosure:
+   the detectability table on Scorecard, the memory-versus-search and
+   model-change notes on How engines answer, "How this is measured" on
+   Sub-questions, the intro on Queries. Nothing is removed.
+4. **No duplicate titles.** The breadcrumb names the page, so in-page h1s
+   that repeated it are gone. The per-engine strip with its plays moves
+   from the Overview to Engines, so the Overview has one "what to do"
+   (This week) and Engines has the per-engine ones.
+5. **Compare counts.** Though it is reached from Queries rather than the
+   nav, Compare gets the same lead: whether the API and website answers
+   agree about naming you, by a plain name match on the answer text.
+
 ## M63 — The dashboard leads with one number (2026-11-02)
 
 The app showed five framings of "how visible am I" on its first screen and

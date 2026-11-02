@@ -1,6 +1,7 @@
 import { apiFetch, rangeQuery, type Me, type WhitespaceReport } from "@/lib/api";
 import { DashNav } from "@/components/dash-nav";
 import { NoOrgNotice } from "@/components/no-org-notice";
+import { PageLead } from "@/components/page-lead";
 
 export default async function WhitespacePage({
   searchParams,
@@ -19,18 +20,39 @@ export default async function WhitespacePage({
   }
   const data = report.data;
 
+  // The lead: who else the engines recommend, and whether to start tracking them.
+  const top = data?.observed ? [...data.entities].sort((a, b) => b.count - a.count)[0] : null;
+  const lead = !data?.observed
+    ? data && data.measured > 0
+      ? {
+          tells: `Every name in ${data.measured} answers is ${data.brand_name} or a competitor you already track. Nobody is slipping into these answers unnoticed.`,
+          act: "Nothing to add. Check back after a few runs; new names appear here first.",
+          tone: "good" as const,
+        }
+      : {
+          tells: "No data yet. This page lists the products and companies AI answers recommend that are neither you nor a competitor you track.",
+          act: "Nothing to do until name detection is turned on for this account and a run has finished.",
+          tone: "neutral" as const,
+        }
+    : {
+        tells: (
+          <>
+            {data.entity_count} {data.entity_count === 1 ? "name" : "names"} you don&apos;t track appear
+            across {data.measured} answers. {top!.name} is the most common, named {top!.count}{" "}
+            {top!.count === 1 ? "time" : "times"}
+            {top!.engines.length > 0 && <> on {top!.engines.join(", ")}</>}.
+          </>
+        ),
+        act: `If ${top!.name} competes with you, have it added to your tracked competitors so share of voice and head-to-head count it. If it doesn't, it marks a part of the category the engines think you're not in; the questions it appears on are the ones to cover.`,
+        href: "/dashboard/queries",
+        hrefLabel: "Queries",
+        tone: "neutral" as const,
+      };
+
   return (
     <main className="mx-auto max-w-[1400px] px-6 pb-16">
       <DashNav active="Untracked rivals" isSuperadmin={me.data?.is_superadmin} withDateRange />
-
-      <div className="mb-6">
-        <h1 className="text-[26px] font-semibold tracking-tight">Who else the AI recommends</h1>
-        <p className="mt-2 max-w-3xl text-sm text-[var(--text-2)]">
-          Products and companies named in AI answers that aren&apos;t you or a tracked competitor.
-          An answer that names none of the brands you track points to a part of the category
-          where you aren&apos;t visible yet.
-        </p>
-      </div>
+      <PageLead {...lead} />
 
       {!data?.observed ? (
         <section className="card p-4">
@@ -43,9 +65,13 @@ export default async function WhitespacePage({
         </section>
       ) : (
         <section className="card p-4">
-          <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">
-            Untracked names across {data.measured} answers · {data.entity_count} distinct
+          <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
+            Who else the AI recommends
           </h2>
+          <p className="mb-4 max-w-3xl text-xs text-[var(--text-3)]">
+            Products and companies named in AI answers that aren&apos;t you or a tracked
+            competitor, most often first. {data.entity_count} distinct across {data.measured} answers.
+          </p>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>

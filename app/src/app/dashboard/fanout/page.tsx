@@ -7,6 +7,7 @@ import {
 } from "@/lib/api";
 import { DashNav } from "@/components/dash-nav";
 import { NoOrgNotice } from "@/components/no-org-notice";
+import { PageLead } from "@/components/page-lead";
 import { GenerateBrief } from "./generate-brief";
 import { FanoutSimulator } from "./simulator";
 
@@ -42,26 +43,89 @@ export default async function FanoutPage({
   }
   const data = report.data;
 
+  // The lead: how many of the engines' own sub-searches you're in, how many
+  // urgent misses there are, and which direction it's moving.
+  const prompts = data?.observed ? data.prompts : [];
+  const sum = (f: (p: (typeof prompts)[number]) => number) => prompts.reduce((n, p) => n + f(p), 0);
+  const shards = sum((p) => p.shards_total);
+  const present = sum((p) => p.shards_present);
+  const absent = sum((p) => p.shards_absent);
+  const high = sum((p) => p.high_misses);
+  const notInAnswer = prompts.filter((p) => !p.brand_in_answer).length;
+  const topMiss = prompts
+    .flatMap((p) => p.shards.map((sh) => ({ q: p.query, sh })))
+    .find(({ sh }) => sh.priority === "high" && sh.source === "reprobed" && sh.brand_present === false);
+  const lead =
+    !data?.observed
+      ? {
+          tells: "No sub-searches captured yet. Before answering, an engine splits your buyer's question into smaller searches of its own; this page shows which of those name a rival instead of you.",
+          act: "Nothing to do yet. It fills in after a run with an engine that searches the web and reports its searches (Gemini always does, ChatGPT sometimes).",
+          tone: "neutral" as const,
+        }
+      : {
+          tells: (
+            <>
+              Across {prompts.length} {prompts.length === 1 ? "question" : "questions"} the engines ran{" "}
+              {shards} sub-searches
+              {notInAnswer > 0 && (
+                <>
+                  , and left you out of the final answer on {notInAnswer}
+                </>
+              )}
+              .{" "}
+              {present + absent > 0 ? (
+                <>
+                  You&apos;re in {present} of {present + absent} re-checked
+                  {high > 0 && (
+                    <>
+                      , with {high} high-priority {high === 1 ? "miss" : "misses"}
+                    </>
+                  )}
+                  .
+                  {(data.trend.won_back > 0 || data.trend.lost > 0) && (
+                    <>
+                      {" "}
+                      Since the last check: {data.trend.won_back} won back, {data.trend.lost} newly lost.
+                    </>
+                  )}
+                </>
+              ) : data.reprobe_enabled ? (
+                <>Presence in those searches appears after the next re-check.</>
+              ) : (
+                <>Re-checking is off for this account, so presence in those searches isn&apos;t measured yet.</>
+              )}
+            </>
+          ),
+          act: topMiss
+            ? `Win the top miss first: "${topMiss.sh.text}", where ${topMiss.sh.winners.length ? topMiss.sh.winners.slice(0, 2).join(" and ") : "others"} appear and you don't. Use Generate brief under it; the brief is the page to publish.`
+            : absent > 0
+              ? `No urgent misses. Work the ${absent} remaining ${absent === 1 ? "absence" : "absences"} in priority order; each is a specific question a page of yours can answer.`
+              : present > 0
+                ? "You're in every re-checked sub-search. Hold it: these are the exact questions to keep answering well on your site."
+                : "Nothing to act on until presence is measured. Ask your EverPresent contact to turn on re-checking if you want it.",
+          tone: (high > 0 || (present + absent > 0 && absent > present) ? "bad" : present > 0 && absent === 0 ? "good" : "neutral") as "good" | "bad" | "neutral",
+        };
+
   return (
     <main className="mx-auto max-w-[1400px] px-6 pb-16">
       <DashNav active="Sub-questions" isSuperadmin={me.data?.is_superadmin} withDateRange />
-
-      <div className="mb-5">
-        <h1 className="text-[26px] font-semibold tracking-tight">
-          The sub-searches engines run before answering
-        </h1>
-        <p className="mt-2 max-w-3xl text-sm text-[var(--text-2)]">
-          When an engine searches the web to answer a question, it splits the question into
-          several smaller searches and picks sources from each one. That split is called fan-out.
-          Each sub-search below shows whether you appear in its results and who does.
-        </p>
-      </div>
+      <PageLead {...lead} />
 
       {replay.data && replay.data.prompts.length > 0 && <FanoutSimulator data={replay.data} />}
 
-      <div className="card-inset mb-6 flex gap-3 p-4 text-xs text-[var(--text-2)]">
-                <p className="leading-[1.55]">
-          <span className="font-semibold text-[var(--text)]">How this is measured.</span>{" "}
+      <details className="card-inset mb-6 p-4 text-xs text-[var(--text-2)]">
+        <summary className="cursor-pointer font-semibold text-[var(--text)]">
+          How this is measured
+          {data?.observed && (
+            <span className="ml-2 font-medium text-[var(--text-3)]">
+              {data.coverage.reprobed} re-checked · {data.coverage.unresolved} unresolved
+            </span>
+          )}
+        </summary>
+                <p className="mt-2 leading-[1.55]">
+          When an engine searches the web to answer a question, it splits the question into
+          several smaller searches and picks sources from each one. Each sub-search below shows
+          whether you appear in its results and who does.{" "}
           The sub-searches and the &ldquo;names you / a competitor&rdquo; flags come straight from
           the search text the engines reported. Whether you appear in the <em>final answer</em>{" "}
           comes from the answer itself. Whether you appear in a sub-search&apos;s results is shown
@@ -80,7 +144,7 @@ export default async function FanoutPage({
             </>
           )}
         </p>
-      </div>
+      </details>
 
       {!data?.observed ? (
         <section className="card p-4">

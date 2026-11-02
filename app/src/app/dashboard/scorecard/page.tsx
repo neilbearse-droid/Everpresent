@@ -13,6 +13,7 @@ import {
 import { GenerateDraft } from "./generate-draft";
 import { DashNav } from "@/components/dash-nav";
 import { NoOrgNotice } from "@/components/no-org-notice";
+import { PageLead } from "@/components/page-lead";
 import { HBars } from "@/components/charts";
 import { entityColors, OTHER_COLOR, surfaceLabel } from "@/lib/viz";
 
@@ -54,14 +55,14 @@ function ChangeBadge({ change }: { change: RateChange }) {
  * data yet" into a number and a next step. */
 function SamplePlanPanel({ p }: { p: SamplePlan }) {
   return (
-    <section className="blueprint mb-6 grid-cols-1">
+    <details className="blueprint mt-6 grid-cols-1">
+      <summary className="bp-bar cursor-pointer list-none">
+        <span>Smallest change we can detect</span>
+        <span>
+          {p.window_days}-day window · {p.runs_per_week ? `${p.runs_per_week} runs/week` : "no schedule"} · open
+        </span>
+      </summary>
       <div>
-        <div className="bp-bar">
-          <span>Smallest change we can detect</span>
-          <span>
-            {p.window_days}-day window · {p.runs_per_week ? `${p.runs_per_week} runs/week` : "no schedule"}
-          </span>
-        </div>
         <p className="px-4 pt-3 text-sm text-[var(--text-2)]">{p.summary}</p>
         <div className="overflow-x-auto">
           <table className="bp-table mt-2 w-full min-w-[640px]">
@@ -105,7 +106,7 @@ function SamplePlanPanel({ p }: { p: SamplePlan }) {
           AI answers give one answer per question per run, so they need the most repeats.
         </p>
       </div>
-    </section>
+    </details>
   );
 }
 
@@ -132,6 +133,10 @@ function MentionRatePanel({ m, brand }: { m: MentionRates; brand: string }) {
               {o.answers} answers · {o.prompts} questions · {m.window.start} to {m.window.end}
             </span>
           </div>
+          <details className="mt-3 max-w-md">
+            <summary className="cursor-pointer text-xs font-medium text-[var(--text-3)] hover:text-[var(--text-2)]">
+              How this rate is measured
+            </summary>
           {o.weights && o.weights.length > 0 && (
             <p className="mt-2 max-w-md text-xs leading-relaxed text-[var(--text-3)]">
               Weighted by audience:{" "}
@@ -172,6 +177,7 @@ function MentionRatePanel({ m, brand }: { m: MentionRates; brand: string }) {
               </>
             )}
           </p>
+          </details>
           {o.unforced && o.unforced.answers > 0 && (
             <div className="mt-4 border-t border-[var(--border)] pt-3">
               <p className="text-xs font-medium text-[var(--text-2)]">Without forced search</p>
@@ -258,7 +264,7 @@ function MentionRatePanel({ m, brand }: { m: MentionRates; brand: string }) {
  * weak one. Branded questions name the brand by design, so they get their own
  * measures instead of a mention rate. */
 function TopicPanel({ rows, brand }: { rows: TopicRow[]; brand: string }) {
-  const topics = rows.filter((r) => r.kind !== "branded");
+  const topics = rows.filter((r) => r.kind !== "branded").sort((a, b) => a.rate - b.rate);
   const branded = rows.find((r) => r.kind === "branded");
   const sentimentTotal = branded
     ? branded.sentiment.positive + branded.sentiment.neutral + branded.sentiment.negative
@@ -266,11 +272,9 @@ function TopicPanel({ rows, brand }: { rows: TopicRow[]; brand: string }) {
   const pct = (n: number) => (sentimentTotal ? Math.round((100 * n) / sentimentTotal) : 0);
   return (
     <section className="card mb-6 p-4">
-      <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">By topic</h2>
+      <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">By topic, weakest first</h2>
       <p className="mb-4 max-w-2xl text-xs leading-relaxed text-[var(--text-3)]">
-        The same measures for each group of questions. Mention rate pools every answer in the
-        window; answer share, lead rate and the top rival come from the latest answer per
-        question and engine. Questions that name {brand} are scored separately below.
+        A strong topic can hide a weak one. The topic at the top is where you&apos;re named least.
       </p>
       {topics.length > 0 && (
         <div className="overflow-x-auto">
@@ -313,6 +317,11 @@ function TopicPanel({ rows, brand }: { rows: TopicRow[]; brand: string }) {
               ))}
             </tbody>
           </table>
+          <p className="mt-3 max-w-2xl text-xs leading-relaxed text-[var(--text-3)]">
+            Mention rate pools every answer in the window; answer share, lead rate and the top
+            rival come from the latest answer per question and engine. Questions that name{" "}
+            {brand} are scored separately below.
+          </p>
         </div>
       )}
       {branded && branded.answers > 0 && (
@@ -363,12 +372,10 @@ export default async function ScorecardPage({
     return (
       <main className="mx-auto max-w-[1400px] px-6 pb-16">
         <DashNav active="Scorecard" isSuperadmin={me.data?.is_superadmin} withDateRange />
-        <section className="card p-4">
-          <h2 className="mb-2 text-lg font-medium">No scorecard yet</h2>
-          <p className="text-sm text-[var(--text-2)]">
-            The scorecard appears after the first completed run.
-          </p>
-        </section>
+        <PageLead
+          tells="No scorecard yet. After the first run this page scores you against every rival: how often you're named, how often first, how you're described, and whether the facts are right."
+          act="Give your EverPresent contact the facts you want checked (prices, accreditations, policies) so the first run can test the answers against them."
+        />
       </main>
     );
   }
@@ -385,15 +392,77 @@ export default async function ScorecardPage({
   const pd = d.prominence.position_distribution;
   const maxRate = Math.max(...d.stability.series.map((s) => s.presence_rate), 1);
 
+  // The lead: the pooled rate and its verdict, the weakest topic, and the
+  // wrong facts, in that order of urgency. Wrong facts come first because
+  // each traces to a page you can correct this week.
+  const o = d.mention_rates && d.mention_rates.overall.answers > 0 ? d.mention_rates.overall : null;
+  const topics = (d.by_topic ?? []).filter((r) => r.kind !== "branded" && r.answers > 0);
+  const weakest = topics.length > 1 ? [...topics].sort((a, b) => a.rate - b.rate)[0] : null;
+  const errors = acc.data?.error_count ?? 0;
+  const verdict = o?.change.verdict ?? "not enough data";
+  const trailing = d.head_to_head.filter((h) => h.shared >= 3 && h.win_rate < 50);
+  const lead = {
+    tells: (
+      <>
+        {o ? (
+          <>
+            {d.brand_name} is named in {o.rate}% of AI answers
+            {verdict === "up" || verdict === "down" ? (
+              <>, {verdict === "up" ? "up" : "down"} {Math.abs(o.change.delta ?? 0)} points, a real change</>
+            ) : verdict === "no real change" ? (
+              <>, with no real change over the window</>
+            ) : null}
+            .
+          </>
+        ) : (
+          <>
+            {d.brand_name} appears in {d.prominence.presence_rate}% of the latest answers.
+          </>
+        )}{" "}
+        When named, you lead the answer {d.prominence.lead_rate}% of the time
+        {trailing.length > 0 && (
+          <>
+            {" "}
+            and trail {trailing.map((h) => h.competitor).join(", ")} head to head
+          </>
+        )}
+        .
+        {weakest && (
+          <>
+            {" "}
+            Weakest topic: {weakest.topic} at {weakest.rate}%.
+          </>
+        )}
+        {errors > 0 && (
+          <>
+            {" "}
+            The engines state {errors} wrong {errors === 1 ? "fact" : "facts"} about you.
+          </>
+        )}
+      </>
+    ),
+    act:
+      errors > 0
+        ? "Fix the wrong facts first. Each one traces to a page the engines cite, so correct that page and publish the corrective content drafted under Factual accuracy below."
+        : weakest && o && weakest.rate < o.rate
+          ? `Put this period's work into ${weakest.topic}: it's where you're named least. The questions behind it are on Queries; the pages to write are on the Action Plan.`
+          : trailing.length > 0
+            ? `You're named, but ${trailing[0].competitor} is named first more often. Being listed earlier follows from clearer, more specific pages on the questions you share; start with the shared questions.`
+            : "Hold what's working. Keep the pages that win these answers current, and read the per-engine table to see which engine to watch.",
+    href: errors > 0 ? undefined : weakest && o && weakest.rate < o.rate ? "/dashboard/action-plan" : trailing.length > 0 ? "/dashboard/queries" : "/dashboard/pages",
+    hrefLabel: weakest && o && weakest.rate < o.rate ? "Action Plan" : trailing.length > 0 ? "Queries" : "Your Pages",
+    tone: (errors > 0 || verdict === "down" ? "bad" : verdict === "up" ? "good" : "neutral") as "good" | "bad" | "neutral",
+  };
+
   return (
     <main className="mx-auto max-w-[1400px] px-6 pb-16">
       <DashNav active="Scorecard" isSuperadmin={me.data?.is_superadmin} withDateRange />
+      <PageLead {...lead} />
 
       {d.mention_rates && d.mention_rates.overall.answers > 0 && (
         <MentionRatePanel m={d.mention_rates} brand={d.brand_name} />
       )}
       {d.by_topic && d.by_topic.length > 0 && <TopicPanel rows={d.by_topic} brand={d.brand_name} />}
-      {plan.data && plan.data.engines.length > 0 && <SamplePlanPanel p={plan.data} />}
 
       {/* Prominence-weighted share: useful, but rank is noisy run to run. */}
       <section className="card mb-6 p-4">
@@ -603,6 +672,9 @@ export default async function ScorecardPage({
           </div>
         </section>
       )}
+
+      {/* The method, last: how big a change this schedule can see. */}
+      {plan.data && plan.data.engines.length > 0 && <SamplePlanPanel p={plan.data} />}
     </main>
   );
 }
