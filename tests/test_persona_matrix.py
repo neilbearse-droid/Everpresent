@@ -72,7 +72,7 @@ def test_godaddy_seed_matrix_matches_brief():
     cells = matrix_cells(queries, personas)
     generic = [c for c in cells if c[2][3] == "generic"]
     persona = [c for c in cells if c[2][3] != "generic"]
-    # The brief: all 10 questions generic + 15 persona-query combinations,
-    # plus 5 agent prompts (M37), generic only.
-    assert len(generic) == 15
-    assert len(persona) == 15
+    # Every question generic (16 questions + 5 agent prompts) plus the 17
+    # curated persona-query combinations of the website-builder seed.
+    assert len(generic) == 21
+    assert len(persona) == 17

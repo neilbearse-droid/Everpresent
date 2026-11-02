@@ -3,6 +3,46 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M62 — The GoDaddy seed measures the website-builder business (2026-11-02)
+
+1. **Why.** The client's problem is not being named when someone asks a
+   domain question; it is being passed over when someone asks how to get a
+   business website built. AI answers reach for Wix, Squarespace, Shopify,
+   Hostinger and the AI builders. The seed now measures that: the competitive
+   layer is website builders, AI builders and online stores, plus the two
+   "domain and website" bundle questions where the businesses meet.
+2. **Controls, not a purge.** One domain question and one hosting question
+   stay, generic-only, tagged `domains` and `hosting`, so the same dashboard
+   shows the contrast between the categories where the brand is named and the
+   ones where it is not. Domain-only rivals (Porkbun, SiteGround, DreamHost)
+   and the payments and email names (PayPal, Mailchimp) leave the competitor
+   list; Namecheap stays for the control. The builder set is twenty names,
+   so a rival the engines favour is attributed rather than falling into the
+   whitespace list.
+3. **Personas.** The three client-brief personas keep their wording verbatim
+   (the freeze rule). Domain Investor is retired: no website-builder intent.
+   Established Owner is new, for the "replace my outdated site without an
+   agency" journey, which is a buyer the builder questions had no voice for.
+   Seventeen curated persona × question combos, up from fifteen, all on
+   builder, AI-builder, store or bundle questions.
+4. **Brand facts.** The domain-privacy placeholder is replaced by two
+   disallowed claims about the builder: that it has no free plan (it has a
+   free-forever tier on a godaddysites.com address) and that it cannot sell
+   online (the Commerce plan runs a store). Both were checked against
+   GoDaddy's builder page and 2026 reviews; the demo checklist asks for a
+   re-check before the demo. No numeric price fact: published prices differ
+   by source and promotion, and a stale number would fire false alerts.
+5. **Agent prompts.** Still three task and two coding prompts, generic only,
+   but every one is a "get me a website or store" job; the domain-registration
+   and DNS prompts are gone.
+6. **Series break.** Questions are matched by text, so every builder trend
+   line starts again from the first run on this seed; the two controls and
+   "best website builder for a small business", "best AI website builder" and
+   the cheapest-domain-and-website question keep their wording, so their
+   lines continue. The deploy seed only imports a config for a tenant that
+   does not exist yet, so a live GoDaddy tenant picks this up through admin
+   "Load a saved config" (`import-seed`), which is a replace.
+
 ## M61 — The public page is written for the buyer (2026-11-01)
 
 1. **Who it is for.** The landing page speaks to the people who would pay:

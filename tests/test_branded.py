@@ -105,7 +105,7 @@ def test_brand_report_presence_sentiment_accuracy(db_session):
 
 
 def test_seed_marks_branded(db_session, client, login):
-    # The GoDaddy seed flags Q3 (domain privacy) as branded.
+    # The GoDaddy seed files its brand-knowledge questions as branded.
     from pathlib import Path
 
     from api.models import User
@@ -122,7 +122,8 @@ def test_seed_marks_branded(db_session, client, login):
 
     tenant = db_session.exec(select(Tenant).where(Tenant.slug == "godaddy")).one()
     branded = _branded_query_texts(db_session, tenant.id)
-    assert "Is domain privacy free with GoDaddy?" in branded
+    assert "Is GoDaddy's website builder any good?" in branded
+    assert "GoDaddy Website Builder vs Wix: which should I use for my small business?" in branded
 
 
 def test_admin_toggle_branded(db_session, client, login):

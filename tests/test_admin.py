@@ -66,35 +66,45 @@ def test_yaml_import_and_reimport_replaces(client, as_superadmin, db_session):
 
 
 def test_godaddy_seed_imports_facts_and_baseline(client, as_superadmin, db_session):
-    # The GoDaddy demo seed must import cleanly, seed the Q3 accuracy fact, and
-    # start with the generic baseline persona only (the four demo personas are
-    # frozen-but-deferred to step 3).
+    # The GoDaddy demo seed must import cleanly, seed the two website-builder
+    # accuracy facts, and carry the generic baseline persona (selective-matrix
+    # mode) alongside the frozen demo personas.
     _create_tenant(client, slug="godaddy", name="GoDaddy")
     yaml_text = (SEEDS / "godaddy.yaml").read_text()
     resp = client.post("/api/admin/tenants/godaddy/import-yaml", content=yaml_text)
     assert resp.status_code == 200, resp.text
     counts = resp.json()["imported"]
-    assert counts["queries"] == 15  # 10 questions + 5 agent prompts
-    assert counts["brand_facts"] == 1
+    assert counts["queries"] == 21  # 16 questions + 5 agent prompts
+    assert counts["brand_facts"] == 2
+    assert "branded_auto" not in counts  # every brand-naming question is filed explicitly
 
     tenant = db_session.exec(select(Tenant).where(Tenant.slug == "godaddy")).one()
     personas = db_session.exec(select(Persona).where(Persona.tenant_id == tenant.id)).all()
     segments = {p.segment_tag for p in personas}
     assert "generic" in segments  # baseline persona → selective-matrix mode
-    assert {"dreamer", "new_entrepreneur", "side_hustler", "domain_investor"} <= segments
+    assert {"dreamer", "new_entrepreneur", "side_hustler", "established_owner"} <= segments
+    assert "domain_investor" not in segments  # retired with the website-builder focus
     # The selective matrix lives on the queries as persona_runs.
-    q_with_runs = db_session.exec(
-        select(Query).where(Query.tenant_id == tenant.id)
-    ).all()
-    assert sum(len(q.persona_runs) for q in q_with_runs) == 15  # brief's 15 persona combos
+    queries = db_session.exec(select(Query).where(Query.tenant_id == tenant.id)).all()
+    assert sum(len(q.persona_runs) for q in queries) == 17  # curated persona combos
+    # The competitive layer is website building: builders, AI builders and
+    # stores dominate; one domain and one hosting question remain as controls.
+    corpora = {q.corpus_tag for q in queries}
+    assert {"website_builder", "ai_builder", "online_store", "cross_category"} <= corpora
+    assert sum(q.corpus_tag == "domains" for q in queries) == 1
+    assert sum(q.corpus_tag == "hosting" for q in queries) == 1
+    assert sum(q.branded for q in queries) == 2
     competitors = db_session.exec(
         select(Competitor).where(Competitor.tenant_id == tenant.id)
     ).all()
     names = {c.name for c in competitors}
-    assert {"Namecheap", "Porkbun", "Base44", "Hostinger"} <= names
+    builders = {"Wix", "Squarespace", "Shopify", "Hostinger", "WordPress.com", "Durable", "Base44"}
+    assert builders <= names
+    assert "Porkbun" not in names  # domain-only rival, no website-builder intent
 
-    fact = db_session.exec(select(BrandFact).where(BrandFact.tenant_id == tenant.id)).one()
-    assert fact.kind == "disallowed" and fact.subject == "domain privacy"
+    facts = db_session.exec(select(BrandFact).where(BrandFact.tenant_id == tenant.id)).all()
+    assert {f.kind for f in facts} == {"disallowed"}
+    assert {f.subject for f in facts} == {"website builder free plan", "website builder ecommerce"}
 
 
 def test_invalid_yaml_rejected(client, as_superadmin):
@@ -202,7 +212,7 @@ def test_bundled_seeds_are_listed_and_loadable(client, as_superadmin, db_session
     assert all("example" not in s["name"] for s in seeds)
     res = client.post("/api/admin/tenants/gd/import-seed", json={"name": "godaddy"})
     assert res.status_code == 200 and res.json()["brand"] == "GoDaddy"
-    assert len(db_session.exec(select(Query)).all()) == 15
+    assert len(db_session.exec(select(Query)).all()) == 21
 
 
 def test_seed_names_are_lookup_keys_not_paths(client, as_superadmin, db_session):

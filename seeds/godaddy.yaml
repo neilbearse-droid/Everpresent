@@ -5,14 +5,25 @@
 # brand / competitors / personas / queries / brand_facts / surface enablement
 # wholesale, so this file is the source of truth.
 #
-# COLLECTION-START NOTE: this seeds the GENERIC BASELINE (all ten queries, no
-# persona) so trend lines begin accumulating immediately. The four demo
-# personas are frozen below in a commented block — their preambles are locked
-# in version control per the "freeze before collection" rule, but they are
-# activated in GoDaddy step 3 together with per-query persona targeting, so we
-# run the curated 15 combos rather than the full 5×10 cross-product (Copilot
-# browser runs are the expensive ones). Do NOT edit persona wording once a
-# persona goes live — changing it mid-series breaks the trend line.
+# FOCUS (2026-11-02): the WEBSITE BUILDER business, not domain registration.
+# GoDaddy's challenge is that AI answers reach for Wix, Squarespace, Shopify,
+# Hostinger and the AI builders when someone asks how to get a business
+# website built; the domain side is where the brand is already named. So the
+# competitive layer is website builders, AI builders and online stores, the
+# "get a domain and a website" bundle questions stay (they are where the two
+# businesses meet), and ONE domain question plus ONE hosting question remain
+# as generic-only ADJACENT CONTROLS so the contrast (strong where domains are
+# asked about, weak where websites are) shows on the same dashboard.
+#
+# COLLECTION-START NOTE: this seeds the GENERIC BASELINE (every query, no
+# persona) so trend lines begin accumulating immediately, plus a curated set
+# of persona × query combos (17) rather than the full cross-product (Copilot
+# browser runs are the expensive ones). Persona preambles are frozen in version
+# control per the "freeze before collection" rule. Do NOT edit persona wording
+# once a persona goes live — changing it mid-series breaks the trend line.
+# The three client-brief personas (Dreamer, New Entrepreneur, Side Hustler)
+# are kept verbatim; Domain Investor is retired (no website-builder intent);
+# Established Owner is new for the "replace my outdated site" journey.
 
 # Search from the US: Google AI Overviews and the browser engines localize
 # to this country (GoDaddy is a US brand).
@@ -24,34 +35,41 @@ brand:
   name: GoDaddy
   aliases:
     - GoDaddy.com
+    - GoDaddy Website Builder
     - GoDaddy Airo
     - Airo
   domains:
     - godaddy.com
+    - godaddysites.com   # free-plan sites publish on this subdomain
 
 competitors:
-  # Core set
-  - { name: Wix, aliases: [Wix.com], domains: [wix.com] }
+  # Core website builders — the set the headline is measured against
+  - { name: Wix, aliases: [Wix.com, Wix Studio], domains: [wix.com] }
   - { name: Squarespace, aliases: [], domains: [squarespace.com] }
   - { name: Shopify, aliases: [], domains: [shopify.com] }
-  - { name: Mailchimp, aliases: [], domains: [mailchimp.com] }
-  - { name: Canva, aliases: [], domains: [canva.com] }
-  - { name: Namecheap, aliases: [], domains: [namecheap.com] }
-  - { name: PayPal Business, aliases: [PayPal], domains: [paypal.com] }
-  - { name: Hostinger, aliases: [], domains: [hostinger.com] }
-  # Domains — price challenger
-  - { name: Porkbun, aliases: [], domains: [porkbun.com] }
-  # Hosting adds
-  - { name: Bluehost, aliases: [], domains: [bluehost.com] }
-  - { name: SiteGround, aliases: [], domains: [siteground.com] }
-  - { name: DreamHost, aliases: [], domains: [dreamhost.com] }
+  - { name: Hostinger, aliases: [Hostinger Website Builder, Zyro], domains: [hostinger.com] }
+  - { name: WordPress.com, aliases: [WordPress], domains: [wordpress.com, wordpress.org] }
+  - { name: Weebly, aliases: [], domains: [weebly.com] }
+  - { name: Webflow, aliases: [], domains: [webflow.com] }
+  - { name: IONOS, aliases: [IONOS MyWebsite, 1&1 IONOS], domains: [ionos.com] }
+  - { name: Canva, aliases: [Canva Websites], domains: [canva.com] }
+  # Online store platforms beyond Shopify
+  - { name: Square Online, aliases: [Square], domains: [squareup.com] }
+  - { name: BigCommerce, aliases: [], domains: [bigcommerce.com] }
+  - { name: Ecwid, aliases: [Ecwid by Lightspeed], domains: [ecwid.com] }
   # AI builders — the set that matters most for the Airo segment
+  - { name: Durable, aliases: [Durable.co], domains: [durable.co] }
+  - { name: 10Web, aliases: [], domains: [10web.io] }
+  - { name: Framer, aliases: [Framer AI], domains: [framer.com] }
   - { name: Lovable, aliases: [Lovable.dev], domains: [lovable.dev] }
   # NOTE (Airo narrative): Base44 is owned by Wix, so its citations are partly
-  # Wix's citations — use in the AI-builder category story. wix.com is added as
-  # an alias-domain so Base44's Wix-hosted citations still attribute here.
+  # Wix's citations — use in the AI-builder category story.
   - { name: Base44, aliases: [], domains: [base44.com] }
   - { name: Hostinger Horizon, aliases: [Horizon], domains: [hostinger.com] }
+  # Hosting bundles that lead with a builder (the WordPress route to a site)
+  - { name: Bluehost, aliases: [Bluehost WonderSuite], domains: [bluehost.com] }
+  # Domains — the adjacent control's challenger
+  - { name: Namecheap, aliases: [], domains: [namecheap.com] }
 
 personas:
   # Generic baseline — no persona preamble. The presence of a "generic" persona
@@ -61,7 +79,7 @@ personas:
   - name: Generic (baseline)
     segment: generic
     prompt: ""
-  # FROZEN DEMO PERSONAS — preambles verbatim from the client brief. Do NOT
+  # FROZEN PERSONAS — the first three verbatim from the client brief. Do NOT
   # reword once live: changing persona wording mid-series breaks the trend line.
   - name: Dreamer
     segment: dreamer
@@ -77,88 +95,137 @@ personas:
     segment: side_hustler
     prompt: >-
       I work full time and run a small side business on weekends.
-  - name: Domain Investor
-    segment: domain_investor
+  # New for the website-builder focus: the owner who already has a site.
+  - name: Established Owner
+    segment: established_owner
     prompt: >-
-      I buy and sell domain names as an investment and hold a portfolio of
-      around 50.
+      I've run a small local business for about eight years. We have a website,
+      but it's outdated and hard to update, and I want to replace it myself
+      without hiring an agency.
 
-# Query × persona matrix (client brief). Every query runs the generic baseline
-# implicitly; `personas` lists the ADDITIONAL persona-conditioned runs. Vertical
-# overlays (Q5/Q9) are an extra run of a persona with a clause appended.
+# Query × persona matrix. Every query runs the generic baseline implicitly;
+# `personas` lists the ADDITIONAL persona-conditioned runs. Vertical overlays
+# are an extra run of a persona with a clause appended.
 queries:
-  - text: "What's the best place to buy a domain name?"
-    corpus: domains
-    paraphrases: ["Where should I register a domain name?", "Which domain registrar is best?"]
-    personas: [dreamer, domain_investor]
-  - text: "GoDaddy vs. Namecheap — which is better for domains?"
-    corpus: domains
-    branded: true   # names GoDaddy, so it belongs in the Brand layer, not the competitive score
-    paraphrases: ["Should I use GoDaddy or Namecheap for my domain?", "Namecheap or GoDaddy: which registrar is better?"]
-    personas: [domain_investor]
-  - text: "Is domain privacy free with GoDaddy?"   # Q3 — accuracy specimen, generic only
-    corpus: domains
-    branded: true   # brand-knowledge query: the model always talks about GoDaddy here,
-                    # so it belongs in the Brand layer, not the competitive visibility score
-  - text: "What's the best AI website builder?"
-    corpus: ai_builder
-    paraphrases: ["Which AI tool builds the best website?", "Top AI website builders right now?"]
-    personas: [new_entrepreneur, side_hustler]
-  - text: "How can I build an app for my small business without coding?"
-    corpus: ai_builder
-    paraphrases: ["What's the easiest no-code way to make an app for my business?", "Can I create a business app without a developer?"]
+  # --- Website builders (the headline category) ---
+  - text: "What's the best website builder for a small business?"
+    corpus: website_builder
+    paraphrases: ["Which website builder should a small business use?", "Best site builder for a small company?"]
     personas:
       - new_entrepreneur
       - side_hustler
       - { segment: new_entrepreneur, overlay: "It's a small restaurant." }
-  - text: "What's the best website builder for a small business?"
+  - text: "What's the easiest website builder for a complete beginner?"
     corpus: website_builder
-    paraphrases: ["Which website builder should a small business use?", "Best site builder for a small company?"]
-    personas: [new_entrepreneur, side_hustler]
-  - text: "Best web hosting for a small business website?"   # generic only for the demo
-    corpus: hosting
-    paraphrases: ["Which web host is best for a small business?", "Where should a small business host its website?"]
-  - text: "What's the cheapest way to get a domain and website for a new business?"
-    corpus: cross_category
-    paraphrases: ["How do I get a domain and website cheaply for a new business?", "Lowest-cost way to launch a business website with its own domain?"]
+    paraphrases: ["Which website builder is simplest if I've never made a site?", "Most beginner-friendly way to build a website?"]
     personas: [dreamer, side_hustler]
-  - text: "Best all-in-one platform to start an online business?"
-    corpus: cross_category
-    paraphrases: ["Which all-in-one platform is best for launching an online business?", "What's the best single platform to start selling online?"]
+  - text: "What's the cheapest way to build a simple business website?"
+    corpus: website_builder
+    paraphrases: ["Lowest-cost website builder for a basic business site?", "How can I make a small business website on a tight budget?"]
+    personas: [side_hustler]
+  - text: "Which website builder is best for a local service business like a plumber, salon or contractor?"
+    corpus: website_builder
+    paraphrases: ["Best website builder for a local service company?", "What should a plumber or electrician use to build their website?"]
+    personas: [established_owner]
+  - text: "My small business website is outdated. What's the best way to rebuild it without an agency?"
+    corpus: website_builder
+    paraphrases: ["How do I redo my old business website myself?", "Best tool to replace an outdated small business site?"]
+    personas: [established_owner]
+  # Brand-knowledge questions: they name GoDaddy, so they sit in the Brand
+  # layer (what the engines say about the builder), not the competitive score.
+  - text: "Is GoDaddy's website builder any good?"
+    corpus: website_builder
+    branded: true
+    paraphrases: ["Is GoDaddy Website Builder worth it?", "GoDaddy website builder review: pros and cons?"]
+  - text: "GoDaddy Website Builder vs Wix: which should I use for my small business?"
+    corpus: website_builder
+    branded: true
+    paraphrases: ["Wix or GoDaddy for building a small business website?", "GoDaddy vs Wix website builder comparison?"]
+
+  # --- AI website builders (the Airo segment) ---
+  - text: "What's the best AI website builder?"
+    corpus: ai_builder
+    paraphrases: ["Which AI tool builds the best website?", "Top AI website builders right now?"]
+    personas: [new_entrepreneur, side_hustler]
+  - text: "Can AI build my whole business website for me? Which tool should I use?"
+    corpus: ai_builder
+    paraphrases: ["Is there an AI that makes a complete business website from a description?", "Which AI website generator should a small business use?"]
+    personas: [new_entrepreneur]
+  - text: "How much does it cost to build a website with AI?"
+    corpus: ai_builder
+    paraphrases: ["What does an AI-built website cost?", "How expensive is it to make a site using an AI builder?"]
+    personas: [new_entrepreneur]
+
+  # --- Online stores ---
+  - text: "What's the best platform to build an online store for a small business?"
+    corpus: online_store
+    paraphrases: ["Which ecommerce website builder is best for a small shop?", "Best way to set up a small business online store?"]
     personas:
       - new_entrepreneur
       - { segment: new_entrepreneur, overlay: "It's an online store selling handmade goods." }
-  - text: "How much does it cost to build a website or app with AI?"
-    corpus: ai_builder
-    paraphrases: ["What does an AI-built website or app cost?", "How expensive is it to make a site or app using AI?"]
+  - text: "What's the easiest way to start selling online with my own website?"
+    corpus: online_store
+    paraphrases: ["Simplest way to sell a few products from my own site?", "How do I add a shop to a small business website?"]
+    personas: [side_hustler]
+
+  # --- Domain + website bundle: where the two businesses meet ---
+  - text: "What's the cheapest way to get a domain and website for a new business?"
+    corpus: cross_category
+    paraphrases: ["How do I get a domain and website cheaply for a new business?", "Lowest-cost way to launch a business website with its own domain?"]
+    personas: [dreamer]
+  - text: "Best all-in-one platform for a website, domain and business email?"
+    corpus: cross_category
+    paraphrases: ["Which service gives me a website, domain and email in one place?", "One platform for domain, site and professional email for a small business?"]
     personas: [new_entrepreneur]
-  # Agent picks (M37): "do it for me" and coding prompts. The measure is which
-  # brand the AI reaches for FIRST, not whether it's named. Generic only.
-  - text: "Register a domain for my bakery and set up a matching email address. Pick the provider and tell me the exact steps."
-    corpus: agent_task
+
+  # --- Adjacent controls (generic only): the categories GoDaddy is known for,
+  # kept so the dashboard shows the contrast with the builder categories.
+  - text: "Best web hosting for a small business website?"
+    corpus: hosting
+    paraphrases: ["Which web host is best for a small business?", "Where should a small business host its website?"]
+  - text: "What's the best place to buy a domain name?"
+    corpus: domains
+    paraphrases: ["Where should I register a domain name?", "Which domain registrar is best?"]
+
+  # --- Agent picks (M37): "do it for me" and coding prompts. The measure is
+  # which brand the AI reaches for FIRST, not whether it's named. Generic only.
   - text: "I need a website for my plumbing business live this week. Choose the service for me and walk me through it."
     corpus: agent_task
-  - text: "Buy me a .com domain for a new coffee brand under $20 a year. Which registrar should I use and why?"
+  - text: "Build me a simple online store for my candle business. Pick the platform and tell me the exact steps."
     corpus: agent_task
-  - text: "Write a Python script that checks whether a domain is available and registers it through a registrar's API."
+  - text: "Set up a one-page website with a booking button for my dog-grooming business. Pick the website builder for me and do as much as you can."
+    corpus: agent_task
+  - text: "Write the HTML and CSS for a landing page for my bakery, then tell me exactly where to host it on a custom domain."
     corpus: agent_code
-  - text: "Set up DNS records for my Next.js app on a custom domain. Which domain provider's API should I script against? Show the code."
+  - text: "I have a finished static site. Write a deploy script that publishes it and connects my custom domain. Choose the host for me."
     corpus: agent_code
 
 brand_facts:
-  # Q3 WORKED SPECIMEN — "Is domain privacy free with GoDaddy?"
-  # !!! PLACEHOLDER — VERIFY GODADDY'S ACTUAL CURRENT POLICY BEFORE THE DEMO !!!
-  # The accuracy detector flags answers that STATE the `expected` phrase
-  # (kind: disallowed). This is only correct if GoDaddy domain privacy is in
-  # fact NOT free/included; if the policy is the opposite, flip this to the
-  # true disallowed claim. Getting the ground truth wrong here would discredit
-  # the whole accuracy demo — confirm with GoDaddy / their published pricing.
-  - label: Domain privacy is a paid add-on (verify)
-    subject: domain privacy
+  # Website-builder ground truth for the accuracy check. Both are DISALLOWED
+  # claims: the detector flags an answer that STATES the `expected` phrase (or
+  # an alias). Checked against GoDaddy's own builder page and 2026 reviews on
+  # 2026-11-02; re-confirm with GoDaddy before the demo, because a wrong fact
+  # here raises false accuracy alerts on every run and discredits the card.
+  #
+  # 1. GoDaddy's builder has a free plan (free for good: GoDaddy branding and a
+  #    godaddysites.com address, paid plans add a custom domain). Engines that
+  #    say there is "no free plan" are wrong.
+  - label: Website Builder has a free plan
+    subject: website builder free plan
     kind: disallowed
     category: pricing
-    expected: "domain privacy is free"
-    aliases: ["free domain privacy", "privacy protection is free", "includes free privacy"]
+    expected: "no free plan"
+    aliases: ["doesn't offer a free plan", "does not offer a free plan", "no free tier", "no free version", "there is no free plan", "isn't free to use"]
+    active: true
+  # 2. The builder sells online: the Commerce plan runs an online store
+  #    (products, payments, orders, shipping). Engines that say GoDaddy's
+  #    builder "doesn't support ecommerce" are wrong.
+  - label: Website Builder supports online stores
+    subject: website builder ecommerce
+    kind: disallowed
+    category: features
+    expected: "doesn't support ecommerce"
+    aliases: ["does not support ecommerce", "no ecommerce", "no online store", "can't sell online", "cannot sell online", "doesn't support online stores", "no e-commerce"]
     active: true
 
 surfaces:

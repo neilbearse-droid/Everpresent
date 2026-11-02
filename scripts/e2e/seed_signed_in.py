@@ -40,8 +40,8 @@ from api.yaml_import import import_config, parse_config_yaml  # noqa: E402
 ORG_ID = "org_e2e"
 SURFACES = [SurfaceCode.openai_api, SurfaceCode.claude_api, SurfaceCode.gemini_api,
             SurfaceCode.perplexity_api, SurfaceCode.google_aio, SurfaceCode.google_ai_mode]
-RIVALS = ["Namecheap", "Wix", "Squarespace", "Hostinger", "Shopify", "Porkbun"]
-DOMAINS = ["godaddy.com", "namecheap.com", "wix.com", "reddit.com", "forbes.com",
+RIVALS = ["Wix", "Squarespace", "Shopify", "Hostinger", "WordPress.com", "Durable"]
+DOMAINS = ["godaddy.com", "wix.com", "squarespace.com", "reddit.com", "forbes.com",
            "techradar.com", "youtube.com", "hostinger.com"]
 
 
@@ -52,9 +52,9 @@ def _answer(rng: random.Random, query: str) -> tuple[str, list[str]]:
     lines = [f"For “{query}”, people usually look at {', '.join(names)}."]
     if "GoDaddy" in names:
         lines.append(rng.choice([
-            "GoDaddy has strong templates but support can be slow.",
-            "GoDaddy is easy for beginners, though renewal prices are higher.",
-            "GoDaddy bundles email and domains in one place.",
+            "GoDaddy's builder is quick to set up but the templates feel limited.",
+            "GoDaddy Airo drafts a site in minutes, though design control is basic.",
+            "GoDaddy bundles the website, domain and email in one place.",
         ]))
     urls = [f"https://www.{d}/{rng.randint(1, 40)}" for d in rng.sample(DOMAINS, k=3)]
     return "\n".join(lines), urls
@@ -107,8 +107,8 @@ def main() -> None:
             run.counts = {"completed": len(queries) * len(SURFACES), **process_run(s, run)}
             s.add(run)
             s.commit()
-        s.add(Intervention(tenant_id=t.id, query_text=queries[0], url="/domains",
-                           description="Comparison table on the domains page",
+        s.add(Intervention(tenant_id=t.id, query_text=queries[0], url="/websites/website-builder",
+                           description="Comparison table on the website builder page",
                            shipped_at=today - timedelta(days=14)))
         s.commit()
         print(f"seeded {len(queries)} queries x {len(SURFACES)} surfaces x 9 runs")

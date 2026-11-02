@@ -4,7 +4,8 @@ Turns a detected gap — a factual-accuracy error, or a fan-out shard the brand
 lost (M25c) — into a publishable draft via the governed utility-LLM
 (engine/llm router, draft model). This is the step that separates 'we see the
 wrong answer' from 'here is the content that fixes it' — the demo's wow moment
-(Q3: 'is domain privacy free with GoDaddy?').
+(the GoDaddy accuracy facts: an engine saying the builder has no free plan,
+or cannot sell online).
 
 Governance: identical bar to entity extraction — the tenant must be
 ai_processing_approved AND have the draft model on approved_utility_models AND a

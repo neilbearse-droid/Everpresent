@@ -33,6 +33,7 @@ Engine calls run on the **worker**, so that's where the engine keys go.
 
 At `/admin/godaddy`:
 
+- [ ] **Config → Load a saved config → GoDaddy** if the tenant was created before 2026-11-02: the seed now measures the website-builder business, and the deploy seed never re-imports an existing tenant.
 - [ ] **Plan**: Command or Custom (lower plans drop engines).
 - [ ] **Governance → Approve AI processing**.
 - [ ] **Governance → Search country: United States (US)**. The GoDaddy tenant was created with the Canada default.
@@ -41,7 +42,7 @@ At `/admin/godaddy`:
 - [ ] **Governance → Monthly spend cap**: at least **$300** for demo week. Too low and calls come back WITHHELD.
 - [ ] **Governance → Fan-out re-probe: on**.
 - [ ] **Run schedule**: `0 12 * * 1,3,5` (Mon/Wed/Fri, 12:00 UTC ≈ 8am ET), enabled. 3×/week keeps a Diagnose client under its $50 cap; daily would cost about 2.3× more and detect changes about a third smaller (more answers, narrower ranges).
-- [ ] **Brand fact sheet**: confirm the domain-privacy fact matches GoDaddy's real policy (it's a placeholder).
+- [ ] **Brand fact sheet**: confirm the two website-builder facts (free plan exists; the Commerce plan sells online) still match GoDaddy's live builder page. A wrong fact raises false accuracy alerts on every run.
 
 ## 4. First verification run (20 minutes)
 
