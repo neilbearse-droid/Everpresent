@@ -3,6 +3,8 @@ import { AgentPicksSection } from "./agent-picks";
 import { DashNav } from "@/components/dash-nav";
 import { NoOrgNotice } from "@/components/no-org-notice";
 import { PageLead } from "@/components/page-lead";
+import { EngineMark } from "@/components/ui";
+import { AddToPlan } from "@/components/plan-buttons";
 
 const VERDICT_HELP: Record<string, string> = {
   "known, but losing in search": "The model names you from memory, but when it searches the web it finds others. Work on the pages it finds: your own and the third-party pages it cites.",
@@ -120,10 +122,29 @@ export default async function AnswerShapePage() {
                     {d.memory_vs_search.map((m) => (
                       <tr key={m.surface}>
                         <td>
-                          <div className="font-medium">{m.label}</div>
-                          <div className="text-xs text-[var(--text-3)]" title={VERDICT_HELP[m.verdict]}>
-                            {m.verdict}
+                          <div className="flex items-center gap-2 font-semibold">
+                            <EngineMark surface={m.surface} size={18} />
+                            {m.label}
                           </div>
+                          <div className="mt-0.5 text-xs" title={VERDICT_HELP[m.verdict]}>
+                            {m.verdict === "known, but losing in search" ? (
+                              <span className="bp-neg">▼ losing in search</span>
+                            ) : m.verdict === "found by search, not yet known" ? (
+                              <span className="text-[var(--text-2)]">search only</span>
+                            ) : (
+                              <span className="text-[var(--text-3)]">{m.verdict}</span>
+                            )}
+                          </div>
+                          {m.verdict === "known, but losing in search" && (
+                            <div className="mt-1.5">
+                              <AddToPlan
+                                gapRef={`engine-search:${m.surface}`}
+                                title={`Win ${m.label} web searches`}
+                                actionText={`${m.label} names you from memory (${m.memory ? Math.round(m.memory.rate) : 0}%) but not when it searches (${m.search ? Math.round(m.search.rate) : 0}%). Fix the pages it finds.`}
+                                link="/dashboard/pages"
+                              />
+                            </div>
+                          )}
                         </td>
                         <td><Rate r={m.memory} /></td>
                         <td><Rate r={m.search} /></td>
@@ -147,20 +168,31 @@ export default async function AnswerShapePage() {
                       <div className="flex items-baseline justify-between gap-3 text-[13px]">
                         <span className="font-semibold">{t.theme}</span>
                         <span className="tabular-nums text-[var(--text-2)]">
-                          {t.mentions} mentions ·{" "}
-                          {t.objections > 0 ? (
-                            <span className="bp-neg">{t.objections} objections</span>
-                          ) : (
-                            "no objections"
+                          <span className="font-semibold text-[var(--text)]">{t.mentions}</span> mentions
+                          {t.objections > 0 && (
+                            <>
+                              {" · "}
+                              <span className="bp-neg">▼ {t.objections} objections</span>
+                            </>
                           )}
                         </span>
                       </div>
                       {t.examples.length > 0 && (
                         <p className="mt-1 text-xs italic text-[var(--text-2)]">&ldquo;{t.examples[0]}&rdquo;</p>
                       )}
-                      <p className="mt-0.5 text-[11.5px] text-[var(--text-3)]">
-                        {t.memory} from memory · {t.search} with search
-                      </p>
+                      <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-[11.5px] text-[var(--text-3)]">
+                          {t.memory} from memory · {t.search} with search
+                        </p>
+                        {t.objections > 0 && (
+                          <AddToPlan
+                            gapRef={`objection:${t.theme}`}
+                            title={`Answer the ${t.theme} objection`}
+                            actionText={`${t.objections} of ${t.mentions} mentions of ${t.theme} are objections${t.examples[0] ? `, e.g. "${t.examples[0]}"` : ""}. Answer it on your own site.`}
+                            link="/dashboard/pages"
+                          />
+                        )}
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -181,7 +213,7 @@ export default async function AnswerShapePage() {
                       <th>Model</th>
                       <th className="text-right">Answers</th>
                       <th className="text-right" title="Share of answers where the engine searched the web on its own">Searched</th>
-                      <th className="text-right">Links per answer</th>
+                      <th className="text-right">Links</th>
                       <th className="text-right" title="Links on words in the answer, not footnotes">In-text links</th>
                       <th className="text-right">To your site</th>
                       <th className="text-right">Third-party</th>
@@ -193,8 +225,11 @@ export default async function AnswerShapePage() {
                   <tbody>
                     {d.engines.map((e) => (
                       <tr key={`${e.surface}-${e.model}`}>
-                        <td className="font-medium">
-                          {e.label}
+                        <td className="font-semibold">
+                          <span className="inline-flex items-center gap-2">
+                            <EngineMark surface={e.surface} size={16} />
+                            {e.label}
+                          </span>
                           {e.logged_in === false && (
                             <span className="ml-2 text-xs text-[var(--text-3)]">signed out</span>
                           )}
@@ -211,7 +246,7 @@ export default async function AnswerShapePage() {
                         <td className="text-right tabular-nums">{pct(e.own_share)}</td>
                         <td className="text-right tabular-nums">{pct(e.third_party_share)}</td>
                         <td className="text-right tabular-nums">{pct(e.rival_share)}</td>
-                        <td className="text-right"><Rate r={e.mention} /></td>
+                        <td className="text-right font-semibold"><Rate r={e.mention} /></td>
                         <td className="text-right tabular-nums">{pct(e.mentioned_unlinked_share)}</td>
                       </tr>
                     ))}
@@ -229,13 +264,14 @@ export default async function AnswerShapePage() {
               </div>
               <ul>
                 {Object.entries(d.current_models).length === 0 ? (
-                  <li className="p-4 text-sm text-[var(--text-3)]">
-                    Model names appear once API engines have answered.
-                  </li>
+                  <li className="p-4 text-sm text-[var(--text-3)]">—</li>
                 ) : (
                   Object.entries(d.current_models).map(([engine, model]) => (
                     <li key={engine} className="flex justify-between border-t border-[var(--line)] px-4 py-2.5 text-[13px] first:border-t-0">
-                      <span className="font-medium">{engine}</span>
+                      <span className="inline-flex items-center gap-2 font-semibold">
+                        <EngineMark surface={engine} size={16} />
+                        {engine}
+                      </span>
                       <span className="tabular-nums text-[var(--text-2)]">{model}</span>
                     </li>
                   ))
@@ -248,16 +284,17 @@ export default async function AnswerShapePage() {
                 <span>Last {d.days} days</span>
               </div>
               {d.model_changes.length === 0 ? (
-                <p className="p-4 text-sm text-[var(--text-2)]">
-                  No model switches seen in the last {d.days} days.
-                </p>
+                <p className="p-4 text-sm text-[var(--text-2)]">None in {d.days} days.</p>
               ) : (
                 <ul>
                   {d.model_changes.map((c) => (
                     <li key={`${c.surface}-${c.model}-${c.since}`} className="border-t border-[var(--line)] px-4 py-2.5 text-[13px] first:border-t-0">
                       <span className="tabular-nums text-[var(--text-3)]">{c.since}</span>{" "}
-                      <span className="font-medium">{c.label}</span> started answering with{" "}
-                      <span className="bp-mark">{c.model}</span>
+                      <span className="inline-flex items-center gap-1.5 align-middle font-semibold">
+                        <EngineMark surface={c.surface} size={16} />
+                        {c.label}
+                      </span>{" "}
+                      <span className="text-[var(--text-2)]">→</span> <span className="bp-mark">{c.model}</span>
                     </li>
                   ))}
                 </ul>

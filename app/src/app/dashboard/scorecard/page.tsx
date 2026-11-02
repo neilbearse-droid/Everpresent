@@ -15,6 +15,8 @@ import { NoOrgNotice } from "@/components/no-org-notice";
 import { PageLead } from "@/components/page-lead";
 import { HBars } from "@/components/charts";
 import { entityColors, OTHER_COLOR, surfaceLabel } from "@/lib/viz";
+import { Delta, EngineMark, Linkify, Mark } from "@/components/ui";
+import { AddToPlan } from "@/components/plan-buttons";
 
 const STABILITY_STYLE: Record<string, string> = {
   Stable: "text-[var(--pos)]",
@@ -35,17 +37,15 @@ function Tile({ value, label, sub }: { value: string; label: string; sub?: strin
 
 function ChangeBadge({ change }: { change: RateChange }) {
   if (change.verdict === "up" || change.verdict === "down") {
-    const up = change.verdict === "up";
     return (
-      <span className={`chip ${up ? "text-[var(--pos)]" : "text-[var(--neg)]"}`}>
-        {up ? "▲" : "▼"} {change.delta! > 0 ? "+" : ""}
-        {change.delta}pt · real change
+      <span className="text-[13px]">
+        <Delta value={change.delta} unit=" pts" />
       </span>
     );
   }
   return (
-    <span className="chip text-[var(--text-3)]">
-      {change.verdict === "no real change" ? "no real change" : "not enough data yet"}
+    <span className="text-xs text-[var(--text-3)]">
+      {change.verdict === "no real change" ? "no real change" : "not enough data"}
     </span>
   );
 }
@@ -67,16 +67,21 @@ function SamplePlanPanel({ p }: { p: SamplePlan }) {
             <thead>
               <tr>
                 <th>Engine</th>
-                <th className="text-right">Answers / 2 weeks</th>
-                <th className="text-right">Needed for a {p.target_change_pts}-pt change</th>
-                <th className="text-right">Detectable now</th>
+                <th className="text-right">Answers / 2 wks</th>
+                <th className="text-right">Needed ({p.target_change_pts} pts)</th>
+                <th className="text-right">Detectable</th>
                 <th>Status</th>
               </tr>
             </thead>
             <tbody>
               {p.engines.map((e) => (
                 <tr key={e.surface}>
-                  <td className="font-medium">{e.label}</td>
+                  <td className="font-semibold">
+                    <span className="inline-flex items-center gap-2">
+                      <EngineMark surface={e.surface} size={16} />
+                      {e.label}
+                    </span>
+                  </td>
                   <td className="text-right tabular-nums">{e.answers_per_half_window}</td>
                   <td className="text-right tabular-nums">{e.needed_per_half_window}</td>
                   <td className="text-right tabular-nums">
@@ -139,14 +144,15 @@ function MentionRatePanel({ m, brand }: { m: MentionRates; brand: string }) {
           )}
         </div>
         <div className="min-w-72 flex-1 overflow-x-auto">
+          <p className="bp-label mb-2">By engine</p>
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="text-xs text-[var(--text-3)]">
                 <th className="pb-2 pr-4 font-medium">Engine</th>
-                <th className="pb-2 pr-4 font-medium">Mention rate</th>
-                <th className="pb-2 pr-4 font-medium">95% range</th>
-                <th className="pb-2 pr-4 font-medium">Without forced search</th>
-                <th className="pb-2 pr-4 font-medium">Searched the web</th>
+                <th className="pb-2 pr-4 font-medium">Rate</th>
+                <th className="pb-2 pr-4 font-medium">Range</th>
+                <th className="pb-2 pr-4 font-medium">Unforced</th>
+                <th className="pb-2 pr-4 font-medium">Searched</th>
                 <th className="pb-2 pr-4 font-medium">Answers</th>
                 <th className="pb-2 font-medium">Change</th>
               </tr>
@@ -155,12 +161,15 @@ function MentionRatePanel({ m, brand }: { m: MentionRates; brand: string }) {
               {m.engines.map((e) => (
                 <tr key={e.surface} className="border-t border-[var(--border)]">
                   <td className="py-1.5 pr-4">
-                    {surfaceLabel(e.surface)}
+                    <span className="inline-flex items-center gap-2">
+                      <EngineMark surface={e.surface} size={16} />
+                      {surfaceLabel(e.surface)}
+                    </span>
                     {e.forced && (
                       <span className="ml-1.5 text-[11px] text-[var(--text-3)]">forced</span>
                     )}
                   </td>
-                  <td className="py-1.5 pr-4 font-medium tabular-nums">{e.rate}%</td>
+                  <td className="py-1.5 pr-4 font-semibold tabular-nums">{e.rate}%</td>
                   <td className="py-1.5 pr-4 tabular-nums text-[var(--text-2)]">
                     {e.low}–{e.high}%
                   </td>
@@ -175,7 +184,7 @@ function MentionRatePanel({ m, brand }: { m: MentionRates; brand: string }) {
                         </span>
                       </>
                     ) : (
-                      <span className="text-xs text-[var(--text-3)]">not measured yet</span>
+                      <span className="text-xs text-[var(--text-3)]">—</span>
                     )}
                   </td>
                   <td className="py-1.5 pr-4 tabular-nums text-[var(--text-2)]">
@@ -198,7 +207,7 @@ function MentionRatePanel({ m, brand }: { m: MentionRates; brand: string }) {
 /** The headline numbers per question topic, so a strong topic can't hide a
  * weak one. Branded questions name the brand by design, so they get their own
  * measures instead of a mention rate. */
-function TopicPanel({ rows, brand }: { rows: TopicRow[]; brand: string }) {
+function TopicPanel({ rows, brand, overall }: { rows: TopicRow[]; brand: string; overall: number | null }) {
   const topics = rows.filter((r) => r.kind !== "branded").sort((a, b) => a.rate - b.rate);
   const branded = rows.find((r) => r.kind === "branded");
   const sentimentTotal = branded
@@ -207,7 +216,7 @@ function TopicPanel({ rows, brand }: { rows: TopicRow[]; brand: string }) {
   const pct = (n: number) => (sentimentTotal ? Math.round((100 * n) / sentimentTotal) : 0);
   return (
     <section className="card mb-6 p-4">
-      <h2 className="mb-3 text-sm font-medium text-[var(--text-2)]">By topic, weakest first</h2>
+      <h2 className="mb-3 text-sm font-medium text-[var(--text-2)]">By topic</h2>
       {topics.length > 0 && (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
@@ -215,35 +224,55 @@ function TopicPanel({ rows, brand }: { rows: TopicRow[]; brand: string }) {
               <tr className="text-xs text-[var(--text-3)]">
                 <th className="pb-2 pr-4 font-medium">Topic</th>
                 <th className="pb-2 pr-4 font-medium">Questions</th>
-                <th className="pb-2 pr-4 font-medium">Mention rate</th>
-                <th className="pb-2 pr-4 font-medium">95% range</th>
+                <th className="pb-2 pr-4 font-medium">Rate</th>
+                <th className="pb-2 pr-4 font-medium">Range</th>
                 <th className="pb-2 pr-4 font-medium">Answer share</th>
-                <th className="pb-2 pr-4 font-medium">Leads when named</th>
+                <th className="pb-2 pr-4 font-medium">Named first</th>
                 <th className="pb-2 pr-4 font-medium">Top rival</th>
-                <th className="pb-2 font-medium">Change</th>
+                <th className="pb-2 pr-4 font-medium">Change</th>
+                <th className="pb-2 font-medium"></th>
               </tr>
             </thead>
             <tbody>
               {topics.map((r) => (
                 <tr key={r.topic} className="border-t border-[var(--border)]">
-                  <td className="py-1.5 pr-4">
+                  <td className="py-1.5 pr-4 font-semibold">
                     {r.topic}
                     {r.kind === "agent" && (
-                      <span className="ml-2 text-xs text-[var(--text-3)]">agent</span>
+                      <span className="ml-2 text-xs font-normal text-[var(--text-3)]">agent</span>
                     )}
                   </td>
                   <td className="py-1.5 pr-4 tabular-nums text-[var(--text-3)]">{r.questions}</td>
-                  <td className="py-1.5 pr-4 font-medium tabular-nums">{r.rate}%</td>
+                  <td className={`py-1.5 pr-4 tabular-nums ${overall !== null && r.rate < overall ? "font-semibold" : ""}`}>
+                    {overall !== null && r.rate < overall ? <span className="bp-neg">{r.rate}%</span> : <>{r.rate}%</>}
+                  </td>
                   <td className="py-1.5 pr-4 tabular-nums text-[var(--text-2)]">
                     {r.low}–{r.high}%
                   </td>
                   <td className="py-1.5 pr-4 tabular-nums">{r.answer_share}%</td>
                   <td className="py-1.5 pr-4 tabular-nums">{r.lead_rate}%</td>
                   <td className="py-1.5 pr-4 text-[var(--text-2)]">
-                    {r.top_rival ? `${r.top_rival.name} · ${r.top_rival.share}%` : "—"}
+                    {r.top_rival ? (
+                      <>
+                        <span className="font-medium text-[var(--text)]">{r.top_rival.name}</span>{" "}
+                        <span className="text-xs tabular-nums">{r.top_rival.share}%</span>
+                      </>
+                    ) : (
+                      "—"
+                    )}
                   </td>
-                  <td className="py-1.5 text-xs">
+                  <td className="py-1.5 pr-4 text-xs">
                     <ChangeBadge change={r.change} />
+                  </td>
+                  <td className="py-1.5">
+                    {overall !== null && r.rate < overall && (
+                      <AddToPlan
+                        gapRef={`topic:${r.topic}`}
+                        title={`Write for ${r.topic}`}
+                        actionText={`${brand} is named in ${r.rate}% of ${r.topic} answers against ${overall}% overall${r.top_rival ? `; ${r.top_rival.name} leads at ${r.top_rival.share}%` : ""}.`}
+                        link="/dashboard/scorecard"
+                      />
+                    )}
                   </td>
                 </tr>
               ))}
@@ -359,7 +388,9 @@ export default async function ScorecardPage({
       {d.mention_rates && d.mention_rates.overall.answers > 0 && (
         <MentionRatePanel m={d.mention_rates} brand={d.brand_name} />
       )}
-      {d.by_topic && d.by_topic.length > 0 && <TopicPanel rows={d.by_topic} brand={d.brand_name} />}
+      {d.by_topic && d.by_topic.length > 0 && (
+        <TopicPanel rows={d.by_topic} brand={d.brand_name} overall={o ? o.rate : null} />
+      )}
 
       {/* Prominence-weighted share: useful, but rank is noisy run to run. */}
       <section className="card mb-6 p-4">
@@ -426,27 +457,47 @@ export default async function ScorecardPage({
             </span>
           </div>
           {acc.data.error_count === 0 ? (
-            <p className="text-sm text-[var(--pos)]">
-              No contradictions found in the latest answers.
-            </p>
+            <p className="text-sm text-[var(--text-2)]">▲ No wrong facts in the latest answers.</p>
           ) : (
             <ul className="space-y-2">
               {acc.data.errors.map((e, i) => (
-                <li key={i} className="card-inset p-3 text-sm">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="chip text-[var(--neg)]">{e.category}</span>
-                    <span className="font-medium text-[var(--text)]">{e.subject}</span>
-                    <span className="text-xs text-[var(--text-3)]">
-                      on {e.engines.join(", ")}
-                    </span>
+                <li key={i} className="card-inset flex gap-2 p-3 text-sm">
+                  <Mark tone="bad" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-semibold text-[var(--text)]">{e.subject}</span>
+                      <span className="chip">{e.category}</span>
+                      <span className="inline-flex items-center gap-1">
+                        {e.engines.map((en) => (
+                          <EngineMark key={en} surface={en} size={16} />
+                        ))}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-[13px] text-[var(--text-2)]">
+                      <span className="bp-neg">Says</span> {e.stated}
+                      <span className="mx-2 text-[var(--text-3)]">·</span>
+                      <span className="font-semibold text-[var(--text)]">Fact</span> {e.expected}
+                    </p>
+                    {e.detail && e.detail !== e.stated && (
+                      <p className="mt-1 text-xs text-[var(--text-3)]">
+                        <Linkify text={e.detail} />
+                      </p>
+                    )}
+                    {e.snippet && (
+                      <p className="mt-1 text-xs italic text-[var(--text-3)]">“{e.snippet}”</p>
+                    )}
+                    <div className="mt-2 flex flex-wrap items-start gap-2">
+                      <AddToPlan
+                        gapRef={`fact:${e.fact_id}`}
+                        title={`Correct the ${e.subject} fact`}
+                        actionText={`Engines say "${e.stated}"; the fact is "${e.expected}". Fix the page that taught it and request a recrawl.`}
+                        link="/dashboard/scorecard"
+                      />
+                      {/* Close the loop: generate the corrective content EverPresent
+                          would publish for this gap (§step 5). */}
+                      <GenerateDraft factId={e.fact_id} />
+                    </div>
                   </div>
-                  <p className="mt-1 text-xs text-[var(--text-2)]">{e.detail}</p>
-                  {e.snippet && (
-                    <p className="mt-1 text-xs italic text-[var(--text-3)]">“{e.snippet}”</p>
-                  )}
-                  {/* Close the loop: generate the corrective content EverPresent
-                      would publish for this gap (§step 5). */}
-                  <GenerateDraft factId={e.fact_id} />
                 </li>
               ))}
             </ul>
@@ -485,8 +536,9 @@ export default async function ScorecardPage({
             .map((ex, i) => (
               <blockquote key={i} className="mb-2 border-l border-[var(--border)] pl-3 text-xs text-[var(--text-2)]">
                 "{ex.snippet}"
-                <span className="mt-0.5 block text-[var(--text-3)]">
-                  {ex.query} · {surfaceLabel(ex.surface)}
+                <span className="mt-0.5 flex items-center gap-1.5 text-[var(--text-3)]">
+                  <EngineMark surface={ex.surface} size={14} />
+                  {surfaceLabel(ex.surface)} · {ex.query}
                 </span>
               </blockquote>
             ))}
@@ -498,9 +550,7 @@ export default async function ScorecardPage({
 
       {/* Head-to-head */}
       <section className="mt-6 card p-4">
-        <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">
-          Head-to-head: how often you&apos;re named first
-        </h2>
+        <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">Head to head</h2>
         {d.head_to_head.length === 0 ? (
           <p className="text-sm text-[var(--text-3)]">No shared appearances yet.</p>
         ) : (
@@ -508,21 +558,34 @@ export default async function ScorecardPage({
             <thead className="text-[var(--text-2)]">
               <tr>
                 <th className="py-2 pr-4">Competitor</th>
-                <th className="pr-4">Shared queries</th>
-                <th className="pr-4">You lead</th>
-                <th>Win rate</th>
+                <th className="pr-4">Shared</th>
+                <th className="pr-4">You first</th>
+                <th className="pr-4">Win rate</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
               {d.head_to_head.map((h) => (
                 <tr key={h.competitor} className="border-t border-[var(--border)]">
-                  <td className="py-2 pr-4">{h.competitor}</td>
-                  <td className="pr-4 tabular-nums">{h.shared}</td>
-                  <td className="pr-4 tabular-nums">{h.wins}</td>
-                  <td
-                    className={`tabular-nums ${h.win_rate >= 50 ? "text-[var(--pos)]" : "text-[var(--warn-t)]"}`}
-                  >
-                    {h.win_rate}%
+                  <td className="py-2 pr-4 font-semibold">{h.competitor}</td>
+                  <td className="pr-4 tabular-nums text-[var(--text-2)]">{h.shared}</td>
+                  <td className="pr-4 tabular-nums text-[var(--text-2)]">{h.wins}</td>
+                  <td className="pr-4 tabular-nums">
+                    {h.win_rate >= 50 ? (
+                      <span className="font-semibold">▲ {h.win_rate}%</span>
+                    ) : (
+                      <span className="bp-neg">▼ {h.win_rate}%</span>
+                    )}
+                  </td>
+                  <td>
+                    {h.shared >= 3 && h.win_rate < 50 && (
+                      <AddToPlan
+                        gapRef={`rival:${h.competitor}`}
+                        title={`Beat ${h.competitor} on shared questions`}
+                        actionText={`${h.competitor} is named ahead of ${d.brand_name} on ${h.shared - h.wins} of ${h.shared} shared questions.`}
+                        link="/dashboard/queries"
+                      />
+                    )}
                   </td>
                 </tr>
               ))}

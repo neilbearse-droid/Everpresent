@@ -4,13 +4,18 @@ import { apiFetch, type Me, type RawEnvelope, type TenantSummary } from "@/lib/a
 import { DashNav } from "@/components/dash-nav";
 import { PageLead } from "@/components/page-lead";
 import { surfaceLabel } from "@/lib/viz";
+import { EngineMark } from "@/components/ui";
 
 function AnswerColumn({ title, envelope }: { title: string; envelope: RawEnvelope }) {
   return (
     <section className="min-w-0 card p-4">
-      <h2 className="mb-1 text-sm font-medium text-[var(--text)]">{title}</h2>
+      <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold text-[var(--text)]">
+        <EngineMark surface={envelope.surface} size={22} />
+        {title}
+        <span className="font-normal text-[var(--text-3)]">· {surfaceLabel(envelope.surface)}</span>
+      </h2>
       <p className="mb-4 text-xs text-[var(--text-3)]">
-        {surfaceLabel(envelope.surface)} · {envelope.model} · persona: {envelope.persona}
+        {envelope.model} · {envelope.persona}
       </p>
       <p className="whitespace-pre-wrap text-sm leading-relaxed">{envelope.parsed_text}</p>
     </section>

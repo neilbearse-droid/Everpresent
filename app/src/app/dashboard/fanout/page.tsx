@@ -8,6 +8,8 @@ import {
 import { DashNav } from "@/components/dash-nav";
 import { NoOrgNotice } from "@/components/no-org-notice";
 import { PageLead } from "@/components/page-lead";
+import { Delta, EngineMark } from "@/components/ui";
+import { AddToPlan } from "@/components/plan-buttons";
 import { GenerateBrief } from "./generate-brief";
 import { FanoutSimulator } from "./simulator";
 
@@ -110,9 +112,10 @@ export default async function FanoutPage({
                     {Object.entries(p.reach_by_engine).map(([label, n]) => (
                       <span
                         key={label}
-                        className="rounded-[4px] border border-[var(--border)] bg-[var(--surface-2)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-2)]"
+                        className="inline-flex items-center gap-1.5 rounded-[4px] border border-[var(--border)] bg-[var(--surface-2)] px-2 py-0.5 text-[11px] font-medium text-[var(--text-2)]"
                       >
-                        {label} · {n}
+                        <EngineMark surface={label} size={14} />
+                        {label} · <span className="font-semibold text-[var(--text)]">{n}</span>
                       </span>
                     ))}
                     {p.contested > 0 && (
@@ -127,15 +130,23 @@ export default async function FanoutPage({
                         {p.high_misses > 0 && (
                           <>
                             {" · "}
-                            <span className="text-[var(--neg)]">
+                            <span className="bp-neg">
                               {p.high_misses} high-priority miss{p.high_misses === 1 ? "" : "es"}
                             </span>
                           </>
                         )}
                         {p.won_back > 0 && (
-                          <span className="text-[var(--pos)]"> · {p.won_back} won back</span>
+                          <>
+                            {" · "}
+                            <Delta value={p.won_back} /> won back
+                          </>
                         )}
-                        {p.lost > 0 && <>{" · "}<span className="text-[var(--neg)]">{p.lost} newly lost</span></>}
+                        {p.lost > 0 && (
+                          <>
+                            {" · "}
+                            <Delta value={-p.lost} /> lost
+                          </>
+                        )}
                       </span>
                     )}
                   </div>
@@ -184,12 +195,19 @@ export default async function FanoutPage({
                             : undefined
                         }
                       >
-                        <td className="py-2.5 pr-4 text-[var(--text)]">
+                        <td className="py-2.5 pr-4 font-medium text-[var(--text)]">
                           {s.text}
                           {/* Close the loop (M25c): a brief that answers the lost sub-search. */}
-                          {s.priority === "high" && s.id !== null && (
-                            <div className="mt-2">
-                              <GenerateBrief shardId={s.id} />
+                          {s.priority === "high" && (
+                            <div className="mt-2 flex flex-wrap items-start gap-2">
+                              <AddToPlan
+                                gapRef={`sub:${s.id ?? s.text}`}
+                                title={`Win: ${s.text.split(" ").slice(0, 6).join(" ")}${s.text.split(" ").length > 6 ? "…" : ""}`}
+                                actionText={`Publish a page that answers "${s.text}"${s.winners.length ? `; ${s.winners.join(", ")} win it today` : ""}.`}
+                                link="/dashboard/fanout"
+                                queryText={p.query}
+                              />
+                              {s.id !== null && <GenerateBrief shardId={s.id} />}
                             </div>
                           )}
                         </td>
@@ -198,8 +216,9 @@ export default async function FanoutPage({
                             {s.engines.map((e) => (
                               <span
                                 key={e}
-                                className="rounded-[4px] border border-[var(--border)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-2)]"
+                                className="inline-flex items-center gap-1 rounded-[4px] border border-[var(--border)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-2)]"
                               >
+                                <EngineMark surface={e} size={12} />
                                 {e}
                               </span>
                             ))}
@@ -243,14 +262,22 @@ export default async function FanoutPage({
                             </span>
                           )}
                           {s.trend === "won_back" && (
-                            <div className="mt-0.5 text-[10.5px] font-semibold text-[var(--pos)]">won back</div>
+                            <div className="mt-0.5 text-[10.5px] font-semibold">▲ won back</div>
                           )}
                           {s.trend === "lost" && (
-                            <div className="mt-0.5 text-[10.5px] font-semibold text-[var(--neg)]">newly lost</div>
+                            <div className="mt-0.5 text-[10.5px]"><span className="bp-neg">▼ lost</span></div>
                           )}
                         </td>
-                        <td className="py-2.5 pr-4 text-[12px] text-[var(--text-2)]">
-                          {s.source === "reprobed" ? (s.winners.length ? s.winners.join(", ") : "—") : ""}
+                        <td className="py-2.5 pr-4 text-[12px]">
+                          {s.source === "reprobed" ? (
+                            s.winners.length ? (
+                              <span className="font-medium text-[var(--text)]">{s.winners.join(", ")}</span>
+                            ) : (
+                              <span className="text-[var(--text-3)]">—</span>
+                            )
+                          ) : (
+                            ""
+                          )}
                         </td>
                         <td className="py-2.5">
                           {s.priority && (

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type CSSProperties } from "react";
 import type { FanoutReplay, ReplayEngine, ReplaySub } from "@/lib/api";
+import { EngineMark } from "@/components/ui";
 
 // Four beats: the question, the split, the searches, the answer.
 const STEPS = ["The question", "Split into searches", "Each search", "The answer"];
@@ -171,12 +172,13 @@ export function FanoutSimulator({ data }: { data: FanoutReplay }) {
               role="tab"
               aria-selected={e.surface === engine.surface}
               onClick={() => choose(pi, i)}
-              className={`rounded-full border px-2.5 py-1 text-xs font-medium ${
+              className={`inline-flex items-center gap-1.5 rounded-full border py-1 pl-1.5 pr-2.5 text-xs font-medium ${
                 e.surface === engine.surface
                   ? "border-[var(--text)] bg-[var(--text)] text-[var(--ink-text)]"
                   : "border-[var(--border)] text-[var(--text-2)] hover:text-[var(--text)]"
               }`}
             >
+              <EngineMark surface={e.surface} size={16} />
               {e.label}
             </button>
           ))}
@@ -199,6 +201,7 @@ export function FanoutSimulator({ data }: { data: FanoutReplay }) {
               step >= 1 ? "border-[var(--text)] bg-[var(--text)] text-[var(--ink-text)]" : "border-[var(--border)]"
             }`}
           >
+            <EngineMark surface={engine.surface} size={18} />
             {engine.label}
           </div>
         </div>
@@ -297,10 +300,13 @@ export function FanoutSimulator({ data }: { data: FanoutReplay }) {
                 {engine.sources.length > 0 && (
                   <div className="flex flex-wrap gap-1 pt-1">
                     {engine.sources.slice(0, 6).map((src) => (
-                      <span
+                      <a
                         key={src.domain}
+                        href={src.url}
+                        target="_blank"
+                        rel="noreferrer"
                         title={src.url}
-                        className={`rounded px-1.5 py-0.5 text-[11px] ${
+                        className={`rounded px-1.5 py-0.5 text-[11px] hover:underline ${
                           src.kind === "you"
                             ? "bg-[var(--accent-soft)] font-semibold text-[var(--accent-2)]"
                             : src.kind === "rival"
@@ -309,7 +315,8 @@ export function FanoutSimulator({ data }: { data: FanoutReplay }) {
                         }`}
                       >
                         {src.domain}
-                      </span>
+                        <span aria-hidden className="ml-0.5 text-[9px]">↗</span>
+                      </a>
                     ))}
                     {engine.sources_total > 6 && (
                       <span className="text-[11px] text-[var(--text-3)]">+{engine.sources_total - 6}</span>

@@ -3,6 +3,28 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M65 — Text gets a hierarchy, and every action gets a button (2026-11-02)
+
+1. **Shared pieces, not per-page styling** (`app/src/components/ui.tsx`):
+   URLs render as short external links marked ↗; numbers in a sentence are
+   set bold; findings are bullets with a bold lead-in and a ▲/▼/• mark by
+   tone; changes are arrows through one `Delta`; each engine carries a
+   monogram mark in a muted hue of its own (`EngineMark`, keyed by surface
+   code or label). Licensed logos can replace the monograms in that one
+   file.
+2. **Add to plan.** `POST /api/tenant/recommendations` upserts a manual
+   play (branch `manual`, status in progress) by the caller's stable id, so
+   any action shown anywhere (a matrix gap, a target site, a wrong fact, a
+   brief, an untracked rival) becomes a recommendation with one press.
+   Regeneration leaves manual plays alone; there is no signal to resolve
+   them. Recommendations get Start, Mark done and Dismiss wherever they are
+   listed, including the Overview's This week.
+3. **The per-engine play is gone.** It was templated by mode, so every
+   web-searching engine said the same sentence. An engine cell is its mark,
+   name, mode, figure and one fact line; the page says what to do once.
+4. **Zones get headings.** Where a page moves from the pooled figure to
+   per-engine, per-topic or per-page detail, a short heading says so.
+
 ## M64 — Every screen opens with what it tells you and what to do (2026-11-02)
 
 The rule for every dashboard screen from here: the first thing on the page
