@@ -1,6 +1,7 @@
 import { apiFetch, type ActionPlan, type InterventionsReport, type Me } from "@/lib/api";
 import { DashNav } from "@/components/dash-nav";
 import { NoOrgNotice } from "@/components/no-org-notice";
+import { PageLead } from "@/components/page-lead";
 import { surfaceLabel } from "@/lib/viz";
 import { MarkShipped } from "./mark-shipped";
 
@@ -48,9 +49,59 @@ export default async function ActionPlanPage() {
   const targets = data?.targets ?? [];
   const briefs = data?.briefs ?? [];
 
+  // The lead: how many places to earn a citation, how many pages to write,
+  // what you've lost, and the single highest-value move. Lost citations come
+  // first (cheapest to win back), then a winnable brief, then a source target.
+  const openTargets = targets.filter((t) => !t.already_citing_you);
+  const lost = data?.protect?.ready ? data.protect.lost.length : 0;
+  const winnable = data?.strike_zone?.["winnable now"] ?? 0;
+  const firstWinnable = briefs.find((b) => b.contestability?.label === "winnable now") ?? briefs[0] ?? null;
+  const topTarget = openTargets[0] ?? null;
+  const agg = proof.data?.aggregate ?? null;
+  const measuredFixes = agg && agg.measured > 0 ? agg : null;
+  const lead =
+    targets.length === 0 && briefs.length === 0
+      ? {
+          tells: "Nothing to act on yet. When a run finds questions where you're missing, each one gets a brief here with the sites to target and what to write.",
+          act: "Nothing to write yet. Check the Recommendations list for anything that isn't about a page.",
+          href: "/dashboard/recommendations",
+          hrefLabel: "Recommendations",
+          tone: "neutral" as const,
+        }
+      : {
+          tells: (
+            <>
+              {openTargets.length} third-party {openTargets.length === 1 ? "site cites" : "sites cite"} your
+              rivals and not you, {briefs.length} {briefs.length === 1 ? "question needs" : "questions need"} a
+              page{winnable > 0 ? <> ({winnable} winnable now)</> : null}
+              {lost > 0 ? <>, and {lost} of your {lost === 1 ? "page" : "pages"} lost a citation since the last run</> : null}.
+              {measuredFixes ? (
+                <>
+                  {" "}
+                  Fixes you've shipped so far moved their questions {measuredFixes.avg_delta >= 0 ? "+" : ""}
+                  {measuredFixes.avg_delta} pts
+                  {measuredFixes.avg_control_delta !== null ? <> against {measuredFixes.avg_control_delta >= 0 ? "+" : ""}{measuredFixes.avg_control_delta} for the ones you left alone</> : null}.
+                </>
+              ) : null}
+            </>
+          ),
+          act:
+            lost > 0
+              ? "Win back the lost citations first; they're the cheapest gain. Refresh those pages' dates, figures and examples, then mark the fix shipped so the next run measures it."
+              : firstWinnable
+                ? `Write the page for "${firstWinnable.query}" from its brief below, publish it as an ordinary page, and mark it shipped. One page a week, winnable ones first.`
+                : topTarget
+                  ? `Get ${data!.brand_name} covered on ${topTarget.domain}; it cites your rivals ${topTarget.competitor_assoc} times across ${topTarget.queries} ${topTarget.queries === 1 ? "question" : "questions"}. A mention there goes straight into those answers.`
+                  : "Every tracked question names you where it counts. Keep the winning pages current and check the Overview for movers.",
+          href: lost > 0 ? undefined : topTarget && !firstWinnable ? topTarget.example_url : undefined,
+          hrefLabel: "Open the site",
+          tone: (lost > 0 ? "bad" : briefs.length === 0 && openTargets.length === 0 ? "good" : "neutral") as "good" | "bad" | "neutral",
+        };
+
   return (
     <main className="mx-auto max-w-[1400px] px-6 pb-16">
       <DashNav active="Action Plan" isSuperadmin={me.data?.is_superadmin} />
+      <PageLead {...lead} />
 
       {targets.length === 0 && briefs.length === 0 ? (
         <section className="card p-4">

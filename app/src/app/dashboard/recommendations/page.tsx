@@ -2,6 +2,7 @@ import Link from "next/link";
 import { apiFetch, type Me, type Recommendation } from "@/lib/api";
 import { DashNav } from "@/components/dash-nav";
 import { NoOrgNotice } from "@/components/no-org-notice";
+import { PageLead } from "@/components/page-lead";
 import { setRecommendationStatus } from "./actions";
 
 const KIND_LABELS: Record<string, string> = {
@@ -94,9 +95,46 @@ export default async function RecommendationsPage() {
   const active = items.filter((r) => isActive(r) && r !== strategy);
   const closed = items.filter((r) => !isActive(r));
 
+  // The lead: how much is on the list, and the one to start.
+  const top = strategy ?? active[0] ?? null;
+  const openCount = items.filter((r) => r.status === "open").length;
+  const inProgress = items.filter((r) => r.status === "in_progress").length;
+  const lead =
+    items.length === 0
+      ? {
+          tells: "No recommendations yet. Each one is written from your own measurements after a run is processed: the questions you're missing, the wrong facts, the pages that lost a citation.",
+          act: "Nothing to start yet. Once the first run is processed, the top item here is the one to do first.",
+          tone: "neutral" as const,
+        }
+      : !top
+        ? {
+            tells: `Everything on the list is closed: ${closed.length} ${closed.length === 1 ? "item" : "items"} done, dismissed or resolved by the data.`,
+            act: "Nothing to start. New items appear when a run finds something to fix; the Action Plan has the briefs for pages you may still want to write.",
+            href: "/dashboard/action-plan",
+            hrefLabel: "Action Plan",
+            tone: "good" as const,
+          }
+        : {
+            tells: (
+              <>
+                {openCount} open{inProgress > 0 ? <> and {inProgress} in progress</> : null}. The top
+                one is &ldquo;{top.title || KIND_LABELS[top.branch] || top.branch}&rdquo;
+                {top.evidence && EVIDENCE[top.evidence] ? <> ({EVIDENCE[top.evidence].label.toLowerCase()} evidence)</> : null}.
+              </>
+            ),
+            act:
+              top.status === "in_progress"
+                ? "Finish the one you started, then mark it done so the next run measures it. Work the list top to bottom; the order already weighs priority and evidence."
+                : "Press Start on the top item and do only that one this week. Work the list top to bottom; the order already weighs priority and evidence.",
+            href: top.link || undefined,
+            hrefLabel: "See the data",
+            tone: (openCount + inProgress > 5 ? "bad" : "neutral") as "good" | "bad" | "neutral",
+          };
+
   return (
     <main className="mx-auto max-w-5xl px-6 pb-16">
       <DashNav active="Recommendations" isSuperadmin={me.data?.is_superadmin} />
+      <PageLead {...lead} />
       <p className="mb-6 max-w-3xl text-sm text-[var(--text-2)]">
         What to do, in order. Each item comes from your own measurements and is graded by how
         well the evidence supports it. The sites to get covered on and the briefs for each page

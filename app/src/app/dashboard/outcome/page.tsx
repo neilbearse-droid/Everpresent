@@ -2,6 +2,7 @@ import { apiFetch, rangeQuery, type Me, type OutcomePayload, type Proof } from "
 import { ProofSection } from "./proof";
 import { DashNav } from "@/components/dash-nav";
 import { NoOrgNotice } from "@/components/no-org-notice";
+import { PageLead } from "@/components/page-lead";
 import { HBars } from "@/components/charts";
 
 export default async function OutcomePage({
@@ -20,9 +21,10 @@ export default async function OutcomePage({
   }
   const d = out.data;
 
-  const notReady = (title: string, body: string) => (
+  const notReady = (title: string, body: string, act: string) => (
     <main className="mx-auto max-w-[1400px] px-6 pb-16">
       <DashNav active="Visits from AI" isSuperadmin={me.data?.is_superadmin} withDateRange />
+      <PageLead tells={title + ". " + body.split(". ")[0] + "."} act={act} />
       {proof.data && <ProofSection p={proof.data} />}
       <section className="card p-4">
         <h2 className="mb-2 text-lg font-medium">{title}</h2>
@@ -33,14 +35,16 @@ export default async function OutcomePage({
 
   if (!d || !d.connected) {
     return notReady(
-      "Connect Google Analytics",
-      "Add your GA4 property ID in the admin panel and give the EverPresent service account Viewer access. Traffic from AI engines (ChatGPT, Perplexity, Claude, Gemini and others) is then pulled nightly and shown next to your visibility trend.",
+      "This page is waiting for Google Analytics",
+      "Once your GA4 property is connected, the visits and key events that come from AI engines appear here each night, next to your visibility trend.",
+      "Ask your EverPresent contact to connect your GA4 property. You'll need to give their service account Viewer access on the property; that's the only step on your side.",
     );
   }
   if (!d.has_data) {
     return notReady(
-      "Connected. Waiting for the first data pull",
-      "AI referral traffic appears after the next nightly pull. Visits are matched to answer engines by utm_source and referrer.",
+      "Google Analytics is connected and the first nightly pull hasn't run yet",
+      "AI referral traffic appears here tomorrow. Visits are matched to answer engines by utm_source and referrer.",
+      "Nothing to do. Come back tomorrow; if the page still says this, tell your EverPresent contact.",
     );
   }
 
@@ -48,9 +52,43 @@ export default async function OutcomePage({
   const scored = d.series.filter((s) => s.brand_score !== null);
   const gaps = d.tracking_gaps ?? [];
 
+  // The lead: how many visits AI sent, from where, and which way it's going
+  // (second half of the window against the first).
+  const byEngine = [...d.engine_totals].sort((a, b) => b.sessions - a.sessions);
+  const topEngine = byEngine[0] ?? null;
+  const half = Math.floor(d.series.length / 2);
+  const firstHalf = d.series.slice(0, half).reduce((n, s) => n + s.sessions, 0);
+  const secondHalf = d.series.slice(half).reduce((n, s) => n + s.sessions, 0);
+  const direction =
+    d.series.length < 4 || firstHalf === 0
+      ? null
+      : secondHalf > firstHalf * 1.1
+        ? "rising"
+        : secondHalf < firstHalf * 0.9
+          ? "falling"
+          : "flat";
+  const lead = {
+    tells: (
+      <>
+        AI engines sent {d.totals.sessions.toLocaleString()} {d.totals.sessions === 1 ? "visit" : "visits"} and{" "}
+        {d.totals.conversions.toLocaleString()} key {d.totals.conversions === 1 ? "event" : "events"} in this period
+        {topEngine ? <>, most of them from {topEngine.engine} ({topEngine.sessions.toLocaleString()})</> : null}
+        {direction ? <>. Visits are {direction} across the window</> : null}.
+      </>
+    ),
+    act:
+      d.totals.sessions === 0
+        ? "No visits yet, so being named isn't turning into traffic. Check that the engines that name you also link you (the Engines page shows named versus linked), and ship the top recommendation."
+        : "Ship a fix from the Action Plan and mark it shipped. The proof section above then shows whether visits and key events moved on the questions you touched against the ones you didn't.",
+    href: d.totals.sessions === 0 ? "/dashboard/engines" : "/dashboard/action-plan",
+    hrefLabel: d.totals.sessions === 0 ? "Engines" : "Action Plan",
+    tone: (direction === "rising" ? "good" : direction === "falling" ? "bad" : "neutral") as "good" | "bad" | "neutral",
+  };
+
   return (
     <main className="mx-auto max-w-[1400px] px-6 pb-16">
       <DashNav active="Visits from AI" isSuperadmin={me.data?.is_superadmin} withDateRange />
+      <PageLead {...lead} />
       {proof.data && <ProofSection p={proof.data} />}
 
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
