@@ -15,14 +15,14 @@ import {
 export const metadata: Metadata = {
   // Absolute: the root layout's "%s · EverPresent" template would otherwise
   // append the brand a second time.
-  title: { absolute: "EverPresent — know what AI answers tell your buyers" },
+  title: { absolute: "EverPresent — what AI answers say about your brand" },
   description:
-    "Buyers ask ChatGPT, Gemini and Google's AI Overviews who to consider. EverPresent shows you whether those answers name you, who they name instead, and what it takes to change them.",
+    "Buyers ask ChatGPT, Gemini and Google's AI Overviews who to consider. EverPresent runs those questions every week and shows you how often you are named, who gets named when you are not, and which pages to fix.",
   alternates: { canonical: "/" },
   openGraph: {
-    title: "EverPresent — know what AI answers tell your buyers",
+    title: "EverPresent — what AI answers say about your brand",
     description:
-      "Whether AI answers name you, who they name instead, and what it takes to change them.",
+      "How often AI answers name you, who gets named when you are not, and which pages to fix.",
     url: "/",
     siteName: "EverPresent",
     type: "website",
@@ -88,19 +88,20 @@ export default async function LandingPage() {
           <div className="grid grid-cols-1 gap-12 lg:grid-cols-[1.05fr_minmax(380px,0.95fr)] lg:gap-16">
             <div>
               <h1 className="ep-h1 max-w-[19ch]">
-                The shortlist is made <span className="ep-key">before</span> anyone visits
+                The shortlist gets made <span className="ep-key">before</span> anyone visits
                 your site.
               </h1>
               <div className="mt-7 max-w-[56ch] space-y-4 text-[16.5px] leading-relaxed text-[var(--text-2)]">
                 <p>
-                  Your buyers ask ChatGPT, Gemini, Perplexity and Google&apos;s AI Overviews who
-                  to consider, and they act on the answer. Most of them never arrive on your
-                  site to be counted.
+                  Someone with a budget asks ChatGPT who the serious options in your category
+                  are, reads one paragraph, and walks away with three names. You&apos;ll never see
+                  that visit, because there wasn&apos;t one.
                 </p>
                 <p>
-                  EverPresent tells you whether those answers name you, who they name instead,
-                  and what it takes to change them. Weekly, by engine, with the answers kept so
-                  you can show your work.
+                  EverPresent runs the questions your buyers ask, every week, across ChatGPT,
+                  Gemini, Perplexity, Copilot and Google&apos;s AI Overviews, and keeps every
+                  answer. You see how often you come up, who gets named when you don&apos;t, and
+                  which pages the engines read to decide.
                 </p>
               </div>
 
@@ -113,8 +114,8 @@ export default async function LandingPage() {
                 </a>
               </div>
               <p className="mt-4 text-[13px] text-[var(--text-3)]">
-                Onboarding in small groups. Plans start at $149 a month, capped so the bill
-                can&apos;t surprise you.
+                We&apos;re onboarding a handful of accounts at a time. Plans start at $149 a month,
+                each with a hard monthly ceiling.
               </p>
 
               <div className="mt-10 ep-divider pt-6">
@@ -140,10 +141,14 @@ export default async function LandingPage() {
         {/* ---------- The shift ---------- */}
         <section id="shift" className="scroll-mt-20 border-y border-[var(--line)] bg-[#060606]">
           <div className="mx-auto w-full max-w-[1180px] px-5 py-16 sm:px-8 lg:py-20">
-            <SectionHead eyebrow="What changed" title="Buyers stopped clicking through to decide.">
+            <SectionHead
+              eyebrow="What changed"
+              title="Your funnel now starts somewhere you can't see."
+            >
               <p>
-                They ask, they read one answer, and they turn up already holding a shortlist.
-                The part of the journey you could measure moved somewhere you can&apos;t see.
+                Buyers used to compare options on your site. Now they ask an engine, get a
+                paragraph with three names in it, and turn up at the end of the process with
+                their mind mostly made up.
               </p>
             </SectionHead>
 
@@ -166,11 +171,13 @@ export default async function LandingPage() {
         {/* ---------- Why EverPresent ---------- */}
         <section id="different" className="scroll-mt-20">
           <div className="mx-auto w-full max-w-[1180px] px-5 py-16 sm:px-8 lg:py-24">
-            <SectionHead eyebrow="Why EverPresent" title="A number is easy. Evidence is the hard part.">
+            <SectionHead
+              eyebrow="Why EverPresent"
+              title={<>Four things a score can&apos;t tell you.</>}
+            >
               <p>
-                You will be shown plenty of dashboards with a score on them. A score cannot be
-                defended in a board meeting and cannot be acted on by a team. These four things
-                can.
+                Everyone in this category will sell you a visibility number that went up or
+                down. Ours has four things underneath it.
               </p>
             </SectionHead>
 
@@ -193,10 +200,10 @@ export default async function LandingPage() {
         {/* ---------- How it works ---------- */}
         <section id="how" className="scroll-mt-20 border-y border-[var(--line)] bg-[#060606]">
           <div className="mx-auto w-full max-w-[1180px] px-5 py-16 sm:px-8 lg:py-20">
-            <SectionHead eyebrow="How it works" title="Three steps, then it repeats.">
+            <SectionHead eyebrow="How it works" title="Setting it up takes about an hour.">
               <p>
-                Setup is a conversation, not an integration. Nothing is installed on your site
-                and nothing lands on your team&apos;s backlog.
+                Nothing goes on your website and nothing goes on your developers&apos; backlog.
+                We need one session with someone who knows the buyers, and then it runs.
               </p>
             </SectionHead>
             <ol className="mt-12 grid grid-cols-1 gap-px overflow-hidden rounded-[10px] border border-[var(--border)] bg-[var(--line)] md:grid-cols-3">
@@ -215,8 +222,8 @@ export default async function LandingPage() {
 
             <div className="mt-10 ep-divider pt-7">
               <p className="bp-label">
-                Measured over each provider&apos;s API and from a clean logged-out session, so
-                you see what your buyer sees
+                Asked through each provider&apos;s API, and again in a browser with no
+                account signed in, so you see what your buyer sees
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {ENGINES.seen.map((engine) => (
@@ -250,11 +257,11 @@ export default async function LandingPage() {
         <section className="border-t border-[var(--line)] bg-[#060606]">
           <div className="mx-auto grid w-full max-w-[1180px] grid-cols-1 items-start gap-12 px-5 py-16 sm:px-8 lg:grid-cols-[1fr_minmax(380px,0.9fr)] lg:gap-16 lg:py-24">
             <div>
-              <h2 className="ep-h2 max-w-[20ch]">Find out what they already say about you.</h2>
+              <h2 className="ep-h2 max-w-[20ch]">See what they say about you now.</h2>
               <p className="mt-5 max-w-[50ch] text-[16px] leading-relaxed text-[var(--text-2)]">
-                Request access and we&apos;ll come back with the questions we would measure for
-                your category, what the engines say about you today, and what it costs to run
-                properly. No deck.
+                Leave your details and we&apos;ll come back with the questions we would run for
+                your category, what the engines say about you today, and a price. If we look at
+                it and think you don&apos;t need us yet, we&apos;ll say so.
               </p>
               <p className="mt-6 text-[13.5px] text-[var(--text-3)]">
                 Or write to{" "}

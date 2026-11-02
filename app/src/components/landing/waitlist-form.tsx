@@ -49,11 +49,11 @@ export function WaitlistForm({ source = "landing" }: { source?: string }) {
         <p className="ep-eyebrow">Request received</p>
         <h3 className="mt-2 text-[20px] font-semibold tracking-[-0.02em]">{state.message}</h3>
         <p className="mt-3 text-[14px] leading-relaxed text-[var(--text-2)]">
-          You&apos;ll hear from a person, not a sequence. We onboard in small groups so each
-          account&apos;s question set is built properly before the first run.
+          We take on a few accounts at a time, so it might be a couple of weeks. When we come
+          back we&apos;ll have questions about your category and some early numbers on it.
         </p>
         <p className="mt-4 text-[13px] text-[var(--text-3)]">
-          Anything to add first, write to{" "}
+          Anything useful to add in the meantime, send it to{" "}
           <a className="bp-link" href="mailto:hello@everpresent.io">
             hello@everpresent.io
           </a>
@@ -67,11 +67,11 @@ export function WaitlistForm({ source = "landing" }: { source?: string }) {
     <form action={action} className="card p-6 sm:p-7" noValidate={false}>
       <p className="ep-eyebrow">Request access</p>
       <h3 className="mt-2 text-[20px] font-semibold tracking-[-0.02em]">
-        See your own numbers first
+        Start with your own numbers
       </h3>
       <p className="mt-2 text-[13.5px] leading-relaxed text-[var(--text-2)]">
-        Five fields. They tell us which questions your buyers ask, so we come back with your
-        category and your competitors rather than a demo account.
+        Five fields, which tell us what to measure. The first conversation is then about your
+        category and the competitors you came here worried about.
       </p>
 
       <input type="hidden" name="source" value={source} />
@@ -188,8 +188,8 @@ export function WaitlistForm({ source = "landing" }: { source?: string }) {
       )}
 
       <p className="mt-4 text-[12px] leading-relaxed text-[var(--text-3)]">
-        One email when your account is ready. No newsletter, no list sales, and we delete your
-        details on request.
+        One email when your account is ready. We don&apos;t run a newsletter or sell lists, and
+        we&apos;ll delete your details whenever you ask.
       </p>
     </form>
   );

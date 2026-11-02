@@ -24,9 +24,9 @@ test("the waitlist form asks for all five fields", async ({ page }) => {
 
 test("the page carries its differentiators and sections", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: /stopped clicking through/i })).toBeVisible();
-  await expect(page.getByRole("heading", { name: /Evidence is the hard part/i })).toBeVisible();
-  await expect(page.getByRole("heading", { name: /Three steps/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /somewhere you can't see/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /a score can't tell you/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /takes about an hour/i })).toBeVisible();
   await expect(page.getByRole("heading", { name: /Before you ask/i })).toBeVisible();
 });
 
