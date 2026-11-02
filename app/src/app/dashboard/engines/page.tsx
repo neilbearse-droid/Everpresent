@@ -13,7 +13,8 @@ import { NoOrgNotice } from "@/components/no-org-notice";
 import { PageLead } from "@/components/page-lead";
 import { HBars } from "@/components/charts";
 import { EngineStrip } from "@/components/engine-modes";
-import { EngineMark } from "@/components/ui";
+import { EngineMark, Linkify } from "@/components/ui";
+import { AddToPlan } from "@/components/plan-buttons";
 import { surfaceLabel } from "@/lib/viz";
 
 const DIAGNOSIS_ORDER = ["knowledge_gap", "content_gap", "undetermined", "visible"];
@@ -32,6 +33,7 @@ const CELL_STYLE: Record<string, string> = {
   absent: "bg-[var(--surface-2)] text-[var(--text-3)]",
 };
 const CELL_LABEL: Record<string, string> = { brand: "You", competitor: "Rival", absent: "—" };
+const short = (t: string, n = 44) => (t.length > n ? t.slice(0, n - 1) + "…" : t);
 
 export default async function EnginesPage({
   searchParams,
@@ -109,7 +111,10 @@ export default async function EnginesPage({
                 <div className="text-3xl font-semibold tabular-nums text-[var(--text)]">
                   {e.search_rate}%
                 </div>
-                <div className="mt-1 text-sm text-[var(--text-2)]">{surfaceLabel(e.surface)}</div>
+                <div className="mt-1 flex items-center gap-2 text-sm font-medium text-[var(--text)]">
+                  <EngineMark surface={e.surface} size={16} />
+                  {surfaceLabel(e.surface)}
+                </div>
                 <div className="text-xs text-[var(--text-3)]">
                   {e.searched}/{e.measured} questions searched
                   {e.from_probe ? " · measured without forced search" : ""}
@@ -201,7 +206,7 @@ export default async function EnginesPage({
               <table className="w-full text-left text-sm">
                 <thead className="text-[var(--text-2)]">
                   <tr>
-                    <th className="py-2 pr-4">Query</th>
+                    <th className="py-2 pr-4">Question</th>
                     {surfaces.map((s) => (
                       <th key={s} className="px-2 text-center text-xs">
                         <span className="inline-flex flex-col items-center gap-1">
@@ -210,13 +215,15 @@ export default async function EnginesPage({
                         </span>
                       </th>
                     ))}
-                    <th className="pl-4">Diagnosis &amp; fix</th>
+                    <th className="pl-4">Diagnosis</th>
+                    <th className="pl-4">Fix</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
                   {matrix.map((row) => (
                     <tr key={row.id} className="border-t border-[var(--border)] align-top">
-                      <td className="max-w-xs py-3 pr-4">{row.query}</td>
+                      <td className="max-w-xs py-3 pr-4 font-medium">{row.query}</td>
                       {surfaces.map((s) => {
                         const cell = row.cells[s];
                         return (
@@ -232,13 +239,24 @@ export default async function EnginesPage({
                           </td>
                         );
                       })}
-                      <td className="py-3 pl-4">
+                      <td className="whitespace-nowrap py-3 pl-4">
                         <div className={`flex items-center gap-1.5 text-xs font-medium ${(DIAGNOSIS_STYLE[row.diagnosis.type] ?? DIAGNOSIS_STYLE.undetermined).chip}`}>
                           <span className={`h-2 w-2 rounded-full ${(DIAGNOSIS_STYLE[row.diagnosis.type] ?? DIAGNOSIS_STYLE.undetermined).dot}`} />
                           {row.diagnosis.label}
                         </div>
+                      </td>
+                      <td className="max-w-md py-3 pl-4 text-xs text-[var(--text-2)]">
+                        {row.diagnosis.type !== "visible" && <Linkify text={row.diagnosis.fix} />}
+                      </td>
+                      <td className="py-2.5 pl-3">
                         {row.diagnosis.type !== "visible" && (
-                          <p className="mt-1 max-w-md text-xs text-[var(--text-2)]">{row.diagnosis.fix}</p>
+                          <AddToPlan
+                            gapRef={`matrix:${row.id}`}
+                            title={`Win “${short(row.query)}”`}
+                            actionText={row.diagnosis.fix}
+                            link="/dashboard/engines"
+                            queryText={row.query}
+                          />
                         )}
                       </td>
                     </tr>

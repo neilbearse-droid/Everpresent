@@ -4,6 +4,21 @@ import { NoOrgNotice } from "@/components/no-org-notice";
 import { PageLead } from "@/components/page-lead";
 import { AIOTile } from "@/components/aio-tile";
 import { surfaceLabel } from "@/lib/viz";
+import { EngineMark, ExtLink } from "@/components/ui";
+import { AddToPlan } from "@/components/plan-buttons";
+
+/** A row of engine marks, each with the engine name on hover. */
+function Marks({ surfaces }: { surfaces: string[] }) {
+  return (
+    <span className="flex flex-wrap gap-1">
+      {surfaces.map((c) => (
+        <span key={c} title={surfaceLabel(c)}>
+          <EngineMark surface={c} size={16} />
+        </span>
+      ))}
+    </span>
+  );
+}
 
 const CATEGORY_STYLES: Record<string, string> = {
   brand: "bg-[var(--accent)] text-[var(--accent-ink)]",
@@ -100,24 +115,19 @@ export default async function CitationsPage({
                       <th className="py-2 pr-4">Page</th>
                       <th className="pr-4">Owner</th>
                       <th className="pr-4">Names you</th>
-                      <th className="pr-4">Queries citing it</th>
-                      <th className="pr-4">Citations</th>
-                      <th>Engines</th>
+                      <th className="pr-4 text-right">Questions</th>
+                      <th className="pr-4 text-right">Citations</th>
+                      <th className="pr-4">Engines</th>
+                      <th></th>
                     </tr>
                   </thead>
                   <tbody>
                     {data.power_pages.slice(0, 15).map((p) => (
                       <tr key={p.url} className="border-t border-[var(--border)]">
                         <td className="max-w-md py-2.5 pr-4">
-                          <a
-                            href={p.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="block truncate font-mono text-xs text-[var(--accent)] hover:underline"
-                            title={p.url}
-                          >
-                            {p.url.replace(/^https?:\/\//, "")}
-                          </a>
+                          <span className="block truncate text-[13px] font-medium" title={p.url}>
+                            <ExtLink href={p.url} />
+                          </span>
                         </td>
                         <td className="pr-4">
                           <span
@@ -163,10 +173,24 @@ export default async function CitationsPage({
                             </span>
                           )}
                         </td>
-                        <td className="pr-4 tabular-nums">{p.queries}</td>
-                        <td className="pr-4 tabular-nums">{p.citations}</td>
-                        <td className="text-xs text-[var(--text-2)]">
-                          {p.surfaces.map(surfaceLabel).join(", ")}
+                        <td className="pr-4 text-right tabular-nums">{p.queries}</td>
+                        <td className="pr-4 text-right font-semibold tabular-nums">{p.citations}</td>
+                        <td className="pr-4">
+                          <Marks surfaces={p.surfaces} />
+                        </td>
+                        <td>
+                          {p.category === "other" && p.on_page === false && (
+                            <AddToPlan
+                              gapRef={`cite:${p.domain}`}
+                              title={`Get named on ${p.domain}`}
+                              actionText={
+                                p.competitors_on_page.length
+                                  ? `Pitch ${p.url}; it names ${p.competitors_on_page.join(", ")}, not you.`
+                                  : `Pitch ${p.url}; it names nobody yet.`
+                              }
+                              link="/dashboard/citations"
+                            />
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -186,7 +210,10 @@ export default async function CitationsPage({
                   const total = Object.values(types).reduce((a, b) => a + b, 0) || 1;
                   return (
                     <div key={surface} className="card-inset p-3">
-                      <div className="mb-2 text-sm font-medium">{surfaceLabel(surface)}</div>
+                      <div className="mb-2 flex items-center gap-2 text-sm font-medium">
+                        <EngineMark surface={surface} size={16} />
+                        {surfaceLabel(surface)}
+                      </div>
                       <div className="space-y-1">
                         {Object.entries(types).map(([type, count]) => (
                           <div key={type} className="flex items-center justify-between text-xs">
@@ -211,8 +238,8 @@ export default async function CitationsPage({
               </h2>
               <div className="flex flex-wrap gap-2">
                 {data.consulted_domains.slice(0, 20).map((d) => (
-                  <span key={d.domain} className="chip" title={`${d.queries} queries`}>
-                    <span className="font-mono">{d.domain}</span>
+                  <span key={d.domain} className="chip" title={`${d.queries} questions`}>
+                    <ExtLink href={`https://${d.domain}`}>{d.domain}</ExtLink>
                     <span className="ml-1.5 text-[var(--text-3)]">·{d.count}</span>
                   </span>
                 ))}
@@ -231,15 +258,17 @@ export default async function CitationsPage({
                 <thead className="text-[var(--text-2)]">
                   <tr>
                     <th className="py-2 pr-4">Domain</th>
-                    <th className="pr-4">Category</th>
-                    <th className="pr-4">Citations</th>
+                    <th className="pr-4">Owner</th>
+                    <th className="pr-4 text-right">Citations</th>
                     <th>Engines</th>
                   </tr>
                 </thead>
                 <tbody>
                   {data.domains.map((d) => (
                     <tr key={d.domain} className="border-t border-[var(--border)]">
-                      <td className="py-2.5 pr-4 font-medium">{d.domain}</td>
+                      <td className="py-2.5 pr-4 font-medium">
+                        <ExtLink href={`https://${d.domain}`}>{d.domain}</ExtLink>
+                      </td>
                       <td className="pr-4">
                         <span
                           className={`rounded px-2 py-0.5 text-xs font-medium ${
@@ -249,9 +278,9 @@ export default async function CitationsPage({
                           {d.category || "other"}
                         </span>
                       </td>
-                      <td className="pr-4 tabular-nums">{d.count}</td>
-                      <td className="font-mono text-xs text-[var(--text-2)]">
-                        {d.surfaces.map(surfaceLabel).join(", ")}
+                      <td className="pr-4 text-right font-semibold tabular-nums">{d.count}</td>
+                      <td>
+                        <Marks surfaces={d.surfaces} />
                       </td>
                     </tr>
                   ))}

@@ -11,6 +11,10 @@ import { DashNav } from "@/components/dash-nav";
 import { NoOrgNotice } from "@/components/no-org-notice";
 import { PageLead } from "@/components/page-lead";
 import { LIKELIHOOD_COLORS, LIKELIHOOD_LABELS, surfaceLabel, humanize } from "@/lib/viz";
+import { EngineMark } from "@/components/ui";
+import { AddToPlan } from "@/components/plan-buttons";
+
+const short = (t: string, n = 44) => (t.length > n ? t.slice(0, n - 1) + "…" : t);
 
 function ClassificationChip({
   classification,
@@ -50,14 +54,16 @@ function ModeLinks({
           <Link
             key={surface}
             href={`/dashboard/runs/${result.run_id}/results/${result.result_id}`}
-            className="text-xs text-[var(--accent)] hover:underline"
+            className="inline-flex items-center gap-1.5 text-xs text-[var(--accent-2)] hover:underline"
           >
+            <EngineMark surface={surface} size={14} />
             {surfaceLabel(surface)}
           </Link>
         ) : (
           // A failed capture is missing data, not bad news about the brand:
           // quiet text, not the bad-news pill.
-          <span key={surface} className="text-xs text-[var(--text-3)]">
+          <span key={surface} className="inline-flex items-center gap-1.5 text-xs text-[var(--text-3)]">
+            <EngineMark surface={surface} size={14} />
             {surfaceLabel(surface)}: no answer
           </span>
         ),
@@ -134,14 +140,15 @@ export default async function QueriesPage({
             <table className="w-full text-left text-sm min-w-[760px]">
               <thead className="text-[var(--text-2)]">
                 <tr>
-                  <th className="py-2 pr-4">Query</th>
-                  <th className="pr-4">Question set</th>
-                  <th className="pr-4">Web search</th>
-                  <th className="pr-4">Brand in answer</th>
-                  <th className="pr-4">API answers</th>
-                  <th className="pr-4">Website answers</th>
+                  <th className="py-2 pr-4">Question</th>
+                  <th className="pr-4">Set</th>
+                  <th className="pr-4">Searches web</th>
+                  <th className="pr-4">Named</th>
+                  <th className="pr-4">API</th>
+                  <th className="pr-4">Website</th>
                   <th className="pr-4">Compare</th>
                   <th className="pr-4">Personas</th>
+                  <th></th>
                   <th></th>
                 </tr>
               </thead>
@@ -153,9 +160,11 @@ export default async function QueriesPage({
                   const comparable =
                     modeA.find(([, r]) => r.status === "ok") &&
                     modeB.find(([, r]) => r.status === "ok");
+                  const isNamed = surfaces.some(([, r]) => r.brand_mentioned);
+                  const anyOk = surfaces.find(([, r]) => r.status === "ok")?.[1];
                   return (
                     <tr key={query.id} className="border-t border-[var(--border)] align-top">
-                      <td className="max-w-md py-3 pr-4">
+                      <td className="max-w-md py-3 pr-4 font-medium">
                         {query.text}
                         {query.branded && (
                           <span
@@ -173,10 +182,10 @@ export default async function QueriesPage({
                       <td className="pr-4">
                         {surfaces.length === 0 ? (
                           <span className="text-[var(--text-3)]">—</span>
-                        ) : surfaces.some(([, r]) => r.brand_mentioned) ? (
-                          <span className="text-[var(--pos)]">yes</span>
+                        ) : isNamed ? (
+                          <span className="font-medium">✓ yes</span>
                         ) : (
-                          <span className="text-[var(--warn-t)]">no</span>
+                          <span className="bp-neg text-xs">✗ no</span>
                         )}
                       </td>
                       <td className="pr-4">
@@ -210,6 +219,21 @@ export default async function QueriesPage({
                           <span className="text-xs text-[var(--text-3)]">—</span>
                         )}
                       </td>
+                      <td className="pr-3">
+                        {surfaces.length > 0 && !isNamed && !query.branded && (
+                          <AddToPlan
+                            gapRef={`query:${query.id}`}
+                            title={`Win “${short(query.text)}”`}
+                            actionText={`Not named in the latest answers to “${query.text}”.`}
+                            link={
+                              anyOk
+                                ? `/dashboard/runs/${anyOk.run_id}/results/${anyOk.result_id}`
+                                : "/dashboard/queries"
+                            }
+                            queryText={query.text}
+                          />
+                        )}
+                      </td>
                       <td>
                         <ActiveToggle id={query.id} active={true} />
                       </td>
@@ -233,9 +257,9 @@ export default async function QueriesPage({
           <table className="w-full text-left text-sm">
             <thead className="text-[var(--text-2)]">
               <tr>
-                <th className="py-2 pr-4">Query</th>
-                <th className="pr-4">Question set</th>
-                <th className="pr-4">Stopped</th>
+                <th className="py-2 pr-4">Question</th>
+                <th className="pr-4">Set</th>
+                <th className="pr-4">Paused</th>
                 <th></th>
               </tr>
             </thead>

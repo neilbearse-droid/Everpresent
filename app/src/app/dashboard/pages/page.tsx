@@ -10,6 +10,7 @@ import { NoOrgNotice } from "@/components/no-org-notice";
 import { PageLead } from "@/components/page-lead";
 import { ImportFirstParty } from "./import-form";
 import { fmtDate } from "@/lib/viz";
+import { AddToPlan } from "@/components/plan-buttons";
 
 const BAD_FLAGS = new Set(["facts conflict", "unreachable", "errors for AI bots"]);
 const FP_LABEL: Record<string, string> = {
@@ -212,13 +213,14 @@ export default async function YourPagesPage() {
                         <th className="text-right">AI bot reads</th>
                         <th>Google / Bing</th>
                         <th>Status</th>
+                        <th></th>
                       </tr>
                     </thead>
                     <tbody>
                       {d.pages.map((p) => (
                         <tr key={p.path} className="align-top">
                           <td className="max-w-[280px]">
-                            <div className="font-medium [overflow-wrap:anywhere]">
+                            <div className="font-mono text-[12.5px] font-medium [overflow-wrap:anywhere]">
                               {/* Break lines after / and -, never mid-word. */}
                               {p.path.replace(/([/-])/g, "$1\u200b")}
                             </div>
@@ -292,6 +294,29 @@ export default async function YourPagesPage() {
                               )}
                             </div>
                           </td>
+                          <td>
+                            {p.flags.length > 0 && (
+                              <AddToPlan
+                                gapRef={`page:${p.path}`}
+                                title={
+                                  p.fact_conflicts.length > 0
+                                    ? `Fix facts on ${p.path}`
+                                    : p.crawl && p.crawl.status !== "ok"
+                                      ? `Fix errors on ${p.path}`
+                                      : `Date and refresh ${p.path}`
+                                }
+                                actionText={
+                                  p.fact_conflicts.length > 0
+                                    ? `Page says “${p.fact_conflicts[0].stated}”; fact sheet: ${
+                                        p.fact_conflicts[0].label ||
+                                        `${p.fact_conflicts[0].subject} is ${p.fact_conflicts[0].expected}`
+                                      }.`
+                                    : p.flags.join(", ")
+                                }
+                                link="/dashboard/pages"
+                              />
+                            )}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -353,7 +378,7 @@ export default async function YourPagesPage() {
                   <ul>
                     {d.in_ai_features_not_sampled.map((u) => (
                       <li key={u.path} className="border-t border-[var(--line)] px-4 py-2.5 text-[13px] first:border-t-0">
-                        <div className="break-all font-medium">{u.path}</div>
+                        <div className="break-all font-mono text-[12.5px] font-medium">{u.path}</div>
                         <div className="text-xs text-[var(--text-3)]">{fpText(u.first_party)}</div>
                       </li>
                     ))}

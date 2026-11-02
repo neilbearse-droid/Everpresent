@@ -3,6 +3,8 @@ import { DashNav } from "@/components/dash-nav";
 import { NoOrgNotice } from "@/components/no-org-notice";
 import { PageLead } from "@/components/page-lead";
 import { UploadLogs } from "./upload-form";
+import { AddToPlan } from "@/components/plan-buttons";
+import { Linkify } from "@/components/ui";
 
 const PURPOSE_LABEL: Record<string, string> = {
   search: "Indexing for answers",
@@ -121,7 +123,7 @@ export default async function AgentsPage() {
                   {d.by_bot.slice(0, 12).map((b) => (
                     <tr key={b.bot}>
                       <td>
-                        {b.bot}
+                        <span className="font-medium">{b.bot}</span>
                         <span className="ml-2 text-xs text-[var(--text-3)]">
                           {b.company} · {PURPOSE_LABEL[b.purpose] ?? b.purpose}
                         </span>
@@ -138,6 +140,7 @@ export default async function AgentsPage() {
             </div>
           </section>
 
+          <h2 className="mb-3 text-[15px] font-semibold tracking-[-0.01em]">By page</h2>
           <section className="blueprint mb-6 grid-cols-1 lg:grid-cols-2">
             <div>
               <div className="bp-bar">
@@ -151,8 +154,16 @@ export default async function AgentsPage() {
                   <tbody>
                     {d.read_not_cited.map((p) => (
                       <tr key={p.path}>
-                        <td className="break-all">{p.path}</td>
-                        <td className="tabular-nums">{(p.search + p.user).toLocaleString()} reads</td>
+                        <td className="break-all font-mono text-[12.5px] font-medium">{p.path}</td>
+                        <td className="whitespace-nowrap tabular-nums">{(p.search + p.user).toLocaleString()} reads</td>
+                        <td className="text-right">
+                          <AddToPlan
+                            gapRef={`bot:${p.path}`}
+                            title={`Answer directly on ${p.path}`}
+                            actionText={`AI bots read ${p.path} ${(p.search + p.user).toLocaleString()} times and never cite it. Put a direct, dated answer at the top.`}
+                            link="/dashboard/agents"
+                          />
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -171,8 +182,8 @@ export default async function AgentsPage() {
                   <tbody>
                     {d.cited_at_risk.map((p) => (
                       <tr key={p.path}>
-                        <td className="break-all">{p.path}</td>
-                        <td className="text-[var(--text-2)]">{p.reason}</td>
+                        <td className="break-all font-mono text-[12.5px] font-medium">{p.path}</td>
+                        <td className="text-[var(--text-2)]"><Linkify text={p.reason} /></td>
                       </tr>
                     ))}
                   </tbody>
@@ -188,8 +199,16 @@ export default async function AgentsPage() {
                     <tbody>
                       {d.broken_pages.map((p) => (
                         <tr key={p.path}>
-                          <td className="break-all">{p.path}</td>
-                          <td className="tabular-nums">{p.errors.toLocaleString()} errors</td>
+                          <td className="break-all font-mono text-[12.5px] font-medium">{p.path}</td>
+                          <td className="whitespace-nowrap"><span className="bp-neg text-xs">{p.errors.toLocaleString()} errors</span></td>
+                          <td className="text-right">
+                            <AddToPlan
+                              gapRef={`bot:${p.path}`}
+                              title={`Redirect ${p.path}`}
+                              actionText={`${p.path} returns errors to AI bots (${p.errors.toLocaleString()} in ${d.days} days). Redirect or fix it.`}
+                              link="/dashboard/agents"
+                            />
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -220,8 +239,8 @@ export default async function AgentsPage() {
                 <tbody>
                   {d.top_pages.map((p) => (
                     <tr key={p.path}>
-                      <td className="break-all">{p.path}</td>
-                      <td className="tabular-nums">{p.hits}</td>
+                      <td className="break-all font-mono text-[12.5px] font-medium">{p.path}</td>
+                      <td className="font-semibold tabular-nums">{p.hits}</td>
                       <td className="tabular-nums">{p.search}</td>
                       <td className="tabular-nums">{p.user}</td>
                       <td className="tabular-nums">{p.training}</td>
