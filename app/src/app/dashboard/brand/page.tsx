@@ -19,13 +19,13 @@ export default async function BrandPage({
     apiFetch<BrandReport>(`/api/tenant/brand${rangeQuery(from, to)}`),
   ]);
   if (report.status === 403) {
-    return <NoOrgNotice active="Brand" isSuperadmin={me.data?.is_superadmin} detail={report.error} />;
+    return <NoOrgNotice active="Branded questions" isSuperadmin={me.data?.is_superadmin} detail={report.error} />;
   }
   const d = report.data;
 
   return (
     <main className="mx-auto max-w-[1400px] px-6 pb-16">
-      <DashNav active="Brand" isSuperadmin={me.data?.is_superadmin} withDateRange />
+      <DashNav active="Branded questions" isSuperadmin={me.data?.is_superadmin} withDateRange />
 
       <div className="mb-6">
         <h1 className="text-[26px] font-semibold tracking-tight">

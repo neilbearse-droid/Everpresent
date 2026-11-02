@@ -66,7 +66,7 @@ const DONTS: { title: string; why: string }[] = [
   },
   {
     title: "Spending time on llms.txt or special “AI schema”",
-    why: "AI bots rarely request llms.txt (the AI Agents tab shows whether yours do), and Google says its AI features need no special markup.",
+    why: "AI bots rarely request llms.txt (the AI bots on your site tab shows whether yours do), and Google says its AI features need no special markup.",
   },
   {
     title: "Mass-producing AI pages for every query",
@@ -98,11 +98,17 @@ export default async function RecommendationsPage() {
     <main className="mx-auto max-w-5xl px-6 pb-16">
       <DashNav active="Recommendations" isSuperadmin={me.data?.is_superadmin} />
       <p className="mb-6 max-w-3xl text-sm text-[var(--text-2)]">
-        Each recommendation comes from your own measurements, ranked by priority and graded by
-        how well the evidence supports it (as of October 2026). The &ldquo;why&rdquo; lines name the
-        kind of evidence instead of quoting industry figures. As a rule, showing up in the
-        engines&apos; searches comes first, then clear facts and third-party proof, and formatting
-        last.
+        What to do, in order. Each item comes from your own measurements and is graded by how
+        well the evidence supports it. The sites to get covered on and the briefs for each page
+        are on the{" "}
+        <Link href="/dashboard/action-plan" className="bp-link">
+          Action Plan
+        </Link>
+        ; whether a shipped fix worked shows on{" "}
+        <Link href="/dashboard/outcome" className="bp-link">
+          Outcome
+        </Link>
+        .
       </p>
 
       {items.length === 0 && (
@@ -159,6 +165,18 @@ export default async function RecommendationsPage() {
           </ul>
         </div>
       </section>
+
+      <details className="mb-8">
+        <summary className="mb-2 cursor-pointer text-sm font-medium text-[var(--text-2)]">
+          How these are ranked
+        </summary>
+        <p className="max-w-3xl text-[13px] leading-relaxed text-[var(--text-2)]">
+          Ranked by priority and graded by the kind of evidence behind each one (as of October
+          2026). The &ldquo;why&rdquo; lines name the kind of evidence instead of quoting industry
+          figures. As a rule, showing up in the engines&apos; searches comes first, then clear facts
+          and third-party proof, and formatting last.
+        </p>
+      </details>
 
       {closed.length > 0 && (
         <details className="mb-8">

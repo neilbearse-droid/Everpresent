@@ -163,7 +163,7 @@ export default async function YourPagesPage() {
             {[
               ["Own pages AI uses", d.pages_total.toLocaleString(), `last ${d.days} days`],
               ["Need attention", d.flagged.toLocaleString(), "conflicts, errors, stale"],
-              ["Bot logs", d.has_logs ? "Connected" : "Not yet", d.has_logs ? "AI Agents tab" : "upload on AI Agents"],
+              ["Bot logs", d.has_logs ? "Connected" : "Not yet", d.has_logs ? "AI bots on your site tab" : "upload on AI bots on your site"],
               ["First-party data", nSources ? `${nSources} source${nSources === 1 ? "" : "s"}` : "None yet", "import below"],
             ].map(([label, value, sub]) => (
               <div key={label} className="p-4">

@@ -6,43 +6,45 @@ import { ThemeToggle } from "./theme-toggle";
 
 type Tab = { href: string; label: string };
 
-// Grouped by the job the user is doing, top to bottom: see where you stand,
-// dig into why, act on it, check the plumbing.
+// Grouped by the four things the public page promises, in the order a
+// client asks for them: where you stand, where you're missing, what to fix,
+// whether it worked. Everything else is supporting detail under Explore.
 const GROUPS: { title: string; tabs: Tab[]; collapsed?: boolean }[] = [
   {
-    title: "Overview",
-    tabs: [
-      { href: "/dashboard", label: "Overview" },
-      { href: "/dashboard/scorecard", label: "Scorecard" },
-      { href: "/dashboard/answers", label: "Answer Shape" },
-    ],
+    title: "Where you stand",
+    tabs: [{ href: "/dashboard", label: "Overview" }],
   },
   {
-    title: "Visibility",
+    title: "Where you're missing",
     tabs: [
       { href: "/dashboard/engines", label: "Engines" },
       { href: "/dashboard/queries", label: "Queries" },
       { href: "/dashboard/citations", label: "Citations" },
       { href: "/dashboard/pages", label: "Your Pages" },
-      { href: "/dashboard/agents", label: "AI Agents" },
     ],
   },
   {
-    title: "Act",
+    title: "What to fix",
     tabs: [
       { href: "/dashboard/recommendations", label: "Recommendations" },
-      { href: "/dashboard/outcome", label: "Outcome" },
+      { href: "/dashboard/action-plan", label: "Action Plan" },
     ],
   },
   {
-    title: "More",
+    title: "Proof it worked",
+    tabs: [{ href: "/dashboard/outcome", label: "Visits from AI" }],
+  },
+  {
+    title: "Explore",
     collapsed: true,
     tabs: [
-      { href: "/dashboard/brand", label: "Brand" },
+      { href: "/dashboard/scorecard", label: "Scorecard" },
+      { href: "/dashboard/answers", label: "How engines answer" },
+      { href: "/dashboard/agents", label: "AI bots on your site" },
+      { href: "/dashboard/fanout", label: "Sub-questions" },
+      { href: "/dashboard/whitespace", label: "Untracked rivals" },
+      { href: "/dashboard/brand", label: "Branded questions" },
       { href: "/dashboard/personas", label: "Personas" },
-      { href: "/dashboard/fanout", label: "Fan-out" },
-      { href: "/dashboard/whitespace", label: "Whitespace" },
-      { href: "/dashboard/action-plan", label: "Action Plan" },
       { href: "/dashboard/runs", label: "Runs" },
     ],
   },

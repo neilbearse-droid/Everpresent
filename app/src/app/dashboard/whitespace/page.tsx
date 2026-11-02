@@ -14,14 +14,14 @@ export default async function WhitespacePage({
   ]);
   if (report.status === 403) {
     return (
-      <NoOrgNotice active="Whitespace" isSuperadmin={me.data?.is_superadmin} detail={report.error} />
+      <NoOrgNotice active="Untracked rivals" isSuperadmin={me.data?.is_superadmin} detail={report.error} />
     );
   }
   const data = report.data;
 
   return (
     <main className="mx-auto max-w-[1400px] px-6 pb-16">
-      <DashNav active="Whitespace" isSuperadmin={me.data?.is_superadmin} withDateRange />
+      <DashNav active="Untracked rivals" isSuperadmin={me.data?.is_superadmin} withDateRange />
 
       <div className="mb-6">
         <h1 className="text-[26px] font-semibold tracking-tight">Who else the AI recommends</h1>

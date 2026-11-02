@@ -3,6 +3,39 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M63 — The dashboard leads with one number (2026-11-02)
+
+The app showed five framings of "how visible am I" on its first screen and
+sixteen tabs in the sidebar. The public page promises four things. This
+makes the product read the way the page does, without removing a view.
+
+1. **One headline metric.** The pooled mention rate ("named in AI answers",
+   with its verdict) is the number. Composite visibility leaves the hero and
+   lives in the trend panel's title as the chart's current value; the 95%
+   range, audience weighting and series breaks move into a "How this number
+   is measured" disclosure under the figure. Nothing is deleted; it is
+   ordered.
+2. **The Overview is the briefing.** Figure and verdict sentence first, then
+   Why (with the "what changed" alerts folded in) beside This week, then a
+   titled "The numbers behind it" section holding the engine strip, trend,
+   mode stack, share of voice and movers. The four report downloads move
+   from the hero to a Reports row at the end.
+3. **The sidebar mirrors the promise.** Where you stand (Overview); Where
+   you're missing (Engines, Queries, Citations, Your Pages); What to fix
+   (Recommendations, Action Plan); Proof it worked (Visits from AI);
+   Explore, collapsed, for the rest. Eight visible, eight behind Explore.
+4. **Insider names go.** Answer Shape is "How engines answer", Fan-out is
+   "Sub-questions", Whitespace is "Untracked rivals", AI Agents is "AI bots
+   on your site", Outcome is "Visits from AI", Brand is "Branded questions".
+   Routes are unchanged; only labels and the copy that named them.
+5. **Before the first run, a first week, not dashes.** A new tenant sees the
+   four steps from the landing page with the done ones ticked (questions
+   chosen, run in progress or finished, first number, trend), read from the
+   tenant counts and the latest run's status.
+6. **Recommendations says where its supporting pages are** (Action Plan for
+   targets and briefs, Visits from AI for proof) and folds its ranking
+   method into a disclosure.
+
 ## M62 — One landing page out of two parallel rewrites (2026-11-02)
 
 Two sessions rewrote the public page at the same time. M61's framing wins;

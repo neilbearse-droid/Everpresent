@@ -266,11 +266,11 @@ export default async function TenantAdminPage({
           </p>
           <ClerkOrgForm slug={tenant.slug} orgId={tenant.clerk_org_id ?? ""} />
           <div className="mt-5 border-t border-[var(--border)] pt-4">
-            <h3 className="mb-1 text-sm font-medium">GA4 property (for the Outcome page)</h3>
+            <h3 className="mb-1 text-sm font-medium">GA4 property (for the Visits from AI page)</h3>
             <p className="mb-3 text-xs text-[var(--text-2)]">
               The GA4 property ID, digits only. Give the EverPresent service account{" "}
               <span className="font-mono">Viewer</span> access to the property, and visits that
-              come from AI assistants appear on the Outcome page each night.
+              come from AI assistants appear on the Visits from AI page each night.
             </p>
             <Ga4Form slug={tenant.slug} propertyId={tenant.ga4_property_id ?? ""} />
           </div>
@@ -342,7 +342,7 @@ export default async function TenantAdminPage({
               </button>
             </form>
             <p className="mt-3 text-xs text-[var(--text-3)]">
-              Needed for the Whitespace page (brands the AI recommends that you don&apos;t track)
+              Needed for the Untracked rivals page (brands the AI recommends that you don&apos;t track)
               and the buttons that draft corrections and briefs. Uses the ANTHROPIC_API_KEY
               setting, and the cost counts toward the monthly cap.
             </p>
@@ -446,7 +446,7 @@ export default async function TenantAdminPage({
             <ImportCapturesForm slug={tenant.slug} />
           </div>
           <div className="mt-6 border-t border-[var(--border)] pt-4">
-            <p className="mb-2 text-sm">AI bot logs (for the AI Agents page)</p>
+            <p className="mb-2 text-sm">AI bot logs (for the AI bots on your site page)</p>
             <AgentTokenForm slug={tenant.slug} />
           </div>
         </section>

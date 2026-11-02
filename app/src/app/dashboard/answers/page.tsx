@@ -33,15 +33,15 @@ export default async function AnswerShapePage() {
     apiFetch<AgentPicks>("/api/tenant/agent-picks"),
   ]);
   if (res.status === 403) {
-    return <NoOrgNotice active="Answer Shape" isSuperadmin={me.data?.is_superadmin} detail={res.error} />;
+    return <NoOrgNotice active="How engines answer" isSuperadmin={me.data?.is_superadmin} detail={res.error} />;
   }
   const d = res.data;
 
   return (
     <main className="mx-auto max-w-[1400px] px-6 pb-16">
-      <DashNav active="Answer Shape" isSuperadmin={me.data?.is_superadmin} />
+      <DashNav active="How engines answer" isSuperadmin={me.data?.is_superadmin} />
       <section className="mb-6">
-                <h1 className="text-[28px] font-semibold tracking-tight">Answer Shape</h1>
+                <h1 className="text-[28px] font-semibold tracking-tight">How engines answer</h1>
         <p className="mt-2 max-w-3xl text-sm text-[var(--text-2)]">
           Each new model changes how an engine answers: how often it searches the web, how many
           sources it links, whether links sit in the text or in footnotes, and whether they point

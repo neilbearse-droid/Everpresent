@@ -33,13 +33,13 @@ export default async function AgentsPage() {
     apiFetch<AgentAnalytics>("/api/tenant/agent-analytics?days=30"),
   ]);
   if (res.status === 403) {
-    return <NoOrgNotice active="AI Agents" isSuperadmin={me.data?.is_superadmin} detail={res.error} />;
+    return <NoOrgNotice active="AI bots on your site" isSuperadmin={me.data?.is_superadmin} detail={res.error} />;
   }
   const d = res.data;
 
   return (
     <main className="mx-auto max-w-[1400px] px-6 pb-16">
-      <DashNav active="AI Agents" isSuperadmin={me.data?.is_superadmin} />
+      <DashNav active="AI bots on your site" isSuperadmin={me.data?.is_superadmin} />
 
       <section className="blueprint mb-6 grid-cols-1 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
         <div className="p-5">

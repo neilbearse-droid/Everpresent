@@ -38,13 +38,13 @@ export default async function FanoutPage({
     apiFetch<FanoutReplay>(`/api/tenant/fanout-replay${rangeQuery(from, to)}`),
   ]);
   if (report.status === 403) {
-    return <NoOrgNotice active="Fan-out" isSuperadmin={me.data?.is_superadmin} detail={report.error} />;
+    return <NoOrgNotice active="Sub-questions" isSuperadmin={me.data?.is_superadmin} detail={report.error} />;
   }
   const data = report.data;
 
   return (
     <main className="mx-auto max-w-[1400px] px-6 pb-16">
-      <DashNav active="Fan-out" isSuperadmin={me.data?.is_superadmin} withDateRange />
+      <DashNav active="Sub-questions" isSuperadmin={me.data?.is_superadmin} withDateRange />
 
       <div className="mb-5">
         <h1 className="text-[26px] font-semibold tracking-tight">

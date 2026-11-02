@@ -16,13 +16,13 @@ export default async function OutcomePage({
     apiFetch<Proof>("/api/tenant/proof"),
   ]);
   if (out.status === 403) {
-    return <NoOrgNotice active="Outcome" isSuperadmin={me.data?.is_superadmin} detail={out.error} />;
+    return <NoOrgNotice active="Visits from AI" isSuperadmin={me.data?.is_superadmin} detail={out.error} />;
   }
   const d = out.data;
 
   const notReady = (title: string, body: string) => (
     <main className="mx-auto max-w-[1400px] px-6 pb-16">
-      <DashNav active="Outcome" isSuperadmin={me.data?.is_superadmin} withDateRange />
+      <DashNav active="Visits from AI" isSuperadmin={me.data?.is_superadmin} withDateRange />
       {proof.data && <ProofSection p={proof.data} />}
       <section className="card p-4">
         <h2 className="mb-2 text-lg font-medium">{title}</h2>
@@ -50,7 +50,7 @@ export default async function OutcomePage({
 
   return (
     <main className="mx-auto max-w-[1400px] px-6 pb-16">
-      <DashNav active="Outcome" isSuperadmin={me.data?.is_superadmin} withDateRange />
+      <DashNav active="Visits from AI" isSuperadmin={me.data?.is_superadmin} withDateRange />
       {proof.data && <ProofSection p={proof.data} />}
 
       <div className="mb-6 grid gap-4 sm:grid-cols-3">
