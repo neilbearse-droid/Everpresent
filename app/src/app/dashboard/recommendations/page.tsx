@@ -55,11 +55,11 @@ const NEXT_ACTIONS: Record<string, { to: Recommendation["status"]; label: string
 const DONTS: { title: string; why: string }[] = [
   {
     title: "Publishing your own “best X” rankings",
-    why: "A list where you rank yourself first is easy for engines to discount. Google extended its spam policies to manipulating AI answers on May 15, 2026 and enforced them in the June and August 2026 spam updates; self-ranked “best of” lists and scaled “alternatives” pages are the exposed formats.",
+    why: "Google's 2026 spam policies name self-ranked lists and scaled “alternatives” pages; engines discount them.",
   },
   {
     title: "Hidden instructions for AI (“Summarize with AI” prompts, invisible text)",
-    why: "Microsoft has flagged this as AI recommendation poisoning. An engine that treats it as manipulation can leave the brand out entirely.",
+    why: "Microsoft calls this AI recommendation poisoning; an engine that spots it can drop the brand entirely.",
   },
   {
     title: "Fake or incentivized reviews",
@@ -67,11 +67,11 @@ const DONTS: { title: string; why: string }[] = [
   },
   {
     title: "Spending time on llms.txt or special “AI schema”",
-    why: "AI bots rarely request llms.txt (the AI bots on your site tab shows whether yours do), and Google says its AI features need no special markup.",
+    why: "AI bots rarely request llms.txt, and Google says its AI features need no special markup.",
   },
   {
     title: "Mass-producing AI pages for every query",
-    why: "Google's spam policies name scaled content abuse, and once every brand copies the tactic, nobody gains from it.",
+    why: "Google's spam policies name scaled content abuse, and once every brand copies it, nobody gains.",
   },
 ];
 
@@ -102,14 +102,14 @@ export default async function RecommendationsPage() {
   const lead =
     items.length === 0
       ? {
-          tells: "No recommendations yet. Each one is written from your own measurements after a run is processed: the questions you're missing, the wrong facts, the pages that lost a citation.",
-          act: "Nothing to start yet. Once the first run is processed, the top item here is the one to do first.",
+          tells: "No recommendations yet.",
+          act: "Nothing to start yet.",
           tone: "neutral" as const,
         }
       : !top
         ? {
-            tells: `Everything on the list is closed: ${closed.length} ${closed.length === 1 ? "item" : "items"} done, dismissed or resolved by the data.`,
-            act: "Nothing to start. New items appear when a run finds something to fix; the Action Plan has the briefs for pages you may still want to write.",
+            tells: `All ${closed.length} recommendations are closed.`,
+            act: "Nothing to start.",
             href: "/dashboard/action-plan",
             hrefLabel: "Action Plan",
             tone: "good" as const,
@@ -117,15 +117,11 @@ export default async function RecommendationsPage() {
         : {
             tells: (
               <>
-                {openCount} open{inProgress > 0 ? <> and {inProgress} in progress</> : null}. The top
-                one is &ldquo;{top.title || KIND_LABELS[top.branch] || top.branch}&rdquo;
-                {top.evidence && EVIDENCE[top.evidence] ? <> ({EVIDENCE[top.evidence].label.toLowerCase()} evidence)</> : null}.
+                {openCount + inProgress} open; the top one is &ldquo;
+                {top.title || KIND_LABELS[top.branch] || top.branch}&rdquo;.
               </>
             ),
-            act:
-              top.status === "in_progress"
-                ? "Finish the one you started, then mark it done so the next run measures it. Work the list top to bottom; the order already weighs priority and evidence."
-                : "Press Start on the top item and do only that one this week. Work the list top to bottom; the order already weighs priority and evidence.",
+            act: top.status === "in_progress" ? "Finish the one you started, then mark it done." : "Start the top one.",
             href: top.link || undefined,
             hrefLabel: "See the data",
             tone: (openCount + inProgress > 5 ? "bad" : "neutral") as "good" | "bad" | "neutral",
@@ -135,28 +131,6 @@ export default async function RecommendationsPage() {
     <main className="mx-auto max-w-5xl px-6 pb-16">
       <DashNav active="Recommendations" isSuperadmin={me.data?.is_superadmin} />
       <PageLead {...lead} />
-      <p className="mb-6 max-w-3xl text-sm text-[var(--text-2)]">
-        What to do, in order. Each item comes from your own measurements and is graded by how
-        well the evidence supports it. The sites to get covered on and the briefs for each page
-        are on the{" "}
-        <Link href="/dashboard/action-plan" className="bp-link">
-          Action Plan
-        </Link>
-        ; whether a shipped fix worked shows on{" "}
-        <Link href="/dashboard/outcome" className="bp-link">
-          Outcome
-        </Link>
-        .
-      </p>
-
-      {items.length === 0 && (
-        <section className="card p-4">
-          <p className="text-sm text-[var(--text-2)]">
-            No recommendations yet. They appear after the first run is processed.
-          </p>
-        </section>
-      )}
-
       {strategy && (
         <section className="blueprint mb-8 grid-cols-1">
           <div>
@@ -203,18 +177,6 @@ export default async function RecommendationsPage() {
           </ul>
         </div>
       </section>
-
-      <details className="mb-8">
-        <summary className="mb-2 cursor-pointer text-sm font-medium text-[var(--text-2)]">
-          How these are ranked
-        </summary>
-        <p className="max-w-3xl text-[13px] leading-relaxed text-[var(--text-2)]">
-          Ranked by priority and graded by the kind of evidence behind each one (as of October
-          2026). The &ldquo;why&rdquo; lines name the kind of evidence instead of quoting industry
-          figures. As a rule, showing up in the engines&apos; searches comes first, then clear facts
-          and third-party proof, and formatting last.
-        </p>
-      </details>
 
       {closed.length > 0 && (
         <details className="mb-8">

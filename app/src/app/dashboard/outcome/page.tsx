@@ -21,35 +21,25 @@ export default async function OutcomePage({
   }
   const d = out.data;
 
-  const notReady = (title: string, body: string, act: string) => (
+  const notReady = (tells: string, act: string) => (
     <main className="mx-auto max-w-[1400px] px-6 pb-16">
       <DashNav active="Visits from AI" isSuperadmin={me.data?.is_superadmin} withDateRange />
-      <PageLead tells={title + ". " + body.split(". ")[0] + "."} act={act} />
+      <PageLead tells={tells} act={act} />
       {proof.data && <ProofSection p={proof.data} />}
-      <section className="card p-4">
-        <h2 className="mb-2 text-lg font-medium">{title}</h2>
-        <p className="max-w-xl text-sm text-[var(--text-2)]">{body}</p>
-      </section>
     </main>
   );
 
   if (!d || !d.connected) {
     return notReady(
-      "This page is waiting for Google Analytics",
-      "Once your GA4 property is connected, the visits and key events that come from AI engines appear here each night, next to your visibility trend.",
-      "Ask your EverPresent contact to connect your GA4 property. You'll need to give their service account Viewer access on the property; that's the only step on your side.",
+      "Waiting for Google Analytics.",
+      "Ask your EverPresent contact to connect your GA4 property.",
     );
   }
   if (!d.has_data) {
-    return notReady(
-      "Google Analytics is connected and the first nightly pull hasn't run yet",
-      "AI referral traffic appears here tomorrow. Visits are matched to answer engines by utm_source and referrer.",
-      "Nothing to do. Come back tomorrow; if the page still says this, tell your EverPresent contact.",
-    );
+    return notReady("GA4 is connected; the first pull runs tonight.", "Come back tomorrow.");
   }
 
   const maxSessions = Math.max(...d.series.map((s) => s.sessions), 1);
-  const scored = d.series.filter((s) => s.brand_score !== null);
   const gaps = d.tracking_gaps ?? [];
 
   // The lead: how many visits AI sent, from where, and which way it's going
@@ -70,16 +60,12 @@ export default async function OutcomePage({
   const lead = {
     tells: (
       <>
-        AI engines sent {d.totals.sessions.toLocaleString()} {d.totals.sessions === 1 ? "visit" : "visits"} and{" "}
-        {d.totals.conversions.toLocaleString()} key {d.totals.conversions === 1 ? "event" : "events"} in this period
-        {topEngine ? <>, most of them from {topEngine.engine} ({topEngine.sessions.toLocaleString()})</> : null}
-        {direction ? <>. Visits are {direction} across the window</> : null}.
+        AI engines sent {d.totals.sessions.toLocaleString()} {d.totals.sessions === 1 ? "visit" : "visits"}
+        {topEngine ? <>, mostly from {topEngine.engine}</> : null}
+        {direction ? <>, {direction}</> : null}.
       </>
     ),
-    act:
-      d.totals.sessions === 0
-        ? "No visits yet, so being named isn't turning into traffic. Check that the engines that name you also link you (the Engines page shows named versus linked), and ship the top recommendation."
-        : "Ship a fix from the Action Plan and mark it shipped. The proof section above then shows whether visits and key events moved on the questions you touched against the ones you didn't.",
+    act: d.totals.sessions === 0 ? "Check that engines naming you also link you." : "Ship a fix and mark it shipped.",
     href: d.totals.sessions === 0 ? "/dashboard/engines" : "/dashboard/action-plan",
     hrefLabel: d.totals.sessions === 0 ? "Engines" : "Action Plan",
     tone: (direction === "rising" ? "good" : direction === "falling" ? "bad" : "neutral") as "good" | "bad" | "neutral",
@@ -121,17 +107,12 @@ export default async function OutcomePage({
       </section>
 
       <section className="card p-4">
-        <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
-          AI referrals vs. visibility
+        <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">
+          Daily AI-referred sessions, with visibility score
         </h2>
-        <p className="mb-4 text-xs text-[var(--text-3)]">
-          Daily AI-referred sessions (bars), with your brand visibility score above each day a
-          run measured it.
-        </p>
         {gaps.map((g) => (
-          <p key={g.start} className="mb-4 max-w-3xl text-sm text-[var(--text-2)]">
-            <span className="font-medium text-[var(--text)]">{g.label}, grey bars:</span>{" "}
-            {g.note} The totals above undercount {g.engine} for those days too.
+          <p key={g.start} className="mb-3 text-xs text-[var(--text-3)]">
+            {g.label}: grey bars undercount {g.engine} (tracking outage).
           </p>
         ))}
         <div className="flex gap-1" style={{ height: 140 }}>
@@ -157,11 +138,6 @@ export default async function OutcomePage({
           <span>{d.series[0]?.date}</span>
           <span>{d.series[d.series.length - 1]?.date}</span>
         </div>
-        {scored.length < 2 && (
-          <p className="mt-3 text-xs text-[var(--text-3)]">
-            Few days have a visibility score yet. More appear as runs complete.
-          </p>
-        )}
       </section>
     </main>
   );

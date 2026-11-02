@@ -40,32 +40,18 @@ export default async function PersonasPage({
   const lead =
     segs.length === 0
       ? {
-          tells: "No persona answers yet. A persona asks the same question as a particular buyer; this page shows whether the engines name you for each kind of buyer.",
-          act: "Tick a persona against the questions that matter on the Queries page, and the next run asks them that way.",
+          tells: "No persona answers yet.",
+          act: "Tick a persona against the questions that matter.",
           href: "/dashboard/queries",
-          hrefLabel: "Choose personas",
+          hrefLabel: "Queries",
           tone: "neutral" as const,
         }
       : {
-          tells: (
-            <>
-              You&apos;re strongest with {humanize(best!.segment)} (score {best!.brand_score})
-              {segs.length > 1 ? <> and weakest with {humanize(worst!.segment)} ({worst!.brand_score})</> : null}.
-              {behind.length > 0 ? (
-                <>
-                  {" "}
-                  {behind[0].rival} is ahead of you with {humanize(behind[0].segment)} by {behind[0].gap}
-                  {behind.length > 1 ? <>, and rivals lead you with {behind.length - 1} other {behind.length - 1 === 1 ? "persona" : "personas"}</> : null}.
-                </>
-              ) : (
-                <> No rival is ahead of you with any persona.</>
-              )}
-            </>
-          ),
-          act:
+          tells:
             behind.length > 0
-              ? `If ${humanize(behind[0].segment)} is a buyer you want, read their answers on the questions you lose and write for what they ask about. The brief for each question is on the Action Plan.`
-              : "Nothing to fix by persona. Keep the questions these buyers ask in the set, and watch for a rival pulling ahead after a model change.",
+              ? `${behind[0].rival} leads you with ${humanize(behind[0].segment)} by ${behind[0].gap}.`
+              : `Strongest with ${humanize(best!.segment)}${segs.length > 1 ? `, weakest with ${humanize(worst!.segment)}` : ""}; no rival leads.`,
+          act: behind.length > 0 ? `Write for what ${humanize(behind[0].segment)} asks about.` : "Nothing to fix by persona.",
           href: behind.length > 0 ? "/dashboard/action-plan" : undefined,
           hrefLabel: "Action Plan",
           tone: (behind.length === 0 ? "good" : behind.length >= segs.length ? "bad" : "neutral") as "good" | "bad" | "neutral",
@@ -77,20 +63,13 @@ export default async function PersonasPage({
       <PageLead {...lead} />
 
       {!data || data.segments.length === 0 ? (
-        <section className="card p-4">
-          <h2 className="mb-2 text-lg font-medium">No persona data yet</h2>
-          <p className="text-sm text-[var(--text-2)]">
-            Visibility by persona appears after the first completed run.
-            {personas.error ? ` (${personas.error})` : ""}
-          </p>
-        </section>
+        personas.error ? <p className="text-sm text-[var(--text-3)]">{personas.error}</p> : null
       ) : (
         <>
           <section className="mb-6 card p-4">
             <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">
-              Brand visibility by persona · {data.date}
+              Visibility score by persona · {data.date}
             </h2>
-            {/* Single measure across personas: one hue, no legend. */}
             <HBars
               items={data.segments.map((s) => ({
                 label: humanize(s.segment),
@@ -109,7 +88,7 @@ export default async function PersonasPage({
                 <thead className="text-[var(--text-2)]">
                   <tr>
                     <th className="py-2 pr-4">Persona</th>
-                    <th className="pr-4">Brand score</th>
+                    <th className="pr-4">Visibility score</th>
                     <th className="pr-4">Mention rate</th>
                     <th className="pr-4">Citation rate</th>
                     <th className="pr-4">Answers</th>

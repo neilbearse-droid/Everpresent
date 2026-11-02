@@ -30,27 +30,25 @@ export default async function BrandPage({
   const lead =
     !d?.observed
       ? {
-          tells: "No branded questions are measured yet. These ask the engines about you by name, so they show how you're described and what's wrong, instead of whether you're named.",
-          act: "Ask your EverPresent contact to mark the questions that name your brand as branded. They're then kept out of the visibility score and measured here from the next run.",
+          tells: "No branded questions measured yet.",
+          act: "Ask your EverPresent contact to mark your branded questions.",
           tone: "neutral" as const,
         }
       : {
-          tells: (
-            <>
-              Asked about {d.brand_name} by name, the engines name you in {d.presence_rate}% of {d.measured}{" "}
-              {d.measured === 1 ? "answer" : "answers"}, state {d.accuracy_issues} wrong{" "}
-              {d.accuracy_issues === 1 ? "fact" : "facts"}
-              {negative > 0 ? <> and describe you negatively {negative} {negative === 1 ? "time" : "times"}</> : null}.
-            </>
-          ),
+          tells:
+            d.accuracy_issues > 0
+              ? `Engines state ${d.accuracy_issues} wrong ${d.accuracy_issues === 1 ? "fact" : "facts"} about ${d.brand_name}.`
+              : negative > 0
+                ? `Engines describe ${d.brand_name} negatively ${negative} ${negative === 1 ? "time" : "times"} in ${d.measured} answers.`
+                : `Asked by name, engines name ${d.brand_name} in ${d.presence_rate}% of answers.`,
           act:
             d.accuracy_issues > 0
-              ? "Fix the wrong facts first. Each one below names the engine, what it said and what's true; correct the page that taught it, usually your own. The Recommendations list has them as items."
+              ? "Correct the page that taught each wrong fact."
               : negative > 0
-                ? "Read the negative framings below and find the source they echo, usually a review site or an old article. Fresh third-party coverage is what changes how an engine describes you."
+                ? "Find the source each negative framing echoes."
                 : d.presence_rate < 90
-                  ? "Some engines don't know you by name. The Recommendations list says which pages to make the facts clearer on."
-                  : "Nothing to fix. The engines know you and describe you fairly; check back after a model change.",
+                  ? "Make the facts clearer on your own pages."
+                  : "Nothing to fix.",
           href: d.accuracy_issues > 0 || d.presence_rate < 90 ? "/dashboard/recommendations" : undefined,
           hrefLabel: "Recommendations",
           tone: (d.accuracy_issues > 0 || negative > 0 ? "bad" : d.presence_rate >= 90 ? "good" : "neutral") as "good" | "bad" | "neutral",
@@ -61,41 +59,14 @@ export default async function BrandPage({
       <DashNav active="Branded questions" isSuperadmin={me.data?.is_superadmin} withDateRange />
       <PageLead {...lead} />
 
-      <div className="mb-6">
-        <h1 className="text-[26px] font-semibold tracking-tight">
-          What the models say about {d?.brand_name ?? "your brand"}
-        </h1>
-        <details className="mt-2 max-w-3xl text-sm text-[var(--text-2)]">
-          <summary className="cursor-pointer text-[12.5px] font-medium text-[var(--text-3)] hover:text-[var(--text-2)]">
-            Why these are measured apart from the visibility score
-          </summary>
-          <p className="mt-2">
-            Branded questions ask the engines about you by name. You&apos;d appear in
-            almost every answer, so they&apos;re kept out of the visibility score and
-            measured here instead: whether the answers name you, how they describe
-            you, and what they get wrong.
-          </p>
-        </details>
-      </div>
-
-      {!d?.observed ? (
-        <section className="card p-4">
-          <h2 className="mb-2 text-lg font-medium">No branded questions measured yet</h2>
-          <p className="text-sm text-[var(--text-2)]">
-            Mark questions as <code>branded</code> in the setup to measure them here.
-          </p>
-        </section>
-      ) : (
+      {!d?.observed ? null : (
         <>
           <div className="mb-6 grid gap-4 sm:grid-cols-3">
             <div className="card p-4">
-              <p className="bp-label mb-2.5">Brand presence</p>
+              <p className="bp-label mb-2.5">Named, of {d.measured} answers</p>
               <div className="text-4xl font-semibold leading-none tabular-nums">
                 {d.presence_rate}%
               </div>
-              <p className="mt-2.5 text-xs text-[var(--text-3)]">
-                of {d.measured} branded answers name you
-              </p>
             </div>
             <div className="card p-4">
               <p className="bp-label mb-2.5">Framing</p>
@@ -110,15 +81,13 @@ export default async function BrandPage({
                   ))
                 )}
               </div>
-              <p className="mt-2.5 text-xs text-[var(--text-3)]">sentiment of how you&apos;re described</p>
             </div>
             <div className="card p-4">
-              <p className="bp-label mb-2.5">Accuracy issues</p>
+              <p className="bp-label mb-2.5">Wrong facts</p>
               <div className="text-4xl font-semibold leading-none tabular-nums"
                    >
                 <span className={d.accuracy_issues > 0 ? "bp-neg" : ""}>{d.accuracy_issues}</span>
               </div>
-              <p className="mt-2.5 text-xs text-[var(--text-3)]">factual errors the models state about you</p>
             </div>
           </div>
 

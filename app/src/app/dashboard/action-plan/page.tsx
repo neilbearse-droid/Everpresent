@@ -57,42 +57,32 @@ export default async function ActionPlanPage() {
   const winnable = data?.strike_zone?.["winnable now"] ?? 0;
   const firstWinnable = briefs.find((b) => b.contestability?.label === "winnable now") ?? briefs[0] ?? null;
   const topTarget = openTargets[0] ?? null;
-  const agg = proof.data?.aggregate ?? null;
-  const measuredFixes = agg && agg.measured > 0 ? agg : null;
   const lead =
     targets.length === 0 && briefs.length === 0
       ? {
-          tells: "Nothing to act on yet. When a run finds questions where you're missing, each one gets a brief here with the sites to target and what to write.",
-          act: "Nothing to write yet. Check the Recommendations list for anything that isn't about a page.",
+          tells: "Nothing to act on yet.",
+          act: "Nothing to write yet.",
           href: "/dashboard/recommendations",
           hrefLabel: "Recommendations",
           tone: "neutral" as const,
         }
       : {
-          tells: (
-            <>
-              {openTargets.length} third-party {openTargets.length === 1 ? "site cites" : "sites cite"} your
-              rivals and not you, {briefs.length} {briefs.length === 1 ? "question needs" : "questions need"} a
-              page{winnable > 0 ? <> ({winnable} winnable now)</> : null}
-              {lost > 0 ? <>, and {lost} of your {lost === 1 ? "page" : "pages"} lost a citation since the last run</> : null}.
-              {measuredFixes ? (
-                <>
-                  {" "}
-                  Fixes you've shipped so far moved their questions {measuredFixes.avg_delta >= 0 ? "+" : ""}
-                  {measuredFixes.avg_delta} pts
-                  {measuredFixes.avg_control_delta !== null ? <> against {measuredFixes.avg_control_delta >= 0 ? "+" : ""}{measuredFixes.avg_control_delta} for the ones you left alone</> : null}.
-                </>
-              ) : null}
-            </>
-          ),
+          tells:
+            lost > 0
+              ? `${lost} of your ${lost === 1 ? "page" : "pages"} lost a citation since the last run.`
+              : briefs.length > 0
+                ? `${briefs.length} ${briefs.length === 1 ? "question needs" : "questions need"} a page${winnable > 0 ? `, ${winnable} winnable now` : ""}.`
+                : openTargets.length > 0
+                  ? `${openTargets.length} ${openTargets.length === 1 ? "site cites" : "sites cite"} your rivals and not you.`
+                  : "Every tracked question names you.",
           act:
             lost > 0
-              ? "Win back the lost citations first; they're the cheapest gain. Refresh those pages' dates, figures and examples, then mark the fix shipped so the next run measures it."
+              ? "Refresh those pages, then mark the fix shipped."
               : firstWinnable
-                ? `Write the page for "${firstWinnable.query}" from its brief below, publish it as an ordinary page, and mark it shipped. One page a week, winnable ones first.`
+                ? `Write the page for "${firstWinnable.query}" and mark it shipped.`
                 : topTarget
-                  ? `Get ${data!.brand_name} covered on ${topTarget.domain}; it cites your rivals ${topTarget.competitor_assoc} times across ${topTarget.queries} ${topTarget.queries === 1 ? "question" : "questions"}. A mention there goes straight into those answers.`
-                  : "Every tracked question names you where it counts. Keep the winning pages current and check the Overview for movers.",
+                  ? `Get ${data!.brand_name} covered on ${topTarget.domain}.`
+                  : "Hold what's winning.",
           href: lost > 0 ? undefined : topTarget && !firstWinnable ? topTarget.example_url : undefined,
           hrefLabel: "Open the site",
           tone: (lost > 0 ? "bad" : briefs.length === 0 && openTargets.length === 0 ? "good" : "neutral") as "good" | "bad" | "neutral",
@@ -103,26 +93,13 @@ export default async function ActionPlanPage() {
       <DashNav active="Action Plan" isSuperadmin={me.data?.is_superadmin} />
       <PageLead {...lead} />
 
-      {targets.length === 0 && briefs.length === 0 ? (
-        <section className="card p-4">
-          <h2 className="mb-2 text-lg font-medium">Nothing to act on yet</h2>
-          <p className="text-sm text-[var(--text-2)]">
-            When a run finds questions where you&apos;re missing, each one shows up here with
-            the sites to target and a content brief.
-          </p>
-        </section>
-      ) : (
+      {targets.length === 0 && briefs.length === 0 ? null : (
         <div className="space-y-8">
           {/* #4 — Citation-gap target list */}
           <section className="card p-4">
-            <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
-              Source targets
+            <h2 className="mb-3 text-sm font-medium text-[var(--text-2)]">
+              Sites that cite your rivals, not you
             </h2>
-            <p className="mb-4 text-xs text-[var(--text-3)]">
-              Third-party sites that AI answers cite alongside your competitors but not you.
-              Getting {data!.brand_name} covered on these is a direct route into those answers.
-              Competitor sites and your own domains are left out.
-            </p>
             {targets.length === 0 ? (
               <p className="text-sm text-[var(--text-3)]">No third-party source gaps found.</p>
             ) : (
@@ -131,7 +108,7 @@ export default async function ActionPlanPage() {
                   <thead className="text-[var(--text-2)]">
                     <tr>
                       <th className="py-2 pr-4">Source domain</th>
-                      <th className="pr-4">Cites a rival</th>
+                      <th className="pr-4">Rival citations</th>
                       <th className="pr-4">Questions</th>
                       <th className="pr-4">Seen on</th>
                       <th>Status</th>
@@ -173,32 +150,21 @@ export default async function ActionPlanPage() {
           {/* Lost-Citation Radar — protect what you've already won */}
           {data!.protect?.ready && (
             <section className="card p-4">
-              <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
-                Pages losing citations
+              <h2 className="mb-3 text-sm font-medium text-[var(--text-2)]">
+                Your pages, since the last run
               </h2>
-              <p className="mb-3 text-xs text-[var(--text-3)]">
-                Changes in citations of your own pages since the previous run. A lost citation
-                is often a sign the page looks out of date. Updating its dates, figures and
-                examples can win it back.
-              </p>
               <div className="mb-5 grid gap-3 sm:grid-cols-3">
                 <div className="card-inset p-4">
                   <div className="text-3xl font-semibold tabular-nums text-[var(--text)]">
                     {data!.protect.gained}
                   </div>
                   <div className="mt-1 text-sm text-[var(--text-2)]">Gained</div>
-                  <div className="text-xs text-[var(--text-3)]">
-                    citations won since the last run
-                  </div>
                 </div>
                 <div className="card-inset p-4">
                   <div className="text-3xl font-semibold tabular-nums text-[var(--text)]">
                     {data!.protect.held}
                   </div>
                   <div className="mt-1 text-sm text-[var(--text-2)]">Held</div>
-                  <div className="text-xs text-[var(--text-3)]">
-                    citations kept since the last run
-                  </div>
                 </div>
                 <div className="card-inset p-4">
                   <div className="text-3xl font-semibold tabular-nums text-[var(--text)]">
@@ -207,9 +173,6 @@ export default async function ActionPlanPage() {
                     </span>
                   </div>
                   <div className="mt-1 text-sm text-[var(--text-2)]">Lost</div>
-                  <div className="text-xs text-[var(--text-3)]">
-                    pages that lost a citation
-                  </div>
                 </div>
               </div>
               {data!.protect.lost.length === 0 ? (
@@ -261,14 +224,9 @@ export default async function ActionPlanPage() {
 
           {/* #1 — Content briefs */}
           <section>
-            <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
-              Content briefs
+            <h2 className="mb-3 text-sm font-medium text-[var(--text-2)]">
+              Pages to write
             </h2>
-            <p className="mb-3 text-xs text-[var(--text-3)]">
-              One brief for each question where you&apos;re missing: what to write, who appears
-              now, which sources to target and what to cover. Questions whose answers change often
-              and rely on web search come first, since they&apos;re the easiest to win.
-            </p>
             {data!.strike_zone && (
               <div className="mb-4 flex flex-wrap gap-2 text-xs">
                 {(["winnable now", "contested", "locked in", "needs history"] as const)
@@ -284,11 +242,7 @@ export default async function ActionPlanPage() {
               </div>
             )}
             {briefs.length === 0 && (
-              <p className="card p-5 text-sm text-[var(--text-2)]">
-                No content gaps right now: every tracked question names you where it counts. A
-                brief appears here when a question stops naming you. Recommendations has the
-                rest of the playbook.
-              </p>
+              <p className="card p-5 text-sm text-[var(--text-2)]">No content gaps right now.</p>
             )}
             <div className="space-y-5">
               {briefs.map((b) => (
@@ -395,9 +349,6 @@ export default async function ActionPlanPage() {
                           </span>
                         ))}
                       </div>
-                      <p className="mt-1.5 text-[10px] text-[var(--text-3)]">
-                        Engines search each of these separately, so cover each one.
-                      </p>
                     </div>
                   )}
 
@@ -446,10 +397,6 @@ export default async function ActionPlanPage() {
                           <li key={i}>{gap}</li>
                         ))}
                       </ul>
-                      <p className="mt-1.5 text-[10px] text-[var(--text-3)]">
-                        Based on {b.citability.winners?.length} winning page
-                        {(b.citability.winners?.length ?? 0) > 1 ? "s" : ""} cited for this question.
-                      </p>
                     </div>
                   )}
 
@@ -462,13 +409,9 @@ export default async function ActionPlanPage() {
           {/* Proof — the fix→proof loop */}
           {(proof.data?.interventions.length ?? 0) > 0 && (
             <section className="card p-4">
-              <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
+              <h2 className="mb-3 text-sm font-medium text-[var(--text-2)]">
                 Results of shipped fixes
               </h2>
-              <p className="mb-4 text-xs text-[var(--text-3)]">
-                How often each fixed question named you before and after the fix shipped,
-                compared with the questions you didn&apos;t change over the same period.
-              </p>
               {proof.data!.aggregate && (
                 <div className="mb-4 flex flex-wrap gap-2 text-xs">
                   <span className="chip">
