@@ -4,6 +4,8 @@ import { NoOrgNotice } from "@/components/no-org-notice";
 import { PageLead } from "@/components/page-lead";
 import { HBars } from "@/components/charts";
 import { SERIES_COLORS, humanize } from "@/lib/viz";
+import { Delta } from "@/components/ui";
+import { AddToPlan } from "@/components/plan-buttons";
 
 export default async function PersonasPage({
   searchParams,
@@ -68,7 +70,7 @@ export default async function PersonasPage({
         <>
           <section className="mb-6 card p-4">
             <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">
-              Visibility score by persona · {data.date}
+              Score by persona · {data.date}
             </h2>
             <HBars
               items={data.segments.map((s) => ({
@@ -88,11 +90,12 @@ export default async function PersonasPage({
                 <thead className="text-[var(--text-2)]">
                   <tr>
                     <th className="py-2 pr-4">Persona</th>
-                    <th className="pr-4">Visibility score</th>
-                    <th className="pr-4">Mention rate</th>
-                    <th className="pr-4">Citation rate</th>
+                    <th className="pr-4">Score</th>
+                    <th className="pr-4">Named</th>
+                    <th className="pr-4">Cited</th>
                     <th className="pr-4">Answers</th>
-                    <th>Strongest competitor</th>
+                    <th className="pr-4">Top rival</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -105,26 +108,34 @@ export default async function PersonasPage({
                       : null;
                     return (
                       <tr key={segment.segment} className="border-t border-[var(--border)]">
-                        <td className="py-3 pr-4 font-medium">{humanize(segment.segment)}</td>
-                        <td className="pr-4 tabular-nums">{segment.brand_score}</td>
-                        <td className="pr-4 tabular-nums">
+                        <td className="py-3 pr-4 font-semibold">{humanize(segment.segment)}</td>
+                        <td className="pr-4 font-semibold tabular-nums">{segment.brand_score}</td>
+                        <td className="pr-4 text-xs tabular-nums text-[var(--text-2)]">
                           {Math.round(segment.mention_rate * 100)}%
                         </td>
-                        <td className="pr-4 tabular-nums">
+                        <td className="pr-4 text-xs tabular-nums text-[var(--text-2)]">
                           {Math.round(segment.citation_rate * 100)}%
                         </td>
-                        <td className="pr-4 tabular-nums">{segment.result_count}</td>
-                        <td>
+                        <td className="pr-4 text-xs tabular-nums text-[var(--text-2)]">{segment.result_count}</td>
+                        <td className="pr-4">
                           {topCompetitor ? (
-                            <span className="text-[var(--text-2)]">
-                              {topCompetitor[0]}{" "}
-                              <span className="tabular-nums text-[var(--text-2)]">
-                                ({topCompetitor[1]}
-                                {gap !== null && gap > 0 ? `, +${gap} ahead` : ""})
-                              </span>
+                            <span className="inline-flex items-center gap-2">
+                              <span className="text-[var(--text-2)]">{topCompetitor[0]}</span>
+                              <span className="text-xs tabular-nums text-[var(--text-3)]">{topCompetitor[1]}</span>
+                              {gap !== null && gap !== 0 && <Delta value={-gap} digits={2} />}
                             </span>
                           ) : (
                             "—"
+                          )}
+                        </td>
+                        <td className="py-1.5 text-right">
+                          {topCompetitor && gap !== null && gap > 0 && (
+                            <AddToPlan
+                              gapRef={`persona:${segment.segment}`}
+                              title={`Win back ${humanize(segment.segment)}`}
+                              actionText={`${topCompetitor[0]} leads you by ${gap} with ${humanize(segment.segment)}. Write for what this buyer asks about.`}
+                              link="/dashboard/personas"
+                            />
                           )}
                         </td>
                       </tr>

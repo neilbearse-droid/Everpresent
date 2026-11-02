@@ -33,9 +33,6 @@ export function MarkShipped({
             view the fix ↗
           </a>
         )}
-        <span className="text-[var(--text-3)]">
-          Results appear below and on the Outcome tab as runs after this date come in.
-        </span>
         <form action={unshipAction}>
           <button
             disabled={unshipping}

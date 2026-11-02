@@ -129,12 +129,15 @@ const ENGINE_MARKS: Record<string, { mono: string; bg: string; fg: string }> = {
   gemini: { mono: "✦", bg: "#e3ebfb", fg: "#2b4fb0" },
   perplexity: { mono: "P", bg: "#dcf0f3", fg: "#126a78" },
   copilot: { mono: "Co", bg: "#e6e9f7", fg: "#3a3f9e" },
+  microsoft: { mono: "Co", bg: "#e6e9f7", fg: "#3a3f9e" },
   google: { mono: "G", bg: "#fde8e6", fg: "#b3261e" },
   meta: { mono: "M", bg: "#e3ecfc", fg: "#1b4fc2" },
 };
 
+/** Accepts a surface code ("copilot_web") or a label ("Microsoft Copilot"). */
 function markFor(surface: string) {
-  const key = Object.keys(ENGINE_MARKS).find((k) => surface.toLowerCase().startsWith(k));
+  const s = surface.toLowerCase();
+  const key = Object.keys(ENGINE_MARKS).find((k) => s.includes(k));
   return key ? ENGINE_MARKS[key] : { mono: surface.slice(0, 1).toUpperCase(), bg: "var(--plane-2)", fg: "var(--text-2)" };
 }
 

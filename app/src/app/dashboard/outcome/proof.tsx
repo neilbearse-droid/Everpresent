@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Proof, ProofSignal } from "@/lib/api";
+import { Delta, ExtLink, Linkify } from "@/components/ui";
 
 const STATUS: Record<Proof["items"][number]["status"], string> = {
   proven: "Real lift",
@@ -19,7 +20,7 @@ function SignalRow({ s }: { s: ProofSignal }) {
   const rate = s.kind === "rate";
   const before = s.before === null ? "—" : rate ? `${s.before}%` : s.before.toLocaleString();
   const after = s.after === null ? "—" : rate ? `${s.after}%` : s.after.toLocaleString();
-  const change = rate ? signed(s.delta_pts, " pts") : signed(s.change_pct, "%");
+  const change = rate ? <Delta value={s.delta_pts} unit=" pts" /> : <Delta value={s.change_pct} unit="%" />;
   const control = rate
     ? signed(s.control_delta_pts, " pts")
     : s.kind === "count"
@@ -30,7 +31,7 @@ function SignalRow({ s }: { s: ProofSignal }) {
   return (
     <tr>
       <td>
-        {s.label}
+        <span className="font-semibold">{s.label}</span>
         <span className="block text-[11px] text-[var(--text-3)]">{s.note}</span>
       </td>
       <td className="tabular-nums">
@@ -67,16 +68,18 @@ export function ProofSection({ p }: { p: Proof }) {
         </div>
         {p.items.length === 0 ? (
           <p className="p-4 text-sm text-[var(--text-2)]">
-            Log a fix when you ship it (on the{" "}
-            <Link href="/dashboard/action-plan" className="underline">
-              Action Plan
+            No fixes shipped yet.{" "}
+            <Link href="/dashboard/action-plan" className="bp-link">
+              Mark one shipped on the Action Plan →
             </Link>
-            ) and this compares the weeks before and after it with the questions and pages you
-            didn&apos;t touch.
           </p>
         ) : (
           <>
-            {p.summary && <p className="px-4 pt-3 text-[13px] text-[var(--text-2)]">{p.summary}</p>}
+            {p.summary && (
+              <p className="px-4 pt-3 text-[13px] text-[var(--text-2)]">
+                <Linkify text={p.summary} />
+              </p>
+            )}
             {p.items.map((it) => (
               <div key={it.id} className="border-t border-[var(--line)] first:border-t-0">
                 <div className="flex flex-wrap items-baseline justify-between gap-2 px-4 pt-4">
@@ -93,10 +96,19 @@ export function ProofSection({ p }: { p: Proof }) {
                   </div>
                   <span className="text-xs text-[var(--text-3)]">
                     shipped {it.shipped_at}
-                    {it.path && ` · ${it.path}`}
+                    {it.url ? (
+                      <>
+                        {" · "}
+                        <ExtLink href={it.url}>{it.path || "fix"}</ExtLink>
+                      </>
+                    ) : (
+                      it.path && <span className="font-mono"> · {it.path}</span>
+                    )}
                   </span>
                 </div>
-                <p className="px-4 pb-2 text-[13px] text-[var(--text-2)]">{it.headline}</p>
+                <p className="px-4 pb-2 text-[13px] text-[var(--text-2)]">
+                  <Linkify text={it.headline} />
+                </p>
                 <div className="overflow-x-auto">
                   <table className="bp-table w-full min-w-[640px]">
                     <thead>
@@ -117,13 +129,6 @@ export function ProofSection({ p }: { p: Proof }) {
                 </div>
               </div>
             ))}
-            <p className="px-4 pb-3 pt-2 text-xs text-[var(--text-3)]">
-              Only the change in answers is tested to see whether it&apos;s a real change. Bot reads
-              and search impressions are raw counts that show direction. AI referrals cover the
-              whole site, so read them as background. A fix whose window overlaps an engine change
-              (a new model, a new answer layout) is marked confounded: that engine&apos;s answers are
-              left out, and a lift that survives only on the other engines is reported.
-            </p>
           </>
         )}
       </div>

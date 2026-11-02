@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import type { Run, RunDetail } from "@/lib/api";
 import { surfaceLabel } from "@/lib/viz";
+import { EngineMark } from "@/components/ui";
 
 const STATUS_STYLES: Record<Run["status"], string> = {
   pending: "bg-[var(--surface-2)] text-[var(--text)]",
@@ -52,7 +53,7 @@ export function RunsTable({
           <th>Status</th>
           <th>Started by</th>
           <th>Engines</th>
-          <th>Answers done / planned</th>
+          <th>Answers</th>
           <th>Cost</th>
           <th>Started</th>
             {renderActions && <th></th>}
@@ -71,13 +72,19 @@ export function RunsTable({
             </td>
             <td className="text-[var(--text-2)]">{run.trigger}</td>
             <td className="text-xs text-[var(--text-2)]">
-              {run.surface_set.map((x) => surfaceLabel(x)).join(", ")}
+              <span className="flex flex-wrap gap-1">
+                {run.surface_set.map((x) => (
+                  <span key={x} title={surfaceLabel(x)}>
+                    <EngineMark surface={x} size={16} />
+                  </span>
+                ))}
+              </span>
             </td>
             <td>
               {run.counts.completed ?? 0} / {run.counts.planned ?? 0}
               {(run.counts.withheld_by_cap ?? 0) > 0 && (
                 <span className="ml-1 text-xs text-[var(--text-3)]">
-                  ({run.counts.withheld_by_cap} held back by the spend cap)
+                  ({run.counts.withheld_by_cap} held by cap)
                 </span>
               )}
             </td>

@@ -11,6 +11,7 @@ import {
 } from "@/lib/api";
 import { DashNav } from "@/components/dash-nav";
 import { ModeStack } from "@/components/engine-modes";
+import { Delta, Emph } from "@/components/ui";
 import { NoOrgNotice } from "@/components/no-org-notice";
 import { TrendChart, HBars } from "@/components/charts";
 import { entityColors, fmtDate, OTHER_COLOR } from "@/lib/viz";
@@ -191,7 +192,7 @@ export default async function OverviewPage({
                 )}
               </div>
               <p className="mt-3 max-w-xl text-[14px] leading-relaxed text-[var(--text)]">
-                {b?.winning.line || (measured ? `Named in ${mr.rate}% of AI answers.` : "Awaiting the first run.")}
+                <Emph text={b?.winning.line || (measured ? `Named in ${mr.rate}% of AI answers.` : "Awaiting the first run.")} />
               </p>
               {b?.focus && (
                 <p className="mt-3 text-[13px] text-[var(--text-2)]">
@@ -319,11 +320,8 @@ export default async function OverviewPage({
                       .map((mover) => (
                         <tr key={mover.label}>
                           <td>{mover.label}</td>
-                          <td
-                            className={`text-right font-mono font-bold ${mover.delta < 0 ? "bp-neg" : ""}`}
-                          >
-                            {mover.delta >= 0 ? "▲ +" : "▼ "}
-                            {mover.delta}
+                          <td className="text-right">
+                            <Delta value={mover.delta} />
                           </td>
                           <td className="text-right font-mono">{mover.before}</td>
                           <td className="text-right font-mono">{mover.after}</td>

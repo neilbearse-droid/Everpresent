@@ -2,6 +2,8 @@ import { apiFetch, rangeQuery, type BrandReport, type Me } from "@/lib/api";
 import { DashNav } from "@/components/dash-nav";
 import { NoOrgNotice } from "@/components/no-org-notice";
 import { PageLead } from "@/components/page-lead";
+import { Bullets, EngineMark } from "@/components/ui";
+import { AddToPlan } from "@/components/plan-buttons";
 
 const SENT_COLOR: Record<string, string> = {
   positive: "var(--pos)",
@@ -91,8 +93,9 @@ export default async function BrandPage({
             </div>
           </div>
 
+          <h2 className="mb-3 text-[15px] font-semibold tracking-[-0.01em]">By question</h2>
           <div className="flex flex-col gap-4">
-            {d.queries.map((q) => (
+            {d.queries.map((q, qi) => (
               <section key={q.query} className="card p-4">
                 <h2 className="text-sm font-semibold text-[var(--text)]">{q.query}</h2>
                 <div className="mt-3 overflow-x-auto">
@@ -102,13 +105,19 @@ export default async function BrandPage({
                         <th className="pb-2 pr-4 font-medium">Engine</th>
                         <th className="pb-2 pr-4 font-medium">Names you</th>
                         <th className="pb-2 pr-4 font-medium">Framing</th>
-                        <th className="pb-2 font-medium">What it says</th>
+                        <th className="pb-2 pr-4 font-medium">What it says</th>
+                        <th className="pb-2"></th>
                       </tr>
                     </thead>
                     <tbody>
-                      {q.surfaces.map((s) => (
+                      {q.surfaces.map((s, si) => (
                         <tr key={s.surface} className="border-t border-[var(--border)] align-top">
-                          <td className="py-2.5 pr-4 text-[var(--text-2)]">{s.surface}</td>
+                          <td className="py-2.5 pr-4">
+                            <span className="inline-flex items-center gap-2 font-semibold">
+                              <EngineMark surface={s.surface} size={16} />
+                              {s.surface}
+                            </span>
+                          </td>
                           <td className="py-2.5 pr-4">
                             {s.present ? (
                               <span className="text-[var(--pos)]">yes</span>
@@ -125,8 +134,19 @@ export default async function BrandPage({
                               <span className="text-[var(--text-3)]">—</span>
                             )}
                           </td>
-                          <td className="py-2.5 text-xs italic text-[var(--text-2)]">
+                          <td className="py-2.5 pr-4 text-xs italic text-[var(--text-2)]">
                             {s.snippet ? `“${s.snippet}”` : ""}
+                          </td>
+                          <td className="py-1.5 text-right">
+                            {s.sentiment === "negative" && (
+                              <AddToPlan
+                                gapRef={`framing:${qi}-${si}`}
+                                title={`Answer the negative framing on ${s.surface}`}
+                                actionText={s.snippet ? `${s.surface} says: “${s.snippet}”. Find the source it echoes and answer it on your own pages.` : `Find the source ${s.surface} echoes and answer it on your own pages.`}
+                                link="/dashboard/brand"
+                                queryText={q.query}
+                              />
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -135,11 +155,25 @@ export default async function BrandPage({
                 </div>
                 {q.accuracy.length > 0 && (
                   <div className="mt-3 border-t border-[var(--border)] pt-3">
-                    {q.accuracy.map((a, i) => (
-                      <p key={i} className="text-xs text-[var(--neg)]">
-                        {a.engine} states {a.subject} as “{a.stated}”. Correct: “{a.expected}”.
-                      </p>
-                    ))}
+                    <div className="mb-1.5 text-xs font-medium text-[var(--text-2)]">Wrong facts</div>
+                    <ul className="space-y-2">
+                      {q.accuracy.map((a, i) => (
+                        <li key={i} className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="min-w-0 flex-1">
+                            <Bullets
+                              items={[{ text: `${a.engine}: states ${a.subject} as “${a.stated}”. Correct: “${a.expected}”.`, tone: "bad" as const }]}
+                            />
+                          </span>
+                          <AddToPlan
+                            gapRef={`fact:${qi}-${i}`}
+                            title={`Correct ${a.subject}`}
+                            actionText={`${a.engine} states ${a.subject} as “${a.stated}”; correct is “${a.expected}”. Fix the page that taught it.`}
+                            link="/dashboard/brand"
+                            queryText={q.query}
+                          />
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 )}
               </section>

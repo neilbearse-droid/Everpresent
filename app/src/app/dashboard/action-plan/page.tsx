@@ -3,6 +3,8 @@ import { DashNav } from "@/components/dash-nav";
 import { NoOrgNotice } from "@/components/no-org-notice";
 import { PageLead } from "@/components/page-lead";
 import { surfaceLabel } from "@/lib/viz";
+import { Bullets, Delta, EngineMark, ExtLink, Linkify, shortUrl } from "@/components/ui";
+import { AddToPlan } from "@/components/plan-buttons";
 import { MarkShipped } from "./mark-shipped";
 
 // Format a backend YYYY-MM-DD into the app's friendly date style, matching the
@@ -107,36 +109,40 @@ export default async function ActionPlanPage() {
                 <table className="w-full text-left text-sm">
                   <thead className="text-[var(--text-2)]">
                     <tr>
-                      <th className="py-2 pr-4">Source domain</th>
+                      <th className="py-2 pr-4">Site</th>
                       <th className="pr-4">Rival citations</th>
                       <th className="pr-4">Questions</th>
-                      <th className="pr-4">Seen on</th>
-                      <th>Status</th>
+                      <th className="pr-4">Engines</th>
+                      <th></th>
                     </tr>
                   </thead>
                   <tbody>
                     {targets.map((t) => (
                       <tr key={t.domain} className="border-t border-[var(--border)]">
-                        <td className="py-2 pr-4">
-                          <a
-                            href={t.example_url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="font-mono text-[var(--accent)] hover:underline"
-                          >
-                            {t.domain}
-                          </a>
+                        <td className="py-2 pr-4 font-semibold">
+                          <ExtLink href={t.example_url}>{t.domain}</ExtLink>
                         </td>
                         <td className="pr-4 tabular-nums">{t.competitor_assoc}×</td>
-                        <td className="pr-4 tabular-nums">{t.queries}</td>
-                        <td className="pr-4 text-xs text-[var(--text-2)]">
-                          {t.surfaces.map(surfaceLabel).join(", ")}
+                        <td className="pr-4 tabular-nums text-[var(--text-2)]">{t.queries}</td>
+                        <td className="pr-4">
+                          <span className="flex gap-1">
+                            {t.surfaces.map((x) => (
+                              <span key={x} title={surfaceLabel(x)}>
+                                <EngineMark surface={x} size={16} />
+                              </span>
+                            ))}
+                          </span>
                         </td>
-                        <td>
+                        <td className="py-1.5 text-right">
                           {t.already_citing_you ? (
-                            <span className="text-[var(--pos)]">already cites you</span>
+                            <span className="chip">cites you</span>
                           ) : (
-                            <span className="text-[var(--warn-t)]">target</span>
+                            <AddToPlan
+                              gapRef={`target:${t.domain}`}
+                              title={`Get covered on ${t.domain}`}
+                              actionText={`${t.domain} cites your rivals ${t.competitor_assoc} times across ${t.queries} questions. Pitch coverage or a listing.`}
+                              link="/dashboard/action-plan"
+                            />
                           )}
                         </td>
                       </tr>
@@ -155,8 +161,8 @@ export default async function ActionPlanPage() {
               </h2>
               <div className="mb-5 grid gap-3 sm:grid-cols-3">
                 <div className="card-inset p-4">
-                  <div className="text-3xl font-semibold tabular-nums text-[var(--text)]">
-                    {data!.protect.gained}
+                  <div className="text-3xl tabular-nums text-[var(--text)]">
+                    <Delta value={data!.protect.gained} />
                   </div>
                   <div className="mt-1 text-sm text-[var(--text-2)]">Gained</div>
                 </div>
@@ -167,51 +173,48 @@ export default async function ActionPlanPage() {
                   <div className="mt-1 text-sm text-[var(--text-2)]">Held</div>
                 </div>
                 <div className="card-inset p-4">
-                  <div className="text-3xl font-semibold tabular-nums text-[var(--text)]">
-                    <span className={data!.protect.lost.length ? "bp-neg" : ""}>
-                      {data!.protect.lost.length}
-                    </span>
+                  <div className="text-3xl tabular-nums text-[var(--text)]">
+                    <Delta value={-data!.protect.lost.length} />
                   </div>
                   <div className="mt-1 text-sm text-[var(--text-2)]">Lost</div>
                 </div>
               </div>
               {data!.protect.lost.length === 0 ? (
-                <p className="text-sm text-[var(--pos)]">
-                  No lost citations since the previous run.
-                </p>
+                <p className="text-sm text-[var(--text-2)]">No lost citations.</p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm">
                     <thead className="text-[var(--text-2)]">
                       <tr>
                         <th className="py-2 pr-4">Your page</th>
-                        <th className="pr-4">Lost its citation on</th>
-                        <th>Still cited on</th>
+                        <th className="pr-4">Lost on</th>
+                        <th className="pr-4">Still cited</th>
+                        <th></th>
                       </tr>
                     </thead>
                     <tbody>
                       {data!.protect.lost.map((entry) => (
                         <tr key={entry.url} className="border-t border-[var(--border)]">
-                          <td className="max-w-sm py-2.5 pr-4">
-                            <a
-                              href={entry.url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="block truncate font-mono text-xs text-[var(--accent)] hover:underline"
-                              title={entry.url}
-                            >
-                              {entry.url.replace(/^https?:\/\//, "")}
-                            </a>
+                          <td className="max-w-sm py-2.5 pr-4 font-semibold">
+                            <ExtLink href={entry.url}>{shortUrl(entry.url, 48)}</ExtLink>
                           </td>
                           <td className="pr-4 text-xs text-[var(--text-2)]">
                             {entry.queries.join(" · ")}
                           </td>
-                          <td className="tabular-nums text-xs">
+                          <td className="pr-4 tabular-nums text-xs text-[var(--text-2)]">
                             {entry.still_cited_on > 0 ? (
                               `${entry.still_cited_on} ${entry.still_cited_on === 1 ? "question" : "questions"}`
                             ) : (
-                              <span className="text-[var(--neg)]">none</span>
+                              <span className="bp-neg">none</span>
                             )}
+                          </td>
+                          <td className="py-1.5 text-right">
+                            <AddToPlan
+                              gapRef={`refresh:${entry.url}`}
+                              title={`Refresh ${shortUrl(entry.url, 32)}`}
+                              actionText={`Lost its citation on: ${entry.queries.join("; ")}. Update dates, figures and examples.`}
+                              link="/dashboard/action-plan"
+                            />
                           </td>
                         </tr>
                       ))}
@@ -250,9 +253,9 @@ export default async function ActionPlanPage() {
                   key={b.query_id}
                   className={`rounded-lg border p-5 ${DIAG_STYLE[b.diagnosis.type] ?? DIAG_STYLE.undetermined}`}
                 >
-                  <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-                    <h3 className="text-base font-medium">{b.query}</h3>
-                    <span className="flex items-center gap-2 text-xs font-medium">
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <h3 className="text-base font-semibold">{b.query}</h3>
+                    <span className="flex items-center gap-3 text-xs font-medium">
                       {b.contestability && (
                         <span
                           className={CONTEST_CHIP[b.contestability.label] ?? "text-[var(--text-3)]"}
@@ -269,25 +272,35 @@ export default async function ActionPlanPage() {
                       <span className={DIAG_CHIP[b.diagnosis.type] ?? ""}>
                         {b.diagnosis.label} · {b.corpus_tag}
                       </span>
+                      <AddToPlan
+                        gapRef={`brief:${b.query}`}
+                        title={`Write: ${b.query}`}
+                        actionText={b.diagnosis.fix}
+                        link="/dashboard/action-plan"
+                        queryText={b.query}
+                      />
                     </span>
                   </div>
-                  <p className="mb-4 text-sm text-[var(--text-2)]">{b.diagnosis.fix}</p>
+                  <p className="mb-4 text-sm text-[var(--text-2)]"><Linkify text={b.diagnosis.fix} /></p>
 
                   <div className="grid gap-4 md:grid-cols-2">
                     <div>
                       <div className="mb-1 text-xs font-medium text-[var(--text-2)]">The gap</div>
                       <ul className="space-y-1 text-sm text-[var(--text-2)]">
-                        <li>
-                          Missing on:{" "}
-                          <span className="text-[var(--warn-t)]">
-                            {b.engines_missing.join(", ") || "—"}
-                          </span>
+                        <li className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <span className="font-semibold text-[var(--text)]">Missing on</span>
+                          {b.engines_missing.length === 0
+                            ? "—"
+                            : b.engines_missing.map((e) => (
+                                <span key={e} className="inline-flex items-center gap-1">
+                                  <EngineMark surface={e} size={16} />
+                                  {e}
+                                </span>
+                              ))}
                         </li>
                         <li>
-                          Winning instead:{" "}
-                          <span className="text-[var(--text)]">
-                            {b.competitors_winning.join(", ") || "no clear rival"}
-                          </span>
+                          <span className="font-semibold text-[var(--text)]">Winning instead</span>{" "}
+                          {b.competitors_winning.join(", ") || "no clear rival"}
                         </li>
                       </ul>
                       <div className="m-1 mt-3 mb-1 text-xs font-medium text-[var(--text-2)]">
@@ -299,7 +312,7 @@ export default async function ActionPlanPage() {
                         <ul className="space-y-1 text-sm">
                           {b.target_sources.map((s) => (
                             <li key={s.domain}>
-                              <span className="font-mono text-[var(--accent)]">{s.domain}</span>
+                              <ExtLink href={`https://${s.domain}`}>{s.domain}</ExtLink>
                               <span className="ml-2 text-xs text-[var(--text-3)]">
                                 cites {s.rivals.join(", ")}
                               </span>
@@ -317,13 +330,7 @@ export default async function ActionPlanPage() {
                         </p>
                       )}
                       <div className="mb-1 text-xs font-medium text-[var(--text-2)]">Suggested outline</div>
-                      <ul className="space-y-1 text-sm text-[var(--text-2)]">
-                        {b.outline.map((line, i) => (
-                          <li key={i} className="text-xs">
-                            {line}
-                          </li>
-                        ))}
-                      </ul>
+                      <Bullets items={b.outline.map((line) => ({ text: line }))} className="text-xs [&_li]:text-[12.5px]" />
                     </div>
                   </div>
 
@@ -381,22 +388,12 @@ export default async function ActionPlanPage() {
                         {b.citability.spec?.json_ld && <span className="chip">structured data (JSON-LD)</span>}
                         {b.citability.spec?.has_tables && <span className="chip">tables</span>}
                         {b.citability.your_page && (
-                          <a
-                            href={b.citability.your_page.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="chip text-[var(--accent)] hover:underline"
-                            title={b.citability.your_page.url}
-                          >
-                            your page ↗
-                          </a>
+                          <span className="chip">
+                            <ExtLink href={b.citability.your_page.url}>your page</ExtLink>
+                          </span>
                         )}
                       </div>
-                      <ul className="list-disc space-y-1 pl-4 text-xs text-[var(--text-2)]">
-                        {b.citability.gaps?.map((gap, i) => (
-                          <li key={i}>{gap}</li>
-                        ))}
-                      </ul>
+                      <Bullets items={(b.citability.gaps ?? []).map((gap) => ({ text: gap, tone: "bad" as const }))} className="[&_li]:text-[12.5px]" />
                     </div>
                   )}
 
@@ -417,17 +414,12 @@ export default async function ActionPlanPage() {
                   <span className="chip">
                     {proof.data!.aggregate.measured} measured
                   </span>
-                  <span
-                    className={`chip ${proof.data!.aggregate.avg_delta >= 0 ? "text-[var(--pos)]" : "text-[var(--neg)]"}`}
-                  >
-                    fixed questions {proof.data!.aggregate.avg_delta >= 0 ? "+" : ""}
-                    {proof.data!.aggregate.avg_delta} pts
+                  <span className="chip">
+                    fixed <Delta value={proof.data!.aggregate.avg_delta} unit=" pts" />
                   </span>
                   {proof.data!.aggregate.avg_control_delta !== null && (
                     <span className="chip">
-                      untouched questions{" "}
-                      {proof.data!.aggregate.avg_control_delta >= 0 ? "+" : ""}
-                      {proof.data!.aggregate.avg_control_delta} pts
+                      untouched <Delta value={proof.data!.aggregate.avg_control_delta} unit=" pts" />
                     </span>
                   )}
                 </div>
@@ -438,25 +430,20 @@ export default async function ActionPlanPage() {
                     <tr>
                       <th className="py-2 pr-4">Question</th>
                       <th className="pr-4">Shipped</th>
-                      <th className="pr-4">Presence before → after</th>
-                      <th className="pr-4">Lift vs untouched</th>
-                      <th>Newly visible on</th>
+                      <th className="pr-4">Before → after</th>
+                      <th className="pr-4">Lift</th>
+                      <th>Newly visible</th>
                     </tr>
                   </thead>
                   <tbody>
                     {proof.data!.interventions.map((iv) => (
                       <tr key={iv.id} className="border-t border-[var(--border)] align-top">
-                        <td className="max-w-xs py-2.5 pr-4">
+                        <td className="max-w-xs py-2.5 pr-4 font-semibold">
                           {iv.query}
                           {iv.url && (
-                            <a
-                              href={iv.url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="ml-2 text-xs text-[var(--accent)] hover:underline"
-                            >
-                              fix ↗
-                            </a>
+                            <span className="ml-2 text-xs font-normal">
+                              <ExtLink href={iv.url}>fix</ExtLink>
+                            </span>
                           )}
                         </td>
                         <td className="pr-4 text-xs tabular-nums text-[var(--text-2)]">
@@ -464,7 +451,7 @@ export default async function ActionPlanPage() {
                         </td>
                         {iv.awaiting ? (
                           <td colSpan={3} className="text-xs text-[var(--text-3)]">
-                            Measurement starts with the next run.
+                            Measuring from the next run.
                           </td>
                         ) : (
                           <>
@@ -473,30 +460,29 @@ export default async function ActionPlanPage() {
                             </td>
                             <td className="pr-4 text-xs tabular-nums">
                               {iv.delta === null ? (
-                                <span className="text-[var(--text-3)]">no data from before the fix</span>
+                                <span className="text-[var(--text-3)]">no baseline</span>
                               ) : (
-                                <span
-                                  className={
-                                    iv.delta > 0
-                                      ? "font-medium text-[var(--pos)]"
-                                      : "text-[var(--text-2)]"
-                                  }
-                                >
-                                  {iv.delta >= 0 ? "+" : ""}
-                                  {iv.delta} pts
-                                </span>
+                                <Delta value={iv.delta} unit=" pts" />
                               )}
                               {iv.delta !== null && iv.control_delta !== null && (
                                 <span className="ml-1.5 text-[var(--text-3)]">
-                                  (untouched {iv.control_delta >= 0 ? "+" : ""}
-                                  {iv.control_delta})
+                                  untouched {iv.control_delta >= 0 ? "+" : ""}
+                                  {iv.control_delta}
                                 </span>
                               )}
                             </td>
                             <td className="text-xs text-[var(--text-2)]">
-                              {iv.newly_visible.length
-                                ? iv.newly_visible.map(surfaceLabel).join(", ")
-                                : "—"}
+                              {iv.newly_visible.length ? (
+                                <span className="flex gap-1">
+                                  {iv.newly_visible.map((x) => (
+                                    <span key={x} title={surfaceLabel(x)}>
+                                      <EngineMark surface={x} size={16} />
+                                    </span>
+                                  ))}
+                                </span>
+                              ) : (
+                                "—"
+                              )}
                             </td>
                           </>
                         )}

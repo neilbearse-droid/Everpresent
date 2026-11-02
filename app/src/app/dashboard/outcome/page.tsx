@@ -3,7 +3,7 @@ import { ProofSection } from "./proof";
 import { DashNav } from "@/components/dash-nav";
 import { NoOrgNotice } from "@/components/no-org-notice";
 import { PageLead } from "@/components/page-lead";
-import { HBars } from "@/components/charts";
+import { EngineMark } from "@/components/ui";
 
 export default async function OutcomePage({
   searchParams,
@@ -58,13 +58,9 @@ export default async function OutcomePage({
           ? "falling"
           : "flat";
   const lead = {
-    tells: (
-      <>
-        AI engines sent {d.totals.sessions.toLocaleString()} {d.totals.sessions === 1 ? "visit" : "visits"}
-        {topEngine ? <>, mostly from {topEngine.engine}</> : null}
-        {direction ? <>, {direction}</> : null}.
-      </>
-    ),
+    tells: `AI engines sent ${d.totals.sessions.toLocaleString()} ${d.totals.sessions === 1 ? "visit" : "visits"}${
+      topEngine ? `, mostly from ${topEngine.engine}` : ""
+    }${direction ? `, ${direction}` : ""}.`,
     act: d.totals.sessions === 0 ? "Check that engines naming you also link you." : "Ship a fix and mark it shipped.",
     href: d.totals.sessions === 0 ? "/dashboard/engines" : "/dashboard/action-plan",
     hrefLabel: d.totals.sessions === 0 ? "Engines" : "Action Plan",
@@ -84,35 +80,61 @@ export default async function OutcomePage({
         </div>
         <div className="card p-4">
           <div className="text-3xl font-semibold tabular-nums">{d.totals.conversions.toLocaleString()}</div>
-          <div className="mt-1 text-sm text-[var(--text-2)]">Key events from AI referrals</div>
+          <div className="mt-1 text-sm text-[var(--text-2)]">Key events</div>
         </div>
         <div className="card p-4">
           <div className="text-3xl font-semibold tabular-nums">{d.engine_totals.length}</div>
-          <div className="mt-1 text-sm text-[var(--text-2)]">Answer engines sending traffic</div>
+          <div className="mt-1 text-sm text-[var(--text-2)]">Engines sending traffic</div>
         </div>
       </div>
 
       <section className="mb-6 card p-4">
-        <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">
-          AI-referred sessions by engine
-        </h2>
-        <HBars
-          items={d.engine_totals.map((e) => ({
-            label: `${e.engine} · ${e.conversions} key events`,
-            value: e.sessions,
-            color: "var(--accent)",
-          }))}
-          max={Math.max(...d.engine_totals.map((e) => e.sessions), 1)}
-        />
+        <h2 className="mb-3 text-sm font-medium text-[var(--text-2)]">By engine</h2>
+        <table className="w-full text-left text-sm">
+          <thead className="text-xs text-[var(--text-3)]">
+            <tr>
+              <th className="py-1.5 pr-4 font-medium">Engine</th>
+              <th className="pr-4 font-medium">Sessions</th>
+              <th className="w-1/2 pr-4"></th>
+              <th className="font-medium">Key events</th>
+            </tr>
+          </thead>
+          <tbody>
+            {byEngine.map((e) => {
+              const maxE = Math.max(...byEngine.map((x) => x.sessions), 1);
+              return (
+                <tr key={e.engine} className="border-t border-[var(--border)]">
+                  <td className="py-2 pr-4">
+                    <span className="inline-flex items-center gap-2 font-semibold">
+                      <EngineMark surface={e.engine} size={18} />
+                      {e.engine}
+                    </span>
+                  </td>
+                  <td className="pr-4 tabular-nums">{e.sessions.toLocaleString()}</td>
+                  <td className="pr-4">
+                    <div className="h-2 w-full rounded-sm bg-[var(--plane-2)]">
+                      <div
+                        className="h-2 rounded-sm bg-[var(--accent)]"
+                        style={{ width: `${(e.sessions / maxE) * 100}%` }}
+                      />
+                    </div>
+                  </td>
+                  <td className="tabular-nums text-[var(--text-2)]">{e.conversions.toLocaleString()}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </section>
 
       <section className="card p-4">
         <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">
-          Daily AI-referred sessions, with visibility score
+          Daily sessions · visibility score above each bar
         </h2>
         {gaps.map((g) => (
           <p key={g.start} className="mb-3 text-xs text-[var(--text-3)]">
-            {g.label}: grey bars undercount {g.engine} (tracking outage).
+            <span className="font-semibold text-[var(--text-2)]">{g.label}:</span> {g.engine} undercounted
+            (grey bars).
           </p>
         ))}
         <div className="flex gap-1" style={{ height: 140 }}>
