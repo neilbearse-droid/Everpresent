@@ -11,13 +11,6 @@ const PURPOSE_LABEL: Record<string, string> = {
   training: "Model training",
 };
 
-const PURPOSE_HELP: Record<string, string> = {
-  search: "Crawling so the engine can find and cite the page later.",
-  user: "An AI fetched the page while answering someone's question. It's the closest sign of real demand in your logs.",
-  agent: "An AI browser acting for a person (shopping, booking, comparing).",
-  training: "Collecting text to train future models. It doesn't affect today's citations.",
-};
-
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="p-3">
@@ -44,8 +37,8 @@ export default async function AgentsPage() {
   const lead =
     !d || !d.has_data
       ? {
-          tells: `No AI bot traffic recorded for the last ${d?.days ?? 30} days. Once logs arrive, this page shows which engines read your pages, why they came, and which reads never turn into a citation.`,
-          act: "Upload a server or CDN access log, or ask your EverPresent contact for a log-push token so logs stream in on their own.",
+          tells: "No AI bot traffic yet.",
+          act: "Upload an access log.",
           tone: "neutral" as const,
         }
       : (() => {
@@ -54,42 +47,16 @@ export default async function AgentsPage() {
           const topCompany = d.by_company[0];
           const first = rnc[0];
           return {
-            tells: (
-              <>
-                AI bots made {d.total_hits.toLocaleString()} requests in {d.days} days
-                {topCompany && <>, {topCompany.company} most</>}. {d.by_purpose.user.toLocaleString()}{" "}
-                {d.by_purpose.user === 1 ? "was" : "were"} live fetches to answer someone&apos;s question.
-                {rnc.length > 0 && (
-                  <>
-                    {" "}
-                    {rnc.length} {rnc.length === 1 ? "page is" : "pages are"} read and never cited
-                  </>
-                )}
-                {broken.length > 0 && (
-                  <>
-                    {rnc.length > 0 ? ", and " : " "}
-                    {broken.length} {broken.length === 1 ? "returns" : "return"} errors to bots
-                  </>
-                )}
-                {rnc.length > 0 || broken.length > 0 ? "." : ""}
-              </>
-            ),
+            tells:
+              rnc.length > 0
+                ? `AI bots read ${rnc.length} of your pages and never cite ${rnc.length === 1 ? "it" : "them"}.`
+                : `AI bots made ${d.total_hits.toLocaleString()} requests in ${d.days} days${topCompany ? `, ${topCompany.company} most` : ""}.`,
             act:
-              broken.length > 0 ? (
-                <>
-                  Fix the {broken.length} {broken.length === 1 ? "page" : "pages"} returning errors
-                  first: redirect {broken.length === 1 ? "it" : "them"} to the live page. Bots keep
-                  asking for {broken.length === 1 ? "it" : "them"} and cite someone else meanwhile.
-                </>
-              ) : first ? (
-                <>
-                  Start with {first.path}, the page read most without being cited. Open it with a
-                  direct answer, add current facts and a date, and check it renders without
-                  JavaScript.
-                </>
-              ) : (
-                "Every page the bots read is being cited and nothing errors. Keep the dates current and the answers near the top."
-              ),
+              broken.length > 0
+                ? `Redirect the ${broken.length} broken ${broken.length === 1 ? "page" : "pages"} bots keep hitting.`
+                : first
+                  ? `Put a direct, dated answer at the top of ${first.path}.`
+                  : "Keep dates current.",
             tone: (broken.length > 0 ? "bad" : rnc.length > 0 ? "neutral" : "good") as
               | "good"
               | "bad"
@@ -104,11 +71,8 @@ export default async function AgentsPage() {
 
       <section className="blueprint mb-6 grid-cols-1 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
         <div className="p-5">
-          <span className="bp-label">Your logs</span>
-          <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-[var(--text-2)]">
-            From your server or CDN logs: the AI crawlers and agents that fetched your pages, why
-            they came, and whether those pages get cited in AI answers.
-          </p>
+          <span className="bp-label">Your server or CDN logs</span>
+          <div className="bp-metric mt-1 text-[24px]">{d?.has_data ? `${d.days} days` : "None yet"}</div>
         </div>
         <div className="p-5">
           <UploadLogs />
@@ -119,28 +83,15 @@ export default async function AgentsPage() {
         <p className="text-sm text-[var(--text-2)]">{res.error}</p>
       ) : !d.has_data ? (
         <section className="card p-5 text-sm text-[var(--text-2)]">
-          No AI-bot traffic yet for the last {d.days} days. Upload an access log above, or ask
-          your EverPresent admin for a log-push token to stream logs in automatically.
+          No AI bot traffic in the last {d.days} days.
         </section>
       ) : (
         <>
           <section className="blueprint mb-6 grid-cols-2 md:grid-cols-4">
             <Stat label="AI-bot requests (30d)" value={d.total_hits.toLocaleString()} />
-            <Stat
-              label="Live user fetches"
-              value={d.by_purpose.user.toLocaleString()}
-              sub="an AI fetched a page to answer someone"
-            />
-            <Stat
-              label="Verified by IP"
-              value={`${d.verified_share}%`}
-              sub="the rest only claimed the bot name"
-            />
-            <Stat
-              label="Errors served to bots"
-              value={`${d.error_rate}%`}
-              sub="error responses (4xx/5xx)"
-            />
+            <Stat label="Live user fetches" value={d.by_purpose.user.toLocaleString()} />
+            <Stat label="Verified by IP" value={`${d.verified_share}%`} />
+            <Stat label="Error rate" value={`${d.error_rate}%`} />
           </section>
 
           <section className="blueprint mb-6 grid-cols-1 lg:grid-cols-2">
@@ -156,7 +107,6 @@ export default async function AgentsPage() {
                       <span>{PURPOSE_LABEL[k]}</span>
                       <span className="tabular-nums">{d.by_purpose[k].toLocaleString()}</span>
                     </div>
-                    <p className="text-xs text-[var(--text-3)]">{PURPOSE_HELP[k]}</p>
                   </li>
                 ))}
               </ul>
@@ -192,12 +142,10 @@ export default async function AgentsPage() {
             <div>
               <div className="bp-bar">
                 <span>Read by AI, never cited</span>
-                <span>Fix these first</span>
+                <span>{d.read_not_cited.length}</span>
               </div>
               {d.read_not_cited.length === 0 ? (
-                <p className="p-4 text-sm text-[var(--text-2)]">
-                  Every page AI engines read is also being cited.
-                </p>
+                <p className="p-4 text-sm text-[var(--text-2)]">None.</p>
               ) : (
                 <div className="overflow-x-auto"><table className="bp-table w-full min-w-[460px]">
                   <tbody>
@@ -210,10 +158,6 @@ export default async function AgentsPage() {
                   </tbody>
                 </table></div>
               )}
-              <p className="px-4 pb-3 text-xs text-[var(--text-3)]">
-                Engines read these pages and then cite other sources. Open with a direct answer,
-                add current facts and dates, and check the pages render without JavaScript.
-              </p>
             </div>
             <div>
               <div className="bp-bar">
@@ -221,9 +165,7 @@ export default async function AgentsPage() {
                 <span>{d.cited_at_risk.length}</span>
               </div>
               {d.cited_at_risk.length === 0 ? (
-                <p className="p-4 text-sm text-[var(--text-2)]">
-                  No cited page is erroring for AI bots or going unread.
-                </p>
+                <p className="p-4 text-sm text-[var(--text-2)]">None.</p>
               ) : (
                 <div className="overflow-x-auto"><table className="bp-table w-full min-w-[460px]">
                   <tbody>
@@ -252,9 +194,6 @@ export default async function AgentsPage() {
                       ))}
                     </tbody>
                   </table></div>
-                  <p className="px-4 pb-3 text-xs text-[var(--text-3)]">
-                    Bots keep requesting these and getting errors. Redirect them to the live page.
-                  </p>
                 </>
               )}
             </div>

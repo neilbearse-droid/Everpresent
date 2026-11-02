@@ -1,4 +1,3 @@
-import Link from "next/link";
 import {
   apiFetch,
   type FirstPartySummary,
@@ -43,21 +42,10 @@ function SiteSearchesPanel({ s }: { s: SiteSearches }) {
         </div>
         <div className="p-4">
           {s.site_searches === 0 ? (
-            <p className="text-sm text-[var(--text-2)]">
-              No site searches yet. Engines sometimes search inside one website to check a fact
-              (a <code>site:</code> search); they show here as runs record them.
-            </p>
+            <p className="text-sm text-[var(--text-2)]">No site searches yet.</p>
           ) : (
             <>
-              <p className="text-sm text-[var(--text-2)]">
-                While answering your questions, engines searched inside{" "}
-                <b className="text-[var(--text)]">your site {s.owned}</b>{" "}
-                {s.owned === 1 ? "time" : "times"} and{" "}
-                <b className="text-[var(--text)]">rivals&apos; sites {s.rivals}</b>{" "}
-                {s.rivals === 1 ? "time" : "times"}. When an engine checks a site, that
-                site&apos;s wording can end up in the answer.
-              </p>
-              <ul className="mt-4 space-y-2">
+              <ul className="space-y-2">
                 {s.targets.map((t) => (
                   <li key={`${t.kind}:${t.name}`} className="text-sm">
                     <div className="flex items-center gap-3">
@@ -92,9 +80,7 @@ function SiteSearchesPanel({ s }: { s: SiteSearches }) {
                 ))}
               </ul>
               {!s.has_domains && (
-                <p className="mt-3 text-xs text-[var(--text-3)]">
-                  Add your domains in the config so searches inside your site are counted.
-                </p>
+                <p className="mt-3 text-xs text-[var(--text-3)]">Your domains aren&apos;t set up yet.</p>
               )}
             </>
           )}
@@ -102,14 +88,14 @@ function SiteSearchesPanel({ s }: { s: SiteSearches }) {
       </div>
       <div>
         <div className="bp-bar">
-          <span>What they looked for on your site</span>
-          <span>make sure a page answers each</span>
+          <span>Searched for on your site</span>
+          <span>times · engines</span>
         </div>
         {s.looked_for.length === 0 ? (
           <p className="p-4 text-sm text-[var(--text-2)]">
             {s.owned === 0
               ? "No searches inside your site yet."
-              : "The searches inside your site didn't say what they looked for."}
+              : "No search terms recorded."}
           </p>
         ) : (
           <ul className="divide-y divide-[var(--line)]">
@@ -148,13 +134,6 @@ export default async function YourPagesPage() {
   const worst = pages.find((p) => p.flags.length > 0);
   const conflicts = pages.filter((p) => p.fact_conflicts.length > 0).length;
   const erroring = pages.filter((p) => p.crawl && p.crawl.status !== "ok").length;
-  const worstFix = worst
-    ? worst.fact_conflicts.length > 0
-      ? `it says “${worst.fact_conflicts[0].stated}” where your fact sheet says otherwise, and the engines repeat whichever they read last`
-      : worst.crawl && worst.crawl.status !== "ok"
-        ? "it returns an error to AI bots, so the answers cite someone else for it"
-        : "it shows no date; add one and refresh the figures so it reads as current"
-    : "";
   const lead = !d
     ? {
         tells: "Your pages couldn't be loaded right now.",
@@ -163,40 +142,24 @@ export default async function YourPagesPage() {
       }
     : d.pages_total === 0
       ? {
-          tells: `No AI answer linked one of your own pages in the last ${d.days} days. When one does, it's listed here with whether it loads, how current it looks and whether it agrees with your fact sheet.`,
-          act: "Check that your domains are in the setup, then see Recommendations for how to get your pages cited.",
+          tells: `No AI answer linked one of your pages in ${d.days} days.`,
+          act: "See Recommendations for how to get cited.",
           href: "/dashboard/recommendations",
           hrefLabel: "Recommendations",
           tone: "neutral" as const,
         }
       : {
-          tells: (
-            <>
-              AI answers used {d.pages_total} of your pages in the last {d.days} days.{" "}
-              {d.flagged === 0 ? (
-                <>None has a problem.</>
-              ) : (
-                <>
-                  {d.flagged} need attention
-                  {conflicts > 0 || erroring > 0 ? (
-                    <>
-                      : {conflicts > 0 && <>{conflicts} contradict your fact sheet</>}
-                      {conflicts > 0 && erroring > 0 && <> and </>}
-                      {erroring > 0 && <>{erroring} error for AI bots</>}
-                    </>
-                  ) : null}
-                  .
-                </>
-              )}
-            </>
-          ),
-          act: worst ? (
-            <>
-              Fix {worst.path} first: {worstFix}. Then work down the table.
-            </>
-          ) : (
-            "Nothing to fix. Keep the cited pages dated and current; stale pages lose citations first."
-          ),
+          tells:
+            d.flagged === 0
+              ? `AI answers used ${d.pages_total} of your pages; none has a problem.`
+              : `${d.flagged} of the ${d.pages_total} pages AI answers use need attention.`,
+          act: worst
+            ? worst.fact_conflicts.length > 0
+              ? `Fix ${worst.path}; it contradicts your fact sheet.`
+              : worst.crawl && worst.crawl.status !== "ok"
+                ? `Fix ${worst.path}; it errors for AI bots.`
+                : `Date and refresh ${worst.path}.`
+            : "Keep cited pages dated and current.",
           tone: (d.flagged === 0 ? "good" : conflicts > 0 || erroring > 0 ? "bad" : "neutral") as
             | "good"
             | "bad"
@@ -207,18 +170,6 @@ export default async function YourPagesPage() {
     <main className="mx-auto max-w-[1400px] px-6 pb-16">
       <DashNav active="Your Pages" isSuperadmin={me.data?.is_superadmin} />
       <PageLead {...lead} />
-      <details className="mb-6">
-        <summary className="cursor-pointer text-[12.5px] font-medium text-[var(--text-3)] hover:text-[var(--text-2)]">
-          Why your own pages matter to AI answers
-        </summary>
-        <p className="mt-2 max-w-3xl text-sm text-[var(--text-2)]">
-          AI engines check facts on brands&apos; own sites. In Ahrefs&apos; October 2026 study of
-          ChatGPT&apos;s sub-searches, most searches limited to a single site went to brand sites, so
-          a stale price or a broken help page can end up in the answer. Every page of yours that
-          AI answers used is listed with whether it loads, how current it looks and whether it
-          agrees with your fact sheet, next to what Google and Bing report.
-        </p>
-      </details>
 
       {!d ? (
         <p className="text-sm text-[var(--text-2)]">{res.error}</p>
@@ -228,8 +179,8 @@ export default async function YourPagesPage() {
             {[
               ["Own pages AI uses", d.pages_total.toLocaleString(), `last ${d.days} days`],
               ["Need attention", d.flagged.toLocaleString(), "conflicts, errors, stale"],
-              ["Bot logs", d.has_logs ? "Connected" : "Not yet", d.has_logs ? "AI bots on your site tab" : "upload on AI bots on your site"],
-              ["First-party data", nSources ? `${nSources} source${nSources === 1 ? "" : "s"}` : "None yet", "import below"],
+              ["Bot logs", d.has_logs ? "Connected" : "Not yet", "AI bots on your site"],
+              ["First-party data", nSources ? `${nSources} source${nSources === 1 ? "" : "s"}` : "None yet", "Google · Bing · Cloudflare · GA4"],
             ].map(([label, value, sub]) => (
               <div key={label} className="p-4">
                 <div className="bp-label">{label}</div>
@@ -247,9 +198,7 @@ export default async function YourPagesPage() {
               </div>
               {d.pages.length === 0 ? (
                 <p className="p-4 text-sm text-[var(--text-2)]">
-                  No answers have linked your own pages in the last {d.days} days
-                  {d.domains.length ? ` (${d.domains.join(", ")})` : ""}. Check your brand domains
-                  in the setup, and see Recommendations for how to get cited.
+                  No answers linked your pages in the last {d.days} days.
                 </p>
               ) : (
                 <div className="overflow-x-auto">
@@ -349,11 +298,6 @@ export default async function YourPagesPage() {
                   </table>
                 </div>
               )}
-              <p className="px-4 pb-3 pt-2 text-xs text-[var(--text-3)]">
-                Pages are re-checked nightly. A fact conflict needs a person to confirm it: a
-                pricing page, for example, may list several prices. Add facts on the Brand
-                tab&apos;s fact sheet (admin) to check more.
-              </p>
             </div>
           </section>
 
@@ -402,9 +346,7 @@ export default async function YourPagesPage() {
               </div>
               {d.in_ai_features_not_sampled.length === 0 ? (
                 <p className="p-4 text-sm text-[var(--text-2)]">
-                  {d.has_first_party
-                    ? "Every page Google or Bing reports in AI features is also in our samples."
-                    : "Import Search Console or Bing data to see pages AI features use that our tracked questions don't reach."}
+                  {d.has_first_party ? "None." : "Import Search Console or Bing data first."}
                 </p>
               ) : (
                 <>
@@ -416,11 +358,6 @@ export default async function YourPagesPage() {
                       </li>
                     ))}
                   </ul>
-                  <p className="px-4 pb-3 pt-2 text-xs text-[var(--text-3)]">
-                    These pages show up in Google or Bing AI features for questions you don&apos;t
-                    track yet. Add those questions on the{" "}
-                    <Link href="/dashboard/queries" className="text-[var(--accent)]">Queries</Link> tab.
-                  </p>
                 </>
               )}
             </div>

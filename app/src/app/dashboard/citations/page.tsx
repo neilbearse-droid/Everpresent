@@ -44,41 +44,22 @@ export default async function CitationsPage({
   const lead =
     !data || data.domains.length === 0
       ? {
-          tells: "No citations captured yet. After the first run this page shows which sites AI answers in your category lean on, and whether yours is one of them.",
-          act: "Nothing to do here until the first run finishes.",
+          tells: "No citations captured yet.",
+          act: "Nothing to do yet.",
           tone: "neutral" as const,
         }
       : {
-          tells: (
-            <>
-              AI answers in your category cite {data.domains.length} domains. Your own site gets{" "}
-              {yours} of {totalCites} citations and rivals&apos; sites get {rivals}.
-              {checked.length > 0 && (
-                <>
-                  {" "}
-                  Of the {checked.length} most-cited third-party pages checked, {absent.length}{" "}
-                  {absent.length === 1 ? "doesn't" : "don't"} name you.
-                </>
-              )}
-            </>
-          ),
-          act: pitch ? (
-            <>
-              Start with {pitch.domain}
-              {pitch.competitors_on_page.length > 0 && (
-                <> (it names {pitch.competitors_on_page.join(" and ")} and not you)</>
-              )}
-              . One mention there reaches every answer that cites it. The full list is below, most
-              cited first.
-            </>
-          ) : consulted.length > 0 ? (
-            <>
-              The engines already read {consulted.length} sources they don&apos;t cite. Those are the
-              easiest pitches: they&apos;re on the reading list already.
-            </>
-          ) : (
-            "You're named on the pages that matter. Keep them current, and watch this list for new entrants."
-          ),
+          tells:
+            checked.length > 0
+              ? `You're named on ${checked.length - absent.length} of the ${checked.length} pages engines lean on most.`
+              : `Your site gets ${yours} of ${totalCites} citations; rivals' sites get ${rivals}.`,
+          act: pitch
+            ? pitch.competitors_on_page.length > 0
+              ? `Pitch ${pitch.domain}; it names ${pitch.competitors_on_page[0]}, not you.`
+              : `Pitch ${pitch.domain}; it names nobody yet.`
+            : consulted.length > 0
+              ? `Pitch ${consulted[0].domain}; engines already read it.`
+              : "Hold what's winning.",
           tone: (yours === 0 && totalCites > 0
             ? "bad"
             : !pitch && yours > 0
@@ -102,20 +83,16 @@ export default async function CitationsPage({
                 {data.domains.filter((d) => d.category === "brand").length > 0 ? "Yes" : "No"}
               </div>
               <div className="mt-1 text-sm text-[var(--text-2)]">
-                Your domains appear among the sources AI answers cite
+                Your site cited
               </div>
             </div>
           </div>
 
           {(data.power_pages ?? []).length > 0 && (
             <section className="card mb-6 p-4">
-              <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
+              <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">
                 Most-cited pages in your category
               </h2>
-              <p className="mb-4 text-xs text-[var(--text-3)]">
-                The pages cited most often across engines. Getting named on one of these, or
-                outranking it, can change every answer that cites it.
-              </p>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm min-w-[640px]">
                   <thead className="text-[var(--text-2)]">
@@ -201,13 +178,9 @@ export default async function CitationsPage({
 
           {Object.keys(data.source_types_by_engine ?? {}).length > 0 && (
             <section className="card mb-6 p-4">
-              <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
+              <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">
                 Source types cited, by engine
               </h2>
-              <p className="mb-4 text-xs text-[var(--text-3)]">
-                The mix of sites each engine cited in answers to your queries. Aim earned-media
-                work at the source types each engine cites most.
-              </p>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {Object.entries(data.source_types_by_engine).map(([surface, types]) => {
                   const total = Object.values(types).reduce((a, b) => a + b, 0) || 1;
@@ -233,13 +206,9 @@ export default async function CitationsPage({
 
           {(data.consulted_domains ?? []).length > 0 && (
             <section className="card mb-6 p-4">
-              <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
-                Consulted but not cited
+              <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">
+                Read by engines, never cited
               </h2>
-              <p className="mb-4 text-xs text-[var(--text-3)]">
-                The engines read these sources while answering but didn&apos;t cite them.
-                They&apos;re already being read, which makes them good outreach targets.
-              </p>
               <div className="flex flex-wrap gap-2">
                 {data.consulted_domains.slice(0, 20).map((d) => (
                   <span key={d.domain} className="chip" title={`${d.queries} queries`}>
@@ -252,13 +221,9 @@ export default async function CitationsPage({
           )}
 
           <section className="card p-4">
-            <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
-              Domains AI answers cite in this vertical
+            <h2 className="mb-4 text-sm font-medium text-[var(--text-2)]">
+              Every domain cited, all engines
             </h2>
-            <p className="mb-4 text-xs text-[var(--text-3)]">
-              Across every engine we measure, including Google&apos;s AI Overviews. When these
-              sites name your brand, the engines have a source that names you.
-            </p>
             {data.domains.length === 0 ? (
               <p className="text-sm text-[var(--text-3)]">No citations captured yet.</p>
             ) : (
