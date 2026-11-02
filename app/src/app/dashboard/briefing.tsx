@@ -19,11 +19,11 @@ export function BriefingBlock({ b, alerts = [] }: { b: Briefing; alerts?: Alert[
         <div className="p-5">
           {b.why.length === 0 && alerts.length === 0 ? (
             <p className="text-[13px] text-[var(--text-2)]">
-              Nothing unusual in the latest data.
+              Nothing unusual.
             </p>
           ) : (
             <ul className="space-y-2.5">
-              {b.why.map((r, i) => (
+              {b.why.slice(0, 3).map((r, i) => (
                 <li key={`why-${i}`} className="text-[13.5px] leading-relaxed text-[var(--text)]">
                   {r.text}
                 </li>
@@ -54,11 +54,11 @@ export function BriefingBlock({ b, alerts = [] }: { b: Briefing; alerts?: Alert[
         <div className="p-5">
           {b.this_week.length === 0 ? (
             <p className="text-[13px] text-[var(--text-2)]">
-              No open recommendations. New ones appear after each run is processed.
+              No open recommendations.
             </p>
           ) : (
             <ol className="space-y-3.5">
-              {b.this_week.map((p, i) => (
+              {b.this_week.slice(0, 3).map((p, i) => (
                 <li key={p.id} className="flex gap-3 text-[13.5px] leading-relaxed">
                   <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[var(--plane-2)] text-[11.5px] font-semibold tabular-nums text-[var(--text-2)]">
                     {i + 1}

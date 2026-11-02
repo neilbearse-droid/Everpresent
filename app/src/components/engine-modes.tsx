@@ -18,7 +18,6 @@ function EngineCell({ e }: { e: EngineMode }) {
           <h3 className="bp-head text-[17px]">{e.label}</h3>
           <span className="chip shrink-0">{MODE_CODE[e.mode]}</span>
         </div>
-        <p className="mt-1 text-[12px] leading-snug text-[var(--text-2)]">{e.blurb}</p>
         <div className="mt-auto flex items-end justify-between gap-2 pt-4">
           <span className="bp-metric text-[44px]">
             {whole}

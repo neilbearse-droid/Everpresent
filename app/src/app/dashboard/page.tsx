@@ -191,10 +191,7 @@ export default async function OverviewPage({
                 )}
               </div>
               <p className="mt-3 max-w-xl text-[14px] leading-relaxed text-[var(--text)]">
-                {b?.winning.line ||
-                  (measured
-                    ? `${brand} is named in ${mr.rate}% of the AI answers measured about your category.`
-                    : "The headline rate appears once the first run has been processed.")}
+                {b?.winning.line || (measured ? `Named in ${mr.rate}% of AI answers.` : "Awaiting the first run.")}
               </p>
               {b?.focus && (
                 <p className="mt-3 text-[13px] text-[var(--text-2)]">
@@ -246,45 +243,6 @@ export default async function OverviewPage({
                 </div>
               </div>
             </div>
-            {/* The method sits under the number, open on request. */}
-            <details className="lg:col-span-12">
-              <summary className="cursor-pointer px-6 py-3 text-[12.5px] font-medium text-[var(--text-3)] hover:text-[var(--text-2)]">
-                How this number is measured
-              </summary>
-              <div className="grid gap-x-8 gap-y-2 border-t border-[var(--line)] px-6 py-4 text-[12.5px] leading-relaxed text-[var(--text-2)] md:grid-cols-2">
-                <p>
-                  <span className="font-semibold text-[var(--text)]">The rate. </span>
-                  The share of AI answers to your tracked questions that name {brand}.
-                  {measured && (
-                    <>
-                      {" "}
-                      Across {mr.answers.toLocaleString()} answers the 95% range is {mr.low}–
-                      {mr.high}%; movement inside that range is noise, not news.
-                    </>
-                  )}
-                  {mr?.weighting === "audience" &&
-                    " Engines are weighted by audience share, so the engines more people use count for more."}
-                </p>
-                <p>
-                  <span className="font-semibold text-[var(--text)]">The verdict. </span>
-                  Compares this period with the previous one and only calls a change when the
-                  ranges don&apos;t overlap. The{" "}
-                  <Link href="/dashboard/scorecard" className="bp-link">
-                    Scorecard
-                  </Link>{" "}
-                  shows the rate per engine, the rate without forced web search, and the smallest
-                  change the current schedule can detect.
-                </p>
-                {(data?.series_notes ?? []).map((n) => (
-                  <p key={`${n.surface}-${n.date}`} className="md:col-span-2">
-                    <span className="font-semibold text-[var(--text)]">
-                      Measurement change, {n.date}.{" "}
-                    </span>
-                    {n.note}
-                  </p>
-                ))}
-              </div>
-            </details>
           </section>
 
           {/* 2. Why, and what to do this week. */}
@@ -295,29 +253,20 @@ export default async function OverviewPage({
           )}
 
           {/* 3. The numbers behind it. */}
-          <div className="mb-3 mt-10 flex items-baseline justify-between">
-            <h2 className="text-[15px] font-semibold tracking-[-0.01em]">The numbers behind it</h2>
-            <span className="text-xs text-[var(--text-3)]">
-              Over time, by how the engine answered, and against each rival
-            </span>
-          </div>
+          <h2 className="mb-3 mt-10 text-[15px] font-semibold tracking-[-0.01em]">The numbers behind it</h2>
 
           {/* Asymmetric row: trend (8) + mode stack (4). */}
           <section className="blueprint mb-6 grid-cols-1 lg:grid-cols-12">
             <div className="lg:col-span-8">
               <div className="bp-bar">
                 <span>Visibility score trend</span>
-                <span>
-                  {composite ? `Today ${composite.score} · ` : ""}0–100, against each rival
-                </span>
+                <span>{composite ? `Today ${composite.score}` : "0–100"}</span>
               </div>
               <div className="p-4">
                 {trendRows.length >= 2 ? (
                   <TrendChart data={trendRows} series={trendSeries} />
                 ) : (
-                  <p className="py-16 text-center text-sm text-[var(--text-3)]">
-                    The trend line appears after a second day of measurements.
-                  </p>
+                  <p className="py-16 text-center text-sm text-[var(--text-3)]">After the second run.</p>
                 )}
               </div>
             </div>
@@ -325,9 +274,7 @@ export default async function OverviewPage({
               {modes?.observed ? (
                 <ModeStack data={modes} aio={aio} />
               ) : (
-                <div className="p-3 text-sm text-[var(--text-2)]">
-                  Per-engine breakdown appears after the next run.
-                </div>
+                <div className="p-3 text-sm text-[var(--text-2)]">After the next run.</div>
               )}
             </div>
           </section>
@@ -353,13 +300,9 @@ export default async function OverviewPage({
                 <span>vs previous day</span>
               </div>
               {data!.movers.length === 0 ? (
-                <p className="p-4 text-sm text-[var(--text-2)]">
-                  Available after a second day of measurement.
-                </p>
+                <p className="p-4 text-sm text-[var(--text-2)]">After the second run.</p>
               ) : data!.movers.every((m) => m.delta === 0) ? (
-                <p className="p-4 text-sm text-[var(--text-2)]">
-                  No change since the previous measurement.
-                </p>
+                <p className="p-4 text-sm text-[var(--text-2)]">No change.</p>
               ) : (
                 <table className="bp-table w-full">
                   <thead>
@@ -449,43 +392,30 @@ function FirstWeek({ tenant, runs }: { tenant: TenantSummary; runs: Run[] }) {
   const setUp = tenant.counts.queries > 0;
   const steps: { title: string; body: string; state: "done" | "now" | "next" }[] = [
     {
-      title: "Your questions are chosen",
+      title: "Questions chosen",
       body: setUp
-        ? `${tenant.counts.queries} questions, ${tenant.counts.competitors} competitors tracked. Review or pause any of them on the Queries page.`
-        : "Your EverPresent contact drafts the questions your buyers ask and you approve the list.",
+        ? `${tenant.counts.queries} questions, ${tenant.counts.competitors} competitors.`
+        : "Drafted with your EverPresent contact.",
       state: setUp ? "done" : "now",
     },
     {
-      title: "The engines get asked",
-      body: live
-        ? "The first run is in progress. Browser engines take the longest; this usually finishes within the hour."
-        : failed
-          ? "The first run hit a problem and is being looked at. Nothing is lost; it resumes where it stopped."
-          : latest
-            ? "The first run has finished and its answers are being processed."
-            : "Every engine you turned on gets your questions, from a clean session in your market.",
+      title: "First run",
+      body: live ? "Running now." : failed ? "Hit a problem; it resumes where it stopped." : latest ? "Finished; answers are being processed." : "Every engine you turned on gets asked.",
       state: setUp ? (latest ? "done" : "now") : "next",
     },
     {
-      title: "Your first number",
-      body: "How often AI answers name you, which rival they name instead, and what they get wrong. This page fills in the day the first run is processed.",
+      title: "First number",
+      body: "How often AI answers name you.",
       state: setUp && latest && !live && !failed ? "now" : "next",
     },
-    {
-      title: "A trend you can act on",
-      body: "After the second run the trend line starts, and after a week the changes are big enough to tell from noise.",
-      state: "next",
-    },
+    { title: "Trend", body: "After the second run.", state: "next" },
   ];
   return (
     <section className="blueprint grid-cols-1 lg:grid-cols-12">
       <div className="p-6 lg:col-span-5">
         <span className="bp-label">{tenant.brand_name ?? tenant.name} · Named in AI answers</span>
         <div className="ep-hero-figure mt-4 text-[var(--text-3)]">—</div>
-        <p className="mt-3 max-w-md text-[14px] leading-relaxed text-[var(--text)]">
-          Your first week. This page becomes one number, the reasons behind it, and a short list of
-          what to do, as soon as the first run is processed.
-        </p>
+        <p className="mt-3 max-w-md text-[14px] leading-relaxed text-[var(--text)]">Your first week.</p>
         <p className="mt-4 text-[13px] text-[var(--text-2)]">
           <Link href="/dashboard/queries" className="bp-link">
             See your questions

@@ -42,32 +42,12 @@ export default async function ComparePage({
   const inWeb = names(modeB.data.parsed_text);
   const lead =
     inApi && inWeb
-      ? {
-          tells: `Both answers name ${brand}. What a buyer sees on the website matches what the API says for this question.`,
-          act: "Read the website answer for how you're described and which rival sits beside you; that wording is what a buyer takes away.",
-          tone: "good" as const,
-        }
+      ? { tells: `Both answers name ${brand}.`, act: "Read the website one; that's what buyers see.", tone: "good" as const }
       : !inApi && !inWeb
-        ? {
-            tells: `Neither answer names ${brand}. You're missing from this question however it's asked.`,
-            act: "Treat this as a gap to close. The Engines page says whether it's a knowledge gap or a content gap, and that decides where the fix goes.",
-            href: "/dashboard/engines",
-            hrefLabel: "Engines",
-            tone: "bad" as const,
-          }
+        ? { tells: `Neither answer names ${brand}.`, act: "Close this gap; Engines says which kind it is.", href: "/dashboard/engines", hrefLabel: "Engines", tone: "bad" as const }
         : inWeb
-          ? {
-              tells: `The website answer names ${brand} and the API answer doesn't. The buyer-facing answer is the better one here.`,
-              act: "Nothing urgent. The website is what buyers see; keep the pages behind that answer current.",
-              tone: "neutral" as const,
-            }
-          : {
-              tells: `The API answer names ${brand} and the website answer doesn't. Buyers see the website, so for this question you're effectively missing.`,
-              act: "Work from the website answer: the rival it names and the sources it links are what to beat.",
-              href: "/dashboard/citations",
-              hrefLabel: "Citations",
-              tone: "bad" as const,
-            };
+          ? { tells: `The website names ${brand}; the API doesn't.`, act: "Nothing urgent; buyers see the website.", tone: "neutral" as const }
+          : { tells: `The API names ${brand}; the website doesn't.`, act: "Beat the rival and sources the website answer uses.", href: "/dashboard/citations", hrefLabel: "Citations", tone: "bad" as const };
 
   return (
     <main className="mx-auto max-w-[1400px] px-6 pb-16">

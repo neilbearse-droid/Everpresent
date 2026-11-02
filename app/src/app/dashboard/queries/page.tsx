@@ -87,46 +87,36 @@ export default async function QueriesPage({
   const pausedQueries = queries.filter((q) => !q.active);
   const ctl = controls.data ?? null;
 
-  // The lead: how many questions you're in the latest answer for, how many
-  // you're missing, and the one thing to do with the list.
+  // The lead: how many questions you're in, how many you're missing.
   const answered = activeQueries.filter((q) => Object.keys(q.latest_results).length > 0);
   const named = answered.filter((q) => Object.values(q.latest_results).some((r) => r.brand_mentioned));
   const missing = answered.length - named.length;
   const firstMissing = answered.find((q) => !Object.values(q.latest_results).some((r) => r.brand_mentioned));
+  const missedOk = firstMissing
+    ? Object.values(firstMissing.latest_results).find((r) => r.status === "ok")
+    : undefined;
   const lead =
     queries.length === 0
-      ? {
-          tells: "No questions are set up yet. These are the questions your buyers ask AI; every rate in the product is measured against this list.",
-          act: "Your EverPresent contact drafts the list with you, usually 25 to 50 questions. Once it's in, the first run asks every engine.",
-          tone: "neutral" as const,
-        }
+      ? { tells: "No questions set up yet.", act: "Your EverPresent contact drafts them with you.", tone: "neutral" as const }
       : answered.length === 0
         ? {
-            tells: `${activeQueries.length} questions are tracked. None has an answer yet; the first run fills this table.`,
-            act: "Read the list as your buyer would. Pause anything that isn't a question a buyer asks about your category, and the rates will follow the set.",
+            tells: `${activeQueries.length} questions tracked, no answers yet.`,
+            act: "Pause any question a buyer wouldn't ask.",
             tone: "neutral" as const,
           }
-        : {
-            tells: (
-              <>
-                You&apos;re named in the latest answer for {named.length} of {answered.length} questions
-                {missing > 0 ? <> and missing from {missing}</> : null}
-                {pausedQueries.length > 0 ? <>; {pausedQueries.length} paused</> : null}.
-              </>
-            ),
-            act:
-              missing === 0
-                ? "You're in every answer measured. Use this page to read what the engines say and to keep the question set honest: pause the ones that stop mattering."
-                : "Open a question you're missing and read the answer a buyer gets; the rival it names is who you're losing to. Pause questions that aren't yours, and the rates follow the set.",
-            href: firstMissing
-              ? (() => {
-                  const ok = Object.values(firstMissing.latest_results).find((r) => r.status === "ok");
-                  return ok ? `/dashboard/runs/${ok.run_id}/results/${ok.result_id}` : undefined;
-                })()
-              : undefined,
-            hrefLabel: "Read a missed answer",
-            tone: (missing === 0 ? "good" : missing > named.length ? "bad" : "neutral") as "good" | "bad" | "neutral",
-          };
+        : missing === 0
+          ? {
+              tells: `Named in the latest answer to all ${answered.length} questions.`,
+              act: "Hold what's winning.",
+              tone: "good" as const,
+            }
+          : {
+              tells: `Named in ${named.length} of ${answered.length} questions; missing from ${missing}.`,
+              act: "Read a missed answer; the rival it names is who you're losing to.",
+              href: missedOk ? `/dashboard/runs/${missedOk.run_id}/results/${missedOk.result_id}` : undefined,
+              hrefLabel: "Read one",
+              tone: (missing > named.length ? "bad" : "neutral") as "good" | "bad" | "neutral",
+            };
 
   return (
     <main className="mx-auto max-w-[1400px] px-6 pb-16">
@@ -135,7 +125,7 @@ export default async function QueriesPage({
 
       <section className="card p-4">
         <h2 className="mb-3 text-sm font-medium text-[var(--text-2)]">
-          Tracked questions and the latest answer to each
+          Questions
         </h2>
         {queries.length === 0 ? (
           <p className="text-sm text-[var(--text-3)]">No queries configured.</p>
@@ -230,38 +220,16 @@ export default async function QueriesPage({
             </table>
           </div>
         )}
-        <details className="mt-4">
-          <summary className="cursor-pointer text-xs font-medium text-[var(--text-3)] hover:text-[var(--text-2)]">
-            How to read this table
-          </summary>
-          <p className="mt-2 max-w-3xl text-xs leading-relaxed text-[var(--text-3)]">
-            Web search is how likely an engine is to search the web for a question instead of
-            answering from memory, judged by comparing its answers with and without search. Answers
-            come from two places: the engines&apos; developer APIs (more answers) and their public
-            websites (closest to what a signed-out, free-tier user sees: no memory, ads possible).
-            Compare puts the two side by side.
-          </p>
-        </details>
-        {ctl && ctl.selective && ctl.personas.length > 0 && (
+        {ctl && ctl.selective && ctl.unlock_plan && (
           <p className="mt-3 text-xs text-[var(--text-3)]">
-            Every question runs on the generic baseline. Tick a persona to also ask it as that
-            buyer; persona answers are reported on the Personas page.
-            {ctl.unlock_plan && (
-              <>
-                {" "}Greyed personas are outside the {ctl.plan} plan and open up on {ctl.unlock_plan}.
-              </>
-            )}
+            Greyed personas open up on {ctl.unlock_plan}.
           </p>
         )}
       </section>
 
       {pausedQueries.length > 0 && (
         <section className="card mt-6 p-4">
-          <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">Paused questions</h2>
-          <p className="mb-3 text-xs text-[var(--text-3)]">
-            A paused question is left out of runs and of the rates from the day it was paused.
-            Its earlier answers stay in the history.
-          </p>
+          <h2 className="mb-3 text-sm font-medium text-[var(--text-2)]">Paused questions</h2>
           <table className="w-full text-left text-sm">
             <thead className="text-[var(--text-2)]">
               <tr>
@@ -278,10 +246,8 @@ export default async function QueriesPage({
                   <td className="pr-4 text-[var(--text-3)]">{humanize(query.corpus_tag)}</td>
                   <td className="pr-4 text-xs text-[var(--text-3)]">
                     {query.paused_at
-                      ? `Data collection stopped on ${query.paused_at.slice(0, 10)} (paused by ${
-                          query.paused_by === "admin" ? "EverPresent" : "you"
-                        })`
-                      : "Not collected (inactive in the config)"}
+                      ? `${query.paused_at.slice(0, 10)} by ${query.paused_by === "admin" ? "EverPresent" : "you"}`
+                      : "inactive"}
                   </td>
                   <td>
                     <ActiveToggle id={query.id} active={false} />

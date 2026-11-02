@@ -54,58 +54,36 @@ export default async function EnginesPage({
   const surfaces = engines.map((e) => e.surface);
   const summary = data?.diagnosis_summary ?? {};
 
-  // The lead: where you are named most and least, and which kind of gap to
-  // close first. Knowledge gaps (no engine names you either way) are fixed
-  // off-site; content gaps (named from memory, rivals when it searches) are
-  // fixed on your own pages.
+  // The lead: where you're named least, and which kind of gap to close first.
   const byRate = [...engines].sort((a, b) => b.brand_rate - a.brand_rate);
   const best = byRate[0];
   const worst = byRate[byRate.length - 1];
   const knowledge = summary.knowledge_gap ?? 0;
   const content = summary.content_gap ?? 0;
-  const unlinked = engines.filter((e) => e.mention_citation_gap >= 10);
+  const gaps = knowledge + content;
   const brand = data?.brand_name ?? "You";
   const lead =
     engines.length === 0
-      ? {
-          tells: "No engine has answered your questions yet. After the first run this page shows how often each engine names you and why the others don't.",
-          act: "Nothing to do here until the first run finishes. Your questions are already set.",
-          href: "/dashboard/queries",
-          hrefLabel: "See your questions",
-          tone: "neutral" as const,
-        }
-      : {
-          tells: (
-            <>
-              {brand} is named most on {surfaceLabel(best.surface)} ({best.brand_rate}%)
-              {engines.length > 1 && (
-                <>
-                  {" "}
-                  and least on {surfaceLabel(worst.surface)} ({worst.brand_rate}%)
-                </>
-              )}
-              . Of the questions you&apos;re missing, {knowledge} {knowledge === 1 ? "is" : "are"} a
-              knowledge gap (no engine knows you for it) and {content} {content === 1 ? "is" : "are"} a
-              content gap (engines know you but pick a rival when they search)
-              {unlinked.length > 0 && (
-                <>
-                  . On {unlinked.map((e) => surfaceLabel(e.surface)).join(" and ")} you&apos;re named
-                  but rarely linked
-                </>
-              )}
-              .
-            </>
-          ),
-          act:
-            knowledge + content === 0
-              ? "You're named on every question measured. Hold it: keep the pages that win these answers current, and watch the movers on the Overview."
-              : knowledge >= content
-                ? `Close the knowledge gaps first. They're won off your site: get ${brand} covered on the third-party pages the engines already cite for those questions. The Action Plan lists them.`
-                : `Close the content gaps first. The engines know ${brand}; your pages lose when they search. Fix the pages behind those questions, worst first.`,
-          href: knowledge + content === 0 ? "/dashboard" : knowledge >= content ? "/dashboard/action-plan" : "/dashboard/pages",
-          hrefLabel: knowledge + content === 0 ? "Overview" : knowledge >= content ? "Action Plan" : "Your Pages",
-          tone: (knowledge + content === 0 ? "good" : knowledge + content > engines.length ? "bad" : "neutral") as "good" | "bad" | "neutral",
-        };
+      ? { tells: "No engine answers yet.", act: "Nothing to do until the first run.", tone: "neutral" as const }
+      : gaps === 0
+        ? {
+            tells: `${brand} is named on every question, on every engine.`,
+            act: "Hold what's winning.",
+            tone: "good" as const,
+          }
+        : {
+            tells:
+              engines.length > 1
+                ? `${brand} is named most on ${surfaceLabel(best.surface)} (${best.brand_rate}%), least on ${surfaceLabel(worst.surface)} (${worst.brand_rate}%).`
+                : `${brand} is named on ${best.brand_rate}% of questions on ${surfaceLabel(best.surface)}.`,
+            act:
+              knowledge >= content
+                ? `Close the ${knowledge} knowledge gaps first: get covered on the sites engines cite.`
+                : `Close the ${content} content gaps first: fix the pages behind them.`,
+            href: knowledge >= content ? "/dashboard/action-plan" : "/dashboard/pages",
+            hrefLabel: knowledge >= content ? "Action Plan" : "Your Pages",
+            tone: (gaps > engines.length ? "bad" : "neutral") as "good" | "bad" | "neutral",
+          };
 
   return (
     <main className="mx-auto max-w-[1400px] px-6 pb-16">
@@ -122,7 +100,7 @@ export default async function EnginesPage({
       {routing.data?.observed && (
         <section className="mb-6 card p-4">
           <h2 className="mb-3 text-sm font-medium text-[var(--text-2)]">
-            How often each engine searches the web for your questions
+            Searched the web before answering
           </h2>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {routing.data.engines.map((e) => (
@@ -138,10 +116,6 @@ export default async function EnginesPage({
               </div>
             ))}
           </div>
-          <p className="mt-3 text-xs text-[var(--text-3)]">
-            New or updated pages can only show up in answers where the engine searched the web.
-            The rest come from memory, what the model learned in training.
-          </p>
         </section>
       )}
 
@@ -149,8 +123,7 @@ export default async function EnginesPage({
         <section className="card p-4">
           <h2 className="mb-2 text-lg font-medium">No engine data yet</h2>
           <p className="text-sm text-[var(--text-2)]">
-            Engine comparisons appear after a completed run. Turn on more than one engine in
-            the admin panel to compare them.
+            Appears after the first completed run.
           </p>
         </section>
       ) : (
@@ -213,11 +186,6 @@ export default async function EnginesPage({
                 </div>
               ))}
             </div>
-            <p className="mt-3 text-xs text-[var(--text-3)]">
-              Content gap: the engine names you from memory but picks rivals when it searches, so
-              the fix is on your pages. Knowledge gap: it doesn&apos;t name you either way, so the fix
-              is on the sites it reads.
-            </p>
           </section>
 
           {/* Query × engine matrix with diagnosis */}
@@ -271,23 +239,6 @@ export default async function EnginesPage({
                 </tbody>
               </table>
             </div>
-            <p className="mt-4 text-xs text-[var(--text-3)]">
-              <span className={`rounded px-1.5 py-0.5 font-medium ${CELL_STYLE.brand}`}>You</span>{" "}
-              = your brand named ·{" "}
-              <span className={`rounded px-1.5 py-0.5 font-medium ${CELL_STYLE.competitor}`}>Rival</span>{" "}
-              = a competitor named, you absent
-              (hover for names) · a dash means neither. The diagnosis uses the no-search answer
-              where there is one.
-            </p>
-            <p className="mt-2 text-xs text-[var(--text-3)]">
-              <span className="font-medium text-[var(--text-2)]">(API)</span> engines are
-              measured through the provider&apos;s developer API with web search. The consumer app
-              can differ: it adds chat memory, location, ads and shopping results, and may run a
-              different model (ChatGPT moved to GPT-6 on 7–8 Oct 2026; the model each API
-              measurement used is on Answer Shape).{" "}
-              <span className="font-medium text-[var(--text-2)]">(web)</span> engines, Copilot and
-              Google&apos;s AI answers are collected from what a signed-out visitor sees.
-            </p>
           </section>
         </>
       )}
