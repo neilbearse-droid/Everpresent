@@ -8,6 +8,7 @@ import {
 } from "@/lib/api";
 import { DashNav } from "@/components/dash-nav";
 import { NoOrgNotice } from "@/components/no-org-notice";
+import { PageLead } from "@/components/page-lead";
 import { ImportFirstParty } from "./import-form";
 import { fmtDate } from "@/lib/viz";
 
@@ -141,11 +142,75 @@ export default async function YourPagesPage() {
   const sources = fp.data?.sources ?? [];
   const nSources = new Set(sources.map((s) => s.source)).size;
 
+  // The lead: how many of your own pages the answers use, how many have a
+  // problem, and which one to fix first (the table is already worst first).
+  const pages = d?.pages ?? [];
+  const worst = pages.find((p) => p.flags.length > 0);
+  const conflicts = pages.filter((p) => p.fact_conflicts.length > 0).length;
+  const erroring = pages.filter((p) => p.crawl && p.crawl.status !== "ok").length;
+  const worstFix = worst
+    ? worst.fact_conflicts.length > 0
+      ? `it says “${worst.fact_conflicts[0].stated}” where your fact sheet says otherwise, and the engines repeat whichever they read last`
+      : worst.crawl && worst.crawl.status !== "ok"
+        ? "it returns an error to AI bots, so the answers cite someone else for it"
+        : "it shows no date; add one and refresh the figures so it reads as current"
+    : "";
+  const lead = !d
+    ? {
+        tells: "Your pages couldn't be loaded right now.",
+        act: "Try again in a moment.",
+        tone: "neutral" as const,
+      }
+    : d.pages_total === 0
+      ? {
+          tells: `No AI answer linked one of your own pages in the last ${d.days} days. When one does, it's listed here with whether it loads, how current it looks and whether it agrees with your fact sheet.`,
+          act: "Check that your domains are in the setup, then see Recommendations for how to get your pages cited.",
+          href: "/dashboard/recommendations",
+          hrefLabel: "Recommendations",
+          tone: "neutral" as const,
+        }
+      : {
+          tells: (
+            <>
+              AI answers used {d.pages_total} of your pages in the last {d.days} days.{" "}
+              {d.flagged === 0 ? (
+                <>None has a problem.</>
+              ) : (
+                <>
+                  {d.flagged} need attention
+                  {conflicts > 0 || erroring > 0 ? (
+                    <>
+                      : {conflicts > 0 && <>{conflicts} contradict your fact sheet</>}
+                      {conflicts > 0 && erroring > 0 && <> and </>}
+                      {erroring > 0 && <>{erroring} error for AI bots</>}
+                    </>
+                  ) : null}
+                  .
+                </>
+              )}
+            </>
+          ),
+          act: worst ? (
+            <>
+              Fix {worst.path} first: {worstFix}. Then work down the table.
+            </>
+          ) : (
+            "Nothing to fix. Keep the cited pages dated and current; stale pages lose citations first."
+          ),
+          tone: (d.flagged === 0 ? "good" : conflicts > 0 || erroring > 0 ? "bad" : "neutral") as
+            | "good"
+            | "bad"
+            | "neutral",
+        };
+
   return (
     <main className="mx-auto max-w-[1400px] px-6 pb-16">
       <DashNav active="Your Pages" isSuperadmin={me.data?.is_superadmin} />
-      <section className="mb-6">
-        <h1 className="text-[28px] font-semibold tracking-tight">Your Pages</h1>
+      <PageLead {...lead} />
+      <details className="mb-6">
+        <summary className="cursor-pointer text-[12.5px] font-medium text-[var(--text-3)] hover:text-[var(--text-2)]">
+          Why your own pages matter to AI answers
+        </summary>
         <p className="mt-2 max-w-3xl text-sm text-[var(--text-2)]">
           AI engines check facts on brands&apos; own sites. In Ahrefs&apos; October 2026 study of
           ChatGPT&apos;s sub-searches, most searches limited to a single site went to brand sites, so
@@ -153,7 +218,7 @@ export default async function YourPagesPage() {
           AI answers used is listed with whether it loads, how current it looks and whether it
           agrees with your fact sheet, next to what Google and Bing report.
         </p>
-      </section>
+      </details>
 
       {!d ? (
         <p className="text-sm text-[var(--text-2)]">{res.error}</p>

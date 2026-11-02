@@ -1,6 +1,7 @@
 import { apiFetch, type AgentAnalytics, type Me } from "@/lib/api";
 import { DashNav } from "@/components/dash-nav";
 import { NoOrgNotice } from "@/components/no-org-notice";
+import { PageLead } from "@/components/page-lead";
 import { UploadLogs } from "./upload-form";
 
 const PURPOSE_LABEL: Record<string, string> = {
@@ -37,13 +38,73 @@ export default async function AgentsPage() {
   }
   const d = res.data;
 
+  // The lead: how much AI bots read your site and why, then the one fix:
+  // broken pages first (bots keep asking and citing someone else), then the
+  // pages read most but never cited.
+  const lead =
+    !d || !d.has_data
+      ? {
+          tells: `No AI bot traffic recorded for the last ${d?.days ?? 30} days. Once logs arrive, this page shows which engines read your pages, why they came, and which reads never turn into a citation.`,
+          act: "Upload a server or CDN access log, or ask your EverPresent contact for a log-push token so logs stream in on their own.",
+          tone: "neutral" as const,
+        }
+      : (() => {
+          const broken = d.broken_pages ?? [];
+          const rnc = d.read_not_cited;
+          const topCompany = d.by_company[0];
+          const first = rnc[0];
+          return {
+            tells: (
+              <>
+                AI bots made {d.total_hits.toLocaleString()} requests in {d.days} days
+                {topCompany && <>, {topCompany.company} most</>}. {d.by_purpose.user.toLocaleString()}{" "}
+                {d.by_purpose.user === 1 ? "was" : "were"} live fetches to answer someone&apos;s question.
+                {rnc.length > 0 && (
+                  <>
+                    {" "}
+                    {rnc.length} {rnc.length === 1 ? "page is" : "pages are"} read and never cited
+                  </>
+                )}
+                {broken.length > 0 && (
+                  <>
+                    {rnc.length > 0 ? ", and " : " "}
+                    {broken.length} {broken.length === 1 ? "returns" : "return"} errors to bots
+                  </>
+                )}
+                {rnc.length > 0 || broken.length > 0 ? "." : ""}
+              </>
+            ),
+            act:
+              broken.length > 0 ? (
+                <>
+                  Fix the {broken.length} {broken.length === 1 ? "page" : "pages"} returning errors
+                  first: redirect {broken.length === 1 ? "it" : "them"} to the live page. Bots keep
+                  asking for {broken.length === 1 ? "it" : "them"} and cite someone else meanwhile.
+                </>
+              ) : first ? (
+                <>
+                  Start with {first.path}, the page read most without being cited. Open it with a
+                  direct answer, add current facts and a date, and check it renders without
+                  JavaScript.
+                </>
+              ) : (
+                "Every page the bots read is being cited and nothing errors. Keep the dates current and the answers near the top."
+              ),
+            tone: (broken.length > 0 ? "bad" : rnc.length > 0 ? "neutral" : "good") as
+              | "good"
+              | "bad"
+              | "neutral",
+          };
+        })();
+
   return (
     <main className="mx-auto max-w-[1400px] px-6 pb-16">
       <DashNav active="AI bots on your site" isSuperadmin={me.data?.is_superadmin} />
+      <PageLead {...lead} />
 
       <section className="blueprint mb-6 grid-cols-1 md:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
         <div className="p-5">
-          <h1 className="text-2xl font-semibold tracking-tight">Which AI bots read your pages</h1>
+          <span className="bp-label">Your logs</span>
           <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-[var(--text-2)]">
             From your server or CDN logs: the AI crawlers and agents that fetched your pages, why
             they came, and whether those pages get cited in AI answers.

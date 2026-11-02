@@ -1,6 +1,7 @@
 import { apiFetch, rangeQuery, type CitationsPayload, type Me } from "@/lib/api";
 import { DashNav } from "@/components/dash-nav";
 import { NoOrgNotice } from "@/components/no-org-notice";
+import { PageLead } from "@/components/page-lead";
 import { AIOTile } from "@/components/aio-tile";
 import { surfaceLabel } from "@/lib/viz";
 
@@ -27,9 +28,68 @@ export default async function CitationsPage({
   }
   const data = payload.data;
 
+  // The lead: whose sites the answers lean on, and which third-party page to
+  // go after first (one that names a rival and not you reaches every answer
+  // that cites it).
+  const cites = (cat: string) =>
+    (data?.domains ?? []).filter((d) => d.category === cat).reduce((a, d) => a + d.count, 0);
+  const totalCites = (data?.domains ?? []).reduce((a, d) => a + d.count, 0);
+  const yours = cites("brand");
+  const rivals = cites("competitor");
+  const thirdParty = (data?.power_pages ?? []).filter((p) => p.category === "other");
+  const checked = thirdParty.filter((p) => p.on_page !== null);
+  const absent = checked.filter((p) => p.on_page === false);
+  const pitch = absent.find((p) => p.competitors_on_page.length > 0) ?? absent[0];
+  const consulted = data?.consulted_domains ?? [];
+  const lead =
+    !data || data.domains.length === 0
+      ? {
+          tells: "No citations captured yet. After the first run this page shows which sites AI answers in your category lean on, and whether yours is one of them.",
+          act: "Nothing to do here until the first run finishes.",
+          tone: "neutral" as const,
+        }
+      : {
+          tells: (
+            <>
+              AI answers in your category cite {data.domains.length} domains. Your own site gets{" "}
+              {yours} of {totalCites} citations and rivals&apos; sites get {rivals}.
+              {checked.length > 0 && (
+                <>
+                  {" "}
+                  Of the {checked.length} most-cited third-party pages checked, {absent.length}{" "}
+                  {absent.length === 1 ? "doesn't" : "don't"} name you.
+                </>
+              )}
+            </>
+          ),
+          act: pitch ? (
+            <>
+              Start with {pitch.domain}
+              {pitch.competitors_on_page.length > 0 && (
+                <> (it names {pitch.competitors_on_page.join(" and ")} and not you)</>
+              )}
+              . One mention there reaches every answer that cites it. The full list is below, most
+              cited first.
+            </>
+          ) : consulted.length > 0 ? (
+            <>
+              The engines already read {consulted.length} sources they don&apos;t cite. Those are the
+              easiest pitches: they&apos;re on the reading list already.
+            </>
+          ) : (
+            "You're named on the pages that matter. Keep them current, and watch this list for new entrants."
+          ),
+          tone: (yours === 0 && totalCites > 0
+            ? "bad"
+            : !pitch && yours > 0
+              ? "good"
+              : "neutral") as "good" | "bad" | "neutral",
+        };
+
   return (
     <main className="mx-auto max-w-[1400px] px-6 pb-16">
       <DashNav active="Citations" isSuperadmin={me.data?.is_superadmin} withDateRange />
+      <PageLead {...lead} />
 
       {!data ? (
         <p className="text-sm text-[var(--text-2)]">{payload.error}</p>
