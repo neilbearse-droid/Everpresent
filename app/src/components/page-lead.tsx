@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { Emph } from "./ui";
 
 /**
  * Every dashboard screen opens with two short lines computed from its own
@@ -36,7 +37,7 @@ export function PageLead({
                 }`}
               />
             )}
-            {tells}
+            {typeof tells === "string" ? <Emph text={tells} /> : tells}
           </p>
         </div>
         <div className="flex min-w-0 flex-1 basis-[20rem] items-start gap-3 lg:justify-end">

@@ -3,7 +3,8 @@ import { apiFetch, type Me, type Recommendation } from "@/lib/api";
 import { DashNav } from "@/components/dash-nav";
 import { NoOrgNotice } from "@/components/no-org-notice";
 import { PageLead } from "@/components/page-lead";
-import { setRecommendationStatus } from "./actions";
+import { StatusButtons } from "@/components/plan-buttons";
+import { Linkify } from "@/components/ui";
 
 const KIND_LABELS: Record<string, string> = {
   accuracy: "Wrong fact",
@@ -35,20 +36,6 @@ const EVIDENCE: Record<string, { label: string; help: string }> = {
   strong: { label: "Strong", help: "controlled studies or large datasets agree" },
   moderate: { label: "Moderate", help: "consistent studies, some vendor-run" },
   emerging: { label: "Emerging", help: "early or correlational evidence" },
-};
-
-const NEXT_ACTIONS: Record<string, { to: Recommendation["status"]; label: string }[]> = {
-  open: [
-    { to: "in_progress", label: "Start" },
-    { to: "dismissed", label: "Dismiss" },
-  ],
-  in_progress: [
-    { to: "done", label: "Mark done" },
-    { to: "open", label: "Back to open" },
-  ],
-  done: [{ to: "open", label: "Reopen" }],
-  dismissed: [{ to: "open", label: "Reopen" }],
-  resolved: [],
 };
 
 // What NOT to do, with the evidence. Static: these hold for every tenant.
@@ -192,7 +179,7 @@ export default async function RecommendationsPage() {
                     {rec.status === "resolved" ? "resolved by the data" : rec.status}
                   </span>
                 </span>
-                <StatusButtons rec={rec} />
+                <StatusButtons id={rec.id} status={rec.status} compact />
               </li>
             ))}
           </ul>
@@ -205,36 +192,35 @@ export default async function RecommendationsPage() {
 function PlayCard({ rec, rank }: { rec: Recommendation; rank: number }) {
   const kind = KIND_LABELS[rec.branch] ?? rec.branch;
   return (
-    <li className="blueprint grid-cols-1">
-      <div>
-        <div className="bp-bar">
-          <span>
-            #{rank} · {kind}
-            {rec.status === "in_progress" && " · in progress"}
-          </span>
-          <EvidenceTag evidence={rec.evidence} />
-        </div>
-        <div className="p-4">
-          <h3 className="mb-1 flex flex-wrap items-baseline gap-2 text-[16px] font-semibold">
-            {BAD_KINDS.has(rec.branch) && <span className="bp-neg text-[11px]">Fix</span>}
-            <span>{rec.title || kind}</span>
-          </h3>
-          <p className="mb-3 text-sm leading-relaxed text-[var(--text)]">{rec.action_text}</p>
+    <li className="card p-4">
+      <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
+        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[var(--plane-2)] text-[11.5px] font-semibold tabular-nums text-[var(--text-2)]">
+          {rank}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={`chip ${BAD_KINDS.has(rec.branch) ? "text-[var(--neg)]" : ""}`}>{kind}</span>
+            {rec.status === "in_progress" && <span className="chip">In progress</span>}
+            <EvidenceTag evidence={rec.evidence} />
+          </div>
+          <h3 className="mt-1.5 text-[16px] font-semibold leading-snug">{rec.title || kind}</h3>
+          <p className="mt-1 text-[13.5px] leading-snug text-[var(--text-2)]">
+            <Linkify text={rec.action_text} />
+          </p>
           <Steps steps={rec.steps} />
           {rec.why && (
-            <p className="mt-3 text-xs text-[var(--text-3)]">
-              <span className="font-semibold">Why: </span>
+            <p className="mt-2 line-clamp-1 text-[12px] text-[var(--text-3)]" title={rec.why}>
               {rec.why}
             </p>
           )}
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <StatusButtons rec={rec} />
-            {rec.link && (
-              <Link href={rec.link} className="ml-auto text-xs text-[var(--accent)]">
-                See the data →
-              </Link>
-            )}
-          </div>
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-2">
+          <StatusButtons id={rec.id} status={rec.status} />
+          {rec.link && (
+            <Link href={rec.link} className="text-xs font-medium text-[var(--accent-2)] hover:underline">
+              See the data →
+            </Link>
+          )}
         </div>
       </div>
     </li>
@@ -244,32 +230,23 @@ function PlayCard({ rec, rank }: { rec: Recommendation; rank: number }) {
 function Steps({ steps }: { steps: string[] | null }) {
   if (!steps || steps.length === 0) return null;
   return (
-    <ol className="list-decimal space-y-1 pl-5 text-sm text-[var(--text-2)]">
-      {steps.map((s) => (
-        <li key={s}>{s}</li>
+    <ul className="mt-2 space-y-1">
+      {steps.map((s, i) => (
+        <li key={s} className="flex gap-2 text-[13px] leading-snug text-[var(--text-2)]">
+          <span className="w-4 shrink-0 text-right tabular-nums text-[var(--text-3)]">{i + 1}.</span>
+          <span><Linkify text={s} /></span>
+        </li>
       ))}
-    </ol>
+    </ul>
   );
 }
 
 function EvidenceTag({ evidence }: { evidence: string }) {
   const e = EVIDENCE[evidence];
-  if (!e) return <span />;
-  return <span title={e.help}>Evidence: {e.label}</span>;
-}
-
-function StatusButtons({ rec }: { rec: Recommendation }) {
-  const actions = NEXT_ACTIONS[rec.status] ?? [];
-  if (actions.length === 0) return null;
+  if (!e) return null;
   return (
-    <>
-      {actions.map(({ to, label }) => (
-        <form key={to} action={setRecommendationStatus.bind(null, rec.id, to)}>
-          <button className="rounded-md border border-[var(--border)] px-3 py-1.5 text-xs hover:bg-[var(--surface-2)]">
-            {label}
-          </button>
-        </form>
-      ))}
-    </>
+    <span className="text-[11.5px] text-[var(--text-3)]" title={e.help}>
+      Evidence: {e.label}
+    </span>
   );
 }

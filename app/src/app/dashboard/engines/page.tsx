@@ -13,6 +13,7 @@ import { NoOrgNotice } from "@/components/no-org-notice";
 import { PageLead } from "@/components/page-lead";
 import { HBars } from "@/components/charts";
 import { EngineStrip } from "@/components/engine-modes";
+import { EngineMark } from "@/components/ui";
 import { surfaceLabel } from "@/lib/viz";
 
 const DIAGNOSIS_ORDER = ["knowledge_gap", "content_gap", "undetermined", "visible"];
@@ -90,9 +91,9 @@ export default async function EnginesPage({
       <DashNav active="Engines" isSuperadmin={me.data?.is_superadmin} withDateRange />
       <PageLead {...lead} />
 
-      {/* Each engine: where you stand on it and the one play for it. */}
       {modes.data?.observed && (
         <section className="mb-6">
+          <h2 className="mb-3 text-[15px] font-semibold tracking-[-0.01em]">By engine</h2>
           <EngineStrip data={modes.data} />
         </section>
       )}
@@ -145,7 +146,10 @@ export default async function EnginesPage({
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {engines.map((e) => (
                 <div key={e.surface} className="rounded-md border border-[var(--border)] p-3 text-sm">
-                  <div className="font-medium">{surfaceLabel(e.surface)}</div>
+                  <div className="flex items-center gap-2 font-medium">
+                    <EngineMark surface={e.surface} size={18} />
+                    {surfaceLabel(e.surface)}
+                  </div>
                   <div className="mt-1 text-2xl font-semibold tabular-nums">{e.brand_rate}%</div>
                   <div className="text-xs text-[var(--text-3)]">mentioned</div>
                   <div className="mt-1.5 flex items-baseline gap-1.5">
@@ -200,7 +204,10 @@ export default async function EnginesPage({
                     <th className="py-2 pr-4">Query</th>
                     {surfaces.map((s) => (
                       <th key={s} className="px-2 text-center text-xs">
-                        {surfaceLabel(s)}
+                        <span className="inline-flex flex-col items-center gap-1">
+                          <EngineMark surface={s} size={18} />
+                          {surfaceLabel(s)}
+                        </span>
                       </th>
                     ))}
                     <th className="pl-4">Diagnosis &amp; fix</th>

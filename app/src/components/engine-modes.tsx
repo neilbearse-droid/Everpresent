@@ -1,5 +1,6 @@
 import { AIOTile } from "@/components/aio-tile";
 import type { AIOSummary, EngineMode, EngineModesPayload } from "@/lib/api";
+import { EngineMark } from "@/components/ui";
 
 // Modes are named in plain words; colour isn't used to tell them apart (the
 // accent is reserved for the brand and good news).
@@ -9,27 +10,30 @@ const MODE_CODE: Record<EngineMode["mode"], string> = {
   mixed: "Mixed",
 };
 
+function fact(e: EngineMode): string {
+  const search = `Searches the web ${Math.round(e.search_rate)}%`;
+  if (e.mode === "recall") return "Answers from memory";
+  if (e.mode === "mixed") return `${search} · rest from memory`;
+  return e.avg_fanout ? `${search} · ${e.avg_fanout.toFixed(1)} sub-searches` : search;
+}
+
 function EngineCell({ e }: { e: EngineMode }) {
   const whole = Math.round(e.standing_value);
   return (
-    <div className="flex flex-col">
-      <div className="flex flex-1 flex-col p-4">
-        <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1">
-          <h3 className="bp-head text-[17px]">{e.label}</h3>
-          <span className="chip shrink-0">{MODE_CODE[e.mode]}</span>
-        </div>
-        <div className="mt-auto flex items-end justify-between gap-2 pt-4">
-          <span className="bp-metric text-[44px]">
-            {whole}
-            <span className="text-[18px]">%</span>
-          </span>
-          <span className="bp-label pb-1.5 text-right">{e.standing_label}</span>
-        </div>
+    <div className="flex flex-col p-4">
+      <div className="flex items-center gap-2.5">
+        <EngineMark surface={e.surface} size={26} />
+        <h3 className="bp-head min-w-0 flex-1 truncate text-[16px]">{e.label}</h3>
+        <span className="chip shrink-0">{MODE_CODE[e.mode]}</span>
       </div>
-      <p className="border-t border-[var(--line)] px-4 py-3 text-[12.5px] leading-snug text-[var(--text-2)]">
-        <span className="mr-1.5 font-medium text-[var(--text)]">What to do:</span>
-        {e.play}
-      </p>
+      <div className="mt-4 flex items-end justify-between gap-2">
+        <span className="bp-metric text-[40px]">
+          {whole}
+          <span className="text-[16px]">%</span>
+        </span>
+        <span className="bp-label pb-1.5 text-right">{e.standing_label}</span>
+      </div>
+      <p className="mt-2 text-[12px] tabular-nums text-[var(--text-3)]">{fact(e)}</p>
     </div>
   );
 }

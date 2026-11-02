@@ -1,83 +1,81 @@
 import Link from "next/link";
 import type { Briefing, OverviewPayload } from "@/lib/api";
+import { Bullets, type Tone } from "@/components/ui";
+import { StatusButtons } from "@/components/plan-buttons";
 
 type Alert = NonNullable<OverviewPayload["alerts"]>[number];
 
-/**
- * The weekly briefing, under the headline number: why it is what it is, and
- * what to do this week. "Where you stand" is the hero above, so it is not
- * repeated here. Alerts ("what changed") belong with the reasons.
- */
+const KIND: Record<string, string> = {
+  accuracy: "Wrong fact",
+  refresh: "Lost citation",
+  own_page: "Your page",
+  subquery: "Sub-question",
+  web_search: "Search gap",
+  crawler_access: "Bot access",
+  broken_page: "Broken page",
+  strategy: "Focus",
+  earned: "Earned media",
+  owned: "Your site",
+  training: "Model memory",
+  aio: "AI Overview",
+  read_not_cited: "Read, not cited",
+};
+
+function tone(t: string): Tone {
+  return t === "high" || t === "bad" ? "bad" : t === "good" ? "good" : "neutral";
+}
+
+/** Why, and this week: bullets with a lead-in on the left; the top three
+ * recommendations with their buttons on the right. */
 export function BriefingBlock({ b, alerts = [] }: { b: Briefing; alerts?: Alert[] }) {
+  const why = [
+    ...b.why.slice(0, 4).map((r) => ({ text: r.text, tone: tone(r.tone) })),
+    ...alerts.slice(0, 2).map((a) => ({ text: a.text, tone: tone(a.severity) })),
+  ].slice(0, 5);
   return (
-    <section className="blueprint mb-6 grid-cols-1 lg:grid-cols-2">
-      <div>
+    <section className="blueprint mb-6 grid-cols-1 lg:grid-cols-5">
+      <div className="lg:col-span-2">
         <div className="bp-bar">
           <span>Why</span>
-          {alerts.length > 0 && <span>{alerts.length} changed</span>}
         </div>
         <div className="p-5">
-          {b.why.length === 0 && alerts.length === 0 ? (
-            <p className="text-[13px] text-[var(--text-2)]">
-              Nothing unusual.
-            </p>
+          {why.length === 0 ? (
+            <p className="text-[13px] text-[var(--text-2)]">Nothing unusual.</p>
           ) : (
-            <ul className="space-y-2.5">
-              {b.why.slice(0, 3).map((r, i) => (
-                <li key={`why-${i}`} className="text-[13.5px] leading-relaxed text-[var(--text)]">
-                  {r.text}
-                </li>
-              ))}
-              {alerts.map((a, i) => (
-                <li key={`alert-${i}`} className="flex items-start gap-3 text-[13px] leading-relaxed">
-                  <span
-                    className={`bp-label mt-0.5 shrink-0 px-1.5 ${
-                      a.severity === "high" ? "bp-neg" : a.severity === "good" ? "bp-mark" : ""
-                    }`}
-                  >
-                    {a.severity === "high" ? "Act" : a.severity === "good" ? "Win" : "Watch"}
-                  </span>
-                  <span className="text-[var(--text-2)]">{a.text}</span>
-                </li>
-              ))}
-            </ul>
+            <Bullets items={why} />
           )}
         </div>
       </div>
-      <div>
+      <div className="lg:col-span-3">
         <div className="bp-bar">
           <span>This week</span>
           <Link href="/dashboard/recommendations" className="hover:underline">
             All recommendations →
           </Link>
         </div>
-        <div className="p-5">
-          {b.this_week.length === 0 ? (
-            <p className="text-[13px] text-[var(--text-2)]">
-              No open recommendations.
-            </p>
-          ) : (
-            <ol className="space-y-3.5">
-              {b.this_week.slice(0, 3).map((p, i) => (
-                <li key={p.id} className="flex gap-3 text-[13.5px] leading-relaxed">
-                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[var(--plane-2)] text-[11.5px] font-semibold tabular-nums text-[var(--text-2)]">
-                    {i + 1}
-                  </span>
-                  <span className="min-w-0">
-                    <Link href={p.link || "/dashboard/recommendations"} className="font-semibold hover:underline">
-                      {p.title}
-                    </Link>
-                    {p.why && (
-                      <span className="line-clamp-2 block text-[12.5px] text-[var(--text-3)]">
-                        {p.why}
-                      </span>
-                    )}
-                  </span>
-                </li>
-              ))}
-            </ol>
-          )}
-        </div>
+        {b.this_week.length === 0 ? (
+          <p className="p-5 text-[13px] text-[var(--text-2)]">No open recommendations.</p>
+        ) : (
+          <ol>
+            {b.this_week.slice(0, 3).map((p, i) => (
+              <li
+                key={p.id}
+                className="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-[var(--line)] px-5 py-3 first:border-t-0"
+              >
+                <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[var(--plane-2)] text-[11.5px] font-semibold tabular-nums text-[var(--text-2)]">
+                  {i + 1}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="chip mr-2 align-middle">{KIND[p.kind] ?? p.kind}</span>
+                  <Link href={p.link || "/dashboard/recommendations"} className="align-middle text-[14px] font-semibold hover:underline">
+                    {p.title}
+                  </Link>
+                </span>
+                <StatusButtons id={p.id} status={p.status} compact />
+              </li>
+            ))}
+          </ol>
+        )}
       </div>
     </section>
   );

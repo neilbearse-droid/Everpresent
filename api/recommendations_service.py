@@ -1126,7 +1126,8 @@ def generate_recommendations(session: Session, tenant: Tenant) -> int:
     for rec in existing.values():
         if rec.status in HAND_STATUSES or rec.status == RecommendationStatus.resolved:
             continue
-        if rec.branch in frozen or rec.gap_ref in still_lost:
+        # Plays a person added by hand have no signal to resolve them.
+        if rec.branch == "manual" or rec.branch in frozen or rec.gap_ref in still_lost:
             open_count += 1
             continue
         rec.status = RecommendationStatus.resolved

@@ -5,6 +5,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel
+from pydantic import Field as PydanticField
 from sqlmodel import Session, col, func, select
 
 from api import dashboards_service
@@ -497,6 +498,41 @@ def recommendations(ctx: Ctx, session: Db) -> list[Recommendation]:
 
 class RecommendationStatusPatch(BaseModel):
     status: RecommendationStatus
+
+
+class RecommendationCreate(BaseModel):
+    """"Add to plan" from anywhere an action is shown (an engine's play, a
+    matrix diagnosis, a brief). gap_ref is the caller's stable identity for
+    the action, so adding it twice updates rather than duplicates."""
+
+    gap_ref: str = PydanticField(min_length=1, max_length=200)
+    title: str = PydanticField(min_length=1, max_length=200)
+    action_text: str = PydanticField(default="", max_length=2000)
+    link: str = PydanticField(default="", max_length=500)
+    query_text: str = PydanticField(default="", max_length=500)
+
+
+@router.post("/recommendations", status_code=201)
+def add_recommendation(payload: RecommendationCreate, ctx: Ctx, session: Db) -> Recommendation:
+    gap_ref = f"manual:{payload.gap_ref}"
+    rec = session.exec(
+        select(Recommendation).where(
+            Recommendation.tenant_id == ctx.tenant_id, Recommendation.gap_ref == gap_ref
+        )
+    ).first()
+    if rec is None:
+        rec = Recommendation(tenant_id=ctx.tenant_id, gap_ref=gap_ref, branch="manual",
+                             action_text=payload.action_text, priority=60)
+    rec.title = payload.title
+    rec.action_text = payload.action_text
+    rec.link = payload.link
+    rec.query_text = payload.query_text
+    rec.status = RecommendationStatus.in_progress
+    rec.updated_at = utcnow()
+    session.add(rec)
+    session.commit()
+    session.refresh(rec)
+    return rec
 
 
 @router.patch("/recommendations/{rec_id}")
