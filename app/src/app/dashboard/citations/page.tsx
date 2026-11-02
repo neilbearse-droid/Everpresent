@@ -62,7 +62,7 @@ export default async function CitationsPage({
                     <tr>
                       <th className="py-2 pr-4">Page</th>
                       <th className="pr-4">Owner</th>
-                      <th className="pr-4">You named?</th>
+                      <th className="pr-4">Names you</th>
                       <th className="pr-4">Queries citing it</th>
                       <th className="pr-4">Citations</th>
                       <th>Engines</th>

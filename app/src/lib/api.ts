@@ -361,12 +361,26 @@ export type PersonasPayload = {
   trend: { date: string; segment: string; brand_score: number }[];
 };
 
+export type QueryControlsPayload = {
+  /** Per-question personas apply only with a generic baseline persona. */
+  selective: boolean;
+  plan: string;
+  personas: { segment: string; name: string; in_plan: boolean }[];
+  /** The plan that runs every persona, when some are outside the current one. */
+  unlock_plan: string | null;
+};
+
 export type QueriesIntelPayload = {
   queries: {
     id: number;
     text: string;
     corpus_tag: string;
     active: boolean;
+    /** When and by whom ("client" | "admin") a paused question was paused. */
+    paused_at?: string | null;
+    paused_by?: string | null;
+    /** Persona segments this question runs against, besides the baseline. */
+    persona_segments?: string[];
     branded: boolean;
     classification: {
       surface: string;

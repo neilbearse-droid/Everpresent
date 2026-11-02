@@ -115,6 +115,23 @@ export async function addQueries(
   };
 }
 
+export async function setQueryActive(
+  slug: string,
+  queryId: number,
+  active: boolean,
+  _prev: ActionState,
+  _formData: FormData,
+): Promise<ActionState> {
+  const res = await apiFetch(`/api/admin/tenants/${slug}/queries/${queryId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ active }),
+  });
+  if (!res.ok) return { ok: false, message: res.error ?? "Could not update the question" };
+  revalidatePath(`/admin/${slug}`);
+  return { ok: true, message: active ? "Resumed." : "Paused from the next run." };
+}
+
 export async function setQueryBranded(
   slug: string,
   queryId: number,

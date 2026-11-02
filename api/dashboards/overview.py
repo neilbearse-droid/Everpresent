@@ -20,6 +20,7 @@ from api.engine_weights import engine_weights, family_of
 from api.models import (
     BrandProfile,
     Mention,
+    Query,
     QueryClassification,
     Result,
     ResultVariant,
@@ -323,6 +324,31 @@ def engine_breaks(session: Session, tenant_id: int, lo: str, hi: str) -> list[di
                       "note": "The audience weights behind the pooled rate changed on "
                               f"{changed}; the overall line before and after is weighted "
                               "differently. Per-engine rates are unaffected."})
+    # Questions paused or added change what the rates cover from that day:
+    # a note on the pooled line (per-question views are unaffected).
+    changes: dict[str, dict[str, int]] = defaultdict(lambda: {"paused": 0, "added": 0})
+    rows = session.exec(select(Query).where(Query.tenant_id == tenant_id)).all()
+    first_day = min((q.created_at.date().isoformat() for q in rows if q.created_at),
+                    default=None)
+    for q in rows:
+        if q.paused_at and not q.active:
+            day = q.paused_at.date().isoformat()
+            if lo < day <= hi:
+                changes[day]["paused"] += 1
+        if q.created_at:
+            day = q.created_at.date().isoformat()
+            # The set's first day is onboarding, not a change.
+            if lo < day <= hi and day != first_day:
+                changes[day]["added"] += 1
+    for day, c in changes.items():
+        parts = []
+        if c["paused"]:
+            parts.append(f"{c['paused']} question{'s' if c['paused'] != 1 else ''} paused")
+        if c["added"]:
+            parts.append(f"{c['added']} question{'s' if c['added'] != 1 else ''} added")
+        notes.append({"date": day, "surface": "overall", "label": "Overall",
+                      "note": f"{' and '.join(parts)} on {day}; from that day the rates "
+                              "cover a different set of questions."})
     seen = {(n["date"], n["surface"]) for n in notes}
     # The timeline's default window is 60 days; a proof window can start earlier.
     days = max(60, (datetime.now(UTC).date() - datetime.fromisoformat(lo).date()).days + 1)

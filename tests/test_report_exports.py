@@ -27,7 +27,7 @@ def test_report_html_carries_every_section(db_session, demo_tenant):
 
     html = render_report_html(db_session, demo_tenant)
     for heading in ("Where Northpeak stands", "Each engine", "Why the numbers",
-                    "What to do next", "Did the fixes work?"):
+                    "What to do next", "Fixes, before and after"):
         assert heading in html
     assert "Fix a wrong fact: Starter plan" in html       # the playbook
     assert "/help/plans" in html                          # the fact conflict

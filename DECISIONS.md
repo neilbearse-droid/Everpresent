@@ -3,6 +3,82 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M62 — One landing page out of two parallel rewrites (2026-11-02)
+
+Two sessions rewrote the public page at the same time. M61's framing wins;
+this merges the language work from the other branch into it and settles what
+the page says.
+
+1. **Kept from M61:** the three problems a buyer already has (analytics can't
+   see it, the engines state wrong facts, it changes without notice), "What
+   you get", the engines split, the agency section, "Your first month", and
+   the SEO objection at the top of the FAQ, which is the one every marketing
+   lead actually raises.
+2. **Kept from the other rewrite:** the hero, which now leads on the shortlist
+   being formed before anyone reaches the site; the price in the hero rather
+   than "by invitation", because it qualifies; and "how soon do I have
+   something worth showing the board", which is the question that decides a
+   signup.
+3. **Cut for length:** "What you get" from seven cards to five (the GA4
+   outcome line folds into the proof card, the spend cap into the cost
+   answer), and the FAQ from seven to five (logins moved to the engines
+   section, agencies to their own section). An odd card count now spans the
+   last cell so the grid has no dead corner.
+4. **AI tells removed** per the house rule on plain writing: every "not X but
+   Y" reveal, em dashes in body copy, "Prefer email?" and the other rhetorical
+   self-questions, "built properly", and the repeated phrases ("an hour",
+   "clean logged-out session"). Contractions throughout, and the three
+   problem cards are deliberately different lengths.
+5. **One claim to keep honest:** the closing says we come back with what the
+   engines already say about you, which commits to a quick run before each
+   call.
+
+## M61 — The public page is written for the buyer (2026-11-01)
+
+1. **Who it is for.** The landing page speaks to the people who would pay:
+   the marketing lead at a brand and the agency that runs it for them. It
+   names their problems (a channel their analytics cannot see, answers that
+   get facts wrong, engines that change without notice) and what they get
+   (share of the answer, what is wrong, what to fix, proof it worked). How
+   the product does it appears only where a buyer needs it to trust a number.
+2. **No figures the copy cannot stand behind.** The Ahrefs one-in-seven
+   search rate and the Oct 8–15 outage detail are out of the public copy: both
+   are second-hand here, and the outage already lives in the product as a dated
+   series break (M50). The "$149 a month" line is out too; no price is
+   published until one is decided, and the FAQ says the price is confirmed
+   before anyone commits.
+3. **No eyebrows, no decorative numbering, no orange outside the brand mark
+   and the call to action**, as everywhere else in the product (M49).
+   `SectionHead` takes a title and an optional lead; step numbers are grey.
+4. **Numbering.** The landing page and waitlist (M59) shipped first from a
+   parallel session; the question controls that were drafted as M59 are M60,
+   and their migration is m41 (`d5e6f7a8b9c0`), re-parented after the
+   waitlist's m40 so there is one migration head.
+
+## M60 — Clients pause questions and choose personas (2026-11-01)
+
+1. **Pause, don't delete.** A question has `active`, `paused_at` and
+   `paused_by` ("client" or "admin"; m41 also adds `created_at`). Pausing
+   takes it out of the next run's plan and out of the competitive numbers at
+   once (`_off_score_query_texts`), so the rates stop covering it the day it
+   is paused; its answers stay, listed under "Paused questions" on the
+   Queries page with the date and who paused it, and the PDF says how many
+   questions were paused in the period. The last active competitive
+   question can't be paused: the headline needs a denominator.
+2. **Set changes are dated.** Questions paused or added inside the window
+   put a note on the pooled line ("2 questions paused on …; from that day
+   the rates cover a different set of questions"); the first day a set
+   exists is onboarding, not a change. Per-question views are unaffected.
+3. **Personas per question, gated by plan.** The client ticks which
+   personas a question also runs against (the generic baseline always runs).
+   The worker runs the first `max_personas` personas by id, so the same rule
+   decides what the client may tick: a persona outside the plan is shown
+   greyed with the plan that unlocks it (`persona_access`). Overlays already
+   set on a kept persona survive. Tenants without a generic baseline (legacy
+   cross-product mode) get no picker.
+4. **Routes.** `GET /api/tenant/query-controls`, `PATCH
+   /api/tenant/queries/{id}` (`active`, `persona_segments`) for members;
+   the admin PATCH gains `active`. Every change is audited.
 ## M59 — A public landing page and a waitlist (2026-11-01)
 
 1. **everpresent.io is a marketing surface, not part of the themed app.** The

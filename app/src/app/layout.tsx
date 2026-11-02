@@ -9,11 +9,11 @@ const SITE_URL = process.env.SITE_URL ?? "https://everpresent.io";
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "EverPresent — brand visibility in AI answers",
+    default: "EverPresent: see what AI tells your buyers about you",
     template: "%s · EverPresent",
   },
   description:
-    "Measure how often AI answer engines name your brand, keep every answer as evidence, and fix the pages that close the gaps.",
+    "Find out how often ChatGPT, Gemini, Perplexity and Google's AI recommend you, what they get wrong about you, and what to fix.",
   applicationName: "EverPresent",
   openGraph: { siteName: "EverPresent", type: "website", url: SITE_URL },
   twitter: { card: "summary_large_image" },

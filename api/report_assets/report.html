@@ -355,7 +355,7 @@ td.r, th.r { text-align: right; }
 
 {# ============================== PROOF ============================== #}
 <section class="page">
-  <h2>Did the fixes work?</h2>
+  <h2>Fixes, before and after</h2>
   <p class="lede">Each shipped fix is compared before and after against a control: the questions and pages nobody touched. That separates the effect of the fix from movement across the whole market.</p>
 
   {% if proof and proof['items'] %}
@@ -396,6 +396,7 @@ td.r, th.r { text-align: right; }
       <li>Questions are asked again on every run; on the Diagnose plan and above the API engines are also asked two or three times per run, so one lucky answer can't move the score.</li>
       <li>Rates are over all answers, including answers naming no brand, so they are not comparable with tools that count only answers naming some brand or weight by search volume.</li>
       {% if s and s.overall and s.overall.weights %}<li>The headline weights engines by audience share ({% for w in s.overall.weights if w.pooled %}{{ w.label }} {{ w.share_pct }}%{% if not loop.last %}, {% endif %}{% endfor %}); the per-engine table is unweighted.</li>{% endif %}
+      {% if s and s.paused_questions %}<li>{{ s.paused_questions }} question{{ 's' if s.paused_questions != 1 else '' }} {{ 'were' if s.paused_questions != 1 else 'was' }} paused during this period; a paused question leaves the rates from the day it is paused and its history stays on the Queries page.</li>{% endif %}
       {% if s and s.segment == 'generic' %}<li>Generic answers only; answers given to a persona (“I run a small bakery…”) are reported on the Personas page, not here.</li>{% endif %}
       <li>Rates show a 95% range. “Up” or “down” is only used when the change is unlikely to be chance.</li>
       <li>A fix whose window overlaps an engine change (a new model, a new answer layout) is marked “confounded”: the engine's answers are left out, and a lift that survives only on the other engines is reported.</li>

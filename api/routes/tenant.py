@@ -21,6 +21,7 @@ from api.models import (
     RecommendationStatus,
     Result,
     Run,
+    Tenant,
     TenantSurface,
     utcnow,
 )
@@ -81,6 +82,53 @@ def personas(ctx: Ctx, session: Db) -> list[Persona]:
 @router.get("/queries")
 def queries(ctx: Ctx, session: Db) -> list[Query]:
     return list(session.exec(select(Query).where(Query.tenant_id == ctx.tenant_id)).all())
+
+
+class QueryPatch(BaseModel):
+    active: bool | None = None
+    persona_segments: list[str] | None = None
+
+
+@router.get("/query-controls")
+def query_controls(ctx: Ctx, session: Db) -> dict:
+    """What the client may change on its questions: the personas it can
+    choose, which are inside the plan, and the plan that unlocks the rest."""
+    from api.query_controls import persona_access
+
+    tenant = session.get(Tenant, ctx.tenant_id)
+    assert tenant is not None
+    return persona_access(session, tenant)
+
+
+@router.patch("/queries/{query_id}")
+def patch_query(query_id: int, payload: QueryPatch, ctx: Ctx, session: Db) -> Query:
+    """Pause or resume a question, or choose its personas. Takes effect on
+    the next run; a pause leaves the competitive numbers at once (the
+    question's history stays on the Queries page under Paused)."""
+    from api.audit import write_audit
+    from api.query_controls import QueryControlError, set_query_active, set_query_personas
+
+    tenant = session.get(Tenant, ctx.tenant_id)
+    query = session.get(Query, query_id)
+    if tenant is None or query is None or query.tenant_id != ctx.tenant_id:
+        raise HTTPException(status_code=404, detail="No such question")
+    actor = getattr(getattr(ctx, "user", None), "email", None) or "client"
+    changed: list[str] = []
+    try:
+        if payload.active is not None and payload.active != query.active:
+            set_query_active(session, tenant, query, payload.active, by="client")
+            changed.append("paused" if not payload.active else "resumed")
+        if payload.persona_segments is not None:
+            set_query_personas(session, tenant, query, payload.persona_segments)
+            changed.append("personas=" + ",".join(payload.persona_segments))
+    except QueryControlError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    if changed:
+        write_audit(session, tenant_id=tenant.id, actor=actor,
+                    action=f"query.client q{query_id} {' '.join(changed)}")
+        session.commit()
+        session.refresh(query)
+    return query
 
 
 @router.get("/surfaces")

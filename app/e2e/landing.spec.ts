@@ -19,15 +19,16 @@ test("the waitlist form asks for all five fields", async ({ page }) => {
   await expect(form.getByLabel("Title", { exact: true })).toBeVisible();
   await expect(form.getByLabel("Company", { exact: true })).toBeVisible();
   await expect(form.getByLabel("Industry", { exact: true })).toBeVisible();
-  await expect(form.getByRole("button", { name: /Request access/ })).toBeVisible();
+  await expect(form.getByRole("button", { name: /Join the waitlist/ })).toBeVisible();
 });
 
-test("the page carries its differentiators and sections", async ({ page }) => {
+test("the page carries its sections", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: /somewhere you can't see/i })).toBeVisible();
-  await expect(page.getByRole("heading", { name: /a score can't tell you/i })).toBeVisible();
-  await expect(page.getByRole("heading", { name: /takes about an hour/i })).toBeVisible();
-  await expect(page.getByRole("heading", { name: /Before you ask/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^What you get$/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /engines your buyers use/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /run this for clients/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Your first month/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /questions we get asked/i })).toBeVisible();
 });
 
 test("element ids are unique across both copies of the form", async ({ page }) => {

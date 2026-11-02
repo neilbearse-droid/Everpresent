@@ -15,7 +15,7 @@ from markupsafe import Markup
 from sqlmodel import Session, col, select
 
 from api.dashboards.common import _surface_label
-from api.models import Recommendation, RecommendationStatus, Run, Tenant
+from api.models import Query, Recommendation, RecommendationStatus, Run, Tenant
 
 log = logging.getLogger(__name__)
 
@@ -180,9 +180,16 @@ def _cover_and_scorecard(session: Session, tenant_id: int) -> dict:
     overall = mr.get("overall") or {}
     sov = ov.get("share_of_voice", {})
     prominence = kpi.get("prominence") or {}
+    window = mr.get("window") or {}
+    paused = [
+        q for q in session.exec(select(Query).where(Query.tenant_id == tenant_id)).all()
+        if not q.active and q.paused_at
+        and window.get("start", "") <= q.paused_at.date().isoformat() <= window.get("end", "~")
+    ]
     return {
         "brand": brand,
-        "window": mr.get("window") or {},
+        "window": window,
+        "paused_questions": len(paused),
         "segment": mr.get("segment"),
         "verdict": (brief.get("winning") or {}),
         "focus": brief.get("focus"),

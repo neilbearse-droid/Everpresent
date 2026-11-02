@@ -46,11 +46,10 @@ export function WaitlistForm({ source = "landing" }: { source?: string }) {
   if (state?.ok) {
     return (
       <div className="card p-6 sm:p-7" aria-live="polite">
-        <p className="ep-eyebrow">Request received</p>
-        <h3 className="mt-2 text-[20px] font-semibold tracking-[-0.02em]">{state.message}</h3>
+        <h3 className="text-[20px] font-semibold tracking-[-0.02em]">{state.message}</h3>
         <p className="mt-3 text-[14px] leading-relaxed text-[var(--text-2)]">
-          We take on a few accounts at a time, so it might be a couple of weeks. When we come
-          back we&apos;ll have questions about your category and some early numbers on it.
+          We onboard a handful of accounts at a time, so it might be a couple of weeks. When we
+          come back we&apos;ll have what the engines already say about your brand, and a price.
         </p>
         <p className="mt-4 text-[13px] text-[var(--text-3)]">
           Anything useful to add in the meantime, send it to{" "}
@@ -65,9 +64,8 @@ export function WaitlistForm({ source = "landing" }: { source?: string }) {
 
   return (
     <form action={action} className="card p-6 sm:p-7" noValidate={false}>
-      <p className="ep-eyebrow">Request access</p>
-      <h3 className="mt-2 text-[20px] font-semibold tracking-[-0.02em]">
-        Start with your own numbers
+      <h3 className="text-[20px] font-semibold tracking-[-0.02em]">
+        Get an early account
       </h3>
       <p className="mt-2 text-[13.5px] leading-relaxed text-[var(--text-2)]">
         Five fields, which tell us what to measure. The first conversation is then about your
@@ -178,7 +176,7 @@ export function WaitlistForm({ source = "landing" }: { source?: string }) {
         disabled={pending}
         className="btn ep-cta mt-5 w-full px-5 py-3 text-[14px]"
       >
-        {pending ? "Sending…" : "Request access"}
+        {pending ? "Adding you…" : "Join the waitlist"}
       </button>
 
       {state && !state.ok && (
@@ -188,8 +186,8 @@ export function WaitlistForm({ source = "landing" }: { source?: string }) {
       )}
 
       <p className="mt-4 text-[12px] leading-relaxed text-[var(--text-3)]">
-        One email when your account is ready. We don&apos;t run a newsletter or sell lists, and
-        we&apos;ll delete your details whenever you ask.
+        One email when your account is ready, and nothing else. No newsletter, no reselling your
+        details, and you can ask us to delete them at any time.
       </p>
     </form>
   );

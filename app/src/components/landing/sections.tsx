@@ -1,8 +1,19 @@
 import type { ReactNode } from "react";
 
 /** The engines a measured answer can come from, grouped the way the product
- * measures them: over the provider's API, and as a logged-out person sees it. */
+ * asks them: directly, over the provider's own connection, and as a logged-out
+ * buyer sees them in a browser. `all` is the list a visitor reads. */
 export const ENGINES = {
+  all: [
+    "ChatGPT",
+    "Google AI Overviews",
+    "Google AI Mode",
+    "Gemini",
+    "Claude",
+    "Perplexity",
+    "Copilot",
+    "Meta AI",
+  ],
   api: ["ChatGPT", "Gemini", "Claude", "Perplexity", "Meta AI"],
   seen: [
     "ChatGPT (browser)",
@@ -14,100 +25,112 @@ export const ENGINES = {
   ],
 };
 
-/** The same problem as a founder, a board member and a marketing lead each
- * meet it. Written to different lengths on purpose. */
-export const PAIN: { title: string; body: string }[] = [
+/** The problems a buyer already has, whether or not they measure them.
+ * Different lengths on purpose. */
+export const PROBLEMS: { title: string; body: string }[] = [
   {
-    title: "Traffic is down and nobody can explain it",
+    title: "Your analytics can't see it.",
     body:
-      "Organic is off, pipeline looks about the same, and the quarterly review has no good answer for either. When the engine resolves the question on its own page there is no click to count, no keyword to point at, and nothing in your analytics that says it happened.",
+      "When an AI answer sends a buyer to a competitor, nothing reaches your site and nothing gets logged. When it sends one to you, the visit often arrives untagged and lands in your reports as direct traffic. The channel stays invisible until somebody measures the answers themselves.",
   },
   {
-    title: "Someone on the board is going to ask",
+    title: "The engines get things wrong about you.",
     body:
-      "It usually arrives as “so what are we doing about AI search”. The honest answer at most companies is a few blog posts and a vendor call. It’s a bad question to get cold.",
+      "An old price, a plan you dropped, a policy you never had. The engines repeat whatever page taught them and the buyer takes it as fact. Most companies find out when a customer repeats it back to them.",
   },
   {
-    title: "You're paying for work nobody can check",
+    title: "It changes without notice.",
     body:
-      "Agencies have been selling this for a year. Ask one what changed in the answers after six months and watch the room go quiet.",
-  },
-];
-
-/** Four reasons to pick this over a scoreboard. Deliberately uneven. */
-export const DIFFERENTIATORS: { title: string; body: string }[] = [
-  {
-    title: "Measured from the app your buyer opens",
-    body:
-      "Most tools query a model through its developer API and report whatever comes back. The app your customer uses answers differently, searches differently and puts different links beside the text. We run both, from a clean logged-out session in your market, and we label which is which so the two never get averaged together by accident.",
-  },
-  {
-    title: "Every number opens",
-    body:
-      "Click a mention rate and you get the answers behind it, dated, with the brands named alongside you and the pages the engine cited. When the rate moves we say whether the move clears the noise. Engines changed how they answer four times this October, and on those dates we flag the break rather than drawing a line through it.",
-  },
-  {
-    title: "The searches behind the answer",
-    body:
-      "An engine splits your buyer's question into its own searches before it writes anything. We capture those and re-run the ones that count, so you find out you’re losing on price comparisons, holding your own on integrations, and which page would close the first gap.",
-  },
-  {
-    title: "Whether it worked",
-    body:
-      "Log the change you shipped and the same questions get asked either side of it, with the arithmetic shown. We pull your analytics in next to it, so the conversation with finance can be about sessions and leads.",
+      "Engines changed how they answer four times this October alone. What was true about your visibility in September might not hold now, and there's no announcement.",
   },
 ];
 
-export const STEPS: { title: string; body: string }[] = [
+/** What a client gets, in the order a buyer would ask for it. `detail` is the
+ * line under each card: where it shows up in the product. */
+export const WHAT_YOU_GET: { title: string; body: string; detail: string }[] = [
   {
-    title: "We write the questions with you",
+    title: "Your share of the answer",
     body:
-      "Mostly us asking what your buyers ask and writing down the wording they would use. Your brand, its aliases, your competitors and your key pages go in at the same time.",
+      "How often AI names you when people ask about your category, which competitors it names instead, and whether that's moving. One number per engine with its margin of error, so you can tell a real change from noise.",
+    detail: "Per engine and pooled, with the answers behind every number a click away.",
   },
   {
-    title: "It runs every week",
+    title: "The answer your buyer actually gets",
     body:
-      "Every question, on every engine you’ve turned on, with the answers kept in full so you can read them yourself.",
+      "An engine's app and its API don't always say the same thing. We ask both ways, from a clean session with no account signed in, in your market, so you see what a real buyer sees including the links beside the text.",
+    detail: "Eight engines, each labelled by how it was asked.",
   },
   {
-    title: "You get a short list",
+    title: "Which questions you're losing",
     body:
-      "Five or six things worth doing, ordered by what they would move. Ship one and the following week tells you whether it landed.",
+      "Before it answers, an engine splits your buyer's question into smaller ones of its own. We show which of those name a competitor instead of you, so you know the exact question to go and win.",
+    detail: "The searches behind each answer, kept with it.",
+  },
+  {
+    title: "What the engines get wrong",
+    body:
+      "We check what they say against the facts you give us, then trace each wrong claim back to the page that most likely taught it, so you can go and fix the source.",
+    detail: "Each wrong claim tied to a source page.",
+  },
+  {
+    title: "What to do, and whether it worked",
+    body:
+      "A short list of pages to write or fix, ranked by what the evidence says moves AI answers, with a draft brief for each. Ship one and the next report measures it against the questions you left alone. Connect GA4 and the visits and conversions sit beside the mention rates, so you can see whether being named more often brings anyone through the door.",
+    detail: "Ordinary web pages. No guessing at tags, markup or special files.",
+  },
+];
+
+/** The first month, from the client's side. */
+export const FIRST_MONTH: { title: string; body: string }[] = [
+  {
+    title: "You tell us who you are",
+    body:
+      "Your brand and its other names, your competitors, your market and your site. We draft the questions your buyers ask, usually 25 to 50, and you approve the list.",
+  },
+  {
+    title: "The engines get asked",
+    body:
+      "Three times a week, on every engine you turned on. Within days you have a first picture: where you're named, where a competitor is named instead, and what's wrong in the answers.",
+  },
+  {
+    title: "You fix what matters most",
+    body:
+      "A short list of pages to write or fix, in order, with a brief for each. Your team or your agency ships them as ordinary web pages.",
+  },
+  {
+    title: "You see whether it moved",
+    body:
+      "The next report shows the before and after for each fix with the margin of error stated, so you know what worked.",
   },
 ];
 
 export const FAQ: { q: string; a: string }[] = [
   {
-    q: "How is this different from the other AI visibility tools?",
-    a: "Most of them score you and stop there. We keep every answer, so when the number moves you have something to read. We also tell you when a change is too small to be real, which costs us the more exciting story about once a month.",
+    q: "Isn't this just SEO?",
+    a: "Partly. The pages AI engines cite are mostly the kind of page that ranks anyway. What's different is that none of it shows in your rankings or your analytics, and the engines name competitors in places search never did. We measure the answers themselves.",
   },
   {
-    q: "What do you need from us?",
-    a: "Your brand and its aliases, your domains, the competitors that matter to you, and a session to draft the questions. Read-only access to your analytics if you want the revenue side. Nothing gets installed on your site.",
+    q: "How do I know a change is real?",
+    a: "Every rate comes with its margin of error, and we only call a change real when the numbers support it. When an engine swaps its model mid-month, the report marks the break and says the window is confounded, which costs us the more exciting story about once a month.",
+  },
+  {
+    q: "What do you need from us to start?",
+    a: "Your brand name and its other names, your domains, the competitors you care about, and your market. We draft the questions with you, which takes about a session. Read-only GA4 access is optional and only needed if you want visits and leads beside the mention rates. Nothing gets installed on your site.",
   },
   {
     q: "How soon do I have something worth showing the board?",
-    a: "A baseline by engine and competitor in the first week. A trend needs about a month of runs behind it, because one run is a snapshot and four of them make a line.",
+    a: "A baseline by engine and competitor inside the first week. A trend needs about a month of runs behind it, because one run is a snapshot and a dozen make a line.",
   },
   {
     q: "What does it cost?",
-    a: "From $149 a month, going up with questions, audiences and engines. We’ll give you the number before you commit, and every account has a hard monthly ceiling, so a runaway bill isn’t possible.",
+    a: "From $149 a month, going up with the questions, engines, audiences and markets you want measured. We'll give you the number before you commit, and every account carries a hard monthly spend cap, enforced before each call, so the bill can't run away from you.",
   },
 ];
 
-export function SectionHead({
-  eyebrow,
-  title,
-  children,
-}: {
-  eyebrow: string;
-  title: ReactNode;
-  children?: ReactNode;
-}) {
+export function SectionHead({ title, children }: { title: ReactNode; children?: ReactNode }) {
   return (
-    <div className="max-w-[62ch]">
-      <p className="ep-eyebrow">{eyebrow}</p>
-      <h2 className="ep-h2 mt-3">{title}</h2>
+    <div className="max-w-[68ch]">
+      <h2 className="ep-h2">{title}</h2>
       {children && (
         <div className="mt-4 text-[16px] leading-relaxed text-[var(--text-2)]">{children}</div>
       )}

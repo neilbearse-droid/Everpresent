@@ -111,6 +111,10 @@ def queries_intel(
                 "text": query.text,
                 "corpus_tag": query.corpus_tag,
                 "active": query.active,
+                "paused_at": query.paused_at.isoformat() if query.paused_at else None,
+                "paused_by": query.paused_by,
+                "persona_segments": [r.get("segment") for r in (query.persona_runs or [])
+                                     if r.get("segment")],
                 "branded": query.branded,
                 "classification": classification,
                 "latest_results": surfaces,
