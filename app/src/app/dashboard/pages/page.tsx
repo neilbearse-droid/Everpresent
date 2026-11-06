@@ -11,6 +11,7 @@ import { PageLead } from "@/components/page-lead";
 import { ImportFirstParty } from "./import-form";
 import { fmtDate } from "@/lib/viz";
 import { AddToPlan } from "@/components/plan-buttons";
+import { EngineMark } from "@/components/ui";
 
 const BAD_FLAGS = new Set(["facts conflict", "unreachable", "errors for AI bots"]);
 const FP_LABEL: Record<string, string> = {
@@ -203,58 +204,92 @@ export default async function YourPagesPage() {
                 </p>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="bp-table w-full min-w-[980px]">
+                  <table className="bp-table w-full min-w-[880px]">
                     <thead>
                       <tr>
                         <th>Page</th>
                         <th className="text-right">Cited</th>
-                        <th>Last check</th>
-                        <th>Facts</th>
-                        <th className="text-right">AI bot reads</th>
-                        <th>Google / Bing</th>
                         <th>Status</th>
+                        <th>Checked</th>
+                        <th>Freshness</th>
+                        <th>Facts</th>
+                        {d.has_logs && <th className="text-right">AI bot reads</th>}
+                        {d.has_first_party && <th>Google / Bing</th>}
                         <th></th>
                       </tr>
                     </thead>
                     <tbody>
                       {d.pages.map((p) => (
                         <tr key={p.path} className="align-top">
-                          <td className="max-w-[280px]">
-                            <div className="font-mono text-[12.5px] font-medium [overflow-wrap:anywhere]">
+                          <td className="max-w-[300px]">
+                            <div className="font-mono text-[12.5px] font-semibold [overflow-wrap:anywhere]">
                               {/* Break lines after / and -, never mid-word. */}
                               {p.path.replace(/([/-])/g, "$1\u200b")}
                             </div>
-                            <div className="text-xs text-[var(--text-3)]">{p.engines.join(", ") || "not cited lately"}</div>
+                            <div className="mt-1 flex items-center gap-1">
+                              {p.engines.length === 0 ? (
+                                <span className="text-xs text-[var(--text-3)]">not cited lately</span>
+                              ) : (
+                                p.engines.map((e) => (
+                                  <span key={e} title={e}>
+                                    <EngineMark surface={e} size={16} />
+                                  </span>
+                                ))
+                              )}
+                            </div>
                           </td>
-                          <td className="text-right tabular-nums">
+                          <td className="text-right font-semibold tabular-nums">
                             {p.cited}
-                            {p.inline > 0 && <div className="text-xs text-[var(--text-3)]">{p.inline} in text</div>}
+                            {p.inline > 0 && <div className="text-xs font-normal text-[var(--text-3)]">{p.inline} in text</div>}
                           </td>
-                          <td className="text-[12.5px]">
+                          <td>
+                            <div className="flex flex-col items-start gap-1">
+                              {p.flags.length === 0 ? (
+                                <span className="bp-mark text-xs">No issues</span>
+                              ) : (
+                                p.flags.map((f) =>
+                                  BAD_FLAGS.has(f) ? (
+                                    <span key={f} className="bp-neg whitespace-nowrap text-xs">{f}</span>
+                                  ) : (
+                                    <span key={f} className="chip">{f}</span>
+                                  ),
+                                )
+                              )}
+                            </div>
+                          </td>
+                          <td className="whitespace-nowrap text-[12.5px]">
                             {p.crawl ? (
-                              <>
-                                {p.crawl.status === "ok" ? "OK" : `Error ${p.crawl.http_status ?? ""}`}
-                                <div className="text-xs text-[var(--text-3)]">
-                                  {fmtDate(p.crawl.checked)} ·{" "}
-                                  {p.crawl.has_updated_date
-                                    ? "shows an updated date"
-                                    : p.crawl.latest_year
-                                      ? `newest year named ${p.crawl.latest_year}`
-                                      : "no date shown"}
-                                </div>
-                              </>
+                              p.crawl.status === "ok" ? (
+                                <>
+                                  <span className="text-[var(--text-3)]">✓</span> {fmtDate(p.crawl.checked)}
+                                </>
+                              ) : (
+                                <span className="bp-neg">Error {p.crawl.http_status ?? ""}</span>
+                              )
                             ) : (
-                              <span className="text-[var(--text-3)]">not checked yet</span>
+                              <span className="text-[var(--text-3)]">Not yet</span>
+                            )}
+                          </td>
+                          <td className="whitespace-nowrap text-[12.5px]">
+                            {!p.crawl ? (
+                              <span className="text-[var(--text-3)]">—</span>
+                            ) : p.crawl.has_updated_date ? (
+                              <span className="text-[var(--text-2)]">Updated date shown</span>
+                            ) : p.crawl.latest_year ? (
+                              <span className="text-[var(--text-2)]">Newest year {p.crawl.latest_year}</span>
+                            ) : (
+                              <span className="chip">No date</span>
                             )}
                           </td>
                           <td className="max-w-[260px] text-[12.5px]">
                             {p.fact_conflicts.length === 0 ? (
-                              <span className="text-[var(--text-3)]">{p.crawl ? "no conflicts" : "—"}</span>
+                              <span className="text-[var(--text-3)]">{p.crawl ? "✓" : "—"}</span>
                             ) : (
                               p.fact_conflicts.slice(0, 2).map((c, i) => (
                                 <div key={i} className="mb-2 last:mb-0">
                                   <div>
-                                    Page says <b>&ldquo;{c.stated}&rdquo;</b>
+                                    <span className="bp-neg text-[11px]">Says</span>{" "}
+                                    <b>&ldquo;{c.stated}&rdquo;</b>
                                   </div>
                                   <div className="text-xs text-[var(--text-2)]">
                                     Fact sheet:{" "}
@@ -263,38 +298,22 @@ export default async function YourPagesPage() {
                                         ? `never say “${c.expected}”`
                                         : `${c.subject} is ${c.expected}`)}
                                   </div>
-                                  {c.snippet && (
-                                    <div className="mt-1 line-clamp-2 text-xs italic text-[var(--text-3)]">
-                                      &ldquo;{c.snippet}&rdquo;
-                                    </div>
-                                  )}
                                 </div>
                               ))
                             )}
                           </td>
-                          <td className="text-right tabular-nums text-[12.5px]">
-                            {d.has_logs ? p.bot_reads.toLocaleString() : "—"}
-                            {p.bot_errors > 0 && (
-                              <div className="text-xs text-[var(--text-3)]">{p.bot_errors} errors</div>
-                            )}
-                          </td>
-                          <td className="max-w-[220px] text-[12px] text-[var(--text-2)]">{fpText(p.first_party)}</td>
-                          <td>
-                            <div className="flex flex-col gap-1">
-                              {p.flags.length === 0 ? (
-                                <span className="bp-mark text-xs">no issues</span>
-                              ) : (
-                                p.flags.map((f) =>
-                                  BAD_FLAGS.has(f) ? (
-                                    <span key={f} className="bp-neg text-xs">{f}</span>
-                                  ) : (
-                                    <span key={f} className="chip">{f}</span>
-                                  ),
-                                )
+                          {d.has_logs && (
+                            <td className="text-right tabular-nums text-[12.5px]">
+                              {p.bot_reads.toLocaleString()}
+                              {p.bot_errors > 0 && (
+                                <div className="text-xs text-[var(--text-3)]">{p.bot_errors} errors</div>
                               )}
-                            </div>
-                          </td>
-                          <td>
+                            </td>
+                          )}
+                          {d.has_first_party && (
+                            <td className="max-w-[220px] text-[12px] text-[var(--text-2)]">{fpText(p.first_party)}</td>
+                          )}
+                          <td className="whitespace-nowrap text-right">
                             {p.flags.length > 0 && (
                               <AddToPlan
                                 gapRef={`page:${p.path}`}
