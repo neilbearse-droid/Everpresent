@@ -25,33 +25,31 @@ export function PageLead({
   tone?: "good" | "bad" | "neutral";
 }) {
   return (
-    <section className="card mb-6 px-5 py-4" aria-label="Summary">
-      <div className="flex flex-wrap items-start justify-between gap-x-8 gap-y-3">
-        <div className="min-w-0 flex-1 basis-[28rem]">
-          <p className="text-[19px] font-semibold leading-snug tracking-[-0.015em] text-[var(--text)]">
-            {tone !== "neutral" && (
-              <span
-                aria-hidden
-                className={`mr-2 inline-block h-2.5 w-2.5 rounded-full align-middle ${
-                  tone === "good" ? "bg-[var(--pos)]" : "bg-[var(--neg)]"
-                }`}
-              />
-            )}
-            {typeof tells === "string" ? <Emph text={tells} /> : tells}
-          </p>
-        </div>
-        <div className="flex min-w-0 flex-1 basis-[20rem] items-start gap-3 lg:justify-end">
-          <p className="text-[14px] leading-snug text-[var(--text-2)]">
-            <span className="font-semibold text-[var(--text)]">Do: </span>
-            {act}
-          </p>
-          {href && (
-            <Link href={href} className="btn btn-ghost shrink-0 px-3 text-[12.5px]">
-              {hrefLabel ?? "Go"} →
-            </Link>
+    <div className="mb-6 space-y-2" aria-label="Summary">
+      <section className="card px-5 py-4">
+        <p className="text-[19px] font-semibold leading-snug tracking-[-0.015em] text-[var(--text)]">
+          {tone !== "neutral" && (
+            <span
+              aria-hidden
+              className={`mr-2 inline-block h-2.5 w-2.5 rounded-full align-middle ${
+                tone === "good" ? "bg-[var(--pos)]" : "bg-[var(--neg)]"
+              }`}
+            />
           )}
-        </div>
-      </div>
-    </section>
+          {typeof tells === "string" ? <Emph text={tells} /> : tells}
+        </p>
+      </section>
+      <section className="card flex flex-wrap items-center gap-x-4 gap-y-2 border-l-[3px] border-l-[var(--accent)] px-5 py-3">
+        <span className="bp-label shrink-0">Priority action</span>
+        <p className="min-w-0 flex-1 text-[14px] leading-snug text-[var(--text)]">
+          {typeof act === "string" ? <Emph text={act} /> : act}
+        </p>
+        {href && (
+          <Link href={href} className="btn btn-primary shrink-0 px-3 text-[12.5px]">
+            {hrefLabel ?? "Go"} →
+          </Link>
+        )}
+      </section>
+    </div>
   );
 }
