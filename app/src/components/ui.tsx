@@ -16,7 +16,7 @@ export function shortUrl(url: string, max = 40): string {
 /** A link that opens in a new tab, shown short, marked as leaving the app. */
 export function ExtLink({ href, children, className = "" }: { href: string; children?: ReactNode; className?: string }) {
   return (
-    <a href={href} target="_blank" rel="noreferrer" className={`bp-link break-all ${className}`}>
+    <a href={href} target="_blank" rel="noreferrer" className={`bp-link whitespace-nowrap ${className}`}>
       {children ?? shortUrl(href)}
       <span aria-hidden className="ml-0.5 text-[0.8em] no-underline">↗</span>
     </a>

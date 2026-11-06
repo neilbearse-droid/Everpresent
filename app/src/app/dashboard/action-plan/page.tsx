@@ -195,10 +195,10 @@ export default async function ActionPlanPage() {
                     <tbody>
                       {data!.protect.lost.map((entry) => (
                         <tr key={entry.url} className="border-t border-[var(--border)]">
-                          <td className="max-w-sm py-2.5 pr-4 font-semibold">
-                            <ExtLink href={entry.url}>{shortUrl(entry.url, 48)}</ExtLink>
+                          <td className="py-2.5 pr-6 font-semibold">
+                            <ExtLink href={entry.url}>{shortUrl(entry.url, 44)}</ExtLink>
                           </td>
-                          <td className="pr-4 text-xs text-[var(--text-2)]">
+                          <td className="min-w-[16rem] pr-4 text-xs text-[var(--text-2)]">
                             {entry.queries.join(" · ")}
                           </td>
                           <td className="pr-4 tabular-nums text-xs text-[var(--text-2)]">

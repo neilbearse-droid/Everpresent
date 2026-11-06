@@ -2,7 +2,7 @@ import { addToPlan, setRecommendationStatus } from "@/app/dashboard/recommendati
 
 /** Start / Mark done / Dismiss for a recommendation that already exists. */
 export function StatusButtons({ id, status, compact = false }: { id: number; status: string; compact?: boolean }) {
-  const btn = `btn ${compact ? "px-2.5 py-1 text-[12px]" : "px-3 py-1.5 text-xs"}`;
+  const btn = `btn whitespace-nowrap ${compact ? "px-2.5 py-1 text-[12px]" : "px-3 py-1.5 text-xs"}`;
   const next: { to: string; label: string; primary?: boolean }[] =
     status === "open"
       ? [{ to: "in_progress", label: "Start", primary: true }, { to: "dismissed", label: "Dismiss" }]
@@ -38,7 +38,7 @@ export function AddToPlan({
 }) {
   return (
     <form action={addToPlan.bind(null, { gapRef, title, actionText, link, queryText })}>
-      <button className={`btn btn-ghost ${compact ? "px-2.5 py-1 text-[12px]" : "px-3 py-1.5 text-xs"}`}>
+      <button className={`btn btn-ghost whitespace-nowrap ${compact ? "px-2.5 py-1 text-[12px]" : "px-3 py-1.5 text-xs"}`}>
         + Add to plan
       </button>
     </form>
