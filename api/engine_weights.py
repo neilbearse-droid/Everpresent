@@ -99,3 +99,26 @@ def weight_lines(weights: dict[str, int], families: set[str]) -> list[dict]:
         }
         for f, w in sorted(present.items(), key=lambda kv: (-kv[1], kv[0]))
     ]
+
+
+# Repeated sampling follows the audience. The plan's samples_per_cell is what
+# the heaviest family gets; lighter families take fewer, down to one, because
+# the headline's precision lives in the engines most people use. Engines that
+# cost next to nothing keep the full count regardless of weight.
+CHEAP_SURFACES: frozenset[str] = frozenset({"perplexity_api"})
+
+
+def samples_for_surface(surface: str, max_samples: int, weights: dict[str, int]) -> int:
+    """How many samples of each generic cell this surface gets per run.
+
+    weight >= 20: the plan's count; weight >= 10: one fewer; below: one.
+    Cheap surfaces always get the plan's count. Never below one."""
+    n = max(1, int(max_samples))
+    if surface in CHEAP_SURFACES:
+        return n
+    w = weights.get(family_of(surface), 0)
+    if w >= 20:
+        return n
+    if w >= 10:
+        return max(1, n - 1)
+    return 1

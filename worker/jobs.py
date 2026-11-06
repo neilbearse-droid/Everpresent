@@ -16,6 +16,7 @@ from sqlmodel import Session, col, func, select
 
 from api.config import get_settings
 from api.db import get_engine
+from api.engine_weights import engine_weights, samples_for_surface
 from api.fanout_service import (
     ShardCandidate,
     evaluate_probe,
@@ -757,6 +758,12 @@ async def _run_mode_a(run_id: int) -> None:
         tenant_slug = tenant.slug
         cap_usd = tenant.monthly_spend_cap_usd
         limits = limits_for(tenant.plan)
+        # Samples per generic cell follow the audience weight of each engine
+        # family (M66): the plan's count for the heaviest, fewer for the rest.
+        samples_by_surface = {
+            s: samples_for_surface(s, limits.samples_per_cell, engine_weights(tenant))
+            for s in A_ADAPTERS
+        }
         a_surfaces = cap_engines(_a_surfaces(run), limits.max_engines)
         run.status = RunStatus.running
         run.started_at = utcnow()
@@ -882,9 +889,9 @@ async def _run_mode_a(run_id: int) -> None:
     # runs (a fixed offset asked only the first one, run after run). Answers
     # vary run to run; pooled samples are what the mention-rate confidence
     # range is made of.
-    extra = max(0, limits.samples_per_cell - 1)
-    if extra:
-        for s in configured:
+    for s in configured:
+        extra = max(0, samples_by_surface.get(s, limits.samples_per_cell) - 1)
+        if extra:
             for (qid, qtext, (pid, pname, pprompt, pseg)) in cells:
                 if pseg != _GENERIC_SEGMENT:
                     continue

@@ -151,7 +151,7 @@ class Settings(BaseSettings):
     # measures model knowledge, which is frozen between model snapshots —
     # reuse a recent twin for the same (query, surface, model) instead of
     # re-buying it every run. 0 disables the cache (always refresh).
-    diagnosis_refresh_days: int = 7
+    diagnosis_refresh_days: int = 30
 
     # Natural search-routing probe (§AEO-plan M2). OpenAI's search variant is
     # forced (to guarantee citations), so it can't reveal whether a prompt

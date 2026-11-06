@@ -3,6 +3,26 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M66 — Samples follow the audience; the twin cache is a month (2026-11-06)
+
+A Custom-plan run for a 12-question tenant cost about $12, and Claude was
+36% of it for 9% of the audience: three samples of every question on an
+engine that bills per web search.
+
+1. **Samples per generic cell scale by engine family weight**
+   (`samples_for_surface` in `api/engine_weights.py`). The plan's
+   `samples_per_cell` is what a family at weight 20 or more gets; weight 10
+   to 19 gets one fewer; below 10 gets one. Perplexity keeps the full count
+   because it costs almost nothing. A tenant's weight override moves the
+   samples with it. The headline's precision lives in the engines most
+   people use, so the 95% range is essentially unchanged.
+2. **The no-search twin refreshes every 30 days, not 7**
+   (`DIAGNOSIS_REFRESH_DAYS` default). The cache already invalidates when
+   the model changes, so the longer window loses nothing; the twin only
+   labels a miss as a knowledge or content gap.
+3. **The unforced probe is untouched.** It is the answer a real user gets
+   and costs pennies.
+
 ## M65 — Text gets a hierarchy, and every action gets a button (2026-11-02)
 
 1. **Shared pieces, not per-page styling** (`app/src/components/ui.tsx`):
