@@ -3,6 +3,31 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M67 — Googlebot gates Claude too; own pages are checked against Brave (2026-11-07)
+
+Claude's web search runs on Brave (Anthropic's subprocessor list, March
+2025; matching citations), and Brave's crawler follows Googlebot's robots
+rules rather than advertising its own agent (Brave's crawler help page).
+Two consequences the product now states and measures.
+
+1. **Copy.** The access audit, the crawler plays and the recrawl line name
+   Claude wherever they name Googlebot, and Brave's submit-a-URL form joins
+   IndexNow and Search Console in the recrawl step.
+2. **noindex is a flag.** The crawl reads a meta robots or googlebot
+   noindex and the X-Robots-Tag header. Brave honours noindex, not
+   robots.txt, so a cited page that carries it is gone from every index.
+   Severity sits just under a fact conflict; its play is "Remove noindex
+   from …" at priority 95, evidence official.
+3. **Brave index check.** With `BRAVE_SEARCH_API_KEY` set, the nightly crawl
+   asks Brave's Search API for each own cited page by its own URL (one
+   query a second, at most 15 pages a tenant) and records true, false or
+   null. False is the flag "not in Brave" and the play "Submit … to Brave"
+   at priority 85; null is never a flag. Your Pages shows a Brave column
+   only when a tenant has the check. Without the key nothing changes.
+4. **Kept out.** The vendor's "20 to 80% in four months" and "50+
+   companies" figures, and the claim that Brave shows nothing that wasn't
+   submitted: Brave has its own index, submission only hurries a fetch.
+
 ## M66 — Samples follow the audience; the twin cache is a month (2026-11-06)
 
 A Custom-plan run for a 12-question tenant cost about $12, and Claude was

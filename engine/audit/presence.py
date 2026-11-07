@@ -37,6 +37,12 @@ MAX_HTML_BYTES = 1_500_000  # a cited article, not a tarpit
 # lab GEO study and have not been shown on live engines.
 
 
+_NOINDEX_RE = re.compile(
+    r"<meta[^>]+name=[\"']?(?:robots|googlebot)[\"']?[^>]*content=[\"'][^\"']*noindex",
+    re.I,
+)
+
+
 def _recent_years(now: datetime | None = None) -> tuple[str, ...]:
     """This year and last: what "recent" means to an engine today."""
     year = (now or datetime.now(UTC)).year
@@ -211,6 +217,9 @@ def extract_features(html: str) -> dict[str, Any]:
 
     years = [int(y) for y in _YEAR_RE.findall(text) if int(y) <= datetime.now(UTC).year]
     return {
+        # Hidden from search indexes (Google, Bing, Brave, so Claude too):
+        # a meta robots/googlebot tag carrying noindex.
+        "noindex": bool(_NOINDEX_RE.search(html)),
         # Explicit facts (controlled 2026 evidence: raise citation odds).
         "has_price": bool(_PRICE_RE.search(text)),
         "has_updated_date": bool(_UPDATED_MARKUP_RE.search(html) or _UPDATED_RE.search(text)),
@@ -246,7 +255,11 @@ def crawl_page(client: httpx.Client, url: str) -> dict[str, Any]:
                     break
             encoding = resp.encoding or "utf-8"
             html = bytes(buf[:MAX_HTML_BYTES]).decode(encoding, errors="replace")
-            return {"html": html, "http_status": resp.status_code}
+            # An X-Robots-Tag header hides the page from search indexes just as
+            # a meta tag does, and Brave honours noindex (not robots.txt).
+            robots_header = resp.headers.get("x-robots-tag", "").lower()
+            return {"html": html, "http_status": resp.status_code,
+                    "noindex_header": "noindex" in robots_header}
     except httpx.HTTPError as exc:
         return {"error": f"{type(exc).__name__}: {exc}"[:300], "http_status": None}
 _visible_html = visible_html  # backwards-compatible name

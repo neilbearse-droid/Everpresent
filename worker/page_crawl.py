@@ -7,6 +7,8 @@ tenant with citations, and on demand from the admin panel. Competitor-owned
 URLs are skipped; the brand's own cited pages ARE crawled — their fingerprint
 is the "your page" side of the citability diff (§focus-group #3)."""
 
+import time
+
 import httpx
 import structlog
 from sqlmodel import Session, select
@@ -14,6 +16,7 @@ from sqlmodel import Session, select
 from api.config import get_settings
 from api.dashboards_service import citations_intel
 from api.models import BrandFact, BrandProfile, Competitor, PagePresence, Tenant, utcnow
+from engine.audit.brave import brave_indexed
 from engine.audit.presence import crawl_page, detect_presence, extract_features, visible_html
 from engine.netguard import guard_public_request
 from engine.processing.accuracy import FactSpec, check_text
@@ -85,7 +88,9 @@ def crawl_power_pages(tenant_id: int) -> int:
         return 0
 
     # Phase 2 — fetch + parse each page. NO DB CONNECTION HELD.
-    proxy = get_settings().scrape_proxy_url or None
+    settings = get_settings()
+    proxy = settings.scrape_proxy_url or None
+    brave_key = settings.brave_search_api_key
     parsed: list[dict] = []
     # Cited URLs are outsider-controlled: public http(s) only, every hop.
     with httpx.Client(
@@ -111,10 +116,19 @@ def crawl_power_pages(tenant_id: int) -> int:
                 row_data["brand_found"] = presence["brand_found"]
                 row_data["competitors_found"] = presence["competitors_found"]
                 row_data["features"] = extract_features(html)
+                if fetched.get("noindex_header"):
+                    row_data["features"]["noindex"] = True
                 if domain_is_owned(page["domain"], owned_domains):
                     # Own page: does it agree with the brand's fact sheet?
                     row_data["features"]["owned"] = True
                     row_data["features"]["fact_conflicts"] = _fact_conflicts(html, facts)
+                    # And is it in Brave's index, where Claude's search looks?
+                    # None when the check couldn't run; the free tier allows
+                    # one query a second.
+                    if brave_key:
+                        row_data["features"]["brave_indexed"] = brave_indexed(
+                            brave_key, page["url"])
+                        time.sleep(1.05)
             parsed.append(row_data)
 
     # Phase 3 — persist with a fresh connection.

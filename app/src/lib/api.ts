@@ -925,6 +925,8 @@ export type OwnPages = {
   domains: string[];
   has_logs: boolean;
   has_first_party: boolean;
+  /** Any own page has a Brave index check. */
+  has_brave?: boolean;
   pages_total: number;
   flagged: number;
   pages: {
@@ -940,6 +942,9 @@ export type OwnPages = {
       has_updated_date: boolean;
       latest_year: number;
       has_price: boolean;
+      noindex?: boolean;
+      /** True/false when Brave was asked; null or absent when it wasn't. */
+      brave_indexed?: boolean | null;
     } | null;
     fact_conflicts: {
       subject: string;

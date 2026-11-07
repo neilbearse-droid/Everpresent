@@ -13,7 +13,7 @@ import { fmtDate } from "@/lib/viz";
 import { AddToPlan } from "@/components/plan-buttons";
 import { EngineMark } from "@/components/ui";
 
-const BAD_FLAGS = new Set(["facts conflict", "unreachable", "errors for AI bots"]);
+const BAD_FLAGS = new Set(["facts conflict", "noindex", "unreachable", "errors for AI bots", "not in Brave"]);
 const FP_LABEL: Record<string, string> = {
   "gsc:impressions": "Google AI impressions",
   "gsc:clicks": "Google AI clicks",
@@ -158,9 +158,13 @@ export default async function YourPagesPage() {
           act: worst
             ? worst.fact_conflicts.length > 0
               ? `Fix ${worst.path}; it contradicts your fact sheet.`
-              : worst.crawl && worst.crawl.status !== "ok"
-                ? `Fix ${worst.path}; it errors for AI bots.`
-                : `Date and refresh ${worst.path}.`
+              : worst.flags.includes("noindex")
+                ? `Remove noindex from ${worst.path}; no search engine can retrieve it.`
+                : worst.crawl && worst.crawl.status !== "ok"
+                  ? `Fix ${worst.path}; it errors for AI bots.`
+                  : worst.flags.includes("not in Brave")
+                    ? `Submit ${worst.path} to Brave; Claude searches there.`
+                    : `Date and refresh ${worst.path}.`
             : "Keep cited pages dated and current.",
           tone: (d.flagged === 0 ? "good" : conflicts > 0 || erroring > 0 ? "bad" : "neutral") as
             | "good"
@@ -213,6 +217,7 @@ export default async function YourPagesPage() {
                         <th>Checked</th>
                         <th>Freshness</th>
                         <th>Facts</th>
+                        {d.has_brave && <th>Brave</th>}
                         {d.has_logs && <th className="text-right">AI bot reads</th>}
                         {d.has_first_party && <th>Google / Bing</th>}
                         <th></th>
@@ -302,6 +307,17 @@ export default async function YourPagesPage() {
                               ))
                             )}
                           </td>
+                          {d.has_brave && (
+                            <td className="whitespace-nowrap text-[12.5px]">
+                              {p.crawl?.brave_indexed === true ? (
+                                <span className="text-[var(--text-3)]">✓ indexed</span>
+                              ) : p.crawl?.brave_indexed === false ? (
+                                <span className="bp-neg">not indexed</span>
+                              ) : (
+                                <span className="text-[var(--text-3)]">—</span>
+                              )}
+                            </td>
+                          )}
                           {d.has_logs && (
                             <td className="text-right tabular-nums text-[12.5px]">
                               {p.bot_reads.toLocaleString()}
@@ -320,9 +336,13 @@ export default async function YourPagesPage() {
                                 title={
                                   p.fact_conflicts.length > 0
                                     ? `Fix facts on ${p.path}`
-                                    : p.crawl && p.crawl.status !== "ok"
-                                      ? `Fix errors on ${p.path}`
-                                      : `Date and refresh ${p.path}`
+                                    : p.flags.includes("noindex")
+                                      ? `Remove noindex from ${p.path}`
+                                      : p.crawl && p.crawl.status !== "ok"
+                                        ? `Fix errors on ${p.path}`
+                                        : p.flags.includes("not in Brave")
+                                          ? `Submit ${p.path} to Brave`
+                                          : `Date and refresh ${p.path}`
                                 }
                                 actionText={
                                   p.fact_conflicts.length > 0

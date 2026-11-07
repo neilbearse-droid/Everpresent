@@ -118,6 +118,11 @@ class Settings(BaseSettings):
     # Google AI Mode (SerpApi engine=google_ai_mode; uses SERPAPI_KEY).
     google_ai_mode_rate_per_min: float = 6.0
     google_ai_mode_timeout_s: float = 120.0
+    # Brave Search API: is each of the brand's own cited pages in Brave's
+    # index? (Claude's web search runs on Brave.) Empty = check skipped.
+    brave_search_api_key: str = Field(
+        default="", validation_alias=AliasChoices("BRAVE_SEARCH_API_KEY", "brave_search_api_key")
+    )
     # SERP_API_KEY is accepted too: it's the spelling people naturally type.
     serpapi_key: str = Field(
         default="", validation_alias=AliasChoices("SERPAPI_KEY", "SERP_API_KEY", "serpapi_key")

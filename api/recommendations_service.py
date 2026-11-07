@@ -107,8 +107,9 @@ WHY = {
     ),
     "crawler": (
         "Official: ChatGPT search only shows sites OAI-SearchBot can crawl; Copilot uses "
-        "Bing's index; Google's AI features need normal Googlebot indexing. If the bot is "
-        "blocked, that engine can't show your pages."
+        "Bing's index; Google's AI features need normal Googlebot indexing; Claude's search "
+        "runs on Brave, whose crawler follows Googlebot's rules. If the bot is blocked, that "
+        "engine can't show your pages."
     ),
     "refresh": (
         "AI answers tend to cite recently updated pages (Ahrefs citation study, 2025). A "
@@ -187,8 +188,9 @@ WHY_SUBQUERY_FACTS = f"{WHY['subquery']} {WHY['facts']}"
 
 _RECRAWL = (
     "Request a recrawl after the change: IndexNow (Bing, which feeds Copilot and, by most "
-    "accounts, ChatGPT search) and URL Inspection in Google Search Console; ChatGPT, "
-    "Perplexity and Claude have no recrawl request"
+    "accounts, ChatGPT search), URL Inspection in Google Search Console, and Brave's "
+    "submit-a-URL form (Claude's search runs on Brave); ChatGPT and Perplexity have no "
+    "recrawl request"
 )
 
 
@@ -507,7 +509,8 @@ _KEY_BOTS = {
     "Bingbot": "Copilot (official) and, by most accounts, ChatGPT search",
     "PerplexityBot": "Perplexity",
     "Claude-SearchBot": "Claude",
-    "Googlebot": "Google AI Overviews and AI Mode",
+    "Googlebot": "Google AI Overviews and AI Mode, and Claude (its search runs on Brave, "
+                 "whose crawler follows Googlebot's rules)",
 }
 _MIN_LOG_HITS = 200  # below this, a missing bot is more likely a partial log
 
@@ -953,6 +956,32 @@ def _own_page_plays(session: Session, tenant_id: int) -> list[Play]:
             ["Correct the statement on the page (or the fact sheet, if the page is right)",
              "Show an 'Updated <month year>' date on the page", _RECRAWL],
             link="/dashboard/pages"))
+    for r in rep["pages"]:
+        if "noindex" in r["flags"]:
+            plays.append(Play(
+                f"own_page:noindex:{r['path']}", "own_page",
+                f"Remove noindex from {r['path']}",
+                f"{r['path']} carries a noindex tag, so Google, Bing and Brave drop it from "
+                "their indexes and no engine that searches can retrieve it"
+                + (f", though answers cited it {r['cited']}× lately." if r["cited"] else "."),
+                95, "official", WHY["crawler"],
+                ["Remove the noindex meta tag or X-Robots-Tag header from the page",
+                 "Check the page's canonical points at itself", _RECRAWL],
+                link="/dashboard/pages"))
+        elif "not in Brave" in r["flags"]:
+            plays.append(Play(
+                f"own_page:brave:{r['path']}", "own_page",
+                f"Submit {r['path']} to Brave",
+                f"Brave Search, which Claude's web search runs on, doesn't return {r['path']} "
+                "for its own URL, so Claude can't cite it"
+                + (f"; other engines cited it {r['cited']}× lately." if r["cited"] else "."),
+                85, "moderate", WHY["crawler"],
+                ["Confirm Googlebot can crawl the page (URL Inspection in Search Console): "
+                 "Brave's crawler follows Googlebot's rules",
+                 "Submit the exact URL on Brave's 'Brave Search crawler' help page",
+                 "Link to the page from related product and resource pages",
+                 "Re-check with site:yourdomain \"page title\" on search.brave.com after a week"],
+                link="/dashboard/pages"))
     weak = [r for r in rep["pages"]
             if {"unreachable", "stale", "errors for AI bots"} & set(r["flags"])]
     if weak:

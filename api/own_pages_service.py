@@ -110,7 +110,10 @@ def own_pages(session: Session, tenant_id: int, days: int = WINDOW_DAYS) -> dict
                  "checked": pp.fetched_at.date().isoformat() if pp.fetched_at else None,
                  "has_updated_date": bool(f.get("has_updated_date")),
                  "latest_year": int(f.get("latest_year") or 0),
-                 "has_price": bool(f.get("has_price"))}
+                 "has_price": bool(f.get("has_price")),
+                 "noindex": bool(f.get("noindex")),
+                 # True/False when Brave was asked; None when it wasn't.
+                 "brave_indexed": f.get("brave_indexed")}
         if r["crawl"] is None or (crawl["checked"] or "") >= (r["crawl"]["checked"] or ""):
             r["crawl"] = crawl
             r["fact_conflicts"] = live_conflicts(list(f.get("fact_conflicts") or []))
@@ -158,6 +161,12 @@ def own_pages(session: Session, tenant_id: int, days: int = WINDOW_DAYS) -> dict
         c = r["crawl"]
         if r["fact_conflicts"]:
             r["flags"].append("facts conflict")
+        if c and c["status"] == "ok" and c["noindex"]:
+            # Hidden from every search index, Brave's included, so no engine
+            # that searches can retrieve it however often it was cited before.
+            r["flags"].append("noindex")
+        if c and c["status"] == "ok" and c["brave_indexed"] is False:
+            r["flags"].append("not in Brave")
         if c and c["status"] != "ok":
             # Bot protection often turns away our checker while AI bots get
             # through; only call it unreachable when bots don't read it either.
@@ -174,9 +183,9 @@ def own_pages(session: Session, tenant_id: int, days: int = WINDOW_DAYS) -> dict
             r["flags"].append("not checked yet")
         r["engines"] = sorted(r["engines"])
         out.append(r)
-    severity = {"facts conflict": 0, "unreachable": 1, "errors for AI bots": 2,
-                "stale": 3, "not read by AI search bots": 4, "blocks our checker": 5,
-                "not checked yet": 6}
+    severity = {"facts conflict": 0, "noindex": 1, "unreachable": 2, "errors for AI bots": 3,
+                "not in Brave": 4, "stale": 5, "not read by AI search bots": 6,
+                "blocks our checker": 7, "not checked yet": 8}
     out.sort(key=lambda r: (min((severity[f] for f in r["flags"]), default=9), -r["cited"],
                             r["path"]))
     return {
@@ -184,6 +193,7 @@ def own_pages(session: Session, tenant_id: int, days: int = WINDOW_DAYS) -> dict
         "domains": owned,
         "has_logs": has_logs,
         "has_first_party": bool(fp),
+        "has_brave": any(r["crawl"] and r["crawl"]["brave_indexed"] is not None for r in out),
         "pages": out[:MAX_ROWS],
         "pages_total": len(out),
         "flagged": sum(1 for r in out

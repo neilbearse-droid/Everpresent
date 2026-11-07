@@ -235,7 +235,9 @@ def test_spam_risk_is_for_self_ranked_lists_not_comparisons():
 
 def test_recrawl_copy_does_not_state_chatgpt_uses_bing_as_fact():
     assert "by most accounts, ChatGPT search" in _RECRAWL
-    assert "Perplexity and Claude have no recrawl request" in _RECRAWL
+    # Claude's search runs on Brave, which takes URL submissions (M67).
+    assert "ChatGPT and Perplexity have no recrawl request" in _RECRAWL
+    assert "Brave's submit-a-URL form" in _RECRAWL
     assert "which feeds Copilot and ChatGPT)" not in _RECRAWL
     outline = _brief_outline("best crm", "Acme", ["Globex"], ["crm pricing"])
     assert "Bing/Copilot/ChatGPT" not in outline[-1]
