@@ -1,0 +1,384 @@
+# Cinch Home Services — PROSPECT tenant config (pitch draft, 2026-11-11).
+#
+# Built from desk research only (brand site was not reachable from the build
+# environment; facts come from Cinch press releases, the Cinch newsroom, and
+# third-party reviews). Everything marked VERIFY needs Cinch's confirmation
+# before the tenant goes live. Companion write-up: docs/clients/cinch_home_services.md
+#
+# Import is REPLACE-semantics: loading this swaps brand, competitors, personas,
+# queries and brand facts wholesale. Engines are listed at the foot.
+#
+# Design notes:
+#   * Home warranty is a research-heavy, affiliate-dominated category. The
+#     review sites AI engines cite (ConsumerAffairs, NerdWallet, This Old House,
+#     Money, Today's Homeowner) are the same ones that rank Cinch, so the
+#     Citations screen and third-party targeting matter more here than for
+#     most tenants.
+#   * Cinch has THREE kinds of buyer, and they ask different questions:
+#     homeowners (direct), real estate agents (the historic HMS channel), and
+#     B2B partners (utilities, insurers, banks who white-label Cinch). Each has
+#     its own corpus so the Scorecard "By topic" view reads as a channel view.
+#   * "Cinch" is an ambiguous token (cinch.co.uk used cars, Cinch jeans, Cinch
+#     belts, and the word itself). Aliases below are deliberately specific;
+#     one branded prompt checks for disambiguation drift.
+#   * Legacy names (Cross Country Home Services, HMS Home Warranty,
+#     TotalProtect, HomeSure) still live in training data and in old contract
+#     PDFs. They are aliases so legacy mentions still attribute to Cinch, and a
+#     branded prompt checks whether engines describe Cinch by a dead name.
+#   * Every query runs the generic baseline. Personas are selective: a query
+#     runs a persona only when it names it. Persona wording is FROZEN once the
+#     first run completes; rewording breaks the trend line.
+
+geo:
+  country: us
+  language: en
+
+brand:
+  name: Cinch Home Services
+  aliases:
+    - Cinch Home Warranty
+    - Cinch Home Services Inc
+    - cinchhomeservices.com
+    # Legacy identities still cited in reviews, contracts and training data.
+    - Cross Country Home Services
+    - CCHS
+    - HMS Home Warranty
+    - HMS National
+    - TotalProtect Home Warranty
+    - TotalProtect
+    - HomeSure Services
+  domains:
+    - cinchhomeservices.com
+
+competitors:
+  # The national set that appears in every "best home warranty" answer.
+  - { name: American Home Shield, aliases: [AHS, Frontdoor], domains: [ahs.com, frontdoor.com] }
+  - { name: First American Home Warranty, aliases: [First American], domains: [homewarranty.firstam.com, firstamericanhomewarranty.com] }
+  - { name: Liberty Home Guard, aliases: [LHG], domains: [libertyhomeguard.com] }
+  - { name: Choice Home Warranty, aliases: [CHW], domains: [choicehomewarranty.com] }
+  - { name: Select Home Warranty, aliases: [], domains: [selecthomewarranty.com] }
+  - { name: 2-10 Home Buyers Warranty, aliases: [2-10, 2-10 HBW], domains: [2-10.com] }
+  - { name: Home Warranty of America, aliases: [HWA], domains: [hwahomewarranty.com] }
+  - { name: AFC Home Warranty, aliases: [AFC Home Club, America's First Choice], domains: [afchomeclub.com, afchomewarranty.com] }
+  - { name: Old Republic Home Protection, aliases: [Old Republic, ORHP], domains: [orhp.com] }
+  - { name: Fidelity National Home Warranty, aliases: [FNHW], domains: [homewarranty.com] }
+  - { name: ARW Home, aliases: [American Residential Warranty], domains: [arwhome.com] }
+  - { name: Elevate Home Warranty, aliases: [Elevate], domains: [elevatehomewarranty.com] }
+  # The utility-channel rival. Cinch and HomeServe compete for the same
+  # partner deals, and ConsumerAffairs publishes a head-to-head page.
+  - { name: HomeServe, aliases: [HomeServe USA], domains: [homeserve.com] }
+  # NOTE: Sears Home Warranty is administered by Cinch and Sears techs service
+  # Cinch claims. It is a channel, not a rival. Do not add it here.
+
+personas:
+  # Generic baseline: every prompt runs once with no persona. Its presence
+  # turns on selective mode. Empty prompt = raw query, no first-person framing.
+  - name: Generic (baseline)
+    segment: generic
+    prompt: ""
+
+  # ---- Homeowner personas (direct channel) -------------------------------
+  - name: First-time buyer at closing
+    segment: first_time_buyer
+    prompt: >-
+      I'm buying my first house and we close in three weeks. The inspection
+      says the furnace and water heater are original to the house, and I've
+      used up most of my savings on the down payment.
+
+  - name: Owner of an aging home
+    segment: aging_home_owner
+    prompt: >-
+      I've owned my house for twelve years. The air conditioner, dishwasher
+      and washer are all getting old, and one big repair bill would really
+      hurt right now.
+
+  - name: Small landlord
+    segment: landlord
+    prompt: >-
+      I own three single-family rentals in two different cities and manage
+      them myself. I want tenant repair calls handled without me chasing
+      contractors.
+
+  - name: Current Cinch customer
+    segment: current_customer
+    prompt: >-
+      I already have a Cinch Home Services plan and I'm trying to understand
+      how to use it.
+
+  # ---- Real estate persona (the historic HMS channel) --------------------
+  - name: Listing agent
+    segment: listing_agent
+    prompt: >-
+      I'm a residential real estate agent. I close about twenty transactions a
+      year and I usually recommend a home warranty to my clients. If the
+      warranty company handles a claim badly, my client blames me.
+
+  # ---- B2B persona (utility / affinity channel) --------------------------
+  # Optional for phase 1. Include it if Cinch's Commercial team is in the
+  # room: it is the only persona that measures the partner pipeline.
+  - name: Partner program manager
+    segment: partner_buyer
+    prompt: >-
+      I manage value-added products for a regional energy retailer with about
+      400,000 residential customers. We want to offer a home protection plan
+      under our own brand and are choosing the company behind it.
+
+queries:
+  # =====================================================================
+  # 1. Is it worth it?  Category education. The top of every funnel, and the
+  #    place where "home warranties are a scam" framing gets decided.
+  - text: "Is a home warranty worth it, or should I just keep an emergency fund for repairs?"
+    corpus: is_it_worth_it
+    paraphrases:
+      - "Are home warranties actually worth the money?"
+      - "Should I buy a home warranty or self-insure for home repairs?"
+    personas: [first_time_buyer, aging_home_owner]       # High
+  - text: "What's the difference between a home warranty and homeowners insurance?"
+    corpus: is_it_worth_it
+    personas: [first_time_buyer]                         # Medium. Engines answer from weights; checks training-data presence
+  - text: "I keep reading that home warranty companies deny claims. Which ones actually pay out?"
+    corpus: is_it_worth_it
+    paraphrases:
+      - "Which home warranty companies have the best claims approval record?"
+    personas: [aging_home_owner]                         # High. Reputation framing; BBB vs ConsumerAffairs split shows up here
+  - text: "What does a home warranty typically not cover, and what should I watch for in the contract?"
+    corpus: is_it_worth_it
+    personas: [first_time_buyer]                         # Medium. Pre-existing conditions and rust differentiators
+
+  # =====================================================================
+  # 2. Best providers.  The head terms. Dominated by affiliate rankings.
+  - text: "What are the best home warranty companies right now?"
+    corpus: best_providers
+    paraphrases:
+      - "Which home warranty company should I choose?"
+      - "Top-rated home warranty providers?"
+    personas: [first_time_buyer, aging_home_owner]       # High. The headline visibility number
+  - text: "What's the best home warranty for an older house with original HVAC and appliances?"
+    corpus: best_providers
+    personas: [aging_home_owner]                         # High. U.S. News "Best for HVAC" claim lives or dies here
+  - text: "Which home warranty companies cover rust, corrosion, or problems that weren't caught at inspection?"
+    corpus: best_providers
+    paraphrases:
+      - "Is there a home warranty that covers unknown pre-existing conditions?"
+    personas: [first_time_buyer]                         # High. Cinch's clearest contract differentiator
+  - text: "Which home warranty has the longest guarantee on repair work?"
+    corpus: best_providers
+    personas: [aging_home_owner]                         # Medium. 180-day workmanship guarantee vs 30-day norm
+  - text: "What's the cheapest home warranty that's still reputable?"
+    corpus: best_providers
+    personas: [first_time_buyer, landlord]               # High. $27.99 entry price vs high service fee tradeoff
+  - text: "Which home warranty companies let me pick my service call fee to lower the monthly price?"
+    corpus: best_providers                               # Medium. Generic only
+
+  # =====================================================================
+  # 3. Home buying and closing.  Where most Cinch contracts are actually sold.
+  - text: "Should I get a home warranty when buying a house?"
+    corpus: home_buying_closing
+    paraphrases:
+      - "Do I need a home warranty as a first-time homebuyer?"
+    personas: [first_time_buyer]                         # High. Cinch publishes a blog post on exactly this
+  - text: "Who usually pays for the home warranty, the buyer or the seller?"
+    corpus: home_buying_closing
+    personas: [first_time_buyer, listing_agent]          # Medium
+  - text: "My seller is offering a one-year home warranty at closing. Which company should I ask for?"
+    corpus: home_buying_closing
+    personas: [first_time_buyer]                         # High. The negotiation moment
+  - text: "Can I transfer a home warranty to the new owner when I sell my house?"
+    corpus: home_buying_closing
+    personas: [listing_agent]                            # Medium. Transferability claim
+
+  # =====================================================================
+  # 4. Real estate professionals.  The HMS legacy channel; 30-year brokerage
+  #    relationships. Agents ask engines these questions in their own words.
+  - text: "Which home warranty company should real estate agents recommend to their clients?"
+    corpus: real_estate_pro
+    paraphrases:
+      - "As a Realtor, what's the best home warranty company to work with?"
+    personas: [listing_agent]                            # High
+  - text: "What's the best seller's home warranty to cover a house while it's on the market?"
+    corpus: real_estate_pro
+    personas:
+      - listing_agent
+      - { segment: listing_agent, overlay: "I'm representing the seller on a 1990s house that has been sitting for 60 days." }
+                                                         # High. Free seller coverage where law allows
+  - text: "Which home warranty companies have programs or portals for real estate agents and brokerages?"
+    corpus: real_estate_pro
+    personas: [listing_agent]                            # Medium. Agent program discoverability
+  - text: "Do home warranties really help houses sell faster or for more money?"
+    corpus: real_estate_pro
+    personas: [listing_agent]                            # Medium. The Gallup "8 in 10 buyers" stat; check attribution
+
+  # =====================================================================
+  # 5. HVAC and appliances.  Problem-first prompts. The buyer has a broken
+  #    thing, not a category in mind.
+  - text: "My AC is 15 years old. Will a home warranty replace it or just keep patching it?"
+    corpus: hvac_appliances
+    paraphrases:
+      - "Does a home warranty cover replacing an old air conditioner?"
+    personas: [aging_home_owner]                         # High. Repair vs Repair + Replace plan story
+  - text: "Does a home warranty cover a water heater, and is there a payout cap?"
+    corpus: hvac_appliances
+    personas: [first_time_buyer]                         # Medium. Coverage caps accuracy
+  - text: "What's the best home warranty for kitchen appliances like a refrigerator, dishwasher and oven?"
+    corpus: hvac_appliances
+    personas: [aging_home_owner]                         # Medium
+  - text: "Which home warranty companies give discounts on buying new appliances?"
+    corpus: hvac_appliances                              # Low. Appliance Buyline; generic only
+
+  # =====================================================================
+  # 6. Landlords and rentals.
+  - text: "What's the best home warranty for a rental property?"
+    corpus: landlord_rental
+    paraphrases:
+      - "Do home warranty companies cover tenant-occupied houses?"
+    personas: [landlord]                                 # High
+  - text: "Is there a home warranty that covers several rental properties under one account?"
+    corpus: landlord_rental
+    personas: [landlord]                                 # Medium. VERIFY Cinch's rental eligibility before building content here
+
+  # =====================================================================
+  # 7. Competitive.  Named head-to-heads. Liberty Home Guard publishes its own
+  #    "vs Cinch" page; ConsumerAffairs publishes a dozen more.
+  - text: "Cinch Home Services vs American Home Shield: which is better?"
+    corpus: competitive
+    branded: true
+    paraphrases:
+      - "Should I go with AHS or Cinch for a home warranty?"
+    personas: [aging_home_owner]                         # High. The #1 vs #2 comparison
+  - text: "How does Cinch compare to Liberty Home Guard?"
+    corpus: competitive
+    branded: true
+    personas: [first_time_buyer]                         # High. LHG's own content shapes this answer
+  - text: "Cinch vs First American Home Warranty for an older home?"
+    corpus: competitive
+    branded: true
+    personas: [aging_home_owner]                         # Medium
+  - text: "What are some cheaper alternatives to American Home Shield?"
+    corpus: competitive
+    personas: [first_time_buyer]                         # High. Unbranded conquest prompt; Cinch should appear
+  - text: "What home warranty companies are similar to Cinch?"
+    corpus: competitive
+    branded: true                                        # High. Reveals the peer set engines put Cinch in. Read first.
+
+  # =====================================================================
+  # 8. Brand knowledge and service.  Branded. Excluded from the competitive
+  #    score; feeds the accuracy and sentiment views.
+  - text: "What is Cinch Home Services, and is it a legitimate company?"
+    corpus: brand_knowledge
+    branded: true                                        # High. Disambiguation (cinch.co.uk, Cinch jeans) + legacy-name drift
+  - text: "Is Cinch Home Services the same company as HMS Home Warranty or TotalProtect?"
+    corpus: brand_knowledge
+    branded: true                                        # Medium. Legacy identity accuracy
+  - text: "What do Cinch Home Services plans cost and what's the service fee?"
+    corpus: brand_knowledge
+    branded: true
+    personas: [first_time_buyer]                         # High. Pricing accuracy; plan names changed recently
+  - text: "Are Cinch Home Services reviews good or bad?"
+    corpus: brand_knowledge
+    branded: true
+    paraphrases:
+      - "Is Cinch Home Services reliable?"
+    personas: [aging_home_owner]                         # High. Sentiment; BBB 1-star vs ConsumerAffairs Best Overall
+  - text: "How do I file a claim with Cinch Home Services, and how fast do they send someone?"
+    corpus: brand_knowledge
+    branded: true
+    personas: [current_customer]                         # High. Service accuracy; dispatch time claims
+  - text: "How long is the waiting period before Cinch coverage starts?"
+    corpus: brand_knowledge
+    branded: true
+    personas: [current_customer]                         # Medium. Numeric fact check
+  - text: "How do I cancel a Cinch Home Services plan, and is there a fee?"
+    corpus: brand_knowledge
+    branded: true
+    personas: [current_customer]                         # Medium. Churn-moment accuracy
+
+  # =====================================================================
+  # 9. Partner / B2B.  Utilities, insurers, banks and retailers who white-label
+  #    a warranty. Small volume, very high contract value. Generic + partner.
+  - text: "Which companies provide white-label home warranty or home protection plans for utilities?"
+    corpus: partner_b2b
+    personas: [partner_buyer]                            # High. Cinch vs HomeServe for the deal
+  - text: "How do energy retailers add a home protection plan to their customer offering?"
+    corpus: partner_b2b
+    personas: [partner_buyer]                            # Medium. Kiwi Energy / Spring Power & Gas precedent
+  - text: "What are the alternatives to HomeServe for a utility affinity partnership?"
+    corpus: partner_b2b
+    personas: [partner_buyer]                            # High. Conquest prompt
+  - text: "Which home warranty administrators work with insurance companies and banks to offer plans to their customers?"
+    corpus: partner_b2b                                  # Medium. Generic only
+
+  # =====================================================================
+  # 10. Agent tasks.  "Do it for me" prompts. The measure is which brand the
+  #     engine reaches for FIRST. Generic only.
+  - text: "Pick a home warranty for my 1998 house in Atlanta with the original furnace and sign me up. Tell me which company and the exact steps."
+    corpus: agent_task
+  - text: "Compare the three best home warranty plans for a 2,000 square foot house in Texas and recommend one. Just decide for me."
+    corpus: agent_task
+  - text: "I'm a listing agent. Draft the email I'd send a seller recommending a home warranty, naming the company you'd pick and why."
+    corpus: agent_task
+
+# Brand facts: EverPresent flags any answer that contradicts these. A wrong
+# fact here makes correct answers look wrong, so every entry is either widely
+# corroborated or left commented until Cinch confirms it.
+brand_facts:
+  - label: "Workmanship guarantee is 180 days"
+    subject: "workmanship guarantee"
+    kind: numeric
+    expected: "180"
+    category: service
+    aliases: ["service guarantee", "repair guarantee", "labor guarantee"]
+    active: true
+  - label: "Coverage starts after a 30-day waiting period"
+    subject: "waiting period"
+    kind: numeric
+    expected: "30"
+    category: coverage
+    aliases: ["before coverage begins", "coverage begins"]
+    active: true
+  - label: "Cinch Home Services is not the UK used-car retailer"
+    subject: "what Cinch is"
+    kind: disallowed
+    expected: "used car"
+    category: identity
+    aliases: ["used cars", "car retailer", "cinch.co.uk"]
+    active: true
+  - label: "Headquartered in Boca Raton, Florida (not Fort Lauderdale, the old CCHS address)"
+    subject: "headquarters"
+    kind: disallowed
+    expected: "headquartered in Fort Lauderdale"
+    category: identity
+    aliases: ["based in Fort Lauderdale"]
+    active: true
+  # VERIFY with Cinch before activating. Sources disagree or the figure is
+  # plan-dependent.
+  # - label: "Plans start at $27.99 per month"
+  #   subject: "starting price"
+  #   kind: numeric
+  #   expected: "$27.99"
+  #   category: pricing
+  # - label: "Service call fee options are $75, $100 or $125"
+  #   subject: "service call fee"
+  #   kind: numeric
+  #   expected: "$100"
+  #   category: pricing
+  # - label: "Aggregate coverage limit per contract term is $10,000"
+  #   subject: "aggregate coverage limit"
+  #   kind: numeric
+  #   expected: "$10,000"
+  #   category: coverage
+  # - label: "Not available in AK, HI, IA, MA, UT"   # "47 states" vs "48 states" in reviews
+  #   subject: "availability"
+  #   kind: disallowed
+  #   expected: "available in all 50 states"
+  #   category: coverage
+
+surfaces:
+  - openai_api      # ChatGPT (API)
+  - perplexity_api  # Perplexity (API)
+  - claude_api      # Claude (API)
+  - gemini_api      # Gemini (API)
+  - chatgpt_web     # ChatGPT (web)
+  - perplexity_web  # Perplexity (web)
+  - copilot_web     # Microsoft Copilot (Bing index)
+  - google_aio      # Google AI Overviews (SerpApi)
+  - google_ai_mode  # Google AI Mode (SerpApi)
