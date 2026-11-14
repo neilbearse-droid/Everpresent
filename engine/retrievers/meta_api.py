@@ -24,11 +24,13 @@ import httpx
 
 from engine.retrievers.openai_api import (
     RETRYABLE_STATUS,
+    BilledFailure,
     ParsedResponse,
     RetrievalOutcome,
     _error_message,
     _retry_after,
     parse_responses_payload,
+    should_retry_transport,
 )
 
 META_RESPONSES_URL = "https://api.meta.ai/v1/responses"
@@ -88,8 +90,8 @@ async def retrieve(
         for attempt in range(1, max_attempts + 1):
             try:
                 resp = await client.post(META_RESPONSES_URL, json=body, headers=headers)
-            except httpx.TransportError:
-                if attempt < max_attempts:
+            except httpx.TransportError as exc:
+                if should_retry_transport(exc, attempt, max_attempts):
                     await asyncio.sleep(2**attempt)
                     continue
                 raise
@@ -114,7 +116,7 @@ async def retrieve(
                 # mention the brand".
                 reason = (payload.get("incomplete_details") or {}).get("reason") \
                     or payload.get("status") or "unknown"
-                raise RuntimeError(f"Meta returned no answer text ({reason})")
+                raise BilledFailure(f"Meta returned no answer text ({reason})", parsed)
             return RetrievalOutcome(
                 payload=payload,
                 parsed=parsed,

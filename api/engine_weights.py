@@ -106,17 +106,27 @@ def weight_lines(weights: dict[str, int], families: set[str]) -> list[dict]:
 # the headline's precision lives in the engines most people use. Engines that
 # cost next to nothing keep the full count regardless of weight.
 CHEAP_SURFACES: frozenset[str] = frozenset({"perplexity_api"})
+# Engines whose answers cost several times the others'. Gemini 3 bills search
+# grounding per sub-query it fans out into, and it fans out widely (about
+# $0.14 an answer, DECISIONS.md M25b), so it needs twice the audience weight
+# for each extra sample.
+COSTLY_SURFACES: frozenset[str] = frozenset({"gemini_api"})
 
 
 def samples_for_surface(surface: str, max_samples: int, weights: dict[str, int]) -> int:
     """How many samples of each generic cell this surface gets per run.
 
     weight >= 20: the plan's count; weight >= 10: one fewer; below: one.
-    Cheap surfaces always get the plan's count. Never below one."""
+    Cheap surfaces always get the plan's count. Costly ones need twice the
+    weight for each step (>= 40 and >= 20), so a client that leans on such
+    an engine can still buy its full count by raising the weight. Never
+    below one."""
     n = max(1, int(max_samples))
     if surface in CHEAP_SURFACES:
         return n
     w = weights.get(family_of(surface), 0)
+    if surface in COSTLY_SURFACES:
+        w = w / 2
     if w >= 20:
         return n
     if w >= 10:

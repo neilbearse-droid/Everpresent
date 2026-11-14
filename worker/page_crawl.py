@@ -14,6 +14,7 @@ that purpose only; they get versions and change events, never a
 page_presence row."""
 
 import time
+from datetime import UTC, datetime, timedelta
 
 import httpx
 import structlog
@@ -27,6 +28,7 @@ from api.models import (
     Competitor,
     FanoutShard,
     PagePresence,
+    SpendEntry,
     Tenant,
     utcnow,
 )
@@ -43,6 +45,9 @@ MAX_PAGES = 20
 MAX_OWN_PAGES = 15  # the brand's own cited pages, on top of MAX_PAGES
 MAX_RIVAL_PAGES = 8  # rivals' cited pages, versioned for change detection only
 TIMEOUT_S = 10.0
+# A direct fetch that comes back with one of these (or no response at all) is
+# retried through the residential proxy. Everything else never touches it.
+_PROXY_RETRY_STATUS = {401, 403, 407, 429, 451, 503}
 
 # Power pages are the cited sources — Reddit threads, affiliate/review pages —
 # and those routinely 403 a datacenter IP. Route the crawl through the same
@@ -54,7 +59,19 @@ _CRAWL_UA = (
 )
 
 
-def crawl_power_pages(tenant_id: int) -> int:
+def _aware(stamp: datetime) -> datetime:
+    return stamp if stamp.tzinfo else stamp.replace(tzinfo=UTC)
+
+
+def crawl_power_pages(tenant_id: int, scheduled: bool = False) -> int:
+    """`scheduled=True` is the nightly pass, which spends as little as it can:
+    third-party pages are re-read only every PAGE_CRAWL_THIRD_PARTY_DAYS (the
+    brand's own pages and rivals' pages stay nightly, because dating a page
+    change is what the fix experiments rest on). An on-demand crawl reads
+    everything. Either way a page is fetched directly first and goes through
+    the residential proxy only if that is refused, a Brave lookup is reused
+    for BRAVE_RECHECK_DAYS, and the proxy and Brave spend is booked to the
+    ledger so the monthly cap sees it."""
     # Phase 1 — load config, then RELEASE the connection. A DB connection must
     # not be held across the ~20 sequential page fetches below (§connection-
     # lifetime): each fetch can take up to TIMEOUT_S, so holding one would pin a
@@ -108,6 +125,40 @@ def crawl_power_pages(tenant_id: int) -> int:
                     FanoutShard.brand_present == False)  # noqa: E712
             ).all()
         ]
+        known = {
+            row.url: row for row in session.exec(
+                select(PagePresence).where(PagePresence.tenant_id == tenant_id)
+            ).all()
+        }
+        settings = get_settings()
+        now = utcnow()
+        if scheduled and settings.page_crawl_third_party_days > 0:
+            fresh_after = _aware(now) - timedelta(days=settings.page_crawl_third_party_days)
+            pages = [
+                p for p in pages
+                if p["owner"] != "other"
+                or p["url"] not in known
+                or known[p["url"]].status != "ok"
+                or _aware(known[p["url"]].fetched_at) < fresh_after
+            ]
+        # Brave lookups already on file and still fresh: (value, checked_at).
+        brave_after = _aware(now) - timedelta(days=max(settings.brave_recheck_days, 0))
+        brave_known: dict[str, tuple[bool | None, str]] = {}
+        for url, row in known.items():
+            feats = row.features or {}
+            stamp = str(feats.get("brave_checked_at") or "")
+            if not stamp or feats.get("brave_indexed") is None:
+                continue
+            try:
+                if _aware(datetime.fromisoformat(stamp)) >= brave_after:
+                    brave_known[url] = (feats.get("brave_indexed"), stamp)
+            except ValueError:
+                continue
+        from api.runs_service import month_spend_usd
+
+        # Over the cap, the paid layers (proxy, Brave) switch off; the free
+        # direct fetch still runs.
+        over_cap = month_spend_usd(session, tenant_id) >= tenant.monthly_spend_cap_usd
         facts = [
             FactSpec(id=f.id, category=f.category, label=f.label, subject=f.subject,
                      aliases=list(f.aliases or []), kind=f.kind, expected=f.expected)
@@ -124,18 +175,27 @@ def crawl_power_pages(tenant_id: int) -> int:
         return 0
 
     # Phase 2 — fetch + parse each page. NO DB CONNECTION HELD.
-    settings = get_settings()
-    proxy = settings.scrape_proxy_url or None
-    brave_key = settings.brave_search_api_key
+    proxy = (settings.scrape_proxy_url or None) if not over_cap else None
+    brave_key = settings.brave_search_api_key if not over_cap else ""
     parsed: list[dict] = []
+    proxy_fetches = 0
+    brave_queries = 0
     # Cited URLs are outsider-controlled: public http(s) only, every hop.
-    with httpx.Client(
-        timeout=TIMEOUT_S, follow_redirects=True, proxy=proxy,
-        headers={"User-Agent": _CRAWL_UA},
-        event_hooks={"request": [guard_public_request]},
-    ) as client:
+    client_kwargs = {
+        "timeout": TIMEOUT_S, "follow_redirects": True,
+        "headers": {"User-Agent": _CRAWL_UA},
+        "event_hooks": {"request": [guard_public_request]},
+    }
+    with httpx.Client(**client_kwargs) as client, \
+            httpx.Client(**client_kwargs, proxy=proxy) as proxied:  # pyright: ignore[reportArgumentType]
         for page in pages:
+            # Direct first: most pages answer a plain fetch for free. Only a
+            # refusal is worth residential-proxy bytes.
             fetched = crawl_page(client, page["url"])
+            if proxy and ("error" in fetched
+                          or fetched.get("http_status") in _PROXY_RETRY_STATUS):
+                fetched = crawl_page(proxied, page["url"])
+                proxy_fetches += 1
             row_data: dict = {
                 "url": page["url"],
                 "domain": page["domain"],
@@ -164,14 +224,27 @@ def crawl_power_pages(tenant_id: int) -> int:
                     # And is it in Brave's index, where Claude's search looks?
                     # None when the check couldn't run; the free tier allows
                     # one query a second.
-                    if brave_key:
-                        row_data["features"]["brave_indexed"] = brave_indexed(
-                            brave_key, page["url"])
+                    if page["url"] in brave_known:
+                        # Index membership moves slowly: reuse a fresh lookup.
+                        value, stamp = brave_known[page["url"]]
+                        row_data["features"]["brave_indexed"] = value
+                        row_data["features"]["brave_checked_at"] = stamp
+                    elif brave_key:
+                        value = brave_indexed(brave_key, page["url"])
+                        row_data["features"]["brave_indexed"] = value
+                        brave_queries += 1
+                        if value is not None:
+                            row_data["features"]["brave_checked_at"] = now.isoformat()
                         time.sleep(1.05)
             parsed.append(row_data)
 
     # Phase 3 — persist with a fresh connection.
     with Session(_engine()) as session:
+        paid = round(proxy_fetches * settings.crawl_proxy_cost_per_page_usd
+                     + brave_queries * settings.brave_cost_per_query_usd, 6)
+        if paid:
+            session.add(SpendEntry(tenant_id=tenant_id, kind="page_crawl", cost_usd=paid))
+            session.commit()
         crawled = 0
         for rd in parsed:
             if rd["owner"] == "competitor":
@@ -206,7 +279,8 @@ def crawl_power_pages(tenant_id: int) -> int:
         log.info("page_crawl.changes", tenant=tenant_slug, **tracked)
     except Exception:  # noqa: BLE001
         log.exception("page_crawl.changes_failed", tenant=tenant_slug)
-    log.info("page_crawl.done", tenant=tenant_slug, pages=crawled)
+    log.info("page_crawl.done", tenant=tenant_slug, pages=crawled,
+             proxy_fetches=proxy_fetches, brave_queries=brave_queries)
     return crawled
 
 

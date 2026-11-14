@@ -132,8 +132,9 @@ def test_scorecard_trend_won_back_and_steady(db_session, env, monkeypatch):  # n
     tenant = _tenant(db_session)
     # The trend scenario below was written with two Gemini samples a run;
     # since M66 samples follow audience weight, so give Gemini the weight
-    # that keeps the plan's full count.
-    tenant.engine_weights = {"gemini": 20}
+    # that keeps the plan's full count (40: Gemini is a costly engine and
+    # needs twice the weight for each extra sample).
+    tenant.engine_weights = {"gemini": 40}
     db_session.add(tenant)
     db_session.commit()
     _probed(db_session, env, tenant)

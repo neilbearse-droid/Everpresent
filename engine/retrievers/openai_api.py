@@ -24,6 +24,29 @@ OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
 RETRYABLE_STATUS = {429, 500, 502, 503, 504, 529}
 
 
+class BilledFailure(RuntimeError):
+    """The provider answered (HTTP 200, usage metered) but the answer can't be
+    used: no text, or a run reported failed. The call was still paid for, so
+    the parsed usage rides along and the dispatcher books its cost. Without
+    this a paid call counted as $0 and the spend cap never saw it."""
+
+    def __init__(self, message: str, parsed: "ParsedResponse") -> None:
+        super().__init__(message)
+        self.parsed = parsed
+
+
+def should_retry_transport(exc: Exception, attempt: int, max_attempts: int) -> bool:
+    """Whether to retry after a transport error. A connection that never got
+    through is free to retry. A READ timeout is different: the request was
+    sent, the provider may still finish and bill it, and every retry can be
+    billed again, so it gets one retry, not the full ladder."""
+    if attempt >= max_attempts:
+        return False
+    if isinstance(exc, (httpx.ReadTimeout, httpx.WriteTimeout)):
+        return attempt < 2
+    return True
+
+
 class OpenAIQuotaError(RuntimeError):
     """The OpenAI account has no credits left (429 insufficient_quota)."""
 
@@ -222,9 +245,9 @@ async def retrieve(
         for attempt in range(1, max_attempts + 1):
             try:
                 resp = await client.post(OPENAI_RESPONSES_URL, json=body, headers=headers)
-            except httpx.TransportError:
+            except httpx.TransportError as exc:
                 # Dropped connection / timeout: retry like a 5xx.
-                if attempt < max_attempts:
+                if should_retry_transport(exc, attempt, max_attempts):
                     await asyncio.sleep(2**attempt)
                     continue
                 raise
@@ -256,7 +279,10 @@ async def retrieve(
                 # Ran out of output budget before any answer text: an error,
                 # not an answer that "doesn't mention the brand".
                 reason = (payload.get("incomplete_details") or {}).get("reason", "unknown")
-                raise RuntimeError(f"OpenAI response incomplete with no text ({reason})")
+                raise BilledFailure(
+                    f"OpenAI response incomplete with no text ({reason})",
+                    parse_responses_payload(payload),
+                )
             return RetrievalOutcome(
                 payload=payload,
                 parsed=parse_responses_payload(payload),

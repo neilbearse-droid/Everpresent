@@ -16,7 +16,13 @@ from urllib.parse import urlparse
 
 import httpx
 
-from engine.retrievers.openai_api import ParsedCitation, ParsedResponse, RetrievalOutcome
+from engine.retrievers.openai_api import (
+    BilledFailure,
+    ParsedCitation,
+    ParsedResponse,
+    RetrievalOutcome,
+    should_retry_transport,
+)
 
 GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
 # 529 is Anthropic's "overloaded"; common under load, always transient.
@@ -189,9 +195,9 @@ async def retrieve(
             url = f"{GEMINI_BASE}/{model}:generateContent"
             try:
                 resp = await client.post(url, json=body, headers={"x-goog-api-key": api_key})
-            except httpx.TransportError:
+            except httpx.TransportError as exc:
                 # Dropped connection / timeout: retry like a 5xx.
-                if attempt < max_attempts:
+                if should_retry_transport(exc, attempt, max_attempts):
                     await asyncio.sleep(2**attempt)
                     continue
                 raise
@@ -236,7 +242,9 @@ async def retrieve(
                 # e.g. finishReason MAX_TOKENS/SAFETY with no text: an error,
                 # not an answer that "doesn't mention the brand".
                 reason = candidates[0].get("finishReason", "unknown")
-                raise RuntimeError(f"Gemini returned no answer text ({reason})")
+                raise BilledFailure(
+                    f"Gemini returned no answer text ({reason})", parse_gemini_payload(payload)
+                )
             if fallback_reason:
                 payload["_everpresent_model_fallback"] = fallback_reason
             return RetrievalOutcome(

@@ -7,8 +7,16 @@ on:
     branches: [main, "claude/**"]
   pull_request:
 
+# A newer push to the same branch makes the older run pointless: cancel it.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   python:
+    # A PR from a claude/** branch of this repo already ran on its push; the
+    # pull_request run is only for branches the push trigger doesn't cover.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'claude/')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -31,6 +39,7 @@ jobs:
   # create_all: catches migrations that drift from the models (native enum
   # values, constraints) that in-memory SQLite can't see.
   postgres:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'claude/')
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -63,6 +72,7 @@ jobs:
         run: TEST_DATABASE_URL="$PG_URL" pytest -q
 
   frontend:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'claude/')
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -84,6 +94,11 @@ jobs:
         run: npm run typecheck
       - name: Build
         run: npm run build
+      - name: Cache Playwright browser
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('app/package-lock.json') }}
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
       - name: E2E
@@ -93,6 +108,7 @@ jobs:
     # Every signed-in page rendered against a seeded API, with Clerk stripped
     # from this throwaway checkout (scripts/e2e). Catches pages that crash,
     # show an error or "no organization" state, or throw in the browser.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository || !startsWith(github.head_ref, 'claude/')
     runs-on: ubuntu-latest
     env:
       DATABASE_URL: sqlite:///${{ github.workspace }}/e2e.db
@@ -126,6 +142,11 @@ jobs:
           nohup python scripts/e2e/serve_api.py 8011 > api.log 2>&1 &
           for i in $(seq 1 30); do curl -sf http://127.0.0.1:8011/api/health && exit 0; sleep 1; done
           cat api.log; exit 1
+      - name: Cache Playwright browser
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('app/package-lock.json') }}
       - name: Install Playwright browser
         working-directory: app
         run: npx playwright install --with-deps chromium

@@ -21,7 +21,12 @@ from typing import Any
 
 import httpx
 
-from engine.retrievers.openai_api import ParsedCitation, ParsedResponse, RetrievalOutcome
+from engine.retrievers.openai_api import (
+    ParsedCitation,
+    ParsedResponse,
+    RetrievalOutcome,
+    should_retry_transport,
+)
 
 ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
 ANTHROPIC_VERSION = "2023-06-01"
@@ -144,9 +149,9 @@ async def retrieve(
         for attempt in range(1, max_attempts + 1):
             try:
                 resp = await client.post(ANTHROPIC_URL, json=body, headers=headers)
-            except httpx.TransportError:
+            except httpx.TransportError as exc:
                 # Dropped connection / timeout: retry like a 5xx.
-                if attempt < max_attempts:
+                if should_retry_transport(exc, attempt, max_attempts):
                     await asyncio.sleep(2**attempt)
                     continue
                 raise

@@ -3,6 +3,53 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M70 — Cost sweep: nothing is paid for twice, and every paid call is booked (2026-11-14)
+
+A sweep for spend that buys nothing. Bugs first, then settings.
+
+1. **Entity extraction is bought once per answer.** Reprocessing used to
+   delete every untracked-mention row and call the utility model again for
+   every answer of every run, and book the cost again. A result now carries
+   `entities_version` (m44); one stamped with the current version keeps its
+   rows. Identical answer texts share one call, a failed call is neither
+   stamped nor booked, and spend on a run from an earlier month goes to the
+   ledger, because the monthly cap sums runs by creation month.
+2. **A billed call with no answer is booked.** A 200 with no text (out of
+   output budget, a failed Perplexity run) raised a plain error and counted
+   as $0. Retrievers now raise `BilledFailure` with the usage, and the
+   dispatcher books it (`billed_failures` in the run's counts). A read
+   timeout gets one retry instead of two: the request was sent and each
+   attempt can bill.
+3. **Fan-out re-probes are saved as they return**, like run answers, so a
+   crash keeps the probes already paid for. They run one tier below premium:
+   a presence check doesn't need the top model.
+4. **The nightly crawl spends only where it must.** Archived tenants and
+   tenants with no run in 30 days are left out. Own and rival pages stay
+   nightly (page changes are dated from them); third-party pages are re-read
+   weekly. Every page is fetched directly first and proxied only when
+   refused; a Brave lookup is reused for 7 days; proxy and Brave spend is
+   booked to the ledger and both switch off over the cap.
+5. **Changed settings (each reverts in one line).** The unforced probe on
+   Diagnose and Command covers a rotating third of the queries a run
+   instead of all of them (`PAID_PLAN_PROBE_FRACTION`): every question still
+   gets one a week at three runs a week. Gemini needs twice the audience
+   weight for each extra sample (`COSTLY_SURFACES`), because Gemini 3 bills
+   grounding per sub-query; at the default weight it takes one sample.
+6. **Smaller.** The cap reservation is sized per engine (Claude bills the
+   pages its search read as input). The twin cache reads `requested_model`
+   from the row instead of loading the raw envelope. Mode B alternates
+   between engines, so one engine's pacing wait is spent on the others, and
+   its envelope names carry a nonce: a resumed run restarted its index at
+   zero and overwrote the earlier captures' envelopes. CI cancels superseded
+   runs, no longer runs twice for a PR from a `claude/**` branch, and caches
+   the Playwright browser.
+
+Left alone, each needing a decision rather than a fix: the launch tenants'
+full persona cross-product (it is their measurement design), raw-payload
+retention (deleting stored captures), and moving extraction to the Batch
+API (half price, but results would arrive after the run and it can't be
+verified without live calls).
+
 ## M69 — Fixes are experiments; page changes are detected; outcomes are stored (2026-11-14)
 
 The first three steps of the learning loop. Nothing here changes the

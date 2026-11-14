@@ -8,7 +8,7 @@ from api.engine_weights import DEFAULT_ENGINE_WEIGHTS, samples_for_surface
 def test_samples_follow_audience_weight():
     w = DEFAULT_ENGINE_WEIGHTS
     assert samples_for_surface("openai_api", 3, w) == 3      # ChatGPT, 40
-    assert samples_for_surface("gemini_api", 3, w) == 2      # Gemini, 12
+    assert samples_for_surface("gemini_api", 3, w) == 1      # Gemini, 12, costly
     assert samples_for_surface("claude_api", 3, w) == 1      # Claude, 8
     assert samples_for_surface("meta_api", 3, w) == 1        # Meta, 3
     assert samples_for_surface("perplexity_api", 3, w) == 3  # cheap: full count

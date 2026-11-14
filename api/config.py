@@ -134,6 +134,19 @@ class Settings(BaseSettings):
     serpapi_cost_per_search: float = 0.0075  # SerpApi ~$5-7.5 / 1k searches
     scrape_cost_per_page_usd: float = 0.02   # residential proxy + compute / page
 
+    # Nightly page crawl (§cost). Third-party cited pages are re-read at most
+    # this often by the nightly pass (own and rival pages stay nightly: page
+    # changes are dated from them). 0 = every night.
+    page_crawl_third_party_days: int = 7
+    # Tenants with no run in this many days are left out of the nightly crawl.
+    page_crawl_idle_days: int = 30
+    # A Brave index lookup is reused this long before it is bought again.
+    brave_recheck_days: int = 7
+    # Estimates booked to the spend ledger per proxied page fetch (plain HTML,
+    # far lighter than a browser scrape) and per Brave Search API query.
+    crawl_proxy_cost_per_page_usd: float = 0.002
+    brave_cost_per_query_usd: float = 0.005
+
     # Notifications (M5): run-completion reports by email. Unset host = skip.
     smtp_host: str = ""
     smtp_port: int = 587
@@ -164,8 +177,8 @@ class Settings(BaseSettings):
     # deterministic fraction of queries to map routing without doubling cost.
     # 0 disables it (default); 1.0 probes every query. Enabled in production via
     # render.yaml (NATURAL_PROBE_FRACTION) so it's an explicit, costed opt-in.
-    # A plan can set its own fraction (api.plans: Diagnose and above probe
-    # every query); this is the fallback for plans that don't.
+    # A plan can set its own fraction (api.plans: Diagnose and above probe a
+    # rotating third); this is the fallback for plans that don't.
     natural_probe_fraction: float = 0.0
 
     # Fan-out re-probe freshness (§FANOUT_SCORECARD M25b). A shard re-probed

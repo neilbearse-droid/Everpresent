@@ -54,11 +54,18 @@ class PlanLimits:
     # Natural search-routing probe (§AEO-plan M2): the share of queries that
     # also get an un-forced call on the engines that force search, so the
     # "what users see" rate has data. None = the deployment setting
-    # (NATURAL_PROBE_FRACTION; 0.34 on Render). Diagnose and above probe every
-    # query so the unforced series has the headline's n. Cost: about $0.03 per
-    # query per run on OpenAI and $0.01 on Perplexity, so roughly $20-25 a
-    # month for 50 questions at 3x/week.
+    # (NATURAL_PROBE_FRACTION; 0.34 on Render). Diagnose and above probe a
+    # third of the queries each run. The probed slice rotates by run, so at
+    # three runs a week every question still gets an unforced answer weekly,
+    # and whether a prompt triggers search doesn't move faster than that.
+    # Probing every query every run (the earlier setting) cost about $0.03 per
+    # query per run on OpenAI and $0.01 on Perplexity: three times the spend
+    # for the same weekly coverage.
     natural_probe_fraction: float | None = None
+
+
+# The share of queries Diagnose and above send unforced each run.
+PAID_PLAN_PROBE_FRACTION = 0.34
 
 
 PLANS: dict[str, PlanLimits] = {
@@ -72,14 +79,14 @@ PLANS: dict[str, PlanLimits] = {
         diagnosis=True, model_tier="standard", outcome=True,
         max_runs_per_day=1, monthly_price_usd=549, max_locations=1,
         shard_probes_per_prompt=2, shard_probes_per_run=15, samples_per_cell=2,
-        natural_probe_fraction=1.0,
+        natural_probe_fraction=PAID_PLAN_PROBE_FRACTION,
     ),
     "command": PlanLimits(
         "Command", max_prompts=None, max_personas=None, max_engines=None,
         diagnosis=True, model_tier="premium", outcome=True,
         max_runs_per_day=None, monthly_price_usd=2900, max_locations=5,
         shard_probes_per_prompt=5, shard_probes_per_run=15, samples_per_cell=3,
-        natural_probe_fraction=1.0,
+        natural_probe_fraction=PAID_PLAN_PROBE_FRACTION,
     ),
     "custom": PlanLimits(
         "Custom", max_prompts=None, max_personas=None, max_engines=None,

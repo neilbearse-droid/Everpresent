@@ -3,16 +3,16 @@ mirror. Runs as its own small compose service; tick() is pure enough to test
 with a fake clock."""
 
 import time
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import structlog
 from croniter import croniter
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from api.config import get_settings
 from api.db import get_engine
 from api.health_service import beat_scheduler
-from api.models import Citation, MirrorState, RunSchedule, Tenant, TenantStatus, utcnow
+from api.models import MirrorState, Run, RunSchedule, Tenant, TenantStatus, utcnow
 from api.runs_service import RunInFlight, reap_abandoned_runs, trigger_run
 
 log = structlog.get_logger()
@@ -121,10 +121,22 @@ def _maybe_enqueue_nightly(session: Session, now: datetime) -> None:
     if settings.google_service_account_json:
         queue.enqueue("worker.ga4_pull.pull_ga4_referrals", job_timeout=15 * 60)
         log.info("ga4.enqueued", day=day_stamp)
-    # Presence crawl for every tenant that has citation data to audit.
-    tenant_ids = {tid for tid in session.exec(select(Citation.tenant_id).distinct()).all()}
+    # Presence crawl for every live tenant that is still being measured: not
+    # archived, and with a run in the last PAGE_CRAWL_IDLE_DAYS. A client that
+    # stopped running has nothing new to audit, and the crawl is not free
+    # (proxy bytes, Brave queries).
+    idle_cutoff = now - timedelta(days=max(settings.page_crawl_idle_days, 1))
+    tenant_ids = {
+        tid for tid in session.exec(
+            select(Run.tenant_id)
+            .join(Tenant, col(Tenant.id) == col(Run.tenant_id))
+            .where(Tenant.status != TenantStatus.archived,
+                   col(Run.created_at) >= idle_cutoff)
+            .distinct()
+        ).all()
+    }
     for tid in sorted(tenant_ids):
-        queue.enqueue("worker.page_crawl.crawl_power_pages", tid, job_timeout=15 * 60)
+        queue.enqueue("worker.page_crawl.crawl_power_pages", tid, True, job_timeout=15 * 60)
     if tenant_ids:
         log.info("page_crawl.enqueued", day=day_stamp, tenants=len(tenant_ids))
 

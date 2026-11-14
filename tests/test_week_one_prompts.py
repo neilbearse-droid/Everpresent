@@ -186,8 +186,8 @@ def _natural(db_session, run_id) -> list[Result]:
         Result.run_id == run_id, Result.variant == ResultVariant.natural)).all()
 
 
-def test_diagnose_probes_every_query_regardless_of_the_setting(db_session, job_env,  # noqa: F811
-                                                               fake_retrieve, monkeypatch):  # noqa: F811
+def test_diagnose_probes_a_rotating_third_regardless_of_the_setting(db_session, job_env,  # noqa: F811
+                                                                    fake_retrieve, monkeypatch):  # noqa: F811
     from api.config import get_settings
     from worker.jobs import run_mode_a
 
@@ -197,12 +197,16 @@ def test_diagnose_probes_every_query_regardless_of_the_setting(db_session, job_e
     t.plan = "diagnose"
     db_session.add(t)
     db_session.commit()
-    run_id = _pending_run(db_session, t)
-    run_mode_a(run_id)
-    # One unforced answer per query on the forced engine (OpenAI here).
-    assert sorted(r.query_text for r in _natural(db_session, run_id)) == sorted(
-        f"smith query {i}" for i in range(6)
-    )
+    # A third of the queries get an unforced answer each run on the forced
+    # engine (OpenAI here); the slice rotates, so three runs cover them all.
+    seen: set[str] = set()
+    for _ in range(3):
+        run_id = _pending_run(db_session, t)
+        run_mode_a(run_id)
+        probed = {r.query_text for r in _natural(db_session, run_id)}
+        assert len(probed) == 2
+        seen |= probed
+    assert seen == {f"smith query {i}" for i in range(6)}
 
 
 def test_monitor_keeps_the_deployment_setting(db_session, job_env, fake_retrieve,  # noqa: F811

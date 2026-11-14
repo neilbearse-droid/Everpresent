@@ -73,6 +73,7 @@ from engine.retrievers import (
     perplexity_web,
 )
 from engine.retrievers.blocking import BlockedError
+from engine.retrievers.openai_api import BilledFailure
 from engine.retrievers.stealth import ScrapeEnv
 
 
@@ -234,6 +235,9 @@ _B_BREAKER_THRESHOLD = 5  # consecutive failures before a surface is skipped
 _EST_INPUT_TOKENS = 3000
 _EST_OUTPUT_TOKENS = 1500
 _EST_SEARCH_CALLS = 4
+# Engines that bill the pages their search read as input tokens need a much
+# larger reservation, or several concurrent calls slip past the cap together.
+_EST_INPUT_TOKENS_BY_SURFACE: dict[str, int] = {"claude_api": 25_000}
 
 
 def _a_surfaces(run: Run) -> list[str]:
@@ -441,6 +445,21 @@ def matrix_cells(
     return cells
 
 
+def _interleave_by_surface(work: list[_BWorkItem]) -> list[_BWorkItem]:
+    """Round-robin the Mode B work across surfaces. Each surface is paced on
+    its own clock, so asking them in turn lets one engine's wait be spent on
+    the others: three engines finish in about the time of one instead of
+    three. Order within a surface is unchanged."""
+    by_surface: dict[str, list[_BWorkItem]] = {}
+    for wi in work:
+        by_surface.setdefault(wi.surface, []).append(wi)
+    queues = list(by_surface.values())
+    out: list[_BWorkItem] = []
+    for i in range(max((len(q) for q in queues), default=0)):
+        out += [q[i] for q in queues if i < len(q)]
+    return out
+
+
 def _base_scrape_env(settings: Any) -> ScrapeEnv:
     """The deployment-wide scrape environment (stealth + proxy + managed
     browser), before per-location geo is applied. All off by default."""
@@ -527,7 +546,10 @@ async def _dispatch_all(
         model = model_for(item.surface, model_tier, getattr(settings, adapter.model_attr))
         # Conservative upper-bound estimate for the reservation (over-reserving
         # withholds slightly early — the safe direction for a spend cap).
-        est = adapter.cost_fn(model, _EST_INPUT_TOKENS, _EST_OUTPUT_TOKENS, _EST_SEARCH_CALLS)
+        est = adapter.cost_fn(
+            model, _EST_INPUT_TOKENS_BY_SURFACE.get(item.surface, _EST_INPUT_TOKENS),
+            _EST_OUTPUT_TOKENS, _EST_SEARCH_CALLS,
+        )
         async with semaphore:
             async with lock:
                 if month_spent_before + state["spent"] + state["reserved"] + est > cap_usd:
@@ -548,11 +570,20 @@ async def _dispatch_all(
                     force_search=item.variant != ResultVariant.natural,
                 )
             except Exception as exc:  # noqa: BLE001 — a failed call is data, not a crash
+                # A provider that answered but gave nothing usable still
+                # billed the call: book it, so the cap sees the money.
+                billed = 0.0
+                if isinstance(exc, BilledFailure):
+                    p = exc.parsed
+                    billed = adapter.cost_fn(
+                        p.model or model, p.input_tokens, p.output_tokens, p.web_search_calls
+                    )
                 async with lock:
                     state["reserved"] -= est
+                    state["spent"] += billed
                     state["failed"] += 1
                 await report()
-                failed = {"item": item, "model": model,
+                failed = {"item": item, "model": model, "cost": billed,
                           "error": f"{type(exc).__name__}: {exc}"[:500]}
                 if on_outcome is not None:
                     await on_outcome(index, failed)
@@ -613,6 +644,11 @@ def _persist_a_outcome(run_id: int, tenant_slug: str, index: int, item: dict[str
             counts["failed"] = int(counts.get("failed", 0)) + 1
             result.status = ResultStatus.error
             result.error = item["error"]
+            billed = float(item.get("cost") or 0.0)
+            if billed:
+                _add_cost(counts, wi.surface, billed)
+                counts["billed_failures"] = int(counts.get("billed_failures", 0)) + 1
+                run.cost_usd = round((run.cost_usd or 0.0) + billed, 6)
         else:
             outcome: openai_api.RetrievalOutcome = item["outcome"]
             counts["completed"] = int(counts.get("completed", 0)) + 1
@@ -624,6 +660,7 @@ def _persist_a_outcome(run_id: int, tenant_slug: str, index: int, item: dict[str
             # The model the provider actually served (it can differ from
             # the configured one: aliases, defaults, silent upgrades).
             result.served_model = (outcome.parsed.model or "")[:120]
+            result.requested_model = str(item.get("model", ""))[:120]
             result.response_hash = hashlib.sha256(
                 outcome.parsed.text.encode("utf-8")
             ).hexdigest()
@@ -805,7 +842,7 @@ async def _run_mode_a(run_id: int) -> None:
         # constant. Reuse a recent twin for the same (query, surface) when the
         # stored envelope was produced by the model this plan would use now —
         # a plan/model change invalidates automatically. TTL-bounded; 0 = off.
-        cached_twins: dict[tuple[str, str], tuple[str, str, Any]] = {}
+        cached_twins: dict[tuple[str, str], tuple[str, str, Any, str]] = {}
         if personas and limits.diagnosis and settings.diagnosis_refresh_days > 0:
             cutoff = utcnow() - timedelta(days=settings.diagnosis_refresh_days)
             query_texts = {qtext for (_qid, qtext, _runs) in queries}
@@ -832,13 +869,17 @@ async def _run_mode_a(run_id: int) -> None:
                 expected = model_for(
                     str(r.surface), limits.model_tier, getattr(settings, adapter.model_attr)
                 )
-                envelope = read_raw_envelope(r.raw_uri, session=session) or {}
-                if envelope.get("model") == expected:
+                # Rows from before m44 don't carry the model: read it from the
+                # envelope (a full payload load, so only as a fallback).
+                asked_model = r.requested_model or (
+                    read_raw_envelope(r.raw_uri, session=session) or {}
+                ).get("model")
+                if asked_model == expected:
                     # Carry the ORIGINAL capture's timestamp (§audit worker-5).
                     # Cloning with a fresh created_at would keep the twin
                     # perpetually "fresh", so it would be re-cloned every run and
                     # the TTL would never age it out.
-                    cached_twins[key] = (r.raw_uri, r.response_hash, created)
+                    cached_twins[key] = (r.raw_uri, r.response_hash, created, expected)
 
     # Only dispatch surfaces whose provider key is configured; an enabled
     # surface with no key is skipped with a clear reason, never a crash. If
@@ -996,7 +1037,7 @@ async def _run_mode_a(run_id: int) -> None:
             qid_by_text = {qtext: qid for (qid, qtext, _runs) in queries}
             bpid0, bpname0, _bpprompt0, bpseg0 = baseline_twin
             cloned = 0
-            for (qtext, twin_surface), (uri, rhash, created_ts) in cached_twins.items():
+            for (qtext, twin_surface), (uri, rhash, created_ts, twin_model) in cached_twins.items():
                 if twin_surface not in configured or (qtext, twin_surface) in have_twin:
                     continue
                 session.add(
@@ -1013,6 +1054,7 @@ async def _run_mode_a(run_id: int) -> None:
                         variant=ResultVariant.nosearch,
                         raw_uri=uri,
                         response_hash=rhash,
+                        requested_model=twin_model,
                         latency_ms=0,
                         # Inherit the source capture's age so the TTL cutoff can
                         # eventually expire it (§audit worker-5).
@@ -1141,6 +1183,7 @@ async def _run_mode_b(run_id: int) -> None:
             done_b[(r.query_text, r.persona_name, str(r.surface), r.location_label)] += 1
     work, already_b = _skip_done(
         work, done_b, lambda wi: (wi.query_text, wi.persona_name, wi.surface, wi.location_label))
+    work = _interleave_by_surface(work)
 
     base_env = _base_scrape_env(settings)
 
@@ -1334,7 +1377,7 @@ async def _run_mode_b(run_id: int) -> None:
                 result.raw_uri = write_raw_envelope(
                     tenant_slug,
                     run_id,
-                    f"result-b-{index:04d}",
+                    f"result-b-{index:04d}-{uuid.uuid4().hex[:6]}",
                     {
                         "surface": wi.surface,
                         "mode": "B",
@@ -1531,65 +1574,109 @@ async def _run_fanout_reprobe(run_id: int) -> None:
     ]
 
     # Phase 2 — dispatch. NO DB CONNECTION HELD. Same cap reservation as a run.
+    # Each probe is saved the moment it returns (its Result, the shard's
+    # presence, its cost), so a crash mid-job keeps every probe already paid
+    # for and the spend cap sees the money.
+    ctx = {
+        "brand_name": brand_name, "brand_aliases": brand_aliases,
+        "brand_domains": brand_domains, "competitors": competitors,
+    }
+
+    async def persist(index: int, item: dict[str, Any]) -> None:
+        await asyncio.to_thread(
+            _persist_reprobe_outcome, run_id, tenant_id, tenant_slug, chosen[index], index,
+            item, ctx,
+        )
+
     outcomes, capped = await _dispatch_all(
         work,
         settings=settings,
-        model_tier=limits.model_tier,
+        # A presence check doesn't need the premium model: probe one tier down.
+        model_tier=_probe_tier(limits.model_tier),
         concurrency=settings.openai_concurrency,
         month_spent_before=month_spent_before,
         cap_usd=cap_usd,
+        on_outcome=persist,
     )
 
-    # Phase 3 — persist the probes and resolve the shards.
-    counts = {
-        "fanout_reprobed": 0,
-        "fanout_reprobe_failed": 0,
-        "fanout_withheld_by_cap": 0,
-        "fanout_dropped_k": len(dropped_k),
-        "fanout_dropped_ceiling": len(dropped_ceiling),
-    }
-    cost = 0.0
+    # Phase 3 — close the books: the probes are already in; this stamps the
+    # shards the cap withheld and the drop counts.
     with Session(get_engine()) as session:
         run = session.get(Run, run_id)
         assert run is not None
-        for index, (cand, item) in enumerate(zip(chosen, outcomes, strict=True)):
-            shard = session.get(FanoutShard, cand.shard_id)
-            if shard is None:
+        withheld = 0
+        for cand, item in zip(chosen, outcomes, strict=True):
+            if item is not None:
                 continue
-            if item is None:
-                counts["fanout_withheld_by_cap"] += 1
+            withheld += 1
+            shard = session.get(FanoutShard, cand.shard_id)
+            if shard is not None:
                 shard.probe_status = "withheld_cap"
                 session.add(shard)
-                continue
-            wi: _AWorkItem = item["item"]
-            result = Result(
-                run_id=run_id,
-                tenant_id=tenant_id,
-                persona_id=wi.persona_id,
-                query_text=wi.query_text,
-                asked_text=wi.query_text,
-                persona_name=wi.persona_name,
-                persona_segment=wi.persona_segment,
-                surface=SurfaceCode(wi.surface),
-                variant=ResultVariant.shard,
-            )
-            shard.probe_surface = wi.surface
-            if "error" in item:
-                counts["fanout_reprobe_failed"] += 1
-                result.status = ResultStatus.error
-                result.error = item["error"]
-                session.add(result)
-                shard.probe_status = "error"
-                session.add(shard)
-                continue
+        counts = dict(run.counts or {})
+        for key in ("fanout_reprobed", "fanout_reprobe_failed"):
+            counts.setdefault(key, 0)
+        counts.setdefault("fanout_reprobe_cost_usd", 0.0)
+        counts["fanout_withheld_by_cap"] = withheld
+        counts["fanout_dropped_k"] = len(dropped_k)
+        counts["fanout_dropped_ceiling"] = len(dropped_ceiling)
+        if capped:
+            counts["fanout_reprobe_capped"] = 1
+        run.counts = counts
+        session.add(run)
+        session.commit()
+
+
+def _probe_tier(tier: str) -> str:
+    return "standard" if tier == "premium" else tier
+
+
+def _persist_reprobe_outcome(
+    run_id: int, tenant_id: int, tenant_slug: str, cand: ShardCandidate, index: int,
+    item: dict[str, Any], ctx: dict[str, Any],
+) -> None:
+    """Save one shard re-probe as it returns: the probe's Result row and raw
+    envelope, the shard's measured presence, and the cost on the run, all in
+    one transaction."""
+    wi: _AWorkItem = item["item"]
+    with _PERSIST_LOCK, Session(get_engine()) as session:
+        run = session.get(Run, run_id)
+        shard = session.get(FanoutShard, cand.shard_id)
+        if run is None or shard is None:
+            return
+        counts = dict(run.counts or {})
+        result = Result(
+            run_id=run_id,
+            tenant_id=tenant_id,
+            persona_id=wi.persona_id,
+            query_text=wi.query_text,
+            asked_text=wi.query_text,
+            persona_name=wi.persona_name,
+            persona_segment=wi.persona_segment,
+            surface=SurfaceCode(wi.surface),
+            variant=ResultVariant.shard,
+        )
+        shard.probe_surface = wi.surface
+        cost = float(item.get("cost") or 0.0)
+        if cost:
+            _add_cost(counts, wi.surface, cost, kind="reprobe_cost")
+            counts["fanout_reprobe_cost_usd"] = round(
+                float(counts.get("fanout_reprobe_cost_usd", 0.0)) + cost, 6)
+            # Probe spend accrues to the run, so the monthly cap sees it.
+            run.cost_usd = round((run.cost_usd or 0.0) + cost, 6)
+        if "error" in item:
+            counts["fanout_reprobe_failed"] = int(counts.get("fanout_reprobe_failed", 0)) + 1
+            result.status = ResultStatus.error
+            result.error = item["error"]
+            shard.probe_status = "error"
+        else:
             outcome = item["outcome"]
-            cost += item["cost"]
-            _add_cost(counts, wi.surface, item["cost"], kind="reprobe_cost")
-            counts["fanout_reprobed"] += 1
+            counts["fanout_reprobed"] = int(counts.get("fanout_reprobed", 0)) + 1
             cited = [c.domain for c in outcome.parsed.citations]
             result.latency_ms = outcome.latency_ms
             result.web_search_calls = outcome.parsed.web_search_calls
             result.fanout_queries = list(outcome.parsed.fanout_queries)
+            result.requested_model = str(item.get("model", ""))[:120]
             result.response_hash = hashlib.sha256(
                 outcome.parsed.text.encode("utf-8")
             ).hexdigest()
@@ -1598,7 +1685,7 @@ async def _run_fanout_reprobe(run_id: int) -> None:
             result.raw_uri = write_raw_envelope(
                 tenant_slug,
                 run_id,
-                f"shard-{index:04d}",
+                f"shard-{index:04d}-{uuid.uuid4().hex[:6]}",
                 {
                     "surface": wi.surface,
                     "mode": "A",
@@ -1613,7 +1700,7 @@ async def _run_fanout_reprobe(run_id: int) -> None:
                     "citations": [
                         {"url": c.url, "domain": c.domain} for c in outcome.parsed.citations
                     ],
-                    "cost_usd": item["cost"],
+                    "cost_usd": cost,
                 },
                 session=session,
             )
@@ -1622,10 +1709,10 @@ async def _run_fanout_reprobe(run_id: int) -> None:
             present, winners = evaluate_probe(
                 outcome.parsed.text,
                 cited,
-                brand_name=brand_name,
-                brand_aliases=brand_aliases,
-                brand_domains=brand_domains,
-                competitors=competitors,
+                brand_name=ctx["brand_name"],
+                brand_aliases=ctx["brand_aliases"],
+                brand_domains=ctx["brand_domains"],
+                competitors=ctx["competitors"],
             )
             shard.brand_present = present
             shard.winners = winners
@@ -1634,13 +1721,8 @@ async def _run_fanout_reprobe(run_id: int) -> None:
             shard.probe_result_id = result.id
             shard.probed_at = utcnow()
             shard.priority = shard_priority(present, winners)
-            session.add(shard)
-
-        counts["fanout_reprobe_cost_usd"] = round(cost, 6)  # pyright: ignore[reportArgumentType]
-        if capped:
-            counts["fanout_reprobe_capped"] = 1
-        run.counts = {**run.counts, **counts}
-        # Probe spend accrues to the run, so the monthly cap sees it.
-        run.cost_usd = round((run.cost_usd or 0.0) + cost, 6)
+        session.add(result)
+        session.add(shard)
+        run.counts = counts
         session.add(run)
         session.commit()

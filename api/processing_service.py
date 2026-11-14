@@ -133,6 +133,7 @@ def _extract_untracked(
     session: Session,
     run: Run,
     tenant: Tenant,
+    results: list[Result],
     texts: dict[int, str],
     tracked_aliases: list[str],
 ) -> int:
@@ -140,10 +141,16 @@ def _extract_untracked(
     opted in AND is AI-approved AND the utility model is on its allowlist AND a
     key is configured — otherwise a hard no-op (returns 0). Bounded by the
     monthly spend cap; per-call cost accrues to the run. Extraction failures on
-    a single answer are swallowed (missing data, never a crashed run)."""
+    a single answer are swallowed (missing data, never a crashed run).
+
+    Each answer is paid for once: a result stamped with the current
+    EXTRACTION_VERSION keeps its rows and is not sent again, so reprocessing
+    history costs nothing. Identical answer texts share one call. Returns the
+    run's untracked-mention count (kept rows plus new ones)."""
     from concurrent.futures import ThreadPoolExecutor
 
     from api.config import get_settings
+    from api.models import SpendEntry
     from api.runs_service import month_spend_usd
     from engine.llm import router
 
@@ -154,25 +161,48 @@ def _extract_untracked(
     if model not in tenant.approved_utility_models or not settings.anthropic_api_key:
         return 0
 
-    items = [(rid, text) for rid, text in texts.items() if text]
-    if not items:
-        return 0
+    by_id = {r.id: r for r in results if r.id is not None}
+    done_ids = [rid for rid, r in by_id.items() if r.entities_version == EXTRACTION_VERSION]
+    # Already-extracted answers: keep their rows, minus any name that has
+    # since become tracked (a competitor added after the extraction).
+    kept = 0
+    if done_ids:
+        for row in session.exec(
+            select(UntrackedMention).where(UntrackedMention.result_id.in_(done_ids))  # pyright: ignore[reportAttributeAccessIssue]
+        ).all():
+            if filter_untracked([row.entity_name], tracked_aliases):
+                kept += 1
+            else:
+                session.delete(row)
+
+    done = set(done_ids)
+    todo = [(rid, text) for rid, text in texts.items() if text and rid in by_id
+            and rid not in done]
+    if not todo:
+        return kept
+
+    # One call per distinct answer text: repeated samples often return the
+    # same answer word for word.
+    by_text: dict[str, list[int]] = defaultdict(list)
+    for rid, text in todo:
+        by_text[text].append(rid)
+    distinct = list(by_text)
 
     # Cap the number of calls to what the remaining monthly budget affords.
+    # Answers left out stay unstamped and are picked up by a later pass.
     per_call = settings.utility_extract_cost_usd
     if per_call > 0:
         assert tenant.id is not None
         remaining = tenant.monthly_spend_cap_usd - month_spend_usd(session, tenant.id)
         affordable = max(0, int(remaining / per_call))
-        items = items[:affordable]
-    if not items:
-        return 0
+        distinct = distinct[:affordable]
+    if not distinct:
+        return kept
 
     api_key = settings.anthropic_api_key
     timeout_s = settings.utility_llm_timeout_s
 
-    def _one(item: tuple[int, str]) -> tuple[int, list[str]]:
-        rid, text = item
+    def _one(text: str) -> tuple[str, list[str] | None]:
         try:
             raw = router.complete(
                 build_extraction_prompt(text),
@@ -183,25 +213,44 @@ def _extract_untracked(
                 timeout_s=timeout_s,
             )
         except Exception:  # noqa: BLE001 — a failed extraction is missing data
-            return rid, []
-        return rid, filter_untracked(parse_entities(raw), tracked_aliases)
+            return text, None
+        return text, filter_untracked(parse_entities(raw), tracked_aliases)
 
     count = 0
+    paid = 0
     with ThreadPoolExecutor(max_workers=8) as pool:
-        for rid, names in pool.map(_one, items):
-            for name in names:
-                session.add(
-                    UntrackedMention(
-                        result_id=rid,
-                        tenant_id=run.tenant_id,
-                        entity_name=name,
-                        detector_version=EXTRACTION_VERSION,
+        for text, names in pool.map(_one, distinct):
+            if names is None:
+                continue  # not stamped: retried on the next pass
+            paid += 1
+            rids = by_text[text]
+            session.exec(delete(UntrackedMention).where(UntrackedMention.result_id.in_(rids)))  # pyright: ignore[reportAttributeAccessIssue, reportCallIssue, reportArgumentType]
+            for rid in rids:
+                by_id[rid].entities_version = EXTRACTION_VERSION
+                session.add(by_id[rid])
+                for name in names:
+                    session.add(
+                        UntrackedMention(
+                            result_id=rid,
+                            tenant_id=run.tenant_id,
+                            entity_name=name,
+                            detector_version=EXTRACTION_VERSION,
+                        )
                     )
-                )
-                count += 1
+                    count += 1
 
-    run.cost_usd = round((run.cost_usd or 0.0) + per_call * len(items), 6)
-    return count
+    cost = round(per_call * paid, 6)
+    if cost:
+        now = datetime.now(UTC)
+        created = run.created_at if run.created_at.tzinfo else run.created_at.replace(tzinfo=UTC)
+        if (created.year, created.month) == (now.year, now.month):
+            run.cost_usd = round((run.cost_usd or 0.0) + cost, 6)
+        else:
+            # The monthly cap sums runs by creation month: spend on an older
+            # run would be invisible to it, so it goes in the ledger instead.
+            session.add(SpendEntry(tenant_id=run.tenant_id, kind="entity_extraction",
+                                   cost_usd=cost))
+    return kept + count
 
 
 def process_run(session: Session, run: Run) -> dict[str, int]:
@@ -249,7 +298,9 @@ def process_run(session: Session, run: Run) -> dict[str, int]:
     if result_ids:
         session.exec(delete(Mention).where(Mention.result_id.in_(result_ids)))  # pyright: ignore[reportAttributeAccessIssue, reportCallIssue, reportArgumentType]
         session.exec(delete(AccuracyFinding).where(AccuracyFinding.result_id.in_(result_ids)))  # pyright: ignore[reportAttributeAccessIssue, reportCallIssue, reportArgumentType]
-        session.exec(delete(UntrackedMention).where(UntrackedMention.result_id.in_(result_ids)))  # pyright: ignore[reportAttributeAccessIssue, reportCallIssue, reportArgumentType]
+        # UntrackedMention rows are NOT cleared here: each one was bought with
+        # a utility-LLM call, and _extract_untracked replaces them only for
+        # the answers it actually re-reads.
         session.exec(delete(SponsoredUnit).where(SponsoredUnit.result_id.in_(result_ids)))  # pyright: ignore[reportAttributeAccessIssue, reportCallIssue, reportArgumentType]
 
     counts = {"mentions": 0, "classified_queries": 0, "citations_categorized": 0,
@@ -335,7 +386,7 @@ def process_run(session: Session, run: Run) -> dict[str, int]:
         tracked_aliases.append(cname)
         tracked_aliases.extend(caliases)
     counts["untracked_mentions"] = _extract_untracked(
-        session, run, tenant, texts, tracked_aliases
+        session, run, tenant, search_results, texts, tracked_aliases
     )
 
     # Citation categorization (all variants — cheap and harmless). Bucket by

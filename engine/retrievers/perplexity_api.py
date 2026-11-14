@@ -32,7 +32,13 @@ from typing import Any
 
 import httpx
 
-from engine.retrievers.openai_api import ParsedCitation, ParsedResponse, RetrievalOutcome
+from engine.retrievers.openai_api import (
+    BilledFailure,
+    ParsedCitation,
+    ParsedResponse,
+    RetrievalOutcome,
+    should_retry_transport,
+)
 
 PERPLEXITY_AGENT_URL = "https://api.perplexity.ai/v1/agent"
 PERPLEXITY_URL = "https://api.perplexity.ai/chat/completions"  # legacy (fallback only)
@@ -201,9 +207,9 @@ async def _post_with_retries(
     for attempt in range(1, max_attempts + 1):
         try:
             resp = await client.post(url, json=body, headers=headers)
-        except httpx.TransportError:
+        except httpx.TransportError as exc:
             # Dropped connection / timeout: retry like a 5xx.
-            if attempt < max_attempts:
+            if should_retry_transport(exc, attempt, max_attempts):
                 await asyncio.sleep(2**attempt)
                 continue
             raise
@@ -260,12 +266,15 @@ async def retrieve(
                 # Agent API reports run failures as HTTP 200.
                 err = payload.get("error") or {}
                 msg = err.get("message") if isinstance(err, dict) else str(err)
-                raise RuntimeError(f"Perplexity run {status}: {msg or 'no detail'}")
+                raise BilledFailure(
+                    f"Perplexity run {status}: {msg or 'no detail'}",
+                    parse_perplexity_payload(payload),
+                )
         parsed = parse_perplexity_payload(payload)
         if not parsed.text:
             # Out of budget / empty run: an error, not "brand absent".
             reason = (payload.get("incomplete_details") or {}).get("reason", "no text")
-            raise RuntimeError(f"Perplexity returned no answer text ({reason})")
+            raise BilledFailure(f"Perplexity returned no answer text ({reason})", parsed)
         return RetrievalOutcome(
             payload=payload,
             parsed=parsed,

@@ -342,6 +342,14 @@ class Result(SQLModel, table=True):
     # sample rotated to. "" on rows written before m38 (their envelope has it
     # as `asked`). Results stay keyed by query_text.
     asked_text: str = Field(default="")
+    # The model this call was sent to (m44), as opposed to served_model (what
+    # the provider says answered). Lets the diagnosis-twin cache check a row
+    # without loading its raw envelope. "" on rows written before m44.
+    requested_model: str = Field(default="")
+    # Which entity-extraction version has already read this answer (m44).
+    # Extraction is a paid call, so an answer that carries the current
+    # version is never sent again. "" = not extracted.
+    entities_version: str = Field(default="")
     created_at: datetime = Field(default_factory=utcnow)
 
 

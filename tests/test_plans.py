@@ -145,7 +145,9 @@ def test_diagnosis_twin_cached_across_runs(db_session, env, monkeypatch):
     assert sum(1 for (_s, ws) in calls if not ws) == 0   # twins reused, not re-bought
     # Searches still live: 24 forced, plus Diagnose's natural probe of every
     # query on the two engines that force search (3 queries x 2).
-    assert sum(1 for (_s, ws) in calls if ws) == 30
+    # 4 fewer than before: the unforced probe covers a third of the queries
+    # a run (1 of 3, on the two forced engines), not all of them.
+    assert sum(1 for (_s, ws) in calls if ws) == 26
 
     nosearch2 = [r for r in _results(db_session, run2) if r.variant == ResultVariant.nosearch]
     assert len(nosearch2) == 12  # cloned into the run so the classifier pairing works

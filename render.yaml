@@ -206,7 +206,7 @@ services:
       # Natural search-routing probe (§AEO-plan M2): un-forced OpenAI call on
       # this fraction of queries to measure which prompts trigger search.
       # ~+34% OpenAI calls on the probed slice; 0 disables. Fallback only:
-      # Diagnose and Command probe every query (api/plans.py).
+      # Diagnose and Command set their own fraction (0.34, api/plans.py).
       - key: NATURAL_PROBE_FRACTION
         value: "0.34"
       # GA4 Outcome attribution: path to the service-account JSON, added as a
