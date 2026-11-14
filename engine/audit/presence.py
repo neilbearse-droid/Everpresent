@@ -198,6 +198,76 @@ def detect_presence(
     return {"brand_found": brand_found, "competitors_found": competitors_found}
 
 
+_DATE_MODIFIED_RE = re.compile(r'"datemodified"\s{0,3}:\s{0,3}"(20[1-9]\d-\d{2}-\d{2})',
+                               re.IGNORECASE)
+_ISO_RE = re.compile(r"(20[1-9]\d)-(\d{2})-(\d{2})")
+_NUMERIC_RE = re.compile(r"(\d{1,2})[/.-](\d{1,2})[/.-](20[1-9]\d)")
+_WORD_RE = re.compile(r"[a-z]{3,9}")
+_DAY_RE = re.compile(r"(?<!\d)(\d{1,2})(?:st|nd|rd|th)?(?!\d)")
+_YEAR4_RE = re.compile(r"20[1-9]\d")
+_MONTH_WORDS: dict[str, int] = {}
+for _i, _name in enumerate(("january", "february", "march", "april", "may", "june", "july",
+                            "august", "september", "october", "november", "december"), 1):
+    _MONTH_WORDS[_name] = _MONTH_WORDS[_name[:3]] = _i
+_MONTH_WORDS["sept"] = 9
+
+
+def parse_date(text: str) -> str:
+    """An ISO date from the common written forms ("October 3, 2026",
+    "3 Oct 2026", "10/03/2026", "2026-10-03", "October 2026"), or "" when
+    the text isn't a date. A numeric date is read month first unless that
+    can't be a month. Month words must be whole ("mar", "march"; never the
+    start of "marketing")."""
+    t = text.lower().replace(",", " ")
+    y = mo = d = 0
+    if m := _ISO_RE.search(t):
+        y, mo, d = int(m.group(1)), int(m.group(2)), int(m.group(3))
+    elif m := _NUMERIC_RE.search(t):
+        a, b, y = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        mo, d = (a, b) if a <= 12 else (b, a)
+    else:
+        year = _YEAR4_RE.search(t)
+        mo = next((_MONTH_WORDS[w] for w in _WORD_RE.findall(t) if w in _MONTH_WORDS), 0)
+        if not year or not mo:
+            return ""
+        y = int(year.group(0))
+        day = _DAY_RE.search(t.replace(year.group(0), " ", 1))
+        d = int(day.group(1)) if day else 1
+    try:
+        return datetime(y, mo, d).date().isoformat()
+    except ValueError:
+        return ""
+
+
+def updated_on(html: str, text: str) -> str:
+    """When the page says it was last updated, as an ISO date, or "".
+    Machine-readable dateModified first, then the visible "Updated ..." line."""
+    if m := _DATE_MODIFIED_RE.search(html):
+        return parse_date(m.group(1))
+    if m := _UPDATED_RE.search(text):
+        return parse_date(m.group(0))
+    return ""
+
+
+_MAX_TRACKED_HEADINGS = 40
+
+
+def headings(html: str) -> list[str]:
+    """The page's section headings (h1-h4), in order, without duplicates:
+    what the page covers, as a reader scanning it would see."""
+    out: list[str] = []
+    seen: set[str] = set()
+    for i, m in enumerate(_HEADING_RE.finditer(html)):
+        if i >= _MAX_HEADINGS or len(out) >= _MAX_TRACKED_HEADINGS:
+            break
+        text = " ".join(_TAG_RE.sub(" ", m.group(1)).split())
+        key = text.lower()
+        if 3 <= len(text) <= 140 and key not in seen:
+            seen.add(key)
+            out.append(text)
+    return out
+
+
 def extract_features(html: str) -> dict[str, Any]:
     """Citability fingerprint in evidence order: explicit facts (price, update
     date, rating, latest year named) and evidence density first; then the
@@ -223,6 +293,10 @@ def extract_features(html: str) -> dict[str, Any]:
         # Explicit facts (controlled 2026 evidence: raise citation odds).
         "has_price": bool(_PRICE_RE.search(text)),
         "has_updated_date": bool(_UPDATED_MARKUP_RE.search(html) or _UPDATED_RE.search(text)),
+        # The date itself and the section headings: what the change tracker
+        # compares between crawls (api.page_changes_service).
+        "updated_on": updated_on(html, text),
+        "headings": headings(visible),
         "has_rating": _RATING_MARKUP in lower or bool(_RATING_RE.search(text)),
         "latest_year": max(years) if years else 0,
         # Evidence density and second-order formatting.

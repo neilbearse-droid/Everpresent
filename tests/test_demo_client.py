@@ -94,6 +94,34 @@ def test_downstream_views_tell_the_same_story(demo, db_session):
     assert ads["advertisers"][0]["name"] == "Siteforge"
 
 
+def test_fixes_are_experiments_with_changes_seen_and_stored_outcomes(demo, db_session):
+    from api.models import FixOutcome, Intervention, PageChange
+    from api.page_changes_service import recent_changes
+    from api.proof_service import intervention_proof
+
+    _, tenant, _ = demo
+    proof = intervention_proof(db_session, tenant.id)
+    [logged] = proof["items"]
+    # The crawl saw the logged fix's page change, and says what changed.
+    seen = {c["kind"] for c in logged["changes"]}
+    assert {"price_added", "content_expanded", "sections_added"} <= seen
+    assert logged["source"] == "logged" and logged["days_to_effect"] is not None
+    # Two changes nobody logged, read as rivals' experiments.
+    assert {(i["subject"], i["source"]) for i in proof["rival_items"]} == {
+        ("Siteforge", "detected"), ("Hostwell", "detected")}
+    fixes = db_session.exec(select(Intervention).where(
+        Intervention.tenant_id == tenant.id)).all()
+    outcomes = {o.intervention_id: o for o in db_session.exec(select(FixOutcome).where(
+        FixOutcome.tenant_id == tenant.id)).all()}
+    assert set(outcomes) == {f.id for f in fixes} and len(fixes) == 3
+    assert outcomes[logged["id"]].status == "proven" and outcomes[logged["id"]].by_engine
+    # Every change is listed once per page and crawl.
+    listed = recent_changes(db_session, tenant.id)
+    assert len(listed) == 3 and all(c["intervention_id"] for c in listed)
+    assert len(db_session.exec(select(PageChange).where(
+        PageChange.tenant_id == tenant.id)).all()) == 8
+
+
 def test_rebuild_replaces_only_the_demo(demo, db_session, monkeypatch, tmp_path):
     from api.demo_client import build_demo_client
 

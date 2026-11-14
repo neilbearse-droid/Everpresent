@@ -5,7 +5,13 @@ and record whether the brand/competitors are named on it plus the citability
 fingerprint. Upserts page_presence keyed (tenant, url). Runs nightly for every
 tenant with citations, and on demand from the admin panel. Competitor-owned
 URLs are skipped; the brand's own cited pages ARE crawled — their fingerprint
-is the "your page" side of the citability diff (§focus-group #3)."""
+is the "your page" side of the citability diff (§focus-group #3).
+
+Every page that loads is also versioned (api.page_changes_service): the crawl
+keeps a dated snapshot when a page's tracked state changes, and the
+differences become change events. Rivals' own cited pages are fetched for
+that purpose only; they get versions and change events, never a
+page_presence row."""
 
 import time
 
@@ -15,7 +21,15 @@ from sqlmodel import Session, select
 
 from api.config import get_settings
 from api.dashboards_service import citations_intel
-from api.models import BrandFact, BrandProfile, Competitor, PagePresence, Tenant, utcnow
+from api.models import (
+    BrandFact,
+    BrandProfile,
+    Competitor,
+    FanoutShard,
+    PagePresence,
+    Tenant,
+    utcnow,
+)
 from engine.audit.brave import brave_indexed
 from engine.audit.presence import crawl_page, detect_presence, extract_features, visible_html
 from engine.netguard import guard_public_request
@@ -27,6 +41,7 @@ log = structlog.get_logger()
 
 MAX_PAGES = 20
 MAX_OWN_PAGES = 15  # the brand's own cited pages, on top of MAX_PAGES
+MAX_RIVAL_PAGES = 8  # rivals' cited pages, versioned for change detection only
 TIMEOUT_S = 10.0
 
 # Power pages are the cited sources — Reddit threads, affiliate/review pages —
@@ -59,19 +74,40 @@ def crawl_power_pages(tenant_id: int) -> int:
             select(BrandProfile).where(BrandProfile.tenant_id == tenant_id)
         ).first()
         brand_names = [brand.brand_name, *brand.aliases] if brand else [tenant.name]
-        competitors = [
-            (c.name, c.aliases)
-            for c in session.exec(
-                select(Competitor).where(Competitor.tenant_id == tenant_id)
-            ).all()
-        ]
+        rivals = session.exec(
+            select(Competitor).where(Competitor.tenant_id == tenant_id)
+        ).all()
+        competitors = [(c.name, c.aliases) for c in rivals]
+        rival_domains = [(c.name, [d.lower().removeprefix("www.") for d in c.domains or []])
+                         for c in rivals]
         power = citations_intel(session, tenant_id)["power_pages"]
         # The brand's own cited pages first (ChatGPT now checks facts on
         # them, m33), then the third-party pages, up to the crawl budget.
         own = [p for p in power if p["category"] == "brand"][:MAX_OWN_PAGES]
         others = [p for p in power if p["category"] not in ("competitor", "brand")]
-        pages = (own + others)[:MAX_PAGES + MAX_OWN_PAGES]
+        pages = [{**p, "owner": "brand" if p["category"] == "brand" else "other"}
+                 for p in (own + others)[:MAX_PAGES + MAX_OWN_PAGES]]
+        # Rivals' cited pages: versioned so their changes can be read as
+        # experiments on their mention rates. Never written to page_presence.
+        for p in [p for p in power if p["category"] == "competitor"][:MAX_RIVAL_PAGES]:
+            name = next((n for n, doms in rival_domains
+                         if domain_is_owned(p["domain"], doms)), "")
+            if name:
+                pages.append({**p, "owner": "competitor", "owner_name": name})
         owned_domains = [d.lower().removeprefix("www.") for d in (brand.domains if brand else [])]
+        # Sub-searches the brand is absent from: a new section that answers
+        # one is the change worth naming on the brand's own pages.
+        last_shards = session.exec(
+            select(FanoutShard.run_id).where(FanoutShard.tenant_id == tenant_id)
+            .order_by(FanoutShard.run_id.desc()).limit(1)  # pyright: ignore[reportAttributeAccessIssue]
+        ).first()
+        subquestions = [] if last_shards is None else [
+            sh.shard_text for sh in session.exec(
+                select(FanoutShard).where(
+                    FanoutShard.tenant_id == tenant_id, FanoutShard.run_id == last_shards,
+                    FanoutShard.brand_present == False)  # noqa: E712
+            ).all()
+        ]
         facts = [
             FactSpec(id=f.id, category=f.category, label=f.label, subject=f.subject,
                      aliases=list(f.aliases or []), kind=f.kind, expected=f.expected)
@@ -104,6 +140,8 @@ def crawl_power_pages(tenant_id: int) -> int:
                 "url": page["url"],
                 "domain": page["domain"],
                 "http_status": fetched.get("http_status"),
+                "owner": page["owner"],
+                "owner_name": page.get("owner_name", ""),
             }
             if "error" in fetched or (fetched.get("http_status") or 600) >= 400:
                 row_data["status"] = "error"
@@ -118,7 +156,8 @@ def crawl_power_pages(tenant_id: int) -> int:
                 row_data["features"] = extract_features(html)
                 if fetched.get("noindex_header"):
                     row_data["features"]["noindex"] = True
-                if domain_is_owned(page["domain"], owned_domains):
+                if page["owner"] != "competitor" and domain_is_owned(
+                        page["domain"], owned_domains):
                     # Own page: does it agree with the brand's fact sheet?
                     row_data["features"]["owned"] = True
                     row_data["features"]["fact_conflicts"] = _fact_conflicts(html, facts)
@@ -135,6 +174,8 @@ def crawl_power_pages(tenant_id: int) -> int:
     with Session(_engine()) as session:
         crawled = 0
         for rd in parsed:
+            if rd["owner"] == "competitor":
+                continue  # versioned below, not part of the presence audit
             row = session.exec(
                 select(PagePresence).where(
                     PagePresence.tenant_id == tenant_id, PagePresence.url == rd["url"]
@@ -154,6 +195,17 @@ def crawl_power_pages(tenant_id: int) -> int:
             session.add(row)
             session.commit()
             crawled += 1
+    # Phase 4 — version every page that loaded and record what changed. Kept
+    # apart so a failure here never costs the presence audit above.
+    try:
+        from api.page_changes_service import record_crawl
+
+        with Session(_engine()) as session:
+            tracked = record_crawl(session, tenant_id, parsed, subquestions=subquestions)
+            session.commit()
+        log.info("page_crawl.changes", tenant=tenant_slug, **tracked)
+    except Exception:  # noqa: BLE001
+        log.exception("page_crawl.changes_failed", tenant=tenant_slug)
     log.info("page_crawl.done", tenant=tenant_slug, pages=crawled)
     return crawled
 

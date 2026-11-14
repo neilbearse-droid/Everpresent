@@ -3,6 +3,65 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M69 — Fixes are experiments; page changes are detected; outcomes are stored (2026-11-14)
+
+The first three steps of the learning loop. Nothing here changes the
+ranking yet (M68's odds table stands); this is the record the ranking will
+later learn from, and it cannot be backfilled, so it starts now.
+
+1. **Every fix is an experiment.** "Mark done" on a recommendation asks what
+   changed, where and when, and always logs an `Intervention`, with or
+   without the details (the title, the page the play named, and today stand
+   in). The fix snapshots what the recommendation was (kind, area, who had to
+   act, evidence grade), what it predicted (the impact record at that moment)
+   and what it is measured on: the questions and engines it was ranked on,
+   now kept on the recommendation as `scope` (an empty list means all of
+   them). "Mark shipped" on an Action Plan brief closes the question's page
+   play and logs the same record. Setup items and notices are not fixes.
+2. **Pages are versioned, and the differences are events.** Each crawl keeps
+   a `PageSnapshot` when a page's tracked state changes (facts shown, the
+   updated date, size, section headings, noindex, who is named on it), and
+   moves `last_seen_at` when it doesn't, so a change is dated to the gap
+   between two crawls. Only pages that loaded are versioned: a blocked fetch
+   is never a change. The diff is thresholded against wobble: a quarter of
+   the page and 150 words for a rewrite, a 30-day jump for a refreshed date
+   (a rolling date moves a day at a time), and a check the old version
+   predates is never a change. New sections on the brand's own pages are
+   matched to the sub-searches it is absent from ("Now has a section for…").
+3. **Rivals' pages are crawled for this alone.** Up to eight of the rivals'
+   cited pages are fetched and versioned; they never get a `page_presence`
+   row. A material change on one opens an experiment measured on that
+   rival's mention rate, on the questions the page was cited for: someone
+   else's test, read for free. They are listed apart and never counted in
+   the client's own proof summary.
+4. **A change nobody logged still becomes an experiment.** A material change
+   on the brand's page attaches to the logged fix for that page within 14
+   days either side; otherwise it opens a "detected" fix, dated halfway
+   between the two crawls, tied to the open recommendation that names the
+   page when there is one (which stays open: the client hasn't said it is
+   done). The brand turning up on someone else's page is the brand's
+   experiment; another rival turning up there is that rival's. When the
+   client later marks the recommendation done, the detected fix folds into
+   theirs. A change with no answers to measure it on is recorded and opens
+   nothing.
+5. **One scoring, whatever the fix.** `intervention_proof` now judges a fix
+   on its own scope: several questions against the untouched ones; an
+   engine-wide fix against the other engines; a site-wide fix before and
+   after with no control, and said so. The measure follows the kind of fix:
+   mention rate by default, the share of answers still stating a wrong fact
+   for accuracy plays (a fall is the win), the share citing the page for
+   page fixes (with the mention rate beside it). Engine changes are trimmed
+   as before (M55). Each result carries the per-engine split and the days to
+   effect: the first of 7, 14, 21 or 28 days at which the change passed the
+   test.
+6. **Outcomes are stored.** After every run `refresh_outcomes` writes one
+   `FixOutcome` per fix: status, before, after, counts, lift, control, net,
+   verdict, p-value, per-engine, days to effect. It is rewritten until the
+   28-day after-window is full, then final: a later change to the questions
+   or engines can't move a result that has been read. Outcome by kind of
+   fix, engine and prediction is one join away. m43 adds the tables and the
+   experiment columns.
+
 ## M68 — Recommendations: areas of work, ranked by projected impact (2026-11-14)
 
 1. **One scale.** Every recommendation is ranked by projected impact =

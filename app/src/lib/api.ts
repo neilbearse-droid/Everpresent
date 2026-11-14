@@ -1084,25 +1084,76 @@ export type ProofSignal = {
   control_change_pct?: number | null;
   verdict: string;
   note: string;
+  /** True for "stated wrong": a fall is the good direction. */
+  lower_is_better?: boolean;
+};
+
+/** One fix, measured: an experiment with what it was, what it predicted and what happened. */
+export type ProofItem = {
+  id: number;
+  query: string;
+  description: string;
+  url: string;
+  path: string;
+  shipped_at: string;
+  window_days: number;
+  status: "proven" | "early" | "no_change" | "worse" | "awaiting" | "confounded";
+  headline: string;
+  signals: ProofSignal[];
+  /** Engine changes inside this window; their answers were left out. */
+  breaks?: { date: string; surface: string; label: string; note: string }[];
+  /** logged: a person recorded it. detected: the crawl saw the page change. */
+  source: "logged" | "detected";
+  /** "" for the brand; a rival's name for a change on a rival's page. */
+  subject: string;
+  metric: "mentions" | "wrong_fact" | "page_cited";
+  play: string;
+  category: string;
+  control: string;
+  evidence: string;
+  recommendation_id: number | null;
+  /** The recommendation's impact record when the fix shipped. */
+  predicted: { band: "high" | "medium" | "low" | ""; score: number | null; basis: string } | null;
+  questions: string[];
+  families: string[];
+  by_engine: {
+    family: string;
+    label: string;
+    before: number | null;
+    after: number | null;
+    before_n: number;
+    after_n: number;
+    delta_pts: number | null;
+    verdict: string;
+  }[];
+  /** Days after the ship date at which the change first passed the test. */
+  days_to_effect: number | null;
+  /** What the crawl saw change on the fix's page. */
+  changes: { kind: string; summary: string; url: string; detected_at: string }[];
+};
+
+/** A change the crawl saw on a cited page between two visits. */
+export type PageChangeRow = {
+  id: number;
+  url: string;
+  owner: "brand" | "competitor" | "other";
+  owner_label: string;
+  kinds: string[];
+  /** Everything that changed on the page between the two crawls. */
+  summaries: string[];
+  material: boolean;
+  /** [last seen unchanged, first seen changed], ISO dates. */
+  between: [string, string];
+  intervention_id: number | null;
 };
 
 export type Proof = {
   window_days: number;
   summary: string | null;
-  items: {
-    id: number;
-    query: string;
-    description: string;
-    url: string;
-    path: string;
-    shipped_at: string;
-    window_days: number;
-    status: "proven" | "early" | "no_change" | "worse" | "awaiting" | "confounded";
-    headline: string;
-    signals: ProofSignal[];
-    /** Engine changes inside this window; their answers were left out. */
-    breaks?: { date: string; surface: string; label: string; note: string }[];
-  }[];
+  items: ProofItem[];
+  /** Changes on rivals' pages, measured on that rival's mentions. */
+  rival_items?: ProofItem[];
+  changes?: PageChangeRow[];
 };
 
 export type AdsReport = {

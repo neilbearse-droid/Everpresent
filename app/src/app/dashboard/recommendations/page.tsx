@@ -15,7 +15,7 @@ import {
 import { DashNav } from "@/components/dash-nav";
 import { NoOrgNotice } from "@/components/no-org-notice";
 import { PageLead } from "@/components/page-lead";
-import { StatusButtons } from "@/components/plan-buttons";
+import { DoneForm, StatusButtons } from "@/components/plan-buttons";
 import { ExtLink, Linkify } from "@/components/ui";
 
 // What NOT to do, with the evidence. Static: these hold for every tenant.
@@ -407,13 +407,23 @@ function PlayCard({ rec, rank }: { rec: Recommendation; rank: number }) {
           )}
         </div>
       </div>
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[var(--line)] pt-3">
-        <StatusButtons id={rec.id} status={rec.status} />
-        {rec.link && (
-          <Link href={rec.link} className="text-xs font-medium text-[var(--accent-2)] hover:underline">
-            See the data →
-          </Link>
-        )}
+      <div className="mt-4 border-t border-[var(--line)] pt-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <StatusButtons id={rec.id} status={rec.status} withoutDone />
+          {rec.link && (
+            <Link href={rec.link} className="text-xs font-medium text-[var(--accent-2)] hover:underline">
+              See the data →
+            </Link>
+          )}
+        </div>
+        {/* Done is where the measurement starts: it asks what changed, where and when. */}
+        <div className="mt-2">
+          <DoneForm
+            id={rec.id}
+            primary={rec.status === "in_progress"}
+            defaultUrl={rec.targets?.find((t) => t.kind === "Your page" && t.url)?.url ?? ""}
+          />
+        </div>
       </div>
     </li>
   );

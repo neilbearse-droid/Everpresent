@@ -141,4 +141,61 @@ def test_crawl_job_upserts_presence_and_feeds_power_pages(db_session, monkeypatc
     g2 = pages["https://g2.com/best-crm"]
     assert g2["on_page"] is False and g2["competitors_on_page"] == ["Globex"]
     assert g2["page_features"]["has_tables"] is True
-    assert pages["https://globex.com/why"]["on_page"] is None  # rival page not crawled
+    assert pages["https://globex.com/why"]["on_page"] is None  # no presence row for a rival
+
+
+def test_crawl_versions_pages_and_reads_changes_as_experiments(db_session, monkeypatch):
+    from api.models import Intervention, PageChange, PageSnapshot
+    from worker import page_crawl
+
+    tenant = Tenant(name="Acme", slug="acme")
+    db_session.add(tenant)
+    db_session.commit()
+    tid = tenant.id
+    db_session.add(BrandProfile(tenant_id=tid, brand_name="Acme", domains=["acme.com"]))
+    db_session.add(Competitor(tenant_id=tid, name="Globex", domains=["globex.com"]))
+    db_session.add(Query(tenant_id=tid, text="best crm", corpus_tag="crm"))
+    db_session.commit()
+    run = Run(tenant_id=tid, trigger="manual", status=RunStatus.complete)
+    db_session.add(run)
+    db_session.commit()
+    r = Result(run_id=run.id, tenant_id=tid, query_text="best crm", persona_name="p",
+               surface=SurfaceCode.openai_api, variant=ResultVariant.search,
+               status=ResultStatus.ok)
+    db_session.add(r)
+    db_session.commit()
+    db_session.add(Citation(result_id=r.id, tenant_id=tid, url="https://g2.com/best-crm",
+                            domain="g2.com", source_category="other"))
+    db_session.add(Citation(result_id=r.id, tenant_id=tid, url="https://globex.com/why",
+                            domain="globex.com", source_category="competitor"))
+    db_session.commit()
+    html = {"value": PAGE_HTML}
+    monkeypatch.setattr(page_crawl, "_engine", lambda: db_session.get_bind())
+    monkeypatch.setattr(page_crawl, "crawl_page", lambda client, url: {
+        "html": html["value"] if "g2.com" in url else PAGE_HTML, "http_status": 200})
+
+    # First crawl: a baseline version of the third-party page and of the
+    # rival's own page, which is fetched for this alone.
+    page_crawl.crawl_power_pages(tid)
+    versions = {v.url: v for v in db_session.exec(select(PageSnapshot)).all()}
+    assert set(versions) == {"https://g2.com/best-crm", "https://globex.com/why"}
+    assert versions["https://globex.com/why"].owner == "competitor"
+    assert versions["https://globex.com/why"].owner_name == "Globex"
+    assert versions["https://g2.com/best-crm"].features["headings"]
+    assert [p.url for p in db_session.exec(select(PagePresence)).all()] == [
+        "https://g2.com/best-crm"]
+
+    # Same pages again: nothing new.
+    page_crawl.crawl_power_pages(tid)
+    assert len(db_session.exec(select(PageSnapshot)).all()) == 2
+    assert db_session.exec(select(PageChange)).all() == []
+
+    # The list now names the brand: a change, and an experiment on the
+    # question that page is cited for, though nobody logged anything.
+    html["value"] = PAGE_HTML.replace("</body>", "<p>Acme is a newer option.</p></body>")
+    page_crawl.crawl_power_pages(tid)
+    changes = db_session.exec(select(PageChange)).all()
+    assert [(c.url, c.kind) for c in changes] == [("https://g2.com/best-crm", "brand_added")]
+    [fix] = db_session.exec(select(Intervention)).all()
+    assert (fix.source, fix.subject, fix.questions) == ("detected", "", ["best crm"])
+    assert fix.description == "You now appear on this page" and changes[0].intervention_id == fix.id

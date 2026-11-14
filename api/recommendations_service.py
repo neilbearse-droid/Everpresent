@@ -86,6 +86,12 @@ class Play:
     speed: str = ""      # days | weeks | months | model
     impact: dict = field(default_factory=dict)
     targets: list[dict] = field(default_factory=list)
+    # What a fix for this play is measured on: {"questions": [...],
+    # "families": [...]}; an empty list means every question / every engine.
+    scope: dict = field(default_factory=dict)
+
+
+MAX_SCOPE_QUESTIONS = 60
 
 
 def _rank(
@@ -104,6 +110,15 @@ def _rank(
     """Score a play on the one scale (api.impact) and set its sort key."""
     if reach is None and uni is not None and ids is not None:
         reach = uni.reach(ids)
+    if reach is not None and reach.answers and uni is not None:
+        # The answers the play was ranked on are the answers a fix for it
+        # will be judged on.
+        every_question = reach.questions >= uni.questions
+        every_engine = set(reach.families) >= set(uni.family_share)
+        p.scope = {
+            "questions": [] if every_question else reach.question_texts[:MAX_SCOPE_QUESTIONS],
+            "families": [] if every_engine else list(reach.families),
+        }
     p.impact = impact(reach, control=p.control, evidence=p.evidence, directness=directness,
                       severity=severity, risk=risk, floor=floor, basis=basis, universe=uni,
                       at_stake=at_stake)
@@ -532,8 +547,8 @@ def _query_plays(
                          "scripts). Skip special AI markup: Google says none is needed")
         if b.get("spam_risk"):
             steps.append("Don't answer it with your own ranked 'best X' list (see Don'ts)")
-        steps.append("Log the change in Outcome with an untouched control page, then "
-                     "judge it after 2–3 weeks of runs")
+        steps.append("Mark this done the day it goes live: the fix is then measured against "
+                     "the questions you left alone, and can be judged after 2–3 weeks of runs")
 
         targets: list[dict] = []
         if your_page:
@@ -1674,7 +1689,7 @@ def generate_recommendations(session: Session, tenant: Tenant) -> int:
         rec.steps, rec.query_text, rec.link = list(p.steps), p.query_text, p.link
         rec.category, rec.control, rec.effort, rec.speed = (
             p.category, p.control, p.effort, p.speed)
-        rec.impact, rec.targets = dict(p.impact), list(p.targets)
+        rec.impact, rec.targets, rec.scope = dict(p.impact), list(p.targets), dict(p.scope)
         rec.updated_at = utcnow()
         session.add(rec)
         if rec.status in (RecommendationStatus.open, RecommendationStatus.in_progress):

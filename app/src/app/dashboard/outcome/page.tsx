@@ -61,7 +61,7 @@ export default async function OutcomePage({
     tells: `AI engines sent ${d.totals.sessions.toLocaleString()} ${d.totals.sessions === 1 ? "visit" : "visits"}${
       topEngine ? `, mostly from ${topEngine.engine}` : ""
     }${direction ? `, ${direction}` : ""}.`,
-    act: d.totals.sessions === 0 ? "Check that engines naming you also link you." : "Ship a fix and mark it shipped.",
+    act: d.totals.sessions === 0 ? "Check that engines naming you also link you." : "Ship a fix and mark its recommendation done.",
     href: d.totals.sessions === 0 ? "/dashboard/engines" : "/dashboard/action-plan",
     hrefLabel: d.totals.sessions === 0 ? "Engines" : "Action Plan",
     tone: (direction === "rising" ? "good" : direction === "falling" ? "bad" : "neutral") as "good" | "bad" | "neutral",

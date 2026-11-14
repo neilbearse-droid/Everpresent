@@ -106,6 +106,7 @@ class Reach:
     gap: float = 0.0          # ...that also has the problem, 0-1
     families: list[str] = field(default_factory=list)
     questions: int = 0
+    question_texts: list[str] = field(default_factory=list)
     runs: int = 0
 
 
@@ -213,7 +214,8 @@ class Universe:
                 r.missing += 1
                 r.gap += w
         r.families = [f for f, _w in sorted(fams.items(), key=lambda kv: (-kv[1], kv[0]))]
-        r.questions = len({a.query_text for a in rows})
+        r.question_texts = sorted({a.query_text for a in rows})
+        r.questions = len(r.question_texts)
         r.runs = len({a.run_id for a in rows})
         return r
 

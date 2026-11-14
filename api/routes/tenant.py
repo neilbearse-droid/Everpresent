@@ -428,10 +428,13 @@ def ads_route(ctx: Ctx, session: Db) -> dict:
 
 @router.get("/proof")
 def proof_route(ctx: Ctx, session: Db) -> dict:
-    """Each shipped fix: before vs after on every signal, against a control."""
+    """Each fix, logged or detected: before vs after against a control, plus
+    the changes the crawl has seen on cited pages lately."""
+    from api.page_changes_service import recent_changes
     from api.proof_service import intervention_proof
 
-    return intervention_proof(session, ctx.tenant_id)
+    return {**intervention_proof(session, ctx.tenant_id),
+            "changes": recent_changes(session, ctx.tenant_id)}
 
 
 @router.get("/interventions")
@@ -441,32 +444,29 @@ def list_interventions(ctx: Ctx, session: Db) -> dict:
 
 @router.post("/interventions", status_code=201)
 def create_intervention(payload: InterventionCreate, ctx: Ctx, session: Db) -> Intervention:
-    from datetime import UTC, datetime
+    """Mark a fix for a question shipped (Action Plan). When the question has
+    an open page play, the fix is logged as that play's experiment and the
+    play is closed with it."""
+    from api import fixes_service
 
     text = payload.query_text.strip()
     if not text:
         raise HTTPException(status_code=422, detail="query_text is required")
-    shipped = utcnow()
-    if payload.shipped_at:
-        try:
-            parsed = datetime.fromisoformat(payload.shipped_at)
-            # Convert an offset-aware time to UTC; treat a bare date as UTC.
-            shipped = parsed.astimezone(UTC) if parsed.tzinfo else parsed.replace(tzinfo=UTC)
-        except ValueError as exc:
-            raise HTTPException(
-                status_code=422, detail="shipped_at must be an ISO date (YYYY-MM-DD)"
-            ) from exc
-    url = payload.url.strip()
-    if url and not url.lower().startswith(("http://", "https://")):
-        raise HTTPException(status_code=422, detail="url must start with http:// or https://")
-    item = Intervention(
-        tenant_id=ctx.tenant_id,
-        query_text=text,
-        description=payload.description.strip(),
-        url=url,
-        shipped_at=shipped,
-        created_by=ctx.authed.user.email,
-    )
+    try:
+        shipped = fixes_service.parse_shipped_at(payload.shipped_at)
+        url = fixes_service.clean_url(payload.url)
+    except fixes_service.FixError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    rec = fixes_service.recommendation_for_question(session, ctx.tenant_id, text)
+    by = ctx.authed.user.email
+    if rec is not None:
+        item = fixes_service.mark_done(session, rec, description=payload.description, url=url,
+                                       shipped_at=shipped, by=by)
+        assert item is not None  # page plays are always fixes
+        item.query_text = text
+    else:
+        item = fixes_service.log_fix(session, ctx.tenant_id, description=payload.description,
+                                     url=url, shipped_at=shipped, by=by, query_text=text)
     session.add(item)
     session.commit()
     session.refresh(item)
@@ -475,10 +475,12 @@ def create_intervention(payload: InterventionCreate, ctx: Ctx, session: Db) -> I
 
 @router.delete("/interventions/{intervention_id}", status_code=204)
 def delete_intervention(intervention_id: int, ctx: Ctx, session: Db) -> None:
+    from api import fixes_service
+
     item = session.get(Intervention, intervention_id)
     if item is None or item.tenant_id != ctx.tenant_id:
         raise HTTPException(status_code=404, detail="No such intervention")
-    session.delete(item)
+    fixes_service.delete_fix(session, intervention_id)
     session.commit()
 
 
@@ -496,8 +498,18 @@ def recommendations(ctx: Ctx, session: Db) -> list[Recommendation]:
     )
 
 
+class FixDetails(BaseModel):
+    """What was done, where and when: recorded with "Mark done" so the fix
+    can be measured."""
+
+    description: str = PydanticField(default="", max_length=2000)
+    url: str = PydanticField(default="", max_length=500)
+    shipped_at: str | None = None  # ISO date; defaults to today
+
+
 class RecommendationStatusPatch(BaseModel):
     status: RecommendationStatus
+    fix: FixDetails | None = None
 
 
 class RecommendationCreate(BaseModel):
@@ -542,9 +554,24 @@ def update_recommendation(
     rec = session.get(Recommendation, rec_id)
     if rec is None or rec.tenant_id != ctx.tenant_id:
         raise HTTPException(status_code=404, detail="No such recommendation")
-    rec.status = payload.status
-    rec.updated_at = utcnow()
-    session.add(rec)
+    if payload.status == RecommendationStatus.done:
+        # Done means something shipped: log it as an experiment, with
+        # whatever detail was given, so its effect gets measured.
+        from api import fixes_service
+
+        fix = payload.fix or FixDetails()
+        try:
+            fixes_service.mark_done(
+                session, rec, description=fix.description,
+                url=fixes_service.clean_url(fix.url),
+                shipped_at=fixes_service.parse_shipped_at(fix.shipped_at),
+                by=ctx.authed.user.email)
+        except fixes_service.FixError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+    else:
+        rec.status = payload.status
+        rec.updated_at = utcnow()
+        session.add(rec)
     session.commit()
     session.refresh(rec)
     return rec

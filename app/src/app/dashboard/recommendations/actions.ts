@@ -6,6 +6,26 @@ import { apiFetch } from "@/lib/api";
 function refresh() {
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/recommendations");
+  revalidatePath("/dashboard/outcome");
+}
+
+/** "Mark done" with what changed, where and when. The fix is logged as an
+ * experiment: the same answers are measured before and after the date. */
+export async function markRecommendationDone(recId: number, formData: FormData): Promise<void> {
+  const res = await apiFetch(`/api/tenant/recommendations/${recId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      status: "done",
+      fix: {
+        description: String(formData.get("description") ?? "").trim(),
+        url: String(formData.get("url") ?? "").trim(),
+        shipped_at: String(formData.get("shipped_at") ?? "").trim() || null,
+      },
+    }),
+  });
+  if (!res.ok) throw new Error(res.error ?? "Could not record the fix");
+  refresh();
 }
 
 export async function setRecommendationStatus(recId: number, status: string): Promise<void> {

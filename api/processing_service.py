@@ -3,6 +3,7 @@ query classification from the dual-query diff, and the visibility_daily
 rollup. Idempotent — reprocessing a run (or a day) deletes and recomputes its
 derived rows, so detector/classifier upgrades can be applied to history."""
 
+import logging
 from collections import defaultdict
 from datetime import UTC, datetime, timedelta
 
@@ -50,6 +51,8 @@ from engine.processing.entities import (
 from engine.processing.mentions import DETECTOR_VERSION, detect_mentions
 from engine.processing.scoring import SCORER_VERSION, ResultSignals, score_entity
 from engine.retrievers.google_aio import AIOCaptureSummary
+
+log = logging.getLogger(__name__)
 
 
 def _response_text(result: Result, session: Session) -> str:
@@ -495,6 +498,20 @@ def process_run(session: Session, run: Run) -> dict[str, int]:
     tenant_obj = session.get(Tenant, run.tenant_id)
     assert tenant_obj is not None
     counts["recommendations"] = generate_recommendations(session, tenant_obj)
+
+    # Every logged or detected fix gets its outcome stored against this run's
+    # answers (api.proof_service.refresh_outcomes). A failure here must not
+    # cost the run its processing.
+    try:
+        from api.proof_service import refresh_outcomes
+
+        with session.begin_nested():
+            written = refresh_outcomes(session, run.tenant_id)
+        if written:
+            counts["fix_outcomes"] = written
+        session.commit()
+    except Exception:  # noqa: BLE001
+        log.exception("processing: fix outcomes failed")
     return counts
 
 

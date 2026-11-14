@@ -582,12 +582,116 @@ class Intervention(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     tenant_id: int = Field(foreign_key="tenants.id", index=True)
+    # The question the fix is for; "" when it is for several or for all of
+    # them (see `questions`).
     query_text: str = Field(index=True)
     description: str = ""
     url: str = ""
     shipped_at: datetime = Field(default_factory=utcnow)
     created_by: str = ""
     created_at: datetime = Field(default_factory=utcnow)
+    # The experiment record (m43). A fix logged from a recommendation
+    # snapshots what the recommendation was and what it predicted, so the
+    # measured outcome can be set against the prediction, type by type.
+    recommendation_id: int | None = Field(default=None, index=True)
+    gap_ref: str = ""
+    play: str = ""       # the recommendation's kind (Recommendation.branch)
+    category: str = ""
+    control: str = ""
+    evidence: str = ""
+    predicted: dict = Field(default_factory=dict, sa_column=Column(JSON))
+    # What the outcome is measured on. questions [] (with query_text "") is
+    # every competitive question; families [] is every engine.
+    questions: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    families: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    # logged: a person recorded it. detected: the crawl saw the page change
+    # and nobody had logged a fix for it.
+    source: str = "logged"
+    # "" is the brand. A competitor's name marks a change on a rival's page,
+    # measured on that rival's mentions: someone else's experiment, for free.
+    subject: str = ""
+
+
+class PageSnapshot(SQLModel, table=True):
+    """One version of a crawled page (m43). A row is written when the page is
+    first seen and again only when its tracked state changes; while it stays
+    the same, `last_seen_at` moves forward. So a change is known to have
+    happened between the old version's last_seen_at and the new version's
+    first_seen_at. Covers the brand's cited pages, the third-party pages
+    engines cite, and rivals' cited pages."""
+
+    __tablename__ = "page_snapshots"  # pyright: ignore[reportAssignmentType]
+
+    id: int | None = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenants.id", index=True)
+    url: str = Field(index=True)
+    owner: str = "other"  # brand | competitor | other
+    owner_name: str = ""  # the competitor's name when owner is "competitor"
+    status: str = "ok"  # ok | error
+    http_status: int | None = None
+    brand_found: bool = False
+    competitors_found: list[str] = Field(default_factory=list, sa_column=Column(JSON))
+    # The tracked state (api.page_changes_service.TRACKED): facts on the
+    # page, its size, its headings, its index status.
+    features: dict = Field(default_factory=dict, sa_column=Column(JSON))
+    fingerprint: str = ""  # hash of the tracked state: equal means unchanged
+    first_seen_at: datetime = Field(default_factory=utcnow)
+    last_seen_at: datetime = Field(default_factory=utcnow)
+
+
+class PageChange(SQLModel, table=True):
+    """One thing that changed on a crawled page between two versions (m43):
+    a price appeared, the date was refreshed, a sub-question got a heading,
+    the brand turned up on a list. `material` changes are the ones that can
+    move answers; they attach to a logged fix for the same page or open a
+    detected experiment."""
+
+    __tablename__ = "page_changes"  # pyright: ignore[reportAssignmentType]
+
+    id: int | None = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenants.id", index=True)
+    url: str = Field(index=True)
+    owner: str = "other"
+    owner_name: str = ""
+    kind: str = ""
+    summary: str = ""
+    detail: dict = Field(default_factory=dict, sa_column=Column(JSON))
+    material: bool = False
+    changed_after: datetime = Field(default_factory=utcnow)  # old version last seen
+    detected_at: datetime = Field(default_factory=utcnow)    # new version first seen
+    intervention_id: int | None = Field(default=None, index=True)
+
+
+class FixOutcome(SQLModel, table=True):
+    """What a fix did, stored (m43). One row per intervention, refreshed after
+    each run until the after-window is full, then final. This is the table
+    the platform learns from: outcome by kind of fix, engine and prediction."""
+
+    __tablename__ = "fix_outcomes"  # pyright: ignore[reportAssignmentType]
+    __table_args__ = (UniqueConstraint("intervention_id", name="uq_fix_outcome_intervention"),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    tenant_id: int = Field(foreign_key="tenants.id", index=True)
+    intervention_id: int = Field(index=True)
+    status: str = ""  # proven | early | no_change | worse | awaiting | confounded
+    metric: str = "mentions"  # mentions | wrong_fact | page_cited
+    before_rate: float | None = None
+    after_rate: float | None = None
+    n_before: int = 0
+    n_after: int = 0
+    delta_pts: float | None = None
+    control_delta_pts: float | None = None
+    net_pts: float | None = None
+    verdict: str = ""
+    p_value: float | None = None
+    # Days after the ship date at which the change first passed the test,
+    # checked week by week; None while it hasn't.
+    days_to_effect: int | None = None
+    window_days: int = 0
+    by_engine: list[dict] = Field(default_factory=list, sa_column=Column(JSON))
+    signals: list[dict] = Field(default_factory=list, sa_column=Column(JSON))
+    final: bool = False
+    measured_at: datetime = Field(default_factory=utcnow)
 
 
 class PagePresence(SQLModel, table=True):
@@ -701,6 +805,9 @@ class Recommendation(SQLModel, table=True):
     control: str = ""
     speed: str = ""
     targets: list[dict] = Field(default_factory=list, sa_column=Column(JSON))
+    # What a fix for this play would be measured on (m43): {"questions":
+    # [...], "families": [...]}; an empty list means all of them.
+    scope: dict = Field(default_factory=dict, sa_column=Column(JSON))
     status: RecommendationStatus = Field(default=RecommendationStatus.open, index=True)
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)

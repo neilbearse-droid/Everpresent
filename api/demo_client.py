@@ -345,6 +345,46 @@ def _pages(session: Session, tenant_id: int, fact_id: int | None, now: datetime)
                                  fetched_at=now - timedelta(hours=20)))
 
 
+def _page_history(session: Session, tenant_id: int, now: datetime) -> None:
+    """Two crawls a week apart, through the real change tracker: the fixed
+    page gained prices and sections (attached to the logged fix), a rival
+    refreshed its pricing page, and a third-party list added another rival.
+    The last two become detected experiments nobody logged."""
+    from api.page_changes_service import record_crawl
+
+    compare = f"{SITE}/domains/compare"
+    rival = "https://siteforge.example/pricing"
+    listed = "https://smallbizstack.example/best-builders-for-bakeries"
+
+    def crawl(when: datetime, own: dict, theirs: dict, on_list: list[str]) -> None:
+        record_crawl(session, tenant_id, [
+            {"url": compare, "owner": "brand", "status": "ok", "brand_found": True,
+             "competitors_found": ["Domainly", "Siteforge"], "features": own},
+            {"url": rival, "owner": "competitor", "owner_name": "Siteforge", "status": "ok",
+             "brand_found": False, "competitors_found": [], "features": theirs},
+            {"url": listed, "owner": "other", "status": "ok", "brand_found": False,
+             "competitors_found": on_list, "features": {"word_count": 1400}},
+        ], now=when)
+
+    crawl(now - timedelta(days=SHIP_DAYS_AGO + 7),
+          {"has_price": False, "has_updated_date": False, "updated_on": "", "word_count": 420,
+           "statistic_count": 6, "headings": ["Compare domain registrars"]},
+          {"has_price": True, "has_updated_date": True, "word_count": 640,
+           "updated_on": (now - timedelta(days=210)).date().isoformat(),
+           "statistic_count": 9, "headings": ["Plans and pricing"]},
+          ["Siteforge", "Pagecraft"])
+    crawl(now - timedelta(days=SHIP_DAYS_AGO - 1),
+          {"has_price": True, "has_updated_date": True, "word_count": 1180,
+           "updated_on": (now - timedelta(days=SHIP_DAYS_AGO)).date().isoformat(),
+           "statistic_count": 22,
+           "headings": ["Compare domain registrars", "Renewal prices after year one",
+                        "Which registrar is cheapest for a small business?"]},
+          {"has_price": True, "has_updated_date": True, "word_count": 660,
+           "updated_on": (now - timedelta(days=SHIP_DAYS_AGO + 2)).date().isoformat(),
+           "statistic_count": 19, "headings": ["Plans and pricing"]},
+          ["Hostwell", "Pagecraft", "Siteforge"])
+
+
 def _first_party(session: Session, tenant_id: int, now: datetime) -> None:
     for d in range(28):
         day = (now - timedelta(days=d)).date().isoformat()
@@ -486,6 +526,12 @@ def build_demo_client(session: Session, clerk_org_id: str | None = None) -> dict
     _classify(session, tid, last_run_id)
     session.commit()
     plays = generate_recommendations(session, tenant)
+    _page_history(session, tid, now)
+    session.commit()
+    # Every fix, logged or detected, gets its stored outcome.
+    from api.proof_service import refresh_outcomes
+
+    refresh_outcomes(session, tid)
     session.commit()
     return {"tenant": SLUG, "runs": len(RUN_DAYS_AGO), "answers": total, "open_plays": plays}
 
