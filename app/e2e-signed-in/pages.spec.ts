@@ -50,7 +50,8 @@ for (const path of PAGES) {
 
 test("overview shows the weekly briefing with seeded data", async ({ page }) => {
   await page.goto("/dashboard");
-  await expect(page.getByText("Where you stand")).toBeVisible();
+  // Exact: the breadcrumb ("Where you stand / Overview") carries the same words.
+  await expect(page.getByText("Where you stand", { exact: true })).toBeVisible();
   await expect(page.getByText("This week")).toBeVisible();
 });
 
