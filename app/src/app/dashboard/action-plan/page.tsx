@@ -5,6 +5,7 @@ import { PageLead } from "@/components/page-lead";
 import { surfaceLabel } from "@/lib/viz";
 import { Bullets, Delta, EngineMark, ExtLink, Linkify, shortUrl } from "@/components/ui";
 import { AddToPlan } from "@/components/plan-buttons";
+import { CONTROL_LABEL } from "@/lib/recs";
 import { MarkShipped } from "./mark-shipped";
 
 // Format a backend YYYY-MM-DD into the app's friendly date style, matching the
@@ -99,9 +100,13 @@ export default async function ActionPlanPage() {
         <div className="space-y-8">
           {/* #4 — Citation-gap target list */}
           <section className="card p-4">
-            <h2 className="mb-3 text-sm font-medium text-[var(--text-2)]">
+            <h2 className="mb-1 text-sm font-medium text-[var(--text-2)]">
               Sites that cite your rivals, not you
             </h2>
+            <p className="mb-3 max-w-[75ch] text-[12.5px] text-[var(--text-3)]">
+              Not a list to get onto. Each row says what kind of page it is and what is realistic
+              there; the ones worth the effort are ranked under Recommendations.
+            </p>
             {targets.length === 0 ? (
               <p className="text-sm text-[var(--text-3)]">No third-party source gaps found.</p>
             ) : (
@@ -113,6 +118,7 @@ export default async function ActionPlanPage() {
                       <th className="pr-4">Rival citations</th>
                       <th className="pr-4">Questions</th>
                       <th className="pr-4">Engines</th>
+                      <th className="pr-4">What&apos;s realistic</th>
                       <th></th>
                     </tr>
                   </thead>
@@ -133,14 +139,19 @@ export default async function ActionPlanPage() {
                             ))}
                           </span>
                         </td>
+                        <td className="min-w-[16rem] py-2 pr-4 text-xs text-[var(--text-2)]">
+                          <span className="font-semibold text-[var(--text)]">{t.kind_label}.</span>{" "}
+                          {t.route}
+                          <span className="ml-1 text-[var(--text-3)]">({CONTROL_LABEL[t.control]?.toLowerCase()})</span>
+                        </td>
                         <td className="py-1.5 text-right">
                           {t.already_citing_you ? (
                             <span className="chip">cites you</span>
                           ) : (
                             <AddToPlan
                               gapRef={`target:${t.domain}`}
-                              title={`Get covered on ${t.domain}`}
-                              actionText={`${t.domain} cites your rivals ${t.competitor_assoc} times across ${t.queries} questions. Pitch coverage or a listing.`}
+                              title={`${t.kind_label}: ${t.domain}`}
+                              actionText={`${t.domain} is cited alongside your rivals ${t.competitor_assoc} times across ${t.queries} questions. ${t.route}.`}
                               link="/dashboard/action-plan"
                             />
                           )}
@@ -251,7 +262,8 @@ export default async function ActionPlanPage() {
               {briefs.map((b) => (
                 <article
                   key={b.query_id}
-                  className={`rounded-lg border p-5 ${DIAG_STYLE[b.diagnosis.type] ?? DIAG_STYLE.undetermined}`}
+                  id={`brief-${b.query_id}`}
+                  className={`scroll-mt-24 rounded-lg border p-5 ${DIAG_STYLE[b.diagnosis.type] ?? DIAG_STYLE.undetermined}`}
                 >
                   <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                     <h3 className="text-base font-semibold">{b.query}</h3>

@@ -134,13 +134,15 @@ def test_recommendation_matrix_branches(
     by_branch: dict[str, list[Recommendation]] = {}
     for rec in recs:
         by_branch.setdefault(rec.branch, []).append(rec)
-    # Brand absent from answers (web_search branch: bucket very_likely) and
-    # absent from AIO citations (aio branch) — for each of the 2 queries.
+    # Brand absent from answers (bucket very_likely) and absent from AIO
+    # citations, for each of the 2 queries. Both gaps are one page job, so
+    # each query gets one play that names both.
     assert len(by_branch["web_search"]) == 2
-    assert len(by_branch["aio"]) == 2
-    assert "training" not in by_branch
+    assert "aio" not in by_branch and "training" not in by_branch
     assert all(r.status == "open" for r in recs)
-    assert any("AI Overview" in r.action_text for r in by_branch["aio"])
+    assert all("AI Overview" in r.action_text for r in by_branch["web_search"])
+    assert all(any("Google's AI answer" in s for s in r.steps) for r in by_branch["web_search"])
+    assert all(r.category == "content" and r.control == "own" for r in by_branch["web_search"])
 
 
 def test_gap_close_resolves_and_hand_statuses_survive(
@@ -190,14 +192,15 @@ def test_recommendations_endpoint_and_isolation(
 
     login(member, org_id="org_acme")
     recs = client.get("/api/tenant/recommendations").json()
-    # 4 query gaps + the "connect your logs" setup play, highest priority first:
-    # the AIO plays (official guidance, 80) lead, the logs gate (72) sits above
-    # the per-query search gaps (60 without contest history).
-    assert len(recs) == 5
+    # One page play per query, by projected impact, then the "connect your
+    # logs" setup play, which carries none and sorts last.
+    assert len(recs) == 3
     assert [r["priority"] for r in recs] == sorted((r["priority"] for r in recs), reverse=True)
-    assert [r["branch"] for r in recs] == ["aio", "aio", "connect_logs", "web_search",
-                                           "web_search"]
+    assert [r["branch"] for r in recs] == ["web_search", "web_search", "connect_logs"]
     assert recs[0]["steps"] and recs[0]["why"]
+    assert recs[0]["category"] == "content" and recs[0]["impact"]["band"] == "high"
+    assert recs[0]["impact"]["basis"].startswith("Touches ")
+    assert recs[2]["category"] == "setup" and recs[2]["impact"] == {}
     rec_id = recs[0]["id"]
     patched = client.patch(f"/api/tenant/recommendations/{rec_id}", json={"status": "in_progress"})
     assert patched.status_code == 200 and patched.json()["status"] == "in_progress"

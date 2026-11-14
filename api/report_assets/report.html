@@ -112,6 +112,8 @@ td.r, th.r { text-align: right; }
 .play .body { flex: 1; }
 .play .head { overflow: hidden; }
 .play .head .pill { float: right; margin-left: 10px; }
+.play .meta { margin-top: 2px; font-size: 7.8pt; color: #636c7c; }
+.play .basis { margin-top: 3px; font-size: 8.2pt; color: #475163; }
 .play .action { margin-top: 3px; color: #0b1220; }
 .play ol { margin: 6px 0 0; padding-left: 16px; color: #475163; font-size: 8.5pt; }
 .play ol li { margin-bottom: 2px; word-break: break-word; }
@@ -337,13 +339,15 @@ td.r, th.r { text-align: right; }
 {# ============================ PLAYBOOK ============================= #}
 <section class="page">
   <h2>What to do next</h2>
-  <p class="lede">Ranked by expected impact. Each play is graded by its evidence: official (documented by the engine), strong, moderate or emerging.</p>
+  <p class="lede">Ranked by projected impact: how much of your audience the answers reach, how often you're missing from them, and how likely the fix is to work. The line under each title says what that is counted from.</p>
   <div class="block">
     {% for r in plays %}
     <div class="play">
       <div class="n {{ 'first' if loop.first }}">{{ loop.index }}</div>
       <div class="body">
-        <div class="head">{% if r.evidence %}<span class="pill {{ 'pill-good' if r.evidence in ('official','strong') }}">{{ r.evidence|capitalize }} evidence</span>{% endif %}<h3>{{ r.title }}</h3></div>
+        <div class="head">{% if r.impact and r.impact.band %}<span class="pill">{{ r.impact.band|capitalize }} impact</span>{% endif %}<h3>{{ r.title }}</h3></div>
+        <p class="meta">{{ category_label(r.category) }}{% if r.control %} · {{ control_label(r.control) }}{% endif %}{% if r.effort %} · Effort: {{ r.effort }}{% endif %}{% if r.evidence %} · Evidence: {{ r.evidence }}{% endif %}</p>
+        {% if r.impact and r.impact.basis %}<p class="basis">{{ r.impact.basis }}</p>{% endif %}
         {% if r.action_text %}<p class="action">{{ r.action_text }}</p>{% endif %}
         {% if r.steps %}<ol>{% for st in r.steps[:3] %}<li>{{ st }}</li>{% endfor %}</ol>{% endif %}
         {% if r.why %}<p class="whyline">Why: {{ r.why }}</p>{% endif %}

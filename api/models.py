@@ -673,9 +673,11 @@ class Recommendation(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     tenant_id: int = Field(foreign_key="tenants.id", index=True)
     gap_ref: str = Field(index=True)
-    # Kind of play: web_search | training | aio (per-query gaps) | accuracy |
-    # crawler_access | broken_page | refresh | subquery | reviews | earned | owned |
-    # community | reference | read_not_cited | connect_logs | strategy
+    # Kind of play: web_search | aio (one per question) | training | accuracy |
+    # crawler_access | broken_page | refresh | subquery | reviews | earned |
+    # press | community | video | reference | listing | owned | own_page |
+    # evidence | meta | read_not_cited | connect_logs | model_change |
+    # strategy | manual
     branch: str = ""
     action_text: str
     # Playbook fields (m31), refreshed on every regeneration while open.
@@ -686,6 +688,19 @@ class Recommendation(SQLModel, table=True):
     steps: list[str] = Field(default_factory=list, sa_column=Column(JSON))
     query_text: str = ""
     link: str = ""  # in-app page with the supporting data
+    # Ranking and routing (m42). category is the area of work
+    # (api.impact.CATEGORIES); impact is the projected-impact record the list
+    # is ordered by ({score, band, basis, answers, named, share_pct, ...});
+    # control says who has to act (own | influence | earn); effort is the
+    # size of the job (hours | days | weeks); speed is when answers can show
+    # it (days | weeks | months | model); targets are the concrete pages,
+    # threads or sub-questions the play is about.
+    category: str = ""
+    impact: dict = Field(default_factory=dict, sa_column=Column(JSON))
+    effort: str = ""
+    control: str = ""
+    speed: str = ""
+    targets: list[dict] = Field(default_factory=list, sa_column=Column(JSON))
     status: RecommendationStatus = Field(default=RecommendationStatus.open, index=True)
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)

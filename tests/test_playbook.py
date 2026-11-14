@@ -1,6 +1,6 @@
-"""The recommendations playbook: each signal becomes a specific, ranked,
-evidence-graded play, and regeneration keeps human statuses while refreshing
-the text."""
+"""The recommendations playbook: each signal becomes a specific,
+evidence-graded play in its area of work, and regeneration keeps human
+statuses while refreshing the text. Ranking is in test_recommendation_impact."""
 
 from sqlmodel import select
 
@@ -25,7 +25,6 @@ from api.recommendations_service import (
     _accuracy_plays,
     _agent_plays,
     _refresh_plays,
-    _source_plays,
     _subquery_plays,
     generate_recommendations,
 )
@@ -65,7 +64,9 @@ def test_missing_and_erroring_search_bots_become_crawler_plays(db_session):
     db_session.commit()
     by_ref = {p.gap_ref: p for p in _agent_plays(db_session, t.id)}
     assert "crawler:PerplexityBot:errors" in by_ref  # 100% errors
-    assert by_ref["crawler:PerplexityBot:errors"].priority >= 88
+    refused = by_ref["crawler:PerplexityBot:errors"]
+    assert refused.category == "structure" and refused.control == "own"
+    assert refused.priority > by_ref["broken_pages"].priority  # an engine shut out > hygiene
     assert not any(r.startswith("crawler:OAI-SearchBot") for r in by_ref)
     assert "/gone" in by_ref["broken_pages"].action_text
     assert all(p.evidence and p.why and p.steps for p in by_ref.values())
@@ -78,31 +79,13 @@ def test_too_few_hits_never_claims_a_bot_is_missing(db_session):
     assert not any(p.branch == "crawler_access" for p in _agent_plays(db_session, t.id))
 
 
-def test_source_plays_group_targets_by_kind():
-    plan = {"targets": [
-        {"domain": "g2.com", "competitor_assoc": 3, "brand_assoc": 0},
-        {"domain": "trustpilot.com", "competitor_assoc": 5, "brand_assoc": 2},
-        {"domain": "techradar.com", "competitor_assoc": 2, "brand_assoc": 0},
-        {"domain": "reddit.com", "competitor_assoc": 18, "brand_assoc": 4},
-        {"domain": "en.wikipedia.org", "competitor_assoc": 2, "brand_assoc": 1},
-        {"domain": "pcmag.com", "competitor_assoc": 4, "brand_assoc": 3},  # cites you too
-        {"domain": "nobody.example", "competitor_assoc": 1, "brand_assoc": 0},  # too few
-    ]}
-    plays = {p.branch: p for p in _source_plays(plan)}
-    assert set(plays) == {"reviews", "earned", "community", "reference"}
-    assert "g2.com" in plays["reviews"].title and "trustpilot.com" in plays["reviews"].title
-    assert "techradar.com" in plays["earned"].title
-    assert "pcmag.com" not in plays["earned"].action_text  # cites you nearly as often
-    assert "ChatGPT" in plays["community"].action_text  # engine-specific advice
-    assert plays["reviews"].priority > plays["community"].priority
-
-
 def test_refresh_play_per_lost_citation():
     plan = {"protect": {"lost": [{"url": "https://acme.com/pricing",
                                   "queries": ["cheap crm", "crm pricing"]}]}}
     [p] = _refresh_plays(plan)
     assert p.gap_ref == "refresh:https://acme.com/pricing"
-    assert "“cheap crm”" in p.action_text and p.priority == 80
+    assert "“cheap crm”" in p.action_text and p.category == "content"
+    assert p.targets[0]["url"] == "https://acme.com/pricing"
 
 
 def _run(db, tid) -> Run:
@@ -130,7 +113,8 @@ def test_subquery_plays_group_by_query(db_session):
     # Highest reach first; the shard the brand already wins is left out.
     assert p.action_text.index("crm pricing 2026") < p.action_text.index("crm for startups")
     assert "acme crm review" not in p.action_text
-    assert "Globex appears" in p.action_text and p.priority == 78
+    assert "Globex appears" in p.action_text and p.category == "content"
+    assert [t["label"] for t in p.targets] == ["crm pricing 2026", "crm for startups"]
 
 
 def test_accuracy_play_names_the_sources_to_fix(db_session):

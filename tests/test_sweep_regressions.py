@@ -265,7 +265,8 @@ def test_one_accuracy_play_per_fact(db_session):
                                        subject="starter price", expected="$9.99", stated=stated))
     db_session.commit()
     [p] = _accuracy_plays(db_session, t.id)
-    assert p.gap_ref == "accuracy:3" and p.priority == 98
+    assert p.gap_ref == "accuracy:3" and p.category == "accuracy"
+    assert p.impact["basis"].startswith("Stated wrong in 3 of the 3 measured answers")
     assert "$19.99 / $20 / $19.99/mo" in p.action_text
 
 

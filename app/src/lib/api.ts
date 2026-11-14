@@ -344,8 +344,39 @@ export type Recommendation = {
   steps: string[] | null;
   query_text: string;
   link: string;
+  /** The area of work (lib/recs AREAS); "" for plays added by hand and the focus line. */
+  category: string;
+  /** How the play ranks. Empty for unranked plays (setup, focus, added by hand). */
+  impact: RecImpact | null;
+  effort: "hours" | "days" | "weeks" | "";
+  control: "own" | "influence" | "earn" | "";
+  speed: "days" | "weeks" | "months" | "model" | "";
+  targets: RecTarget[] | null;
   status: "open" | "in_progress" | "done" | "dismissed" | "resolved";
   updated_at: string;
+};
+
+export type RecImpact = {
+  score?: number;
+  band?: "high" | "medium" | "low";
+  /** False when the score stands on a floor: no measured answer shows the problem yet. */
+  measured?: boolean;
+  /** One sentence saying what the impact is counted from. */
+  basis?: string;
+  answers?: number;
+  named?: number;
+  share_pct?: number;
+  questions?: number;
+  engines?: string[];
+};
+
+/** A concrete thing a play is about: a page, a thread, a sub-question. */
+export type RecTarget = {
+  kind?: string;
+  label: string;
+  url?: string;
+  detail?: string;
+  note?: string;
 };
 
 export type PersonasPayload = {
@@ -536,6 +567,11 @@ export type ActionPlan = {
     competitor_assoc: number;
     already_citing_you: boolean;
     example_url: string;
+    /** What kind of page it is and the realistic route onto it. */
+    kind: string;
+    kind_label: string;
+    control: "own" | "influence" | "earn";
+    route: string;
   }[];
   briefs: {
     query_id: number;
@@ -1003,6 +1039,9 @@ export type Briefing = {
     id: number;
     title: string;
     kind: string;
+    category: string;
+    area: string;
+    impact: "high" | "medium" | "low" | "";
     evidence: string;
     why: string;
     link: string;

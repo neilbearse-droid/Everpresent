@@ -28,6 +28,7 @@ from api.models import (
     Result,
     ResultVariant,
 )
+from api.source_routes import route_for
 from engine.processing.citations import domain_is_owned
 
 # Retrieval-dependence weight per classification bucket: a query the engine
@@ -438,6 +439,8 @@ def action_plan(session: Session, tenant_id: int) -> dict:
             "already_citing_you": d["brand_assoc"] > 0,
             "brand_assoc": d["brand_assoc"],
             "example_url": d["example_url"],
+            # What kind of page it is and the realistic route onto it.
+            **route_for(d["domain"], d["example_url"]),
         }
         # Prime targets first: cite rivals, don't yet cite you.
         for d in sorted(

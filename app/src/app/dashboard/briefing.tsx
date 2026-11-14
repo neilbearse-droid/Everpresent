@@ -2,31 +2,16 @@ import Link from "next/link";
 import type { Briefing, OverviewPayload } from "@/lib/api";
 import { Bullets, type Tone } from "@/components/ui";
 import { StatusButtons } from "@/components/plan-buttons";
+import { BAND_LABEL } from "@/lib/recs";
 
 type Alert = NonNullable<OverviewPayload["alerts"]>[number];
-
-const KIND: Record<string, string> = {
-  accuracy: "Wrong fact",
-  refresh: "Lost citation",
-  own_page: "Your page",
-  subquery: "Sub-question",
-  web_search: "Search gap",
-  crawler_access: "Bot access",
-  broken_page: "Broken page",
-  strategy: "Focus",
-  earned: "Earned media",
-  owned: "Your site",
-  training: "Model memory",
-  aio: "AI Overview",
-  read_not_cited: "Read, not cited",
-};
 
 function tone(t: string): Tone {
   return t === "high" || t === "bad" ? "bad" : t === "good" ? "good" : "neutral";
 }
 
 /** Why, and this week: bullets with a lead-in on the left; the top three
- * recommendations with their buttons on the right. */
+ * recommendations by projected impact, with their buttons, on the right. */
 export function BriefingBlock({ b, alerts = [] }: { b: Briefing; alerts?: Alert[] }) {
   const why = [
     ...b.why.slice(0, 4).map((r) => ({ text: r.text, tone: tone(r.tone) })),
@@ -66,10 +51,17 @@ export function BriefingBlock({ b, alerts = [] }: { b: Briefing; alerts?: Alert[
                   {i + 1}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="chip mr-2 align-middle">{KIND[p.kind] ?? p.kind}</span>
+                  {(p.area || p.kind === "manual") && (
+                    <span className="chip mr-2 align-middle">{p.area || "Added by you"}</span>
+                  )}
                   <Link href={p.link || "/dashboard/recommendations"} className="align-middle text-[14px] font-semibold hover:underline">
                     {p.title}
                   </Link>
+                  {p.impact && (
+                    <span className="ml-2 whitespace-nowrap align-middle text-[12px] text-[var(--text-3)]">
+                      {BAND_LABEL[p.impact]}
+                    </span>
+                  )}
                 </span>
                 <StatusButtons id={p.id} status={p.status} compact />
               </li>

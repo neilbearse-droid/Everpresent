@@ -3,6 +3,66 @@
 Spec §11.7: when the spec is ambiguous, choose the smaller interpretation and
 note it here.
 
+## M68 — Recommendations: areas of work, ranked by projected impact (2026-11-14)
+
+1. **One scale.** Every recommendation is ranked by projected impact =
+   reach x gap x odds (`api/impact.py`). Reach is the audience-weighted share
+   of the last 28 days of answers the issue touches, with the same engine
+   weights as the headline (M57). Gap is how many of those answers leave the
+   brand out, or carry the problem. Both are counted, and each card says what
+   it counted ("Touches 17% of your measured answers (90 answers, every
+   engine you measure); you're named in 11 of them."). Odds are a judgement:
+   who has to act (own 1.0, influence 0.6, earn 0.3) x how strong the
+   evidence is (official 1.0, strong 0.8, moderate 0.6, emerging 0.4) x how
+   directly the fix acts. The weights sit in one table to be argued with. The
+   product shows them as words on the card, never as a forecast of lift. The
+   fixed per-kind priorities (accuracy 98, crawler 95, ...) are gone.
+2. **Bands are relative to the list**, because the list is what gets
+   triaged: the plays that open the first half of the projected impact are
+   high, the next 35% medium, the rest low. A play standing on a floor (no
+   measured answer shows the problem yet, such as a noindex tag on a page
+   nothing has cited) is never high. Plays closed by hand take no share.
+3. **Accuracy is ranked on the answers about the brand**, not on all
+   answers: a wrong price reaches the buyers closest to choosing, and branded
+   questions are a small part of the measured set. Severity 1.5.
+   Plays about a page of the brand's own (a lost citation, a noindex tag, a
+   page that errors or contradicts the fact sheet) are ranked on the answers
+   that cite that page: all of them are at stake.
+4. **Seven areas of work** (`CATEGORIES`), each usually with a different
+   owner: website structure, website content, facts and accuracy,
+   third-party mentions, reviews and ratings, community and video, listings
+   and platforms. Setup items (connect logs, a model switch) change what can
+   be measured, carry no projected impact, and are listed apart. Each play
+   also carries who acts, the size of the job (hours, days, weeks) and when
+   answers can show it (days, weeks, months, the next model version).
+5. **"Get listed on these sites" is not a recommendation.** A third-party
+   site becomes a play only when it was cited in at least 3 answers, in 2 or
+   more runs, alongside rivals at least twice as often as alongside the
+   brand; rivals' own sites never do. There is one play per site, naming the
+   cited pages, how often each was cited, and (where the page was crawled)
+   whether it mentions the brand. Each kind of page gets the route that
+   exists (`api/source_routes.py`): a review profile to claim, a thread to
+   answer, a list with a way in (and "if there is no route in, drop it"), an
+   article that will not be edited to add anyone, a video nobody else can be
+   put into. What the brand controls outranks what it has to be chosen for at
+   the same reach, so reviews now rank above editorial lists (the reverse of
+   the old fixed order) and articles rank last. The Action Plan's source
+   table carries the same "what's realistic" column.
+6. **One page job per question.** A search gap and a Google AI Overview gap
+   on the same question are the same page, so they are one play (the old
+   `::branch:aio` twin resolves itself); its sub-searches are its checklist,
+   and a standalone sub-question play remains only where the brand is named
+   in the answer but absent from the searches behind it. Where a page of the
+   brand's is already cited, the play is "Upgrade <page>", with the
+   citability gaps as steps; otherwise "Build the page". Questions engines
+   answer from memory are one long-term play (`training:memory`), since no
+   page changes them. Old identifiers that no longer generate resolve on the
+   next regeneration; statuses set by hand are kept.
+7. **Schema.** m42 adds `category`, `impact`, `effort`, `control`, `speed`
+   and `targets` to `recommendations`. `priority` stays the sort key, now
+   derived from the score (logarithmic, so two large scores still sort
+   apart). The PDF and the workbook show area, band and what was counted.
+
 ## M67 — Googlebot gates Claude too; own pages are checked against Brave (2026-11-07)
 
 Claude's web search runs on Brave (Anthropic's subprocessor list, March

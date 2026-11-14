@@ -41,13 +41,14 @@ export function Linkify({ text }: { text: string }) {
 
 const NUM_RE = /([+−-]?\d[\d,]*(?:\.\d+)?\s?(?:%|pts?|×)?)/g;
 
-/** Bold the numbers in a sentence so the eye lands on them. */
+/** Bold the numbers in a sentence so the eye lands on them. A digit that is
+ * part of a name (g2.com, H1) is not a number and stays as it is. */
 export function Emph({ text }: { text: string }) {
   const parts = text.split(NUM_RE);
   return (
     <>
       {parts.map((p, i) =>
-        i % 2 === 1 ? (
+        i % 2 === 1 && !/[A-Za-z]$/.test(parts[i - 1] ?? "") ? (
           <strong key={i} className="font-semibold tabular-nums text-[var(--text)]">
             {p}
           </strong>

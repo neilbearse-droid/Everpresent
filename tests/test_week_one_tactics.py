@@ -24,7 +24,6 @@ from api.recommendations_service import (
     _agent_plays,
     _KeepExisting,
     _query_plays,
-    _source_plays,
     _strategy_play,
     _subquery_plays,
 )
@@ -113,9 +112,13 @@ def test_aio_play_ranks_with_the_access_gate_and_web_search_cites_facts(db_sessi
         google_aio_signals={"cited_domains": ["g2.com"]}))
     db_session.commit()
     [aio] = _query_plays(db_session, tid, {})
-    assert aio.branch == "aio" and aio.priority == 80 and aio.evidence == "official"
-    # The web_search play's fallback priority is below the AIO play and carries
-    # the controlled study alongside the sub-search mechanism.
+    assert aio.branch == "aio" and aio.evidence == "official"
+    # A page job on the brand's own site; with no measured Google answer its
+    # rank stands on the Overview's audience share, and says so.
+    assert aio.category == "content" and aio.control == "own"
+    assert not aio.impact["measured"] and "cites none of your pages" in aio.impact["basis"]
+    # The web_search play carries the controlled study alongside the
+    # sub-search mechanism.
     assert WHY_SUBQUERY_FACTS.endswith(WHY["facts"])
 
 
@@ -134,21 +137,24 @@ def test_agent_play_priorities_and_grades(db_session, monkeypatch):
     monkeypatch.setattr(aa, "agent_analytics",
                         lambda *_a, **_k: {"has_data": False, "days": 30, "stale": False})
     [gate] = _agent_plays(db_session, tid)
-    assert gate.gap_ref == "connect_logs" and gate.priority == 72 and gate.evidence == "moderate"
-    # Stale logs: lower, same grade, and the existing bot plays are kept.
+    assert gate.gap_ref == "connect_logs" and gate.evidence == "moderate"
+    # Setup: it changes what can be measured, so it carries no projected impact.
+    assert gate.category == "setup" and not gate.impact
+    # Stale logs: same grade, and the existing bot plays are kept.
     monkeypatch.setattr(aa, "agent_analytics",
                         lambda *_a, **_k: {"has_data": False, "days": 30, "stale": True})
     try:
         _agent_plays(db_session, tid)
     except _KeepExisting as keep:
         [stale] = keep.plays
-        assert stale.priority == 60 and stale.evidence == "moderate"
+        assert stale.category == "setup" and stale.evidence == "moderate"
     else:
         raise AssertionError("stale logs must freeze the existing plays")
 
-    # Enough hits, one search bot present: every other key bot is absent (95),
-    # a read-but-never-cited page is a retrieval-confirmed fix (62), and the
-    # broken-page plays carry product rationale (moderate).
+    # Enough hits, one search bot present: every other key bot is absent (a
+    # structure fix in the brand's control, official evidence), a
+    # read-but-never-cited page is a content fix, and the broken-page plays
+    # carry product rationale (moderate) and rank under a blocked crawler.
     monkeypatch.setattr(aa, "agent_analytics", lambda *_a, **_k: _analytics(
         by_bot=[{"bot": "OAI-SearchBot", "hits": 500, "blocked": 0}],
         read_not_cited=[{"path": "/pricing", "search": 40, "user": 2}],
@@ -157,25 +163,19 @@ def test_agent_play_priorities_and_grades(db_session, monkeypatch):
     by_ref = {p.gap_ref: p for p in _agent_plays(db_session, tid)}
     absent = [p for r, p in by_ref.items() if r.endswith(":absent")]
     assert {p.gap_ref.split(":")[1] for p in absent} == set(_KEY_BOTS) - {"OAI-SearchBot"}
-    assert all(p.priority == 95 and p.evidence == "official" for p in absent)
+    assert all(p.category == "structure" and p.control == "own" and p.evidence == "official"
+               for p in absent)
     assert any("September 2026 defaults allow search crawlers" in s for s in absent[0].steps)
     assert not any("AI-bot blocking" in s for s in absent[0].steps)
-    assert by_ref["read_not_cited"].priority == 62
-    assert by_ref["broken_pages"].evidence == "moderate" and by_ref["broken_pages"].priority == 70
+    assert by_ref["read_not_cited"].category == "content"
+    assert "fetched these pages 42 times" in by_ref["read_not_cited"].impact["basis"]
+    assert by_ref["broken_pages"].evidence == "moderate"
+    assert all(p.priority > by_ref["broken_pages"].priority for p in absent)
     assert by_ref["at_risk:/guide"].evidence == "moderate"
     # Row 19: Bingbot's engine string in the official play no longer states
     # ChatGPT's use of Bing's index as fact.
     assert _KEY_BOTS["Bingbot"] == "Copilot (official) and, by most accounts, ChatGPT search"
     assert "by most accounts, ChatGPT search" in by_ref["crawler:Bingbot:absent"].action_text
-
-
-def test_reviews_rank_below_earned():
-    plays = {p.branch: p for p in _source_plays({"targets": [
-        {"domain": "g2.com", "competitor_assoc": 3, "brand_assoc": 0},
-        {"domain": "techradar.com", "competitor_assoc": 3, "brand_assoc": 0},
-    ]})}
-    assert plays["reviews"].priority == 66
-    assert plays["earned"].priority > plays["reviews"].priority
 
 
 def test_strategy_steps_run_access_then_own_pages_then_third_parties(db_session, monkeypatch):

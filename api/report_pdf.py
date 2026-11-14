@@ -36,6 +36,15 @@ _env = Environment(
 )
 
 
+def _register_labels() -> None:
+    from api.impact import category_label, control_label
+
+    _env.globals.update(category_label=category_label, control_label=control_label)
+
+
+_register_labels()
+
+
 def _section(name: str, fn, *args) -> Any:
     try:
         return fn(*args)
@@ -246,12 +255,16 @@ def _drivers(session: Session, tenant_id: int) -> dict:
 
 
 def _playbook(session: Session, tenant_id: int) -> list[Recommendation]:
+    """The top open recommendations by projected impact. The pinned focus
+    line and the measurement notices aren't tasks, so they stay out."""
     return list(session.exec(
         select(Recommendation)
         .where(Recommendation.tenant_id == tenant_id,
                col(Recommendation.status).in_([RecommendationStatus.open,
-                                               RecommendationStatus.in_progress]))
-        .order_by(col(Recommendation.priority).desc())
+                                               RecommendationStatus.in_progress]),
+               col(Recommendation.branch) != "strategy",
+               col(Recommendation.category) != "setup")
+        .order_by(col(Recommendation.priority).desc(), col(Recommendation.gap_ref))
         .limit(6)
     ).all())
 

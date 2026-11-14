@@ -166,11 +166,16 @@ def build_workbook(session: Session, tenant: Tenant) -> bytes:
 
     # Playbook
     ws = wb.create_sheet("Playbook")
-    _table(ws, ["Priority", "Play", "Evidence", "Status", "What to do", "Steps", "Why"],
-           [[r.priority, r.title, r.evidence, str(r.status), r.action_text,
+    from api.impact import category_label
+
+    _table(ws, ["Rank", "Area", "Play", "Projected impact", "Counted from", "Who acts",
+                "Effort", "Shows in", "Evidence", "Status", "What to do", "Steps", "Why"],
+           [[n, category_label(r.category), r.title, (r.impact or {}).get("band", ""),
+             (r.impact or {}).get("basis", ""), r.control, r.effort, r.speed, r.evidence,
+             str(r.status), r.action_text,
              "\n".join(f"{i}. {st}" for i, st in enumerate(r.steps or [], 1)), r.why]
-            for r in full.get("plays") or ctx["plays"]],
-           widths={2: 40, 5: 60, 6: 80, 7: 60})
+            for n, r in enumerate(full.get("plays") or ctx["plays"], 1)],
+           widths={2: 22, 3: 40, 5: 50, 11: 60, 12: 80, 13: 60})
     for row in ws.iter_rows(min_row=2):
         for cell in row:
             cell.alignment = Alignment(wrap_text=True, vertical="top")
@@ -206,8 +211,9 @@ def _full_citations(session: Session, tenant_id: int) -> dict:
         select(Recommendation)
         .where(Recommendation.tenant_id == tenant_id,
                col(Recommendation.status).in_([RecommendationStatus.open,
-                                               RecommendationStatus.in_progress]))
-        .order_by(col(Recommendation.priority).desc())
+                                               RecommendationStatus.in_progress]),
+               col(Recommendation.branch) != "strategy")
+        .order_by(col(Recommendation.priority).desc(), col(Recommendation.gap_ref))
     ).all())
     return {
         "domains": ci.get("domains") or [],

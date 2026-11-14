@@ -41,13 +41,31 @@ def test_every_story_beat_becomes_a_specific_play(demo):
     assert "at_risk:/blog/website-cost-guide" in plays
     assert "/old-pricing" in plays["broken_pages"].action_text
     assert "/features/ecommerce" in plays["read_not_cited"].action_text
-    assert "owned:chatgpt_docs" in plays and "sources:review" in plays
+    # Third-party sources are one play per cited site, with the pages named.
+    assert "owned:chatgpt_docs" in plays and "source:g2.com" in plays
+    g2 = plays["source:g2.com"]
+    assert g2.category == "reviews" and g2.control == "influence"
+    assert any(t.get("url", "").endswith("/categories/website-builders")
+               and "doesn't mention you" in t.get("note", "") for t in g2.targets)
     assert any(k.startswith("model_change:openai_api:") for k in plays)
     web = next(p for k, p in plays.items() if k.endswith("::branch:web_search"))
     assert "Domainly and Siteforge" in web.action_text
-    assert "cheapest website builder with a free domain" in web.steps[0]
-    assert any(k.endswith("::branch:training") for k in plays)
+    assert any("cheapest website builder with a free domain" in s for s in web.steps)
+    assert web.category == "content" and web.control == "own"
+    # Questions answered from memory are one long-term play, not one each.
+    assert plays["training:memory"].speed == "model"
     assert any(k.endswith("::branch:aio") for k in plays)
+    # The wrong price, said in most answers about the brand, leads the list.
+    ranked = sorted((p for p in plays.values() if p.impact), key=lambda p: -p.impact["score"])
+    assert ranked[0].gap_ref.startswith("accuracy:") and ranked[0].impact["band"] == "high"
+    # Then the brand's own page that states it, then the page to build: all
+    # three in the brand's control, ahead of every third-party play.
+    assert [p.gap_ref for p in ranked[1:3]] == ["own_page:facts:/help/plans", web.gap_ref]
+    # A lost citation is ranked by the answers that were citing the page.
+    lost = plays["refresh:https://northpeak.example/blog/website-cost-guide"]
+    assert lost.impact["basis"].startswith("28 answers in the last 28 days cited this page")
+    # Every ranked play says where it sits, who acts, and what it counted.
+    assert all(p.category and p.control and p.impact.get("basis") for p in ranked)
 
 
 def test_no_play_gives_advice_the_data_does_not_support(demo):

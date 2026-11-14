@@ -13,6 +13,7 @@ from typing import Any
 
 from sqlmodel import Session, col, select
 
+from api.impact import category_label
 from api.models import Recommendation, RecommendationStatus
 
 
@@ -106,6 +107,8 @@ def briefing(session: Session, tenant_id: int) -> dict[str, Any]:
                     "change": o.get("change"), "top_rival": top_rival},
         "why": reasons[:4],
         "this_week": [{"id": p.id, "title": p.title or p.action_text[:80], "kind": p.branch,
+                       "category": p.category, "area": category_label(p.category),
+                       "impact": (p.impact or {}).get("band", ""),
                        "evidence": p.evidence, "why": p.why, "link": p.link,
                         "status": str(p.status)}
                       for p in plays],
